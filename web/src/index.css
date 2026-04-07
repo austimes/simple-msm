@@ -204,6 +204,105 @@ body {
   gap: 8px;
 }
 
+.results-raw-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.results-card {
+  background: #f8fafc;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.results-card-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  margin-bottom: 8px;
+}
+
+.results-card strong {
+  display: block;
+  font-size: 22px;
+  margin-bottom: 8px;
+}
+
+.results-card p {
+  font-size: 13px;
+}
+
+.results-code-block {
+  margin-top: 16px;
+  padding: 16px;
+  border-radius: 16px;
+  background: #0f172a;
+  color: #e2e8f0;
+  border: 1px solid #1e293b;
+  overflow-x: auto;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.results-diagnostic-list {
+  list-style: none;
+  display: grid;
+  gap: 12px;
+}
+
+.results-diagnostic-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: #f8fafc;
+}
+
+.results-diagnostic-item strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.results-diagnostic-item p {
+  font-size: 13px;
+}
+
+.results-severity-pill {
+  min-width: 72px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-align: center;
+}
+
+.results-severity-pill--info {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.results-severity-pill--warning {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.results-severity-pill--error {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.results-error-text {
+  color: #b91c1c;
+}
+
 @media (max-width: 720px) {
   .app-header {
     height: auto;
