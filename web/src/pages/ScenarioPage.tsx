@@ -9,7 +9,11 @@ function formatModeLabel(mode: string): string {
 }
 
 export default function ScenarioPage() {
+  const appConfig = usePackageStore((state) => state.appConfig);
   const defaultScenario = usePackageStore((state) => state.defaultScenario);
+  const demandPreset = defaultScenario.demand_generation.preset_id
+    ? appConfig.demand_growth_presets[defaultScenario.demand_generation.preset_id]
+    : null;
 
   const serviceDemandEntries = Object.entries(defaultScenario.service_demands);
   const externalCommodityEntries = Object.entries(
@@ -48,13 +52,17 @@ export default function ScenarioPage() {
             </div>
             <div>
               <dt>Demand preset</dt>
-              <dd>{defaultScenario.demand_generation.preset_id ?? 'Manual table'}</dd>
+              <dd>{demandPreset?.label ?? defaultScenario.demand_generation.preset_id ?? 'Manual table'}</dd>
             </div>
             <div>
               <dt>Commodity pricing preset</dt>
               <dd>{defaultScenario.commodity_pricing.preset_id}</dd>
             </div>
           </dl>
+
+          {demandPreset ? (
+            <p className="scenario-provenance-note">{demandPreset.provenance_note}</p>
+          ) : null}
         </article>
 
         <article className="scenario-panel">

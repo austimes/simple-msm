@@ -5,6 +5,7 @@ import type {
   ScenarioDocument,
   ScenarioServiceControl,
 } from '../data/types';
+import { resolveScenarioDocument } from '../data/demandResolution.ts';
 import {
   SOLVER_CONTRACT_VERSION,
   type NormalizedSolverRow,
@@ -126,13 +127,14 @@ export function resolveScenarioForSolve(
   scenario: ScenarioDocument,
   appConfig: AppConfigRegistry,
 ): ResolvedScenarioForSolve {
-  const years = [...scenario.years];
+  const resolvedScenario = resolveScenarioDocument(scenario, appConfig);
+  const years = [...resolvedScenario.years];
   const controlsByOutput = Object.entries(appConfig.output_roles).reduce<
     Record<string, Record<string, ResolvedSolveControl>>
   >((resolved, [outputId, metadata]) => {
     resolved[outputId] = years.reduce<Record<string, ResolvedSolveControl>>((controlsByYear, year) => {
       controlsByYear[yearKey(year)] = resolveControlForYear(
-        scenario.service_controls[outputId],
+        resolvedScenario.service_controls[outputId],
         metadata.default_control_mode,
         year,
       );
@@ -149,14 +151,14 @@ export function resolveScenarioForSolve(
     }
 
     resolved[outputId] = years.reduce<Record<string, number>>((valuesByYear, year) => {
-      valuesByYear[yearKey(year)] = resolveYearValue(scenario.service_demands[outputId], year);
+      valuesByYear[yearKey(year)] = resolveYearValue(resolvedScenario.service_demands[outputId], year);
       return valuesByYear;
     }, {});
     return resolved;
   }, {});
 
   const externalCommodityDemandByCommodity = Object.entries(
-    scenario.external_commodity_demands ?? {},
+    resolvedScenario.external_commodity_demands ?? {},
   ).reduce<Record<string, Record<string, number>>>((resolved, [commodityId, table]) => {
     resolved[commodityId] = years.reduce<Record<string, number>>((valuesByYear, year) => {
       valuesByYear[yearKey(year)] = resolveYearValue(table, year);
@@ -165,17 +167,17 @@ export function resolveScenarioForSolve(
     return resolved;
   }, {});
 
-  const pricePreset = appConfig.commodity_price_presets[scenario.commodity_pricing.preset_id];
+  const pricePreset = appConfig.commodity_price_presets[resolvedScenario.commodity_pricing.preset_id];
 
   if (!pricePreset) {
     throw new Error(
-      `Unknown commodity price preset ${JSON.stringify(scenario.commodity_pricing.preset_id)}`,
+      `Unknown commodity price preset ${JSON.stringify(resolvedScenario.commodity_pricing.preset_id)}`,
     );
   }
 
   const commodityIds = new Set([
     ...Object.keys(pricePreset.prices_by_commodity),
-    ...Object.keys(scenario.commodity_pricing.overrides),
+    ...Object.keys(resolvedScenario.commodity_pricing.overrides),
   ]);
 
   const commodityPriceByCommodity = Array.from(commodityIds).reduce<
@@ -183,20 +185,20 @@ export function resolveScenarioForSolve(
   >((resolved, commodityId) => {
     resolved[commodityId] = resolveCommodityPriceSeries(
       pricePreset.prices_by_commodity[commodityId],
-      scenario.commodity_pricing.overrides[commodityId],
+      resolvedScenario.commodity_pricing.overrides[commodityId],
       years,
     );
     return resolved;
   }, {});
 
   const carbonPriceByYear = years.reduce<Record<string, number>>((resolved, year) => {
-    resolved[yearKey(year)] = resolveYearValue(scenario.carbon_price, year);
+    resolved[yearKey(year)] = resolveYearValue(resolvedScenario.carbon_price, year);
     return resolved;
   }, {});
 
   return {
-    name: scenario.name,
-    description: scenario.description ?? null,
+    name: resolvedScenario.name,
+    description: resolvedScenario.description ?? null,
     years,
     controlsByOutput,
     serviceDemandByOutput,
@@ -204,13 +206,13 @@ export function resolveScenarioForSolve(
     commodityPriceByCommodity,
     carbonPriceByYear,
     options: {
-      respectMaxShare: scenario.solver_options?.respect_max_share ?? true,
-      respectMaxActivity: scenario.solver_options?.respect_max_activity ?? true,
-      softConstraints: scenario.solver_options?.soft_constraints ?? false,
-      allowRemovalsCredit: scenario.solver_options?.allow_removals_credit ?? false,
+      respectMaxShare: resolvedScenario.solver_options?.respect_max_share ?? true,
+      respectMaxActivity: resolvedScenario.solver_options?.respect_max_activity ?? true,
+      softConstraints: resolvedScenario.solver_options?.soft_constraints ?? false,
+      allowRemovalsCredit: resolvedScenario.solver_options?.allow_removals_credit ?? false,
       shareSmoothing: {
-        enabled: scenario.solver_options?.share_smoothing?.enabled ?? false,
-        maxDeltaPp: scenario.solver_options?.share_smoothing?.max_delta_pp ?? null,
+        enabled: resolvedScenario.solver_options?.share_smoothing?.enabled ?? false,
+        maxDeltaPp: resolvedScenario.solver_options?.share_smoothing?.max_delta_pp ?? null,
       },
     },
   };
