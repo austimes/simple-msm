@@ -145,6 +145,15 @@ body {
   margin-top: 16px;
 }
 
+.scenario-provenance-note {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(43, 108, 176, 0.08);
+  border: 1px solid rgba(43, 108, 176, 0.14);
+  color: #234e7d;
+}
+
 .scenario-key-value-list div,
 .scenario-demand-card dl div {
   display: flex;

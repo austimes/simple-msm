@@ -69,11 +69,13 @@ function toSectorState(row: Record<string, string>): SectorState {
 
 export function loadPackage(): PackageData {
   const rows = parseCsv(csvText);
+  const appConfig = loadAppConfig();
+
   return {
     sectorStates: rows.map(toSectorState),
     readme: readmeText,
     phase2Memo: phase2Text,
-    appConfig: loadAppConfig(),
-    defaultScenario: loadDefaultScenario(),
+    appConfig,
+    defaultScenario: loadDefaultScenario(appConfig),
   };
 }

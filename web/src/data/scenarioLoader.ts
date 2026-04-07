@@ -2,7 +2,8 @@ import Ajv2020 from 'ajv/dist/2020';
 import type { ErrorObject } from 'ajv';
 import referenceScenarioText from '@root/web/public/app_config/reference_scenario.json?raw';
 import scenarioSchemaText from '@root/web/public/app_config/scenario_schema.json?raw';
-import type { ScenarioDocument } from './types';
+import { resolveScenarioDocument } from './demandResolution.ts';
+import type { AppConfigRegistry, ScenarioDocument } from './types';
 
 type JsonObject = Record<string, unknown>;
 
@@ -107,11 +108,13 @@ export function validateScenarioDocument(
 
 export function parseScenarioDocument(
   raw: string,
+  appConfig?: AppConfigRegistry,
   label = 'scenario document',
 ): ScenarioDocument {
-  return validateScenarioDocument(parseJsonObject<unknown>(raw, label), label);
+  const scenario = validateScenarioDocument(parseJsonObject<unknown>(raw, label), label);
+  return appConfig ? resolveScenarioDocument(scenario, appConfig, label) : scenario;
 }
 
-export function loadDefaultScenario(): ScenarioDocument {
-  return parseScenarioDocument(referenceScenarioText, 'reference_scenario.json');
+export function loadDefaultScenario(appConfig: AppConfigRegistry): ScenarioDocument {
+  return parseScenarioDocument(referenceScenarioText, appConfig, 'reference_scenario.json');
 }
