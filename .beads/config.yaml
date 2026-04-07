@@ -53,4 +53,8 @@
 # - github.org
 # - github.repo
 
+# Use the workspace-level shared Dolt server instead of a per-repo .beads/dolt directory.
 dolt.shared-server: true
+
+# Pin the shared-server database name so fresh clones bind to the same project database.
+dolt.database: "simple_msm"
