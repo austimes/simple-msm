@@ -1,0 +1,192 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Phase 1 Sector State Explorer Scenario Schema",
+  "type": "object",
+  "required": [
+    "name",
+    "years",
+    "service_controls",
+    "service_demands",
+    "commodity_pricing",
+    "carbon_price"
+  ],
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "years": {
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "enum": [
+          2025,
+          2030,
+          2035,
+          2040,
+          2045,
+          2050
+        ]
+      },
+      "minItems": 1
+    },
+    "service_controls": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "mode"
+        ],
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "pinned_single",
+              "fixed_shares",
+              "optimize",
+              "externalized",
+              "off",
+              "target"
+            ]
+          },
+          "state_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "fixed_shares": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          },
+          "disabled_state_ids": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "year_overrides": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "mode": {
+                  "type": "string"
+                },
+                "state_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "fixed_shares": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "additionalProperties": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "service_demands": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "external_commodity_demands": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "commodity_pricing": {
+      "type": "object",
+      "required": [
+        "preset_id",
+        "overrides"
+      ],
+      "properties": {
+        "preset_id": {
+          "type": "string"
+        },
+        "overrides": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number"
+            }
+          }
+        }
+      }
+    },
+    "carbon_price": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "number"
+      }
+    },
+    "solver_options": {
+      "type": "object",
+      "properties": {
+        "respect_max_share": {
+          "type": "boolean"
+        },
+        "respect_max_activity": {
+          "type": "boolean"
+        },
+        "soft_constraints": {
+          "type": "boolean"
+        },
+        "allow_removals_credit": {
+          "type": "boolean"
+        },
+        "share_smoothing": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "max_delta_pp": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            }
+          }
+        }
+      }
+    }
+  }
+}

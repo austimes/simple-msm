@@ -1,0 +1,193 @@
+{
+  "name": "Reference calibration 2025",
+  "description": "Library-aligned baseline scenario using 2025 activity anchors and conservative state controls.",
+  "years": [
+    2025,
+    2030,
+    2035,
+    2040,
+    2045,
+    2050
+  ],
+  "service_controls": {
+    "electricity": {
+      "mode": "fixed_shares",
+      "fixed_shares": {
+        "electricity__grid_supply__incumbent_thermal_mix": 0.64,
+        "electricity__grid_supply__policy_frontier": 0.36
+      }
+    },
+    "residential_building_services": {
+      "mode": "pinned_single",
+      "state_id": "buildings__residential__incumbent_mixed_fuels"
+    },
+    "commercial_building_services": {
+      "mode": "pinned_single",
+      "state_id": "buildings__commercial__incumbent_mixed_fuels"
+    },
+    "passenger_road_transport": {
+      "mode": "pinned_single",
+      "state_id": "road_transport__passenger_road__ice_fleet"
+    },
+    "freight_road_transport": {
+      "mode": "pinned_single",
+      "state_id": "road_transport__freight_road__diesel"
+    },
+    "low_temperature_heat": {
+      "mode": "pinned_single",
+      "state_id": "generic_industrial_heat__low_temperature_heat__fossil"
+    },
+    "medium_temperature_heat": {
+      "mode": "pinned_single",
+      "state_id": "generic_industrial_heat__medium_temperature_heat__fossil"
+    },
+    "high_temperature_heat": {
+      "mode": "pinned_single",
+      "state_id": "generic_industrial_heat__high_temperature_heat__fossil"
+    },
+    "crude_steel": {
+      "mode": "pinned_single",
+      "state_id": "steel__crude_steel__bf_bof_conventional"
+    },
+    "cement_equivalent": {
+      "mode": "pinned_single",
+      "state_id": "cement_clinker__cement_equivalent__conventional"
+    },
+    "livestock_output_bundle": {
+      "mode": "pinned_single",
+      "state_id": "agriculture__livestock__conventional"
+    },
+    "cropping_horticulture_output_bundle": {
+      "mode": "pinned_single",
+      "state_id": "agriculture__cropping_horticulture__conventional"
+    },
+    "land_sequestration": {
+      "mode": "off"
+    },
+    "engineered_removals": {
+      "mode": "off"
+    }
+  },
+  "service_demands": {
+    "residential_building_services": {
+      "2025": 477000000,
+      "2030": 477000000,
+      "2035": 477000000,
+      "2040": 477000000,
+      "2045": 477000000,
+      "2050": 477000000
+    },
+    "commercial_building_services": {
+      "2025": 314000000,
+      "2030": 314000000,
+      "2035": 314000000,
+      "2040": 314000000,
+      "2045": 314000000,
+      "2050": 314000000
+    },
+    "passenger_road_transport": {
+      "2025": 293414730000,
+      "2030": 293414730000,
+      "2035": 293414730000,
+      "2040": 293414730000,
+      "2045": 293414730000,
+      "2050": 293414730000
+    },
+    "freight_road_transport": {
+      "2025": 249000000000,
+      "2030": 249000000000,
+      "2035": 249000000000,
+      "2040": 249000000000,
+      "2045": 249000000000,
+      "2050": 249000000000
+    },
+    "low_temperature_heat": {
+      "2025": 120000000,
+      "2030": 120000000,
+      "2035": 120000000,
+      "2040": 120000000,
+      "2045": 120000000,
+      "2050": 120000000
+    },
+    "medium_temperature_heat": {
+      "2025": 140000000,
+      "2030": 140000000,
+      "2035": 140000000,
+      "2040": 140000000,
+      "2045": 140000000,
+      "2050": 140000000
+    },
+    "high_temperature_heat": {
+      "2025": 170000000,
+      "2030": 170000000,
+      "2035": 170000000,
+      "2040": 170000000,
+      "2045": 170000000,
+      "2050": 170000000
+    },
+    "crude_steel": {
+      "2025": 5700000,
+      "2030": 5700000,
+      "2035": 5700000,
+      "2040": 5700000,
+      "2045": 5700000,
+      "2050": 5700000
+    },
+    "cement_equivalent": {
+      "2025": 9600000,
+      "2030": 9600000,
+      "2035": 9600000,
+      "2040": 9600000,
+      "2045": 9600000,
+      "2050": 9600000
+    },
+    "livestock_output_bundle": {
+      "2025": 31134.94,
+      "2030": 31134.94,
+      "2035": 31134.94,
+      "2040": 31134.94,
+      "2045": 31134.94,
+      "2050": 31134.94
+    },
+    "cropping_horticulture_output_bundle": {
+      "2025": 36576.29,
+      "2030": 36576.29,
+      "2035": 36576.29,
+      "2040": 36576.29,
+      "2045": 36576.29,
+      "2050": 36576.29
+    }
+  },
+  "external_commodity_demands": {
+    "electricity": {
+      "2025": 144018720,
+      "2030": 144018720,
+      "2035": 144018720,
+      "2040": 144018720,
+      "2045": 144018720,
+      "2050": 144018720
+    }
+  },
+  "commodity_pricing": {
+    "preset_id": "central_placeholder_2024aud",
+    "overrides": {}
+  },
+  "carbon_price": {
+    "2025": 0,
+    "2030": 0,
+    "2035": 0,
+    "2040": 0,
+    "2045": 0,
+    "2050": 0
+  },
+  "solver_options": {
+    "respect_max_share": true,
+    "respect_max_activity": true,
+    "soft_constraints": false,
+    "allow_removals_credit": true,
+    "share_smoothing": {
+      "enabled": false,
+      "max_delta_pp": 20
+    }
+  }
+}

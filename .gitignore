@@ -1,3 +1,5 @@
+.DS_Store
+.orc/
 
 # Beads / Dolt files (added by bd init)
 .dolt/

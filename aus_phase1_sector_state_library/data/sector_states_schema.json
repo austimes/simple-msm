@@ -1,0 +1,174 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Australia Phase 1 sector state library row schema",
+  "type": "object",
+  "description": "Schema for rows in data/sector_states.csv. Array-like fields are stored as JSON-encoded strings in the CSV export.",
+  "required": [
+    "sector",
+    "service_or_output_name",
+    "region",
+    "year",
+    "state_id",
+    "state_label",
+    "state_description",
+    "output_unit",
+    "output_quantity_basis",
+    "output_cost_per_unit",
+    "cost_basis_year",
+    "currency",
+    "input_commodities",
+    "input_coefficients",
+    "input_units",
+    "energy_emissions_by_pollutant",
+    "process_emissions_by_pollutant",
+    "emissions_units",
+    "source_ids",
+    "assumption_ids",
+    "confidence_rating"
+  ],
+  "properties": {
+    "sector": {
+      "type": "string"
+    },
+    "subsector": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "service_or_output_name": {
+      "type": "string"
+    },
+    "region": {
+      "type": "string"
+    },
+    "year": {
+      "type": "integer",
+      "minimum": 2025,
+      "maximum": 2050
+    },
+    "state_id": {
+      "type": "string",
+      "description": "State-family identifier; unique with (year, region) in this Phase 1 export."
+    },
+    "state_label": {
+      "type": "string"
+    },
+    "state_description": {
+      "type": "string"
+    },
+    "output_unit": {
+      "type": "string"
+    },
+    "output_quantity_basis": {
+      "type": "string"
+    },
+    "output_cost_per_unit": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Real 2024 AUD cost per output unit following the package's non-commodity conversion-cost convention unless otherwise noted."
+    },
+    "cost_basis_year": {
+      "type": "integer"
+    },
+    "currency": {
+      "type": "string"
+    },
+    "cost_components_summary": {
+      "type": "string"
+    },
+    "input_commodities": {
+      "type": "string",
+      "description": "JSON-encoded array of commodity names in the same order as input_coefficients and input_units."
+    },
+    "input_coefficients": {
+      "type": "string",
+      "description": "JSON-encoded array of per-unit coefficients."
+    },
+    "input_units": {
+      "type": "string",
+      "description": "JSON-encoded array of coefficient units."
+    },
+    "input_basis_notes": {
+      "type": "string"
+    },
+    "energy_emissions_by_pollutant": {
+      "type": "string",
+      "description": "JSON-encoded array of objects, e.g. [{\"pollutant\":\"CO2e\",\"value\":0.1}]."
+    },
+    "process_emissions_by_pollutant": {
+      "type": "string",
+      "description": "JSON-encoded array of objects, e.g. [{\"pollutant\":\"CO2e\",\"value\":0.1}]. Negative values denote removals."
+    },
+    "emissions_units": {
+      "type": "string"
+    },
+    "emissions_boundary_notes": {
+      "type": "string"
+    },
+    "max_share": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "max_activity": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "min_share": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "rollout_limit_notes": {
+      "type": "string"
+    },
+    "availability_conditions": {
+      "type": "string"
+    },
+    "source_ids": {
+      "type": "string",
+      "description": "JSON-encoded array of source IDs from source_ledger.csv."
+    },
+    "evidence_summary": {
+      "type": "string"
+    },
+    "derivation_method": {
+      "type": "string"
+    },
+    "assumption_ids": {
+      "type": "string",
+      "description": "JSON-encoded array of assumption IDs from assumptions_ledger.csv."
+    },
+    "confidence_rating": {
+      "type": "string",
+      "enum": [
+        "High",
+        "Medium",
+        "Low",
+        "Exploratory"
+      ]
+    },
+    "review_notes": {
+      "type": "string"
+    },
+    "candidate_expansion_pathway": {
+      "type": "string"
+    },
+    "times_or_vedalang_mapping_notes": {
+      "type": "string"
+    },
+    "would_expand_to_explicit_capacity?": {
+      "type": "boolean"
+    },
+    "would_expand_to_process_chain?": {
+      "type": "boolean"
+    }
+  }
+}

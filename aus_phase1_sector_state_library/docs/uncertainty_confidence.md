@@ -1,0 +1,74 @@
+# Uncertainty and confidence pack
+
+## Confidence classes used
+
+Each state row carries one of four confidence ratings:
+
+- **High** — strong direct support from Australian official or primary planning evidence with limited transformation.
+- **Medium** — decent Australian support, but with visible synthesis or normalisation choices.
+- **Low** — materially assumption-heavy or based on partial evidence.
+- **Exploratory** — useful to keep as an explicit option, but too weak to treat as a core base-case state.
+
+## Summary by parameter family
+
+| parameter_family                                               | covered_sectors               | uncertainty_class        | likely_range_or_issue                                                                                                                   | uncertainty_type            | priority_sensitivity_test                                                                                   | source_ids                               |
+|:---------------------------------------------------------------|:------------------------------|:-------------------------|:----------------------------------------------------------------------------------------------------------------------------------------|:----------------------------|:------------------------------------------------------------------------------------------------------------|:-----------------------------------------|
+| Electricity output cost trajectories                           | electricity_supply            | Medium                   | Around ±15–25% around central reduced-form cost points, especially after 2035 where system integration choices matter.                  | Scenario-driven             | Compare policy_frontier vs deep_clean_firmed costs and test higher/lower firming cost.                      | ["S008", "S009", "S010"]                 |
+| Electricity direct emissions intensity                         | electricity_supply            | Medium                   | Near-term benchmark relatively strong; long-run intensity depends on residual gas, storage and curtailment assumptions.                 | Scenario-driven             | Use 2050 grid intensity of 0.02 versus 0.05 tCO2e/MWh and compare model behavior.                           | ["S006", "S007", "S008", "S010"]         |
+| Building service efficiency and electrification coefficients   | buildings                     | Medium                   | Broad direction is robust, but service-bundle coefficients hide end-use heterogeneity and climate-zone effects.                         | Epistemic + scenario-driven | Vary final-energy intensity of electrified and deep-electric states by ±15%.                                | ["S001", "S002", "S018", "S019", "S020"] |
+| Passenger road service cost and stock-average energy intensity | road_transport passenger_road | Medium                   | Aggregate incumbent calibration is strong; future cost and drivetrain mix remain sensitive to vehicle price decline and stock turnover. | Scenario-driven             | Vary BEV cost decline and BEV max-share bounds.                                                             | ["S012", "S014", "S015"]                 |
+| Road freight electrification and hydrogen coefficients         | road_transport freight_road   | Low-to-Medium confidence | Australia-wide freight-task heterogeneity is large; BEV and H2 coefficients are approximate national averages.                          | Epistemic + scenario-driven | Test BEV energy coefficient ±25% and H2 availability/cost bounds.                                           | ["S013", "S016", "S017", "S020"]         |
+| Generic industrial heat technology coefficients                | generic_industrial_heat       | Low                      | Temperature-band abstraction loses substantial subsector specificity.                                                                   | Epistemic                   | Stress-test electrified and low-carbon-fuel shares; compare against leaving only fossil + one clean option. | ["S021", "S030"]                         |
+| Steel route costs and feasible shares                          | steel                         | Low                      | Hydrogen, CCS and scrap-supply assumptions dominate. Australian route-specific evidence remains sparse.                                 | Epistemic + scenario-driven | Vary H2 route non-commodity cost by ±20%, H2 input coefficient ±15%, and scrap-EAF max-share.               | ["S022", "S023", "S024", "S033"]         |
+| Cement CCS rollout and low-clinker pathway depth               | cement_clinker                | Medium                   | Low-clinker and alternative-fuel pathway is relatively well supported; CCS timing and cost less so.                                     | Scenario-driven             | Run with and without CCS_deep state; vary clinker factor floor and sequestration service cost.              | ["S025", "S026", "S030"]                 |
+| Agriculture bundle coefficients                                | agriculture                   | Low                      | Energy and emissions totals are anchored, but bundle allocation and mitigation costs are highly aggregated.                             | Epistemic                   | Treat agriculture mitigation states as optional and vary process-emission reductions by ±20%.               | ["S001", "S006", "S027", "S028", "S029"] |
+| Land sequestration and DACCS                                   | removals_negative_emissions   | Exploratory              | Both cost and feasible activity are highly uncertain, especially for DACCS and durable storage infrastructure.                          | Scenario-driven             | Disable DACCS in core runs; vary land-sequestration max_activity and cost separately.                       | ["S007", "S030", "S031"]                 |
+
+## What to sensitivity-test first
+
+The first sensitivity tests should be:
+
+1. **Electricity frontier cost and emissions intensity**  
+   This is the highest-leverage sector for the MVP.
+
+2. **Passenger-road BEV uptake and road-freight clean-route coefficients**  
+   Transport is likely to be one of the main electricity-demand drivers under carbon pressure.
+
+3. **Generic industrial heat clean-route feasibility**  
+   This strongly affects gas, electricity and hydrogen demand in industry.
+
+4. **Steel H2 route cost and share ceiling**  
+   Steel is intentionally included as a representative hard-to-abate process chain, but results will be sensitive to H2 assumptions.
+
+5. **Cement CCS enable/disable**  
+   Cement has a credible low-clinker pathway; the main uncertainty is how much residual abatement should be assigned to CCS.
+
+6. **Agriculture mitigation and removals**  
+   These should be switched on only as explicit sensitivities, not silently embedded as hard base-case assumptions.
+
+## Practical interpretation for model users
+
+### Safe to use centrally
+
+- electricity policy frontier
+- residential and commercial incumbent/electrified states
+- passenger-road incumbent / hybrid / BEV
+- freight diesel incumbent
+- conventional and low-clinker cement
+
+### Use with active sensitivity checks
+
+- freight BEV and H2
+- generic industrial heat clean states
+- steel route competition
+- cement CCS
+
+### Keep off by default unless the scenario asks for them
+
+- agriculture mitigation states
+- DACCS
+- very ambitious high-temperature electrification interpretations
+
+## Bottom line
+
+Uncertainty in Phase 1 is not a reason to omit weak sectors entirely. It is a reason to keep them **visible, labelled and optional**. That is what this package does.
