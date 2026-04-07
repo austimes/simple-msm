@@ -41,7 +41,7 @@ const EMPTY_FILTERS: LibraryFilters = {
 };
 
 const TRAJECTORY_COLORS = ['#0f766e', '#b45309', '#1d4ed8', '#be123c', '#7c3aed', '#0f766e'];
-const COEFFICIENT_COLORS = ['#0f766e', '#b45309', '#1d4ed8', '#be123c', '#7c3aed', '#059669'];
+const COEFFICIENT_DASH_PATTERNS = [undefined, '7 5', '3 4', '10 4 2 4', '2 3'];
 
 const numberFormatter = new Intl.NumberFormat('en-AU', {
   maximumFractionDigits: 2,
@@ -367,36 +367,46 @@ export default function LibraryPage() {
       }, [])
     : [];
 
-  const coefficientCards = useMemo(() => {
-    return [...filteredFamilies]
-      .sort((left, right) => {
-        if (left.stateId === resolvedSelectedTrajectoryId) {
-          return -1;
-        }
+  const coefficientChart = useMemo(() => {
+    const commodityStyles = Array.from(
+      filteredFamilies.reduce<Map<string, string>>((entries, family) => {
+        buildInputCommoditySeries(family).forEach((entry) => {
+          if (!entries.has(entry.commodity)) {
+            entries.set(entry.commodity, entry.unit);
+          }
+        });
 
-        if (right.stateId === resolvedSelectedTrajectoryId) {
-          return 1;
-        }
+        return entries;
+      }, new Map()),
+    )
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([commodity, unit], index) => ({
+        commodity,
+        unit,
+        dashArray: COEFFICIENT_DASH_PATTERNS[index % COEFFICIENT_DASH_PATTERNS.length],
+      }));
 
-        return left.label.localeCompare(right.label);
-      })
-      .map((family) => {
-        const units = Array.from(new Set(buildInputCommoditySeries(family).map((entry) => entry.unit)));
-        const series = buildInputCommoditySeries(family).map<LineChartSeries>((entry, index) => ({
+    const dashByCommodity = new Map(commodityStyles.map((style) => [style.commodity, style.dashArray]));
+    const units = Array.from(new Set(commodityStyles.map((style) => style.unit)));
+    const series = filteredFamilies
+      .flatMap((family) => {
+        return buildInputCommoditySeries(family).map<LineChartSeries>((entry) => ({
           key: `${family.stateId}::${entry.commodity}`,
-          label: `${entry.commodity} (${entry.unit})`,
-          color: COEFFICIENT_COLORS[index % COEFFICIENT_COLORS.length],
+          label: `${family.label} · ${entry.commodity}`,
+          color: colorByTrajectoryId.get(family.stateId) ?? TRAJECTORY_COLORS[0],
+          dashArray: dashByCommodity.get(entry.commodity),
           active: family.stateId === resolvedSelectedTrajectoryId,
           values: entry.values,
         }));
+      })
+      .sort((left, right) => Number(Boolean(left.active)) - Number(Boolean(right.active)));
 
-        return {
-          family,
-          units,
-          series,
-        };
-      });
-  }, [filteredFamilies, resolvedSelectedTrajectoryId]);
+    return {
+      commodityStyles,
+      series,
+      units,
+    };
+  }, [colorByTrajectoryId, filteredFamilies, resolvedSelectedTrajectoryId]);
 
   const resetFilters = () => {
     const firstSector = sectorIndex.sectors[0] ?? '';
@@ -681,51 +691,61 @@ export default function LibraryPage() {
             </article>
           </section>
 
-          <article className="scenario-panel library-coefficient-panel">
+          <article className="scenario-panel library-chart-card library-coefficient-panel">
             <div className="library-panel-heading">
               <div>
                 <h2>Input coefficient trajectories</h2>
-                <p>Each facet is a state trajectory. Use the shared state list above to keep one trajectory highlighted across these coefficient cards.</p>
+                <p>Shared plot of input coefficients across the visible states, using the same highlight treatment as the charts above.</p>
               </div>
             </div>
 
-            <div className="library-coefficient-grid">
-              {coefficientCards.map(({ family, units, series }) => (
-                <section
-                  key={family.stateId}
-                  className={`library-detail-section${family.stateId === resolvedSelectedTrajectoryId ? ' library-detail-section--selected' : ''}`}
-                >
-                  <div className="library-section-header">
-                    <div>
-                      <h3>{family.label}</h3>
-                      <p>{family.serviceOrOutputName}</p>
-                    </div>
-                    <span className="library-count-pill">{family.stateId}</span>
-                  </div>
+            {coefficientChart.series.length > 0 ? (
+              <>
+                <LineChart
+                  ariaLabel="Input coefficient trajectories"
+                  years={visibleYears}
+                  series={coefficientChart.series}
+                  valueFormatter={(value) => numberFormatter.format(value)}
+                  axisFormatter={formatAxisNumber}
+                  legendMode="hidden"
+                  minDomain={0}
+                />
 
-                  {series.length > 0 ? (
-                    <>
-                      <LineChart
-                        ariaLabel={`${family.label} input coefficient trajectories`}
-                        years={visibleYears}
-                        series={series}
-                        valueFormatter={(value) => numberFormatter.format(value)}
-                        axisFormatter={formatAxisNumber}
-                        legendMode="compact"
-                        minDomain={0}
-                      />
-                      {units.length > 1 ? (
-                        <p className="library-inline-note">Multiple coefficient units are overlaid here; read the legend carefully.</p>
-                      ) : (
-                        <p className="library-inline-note">Coefficient unit: {units[0] ?? '—'}.</p>
-                      )}
-                    </>
-                  ) : (
-                    <p className="library-inline-note">No explicit input coefficient trajectories are packaged for this state.</p>
-                  )}
-                </section>
-              ))}
-            </div>
+                {coefficientChart.commodityStyles.length > 1 ? (
+                  <div className="library-coefficient-style-guide" aria-label="Input coefficient commodity line styles">
+                    {coefficientChart.commodityStyles.map((style) => (
+                      <span key={style.commodity} className="library-coefficient-style-chip">
+                        <svg viewBox="0 0 24 8" aria-hidden="true" className="library-coefficient-style-swatch">
+                          <line
+                            x1="1"
+                            x2="23"
+                            y1="4"
+                            y2="4"
+                            stroke="currentColor"
+                            strokeWidth="2.5"
+                            strokeLinecap="round"
+                            strokeDasharray={style.dashArray}
+                          />
+                        </svg>
+                        <span>
+                          {style.commodity} ({style.unit})
+                        </span>
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+
+                <p className="library-inline-note">
+                  State colors match the shared highlight selector and the charts above.
+                  {coefficientChart.commodityStyles.length > 1 ? ' Line styles distinguish input commodities.' : ''}{' '}
+                  {coefficientChart.units.length > 1
+                    ? `Coefficient units overlaid here: ${coefficientChart.units.join(', ')}.`
+                    : `Coefficient unit: ${coefficientChart.units[0] ?? '—'}.`}
+                </p>
+              </>
+            ) : (
+              <p className="library-inline-note">No explicit input coefficient trajectories are packaged for the visible states.</p>
+            )}
           </article>
 
           <article className="scenario-panel library-list-panel">

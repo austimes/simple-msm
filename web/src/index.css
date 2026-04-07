@@ -524,8 +524,7 @@ body {
   margin-top: 16px;
 }
 
-.library-trajectory-grid,
-.library-coefficient-grid {
+.library-trajectory-grid {
   display: grid;
   gap: 16px;
   margin-top: 16px;
@@ -533,10 +532,6 @@ body {
 
 .library-trajectory-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.library-coefficient-grid {
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
 }
 
 .library-filter-strip {
@@ -766,6 +761,27 @@ body {
   position: absolute;
   inset: 3px 1px;
   border-top: 2px dashed #ffffff;
+}
+
+.library-coefficient-style-guide {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
+.library-coefficient-style-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.library-coefficient-style-swatch {
+  width: 24px;
+  height: 8px;
+  flex: 0 0 auto;
 }
 
 .library-comparison-shell {
@@ -1311,8 +1327,7 @@ body {
     grid-column: auto;
   }
 
-  .library-trajectory-grid,
-  .library-coefficient-grid {
+  .library-trajectory-grid {
     grid-template-columns: 1fr;
   }
 
