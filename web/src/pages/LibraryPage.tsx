@@ -681,6 +681,53 @@ export default function LibraryPage() {
             </article>
           </section>
 
+          <article className="scenario-panel library-coefficient-panel">
+            <div className="library-panel-heading">
+              <div>
+                <h2>Input coefficient trajectories</h2>
+                <p>Each facet is a state trajectory. Use the shared state list above to keep one trajectory highlighted across these coefficient cards.</p>
+              </div>
+            </div>
+
+            <div className="library-coefficient-grid">
+              {coefficientCards.map(({ family, units, series }) => (
+                <section
+                  key={family.stateId}
+                  className={`library-detail-section${family.stateId === resolvedSelectedTrajectoryId ? ' library-detail-section--selected' : ''}`}
+                >
+                  <div className="library-section-header">
+                    <div>
+                      <h3>{family.label}</h3>
+                      <p>{family.serviceOrOutputName}</p>
+                    </div>
+                    <span className="library-count-pill">{family.stateId}</span>
+                  </div>
+
+                  {series.length > 0 ? (
+                    <>
+                      <LineChart
+                        ariaLabel={`${family.label} input coefficient trajectories`}
+                        years={visibleYears}
+                        series={series}
+                        valueFormatter={(value) => numberFormatter.format(value)}
+                        axisFormatter={formatAxisNumber}
+                        legendMode="compact"
+                        minDomain={0}
+                      />
+                      {units.length > 1 ? (
+                        <p className="library-inline-note">Multiple coefficient units are overlaid here; read the legend carefully.</p>
+                      ) : (
+                        <p className="library-inline-note">Coefficient unit: {units[0] ?? '—'}.</p>
+                      )}
+                    </>
+                  ) : (
+                    <p className="library-inline-note">No explicit input coefficient trajectories are packaged for this state.</p>
+                  )}
+                </section>
+              ))}
+            </div>
+          </article>
+
           <article className="scenario-panel library-list-panel">
             <div className="library-panel-heading">
               <div>
@@ -962,53 +1009,6 @@ export default function LibraryPage() {
                 <p>Choose a subsector with visible states to populate the detail view.</p>
               </div>
             )}
-          </article>
-
-          <article className="scenario-panel library-coefficient-panel">
-            <div className="library-panel-heading">
-              <div>
-                <h2>Input coefficient trajectories</h2>
-                <p>Each facet is a state trajectory. Use the shared state list above to keep one trajectory highlighted across these coefficient cards.</p>
-              </div>
-            </div>
-
-            <div className="library-coefficient-grid">
-              {coefficientCards.map(({ family, units, series }) => (
-                <section
-                  key={family.stateId}
-                  className={`library-detail-section${family.stateId === resolvedSelectedTrajectoryId ? ' library-detail-section--selected' : ''}`}
-                >
-                  <div className="library-section-header">
-                    <div>
-                      <h3>{family.label}</h3>
-                      <p>{family.serviceOrOutputName}</p>
-                    </div>
-                    <span className="library-count-pill">{family.stateId}</span>
-                  </div>
-
-                  {series.length > 0 ? (
-                    <>
-                      <LineChart
-                        ariaLabel={`${family.label} input coefficient trajectories`}
-                        years={visibleYears}
-                        series={series}
-                        valueFormatter={(value) => numberFormatter.format(value)}
-                        axisFormatter={formatAxisNumber}
-                        legendMode="compact"
-                        minDomain={0}
-                      />
-                      {units.length > 1 ? (
-                        <p className="library-inline-note">Multiple coefficient units are overlaid here; read the legend carefully.</p>
-                      ) : (
-                        <p className="library-inline-note">Coefficient unit: {units[0] ?? '—'}.</p>
-                      )}
-                    </>
-                  ) : (
-                    <p className="library-inline-note">No explicit input coefficient trajectories are packaged for this state.</p>
-                  )}
-                </section>
-              ))}
-            </div>
           </article>
         </>
       ) : (
