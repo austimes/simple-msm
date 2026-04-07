@@ -99,14 +99,14 @@ export default function ResultsPage() {
     <div className="page">
       <h1>Results</h1>
       <p>
-        The generic solver boundary now normalizes the library package, resolves the
-        reference scenario into a stable request contract, and runs the LP adapter in a
-        dedicated worker so the main UI thread stays free.
+        The solver now normalizes the library package, resolves the scenario into a stable
+        request contract, and runs the required-service LP core in a dedicated worker so
+        the main UI thread stays free.
       </p>
 
       <section className="scenario-overview-grid">
         <article className="scenario-panel scenario-panel--hero">
-          <span className="scenario-badge">Worker boundary</span>
+          <span className="scenario-badge">Scenario LP</span>
           <h2>
             {requestBuild.error
               ? 'error'
@@ -118,7 +118,7 @@ export default function ResultsPage() {
           </h2>
           <p>
             {result
-              ? 'The request crossed the worker boundary, executed through the LP adapter, and returned raw diagnostics.'
+              ? 'The request crossed the worker boundary, executed through the generic required-service LP core, and returned raw diagnostics.'
               : requestBuild.error
                 ? requestBuild.error
               : 'Preparing the normalized request and dispatching the solve worker.'}
@@ -194,7 +194,7 @@ export default function ResultsPage() {
               <strong>{result.raw?.kind ?? 'none'}</strong>
               <p>
                 {result.raw?.notes[0] ??
-                  'The worker will attach raw solver artifacts here once the adapter returns.'}
+                  'The worker will attach raw scenario-LP artifacts here once the adapter returns.'}
               </p>
             </article>
             <article className="results-card">
