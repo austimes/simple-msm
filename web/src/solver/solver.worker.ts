@@ -30,6 +30,7 @@ function buildErrorResult(request: SolveRequest, diagnostics: SolveDiagnostic[])
       commodityBalances: [],
       stateShares: [],
       bindingConstraints: [],
+      softConstraintViolations: [],
     },
     raw: null,
     diagnostics,

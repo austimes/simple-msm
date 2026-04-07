@@ -55,6 +55,10 @@ function findDiagnostic(result, code, outputId) {
   });
 }
 
+function findSoftConstraint(result, constraintId) {
+  return result.reporting.softConstraintViolations.find((constraint) => constraint.constraintId === constraintId);
+}
+
 test('required-service LP solves pinned, fixed-share, and optimize controls generically', () => {
   const request = {
     contractVersion: SOLVER_CONTRACT_VERSION,
@@ -691,6 +695,7 @@ test('infeasible runs report deterministic service-year and electricity diagnost
   assert.equal(result.status, 'error');
   assert.equal(result.raw?.solutionStatus, 'infeasible');
   assert.deepEqual(result.reporting.bindingConstraints, []);
+  assert.deepEqual(result.reporting.softConstraintViolations, []);
 
   assert.equal(
     findDiagnostic(result, 'exact_control_share_conflict', 'pin_service')?.reason,
@@ -717,4 +722,175 @@ test('infeasible runs report deterministic service-year and electricity diagnost
     findDiagnostic(result, 'electricity_balance_shortfall', 'electricity')?.relatedConstraintIds,
     ['commodity_balance:electricity:2030'],
   );
+});
+
+test('soft-constraint mode restores feasibility and reports slack penalties', () => {
+  const request = {
+    contractVersion: SOLVER_CONTRACT_VERSION,
+    requestId: 'lp-adapter-soft-constraints',
+    rows: [
+      createRow({
+        rowId: 'share_a::2030',
+        outputId: 'share_service',
+        year: 2030,
+        stateId: 'share_a',
+        cost: 1,
+        maxShare: 0.4,
+      }),
+      createRow({
+        rowId: 'share_b::2030',
+        outputId: 'share_service',
+        year: 2030,
+        stateId: 'share_b',
+        cost: 2,
+        maxShare: 0.4,
+      }),
+      createRow({
+        rowId: 'activity_a::2030',
+        outputId: 'activity_service',
+        year: 2030,
+        stateId: 'activity_a',
+        cost: 1,
+        maxActivity: 30,
+      }),
+      createRow({
+        rowId: 'activity_b::2030',
+        outputId: 'activity_service',
+        year: 2030,
+        stateId: 'activity_b',
+        cost: 2,
+        maxActivity: 20,
+      }),
+      createRow({
+        rowId: 'process_grid::2030',
+        outputId: 'process_service',
+        year: 2030,
+        stateId: 'process_grid',
+        cost: 1,
+        inputs: [
+          {
+            commodityId: 'electricity',
+            coefficient: 1,
+            unit: 'MWh/unit',
+          },
+        ],
+      }),
+      createRow({
+        rowId: 'grid_limited::2030',
+        outputId: 'electricity',
+        outputRole: 'endogenous_supply_commodity',
+        year: 2030,
+        stateId: 'grid_limited',
+        cost: 1,
+        maxActivity: 40,
+      }),
+    ],
+    scenario: {
+      name: 'Soft constraints regression',
+      description: null,
+      years: [2030],
+      controlsByOutput: {
+        share_service: {
+          2030: {
+            mode: 'optimize',
+            stateId: null,
+            fixedShares: null,
+            disabledStateIds: [],
+            targetValue: null,
+          },
+        },
+        activity_service: {
+          2030: {
+            mode: 'optimize',
+            stateId: null,
+            fixedShares: null,
+            disabledStateIds: [],
+            targetValue: null,
+          },
+        },
+        process_service: {
+          2030: {
+            mode: 'optimize',
+            stateId: null,
+            fixedShares: null,
+            disabledStateIds: [],
+            targetValue: null,
+          },
+        },
+        electricity: {
+          2030: {
+            mode: 'optimize',
+            stateId: null,
+            fixedShares: null,
+            disabledStateIds: [],
+            targetValue: null,
+          },
+        },
+      },
+      serviceDemandByOutput: {
+        share_service: { 2030: 100 },
+        activity_service: { 2030: 100 },
+        process_service: { 2030: 50 },
+      },
+      externalCommodityDemandByCommodity: {
+        electricity: { 2030: 10 },
+      },
+      commodityPriceByCommodity: {
+        electricity: {
+          unit: 'AUD/MWh',
+          valuesByYear: { 2030: 2 },
+        },
+      },
+      carbonPriceByYear: { 2030: 0 },
+      options: {
+        respectMaxShare: true,
+        respectMaxActivity: true,
+        softConstraints: true,
+        allowRemovalsCredit: false,
+        shareSmoothing: {
+          enabled: false,
+          maxDeltaPp: null,
+        },
+      },
+    },
+  };
+
+  const result = solveWithLpAdapter(request);
+  const variables = getVariableMap(result);
+  const shareSlack = findSoftConstraint(result, 'max_share:share_a::2030');
+  const activitySlack = findSoftConstraint(result, 'max_activity:activity_a::2030');
+  const electricitySlack = findSoftConstraint(result, 'max_activity:grid_limited::2030');
+  const electricitySummary = result.reporting.commodityBalances.find(
+    (summary) => summary.commodityId === 'electricity' && summary.year === 2030,
+  );
+
+  assert.equal(result.status, 'solved');
+  assert.equal(result.raw?.solutionStatus, 'optimal');
+  assert.ok(result.diagnostics.every((diagnostic) => diagnostic.severity !== 'error'));
+
+  assertClose(variables.get('activity:share_a::2030'), 60, 'soft share service chooses cheapest excess state');
+  assertClose(variables.get('activity:share_b::2030'), 40, 'soft share service residual activity');
+  assertClose(variables.get('activity:activity_a::2030'), 80, 'soft activity service exceeds cheapest cap');
+  assertClose(variables.get('activity:activity_b::2030'), 20, 'soft activity service stays on expensive capped row');
+  assertClose(variables.get('activity:grid_limited::2030'), 60, 'soft electricity supply covers modeled and external demand');
+
+  assert.equal(result.reporting.softConstraintViolations.length, 3);
+  assertClose(shareSlack?.slack, 20, 'share slack');
+  assertClose(shareSlack?.actualValue, 60, 'share actual activity');
+  assertClose(activitySlack?.slack, 50, 'activity slack');
+  assertClose(activitySlack?.actualValue, 80, 'activity actual output');
+  assertClose(electricitySlack?.slack, 20, 'electricity slack');
+  assertClose(electricitySlack?.actualValue, 60, 'electricity actual output');
+  assert.ok((shareSlack?.penaltyPerUnit ?? 0) > 0);
+  assertClose(shareSlack?.totalPenalty, (shareSlack?.penaltyPerUnit ?? 0) * 20, 'share total penalty');
+  assertClose(activitySlack?.totalPenalty, (activitySlack?.penaltyPerUnit ?? 0) * 50, 'activity total penalty');
+  assertClose(electricitySlack?.totalPenalty, (electricitySlack?.penaltyPerUnit ?? 0) * 20, 'electricity total penalty');
+
+  assert.equal(findDiagnostic(result, 'soft_constraints_enabled')?.severity, 'info');
+  assert.equal(findDiagnostic(result, 'soft_max_share_relaxed', 'share_service')?.reason, 'share_exhaustion');
+  assert.equal(findDiagnostic(result, 'soft_max_activity_relaxed', 'activity_service')?.reason, 'activity_exhaustion');
+  assert.equal(findDiagnostic(result, 'soft_max_activity_relaxed', 'electricity')?.reason, 'activity_exhaustion');
+  assertClose(electricitySummary?.supply, 60, 'soft electricity supply');
+  assertClose(electricitySummary?.totalDemand, 60, 'soft electricity demand');
+  assertClose(electricitySummary?.balanceGap, 0, 'soft electricity balance');
 });

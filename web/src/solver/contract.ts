@@ -144,6 +144,7 @@ export type SolveConstraintKind =
   | 'max_activity'
   | 'disabled_state'
   | 'externalized_supply';
+export type SolveSoftConstraintKind = Extract<SolveConstraintKind, 'max_share' | 'max_activity'>;
 
 export interface SolveCommodityBalanceSummary {
   commodityId: string;
@@ -187,10 +188,31 @@ export interface SolveBindingConstraintSummary {
   message: string;
 }
 
+export interface SolveSoftConstraintViolationSummary {
+  constraintId: string;
+  kind: SolveSoftConstraintKind;
+  boundType: SolveConstraintBoundType;
+  boundValue: number;
+  actualValue: number;
+  slack: number;
+  penaltyPerUnit: number;
+  totalPenalty: number;
+  outputId: string;
+  outputLabel: string;
+  year: number;
+  stateId?: string;
+  stateLabel?: string;
+  rowId?: string;
+  commodityId?: string;
+  mode?: ScenarioControlMode;
+  message: string;
+}
+
 export interface SolveReportingSummary {
   commodityBalances: SolveCommodityBalanceSummary[];
   stateShares: SolveStateShareSummary[];
   bindingConstraints: SolveBindingConstraintSummary[];
+  softConstraintViolations: SolveSoftConstraintViolationSummary[];
 }
 
 export interface SolveResult {

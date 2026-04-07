@@ -14,16 +14,25 @@ import type {
   SolveRequestSummary,
   SolveResult,
   SolveStateShareSummary,
+  SolveSoftConstraintViolationSummary,
 } from './contract';
 
 const SCENARIO_OBJECTIVE_KEY = 'total_cost';
 const SCENARIO_DIRECTION = 'minimize' as const;
 const SHARE_TOLERANCE = 1e-6;
 const BINDING_TOLERANCE = 1e-6;
+const SOFT_CONSTRAINT_MIN_PENALTY = 1_000_000;
+const SOFT_CONSTRAINT_PENALTY_MULTIPLIER = 1000;
 
 type ConstraintBounds = { equal?: number; min?: number; max?: number };
+type SoftConstraintKind = Extract<SolveConstraintKind, 'max_share' | 'max_activity'>;
 
 type TrackedConstraintInput = Omit<TrackedConstraint, 'constraintId' | 'boundType' | 'boundValue'>;
+
+interface SoftConstraintMetadata {
+  variableId: string;
+  penaltyPerUnit: number;
+}
 
 interface RequiredServiceGroup {
   outputId: string;
@@ -57,6 +66,7 @@ interface TrackedConstraint {
   commodityId?: string;
   mode?: ResolvedSolveControl['mode'];
   message: string;
+  softConstraint?: SoftConstraintMetadata;
 }
 
 interface RowShareProfile {
@@ -82,6 +92,8 @@ interface ScenarioLpBuild {
   supplyGroups: SupplyCommodityGroup[];
   balancedCommodityKeys: Set<string>;
   trackedConstraints: Record<string, TrackedConstraint>;
+  softConstraintVariableIds: Set<string>;
+  softConstraintPenaltyPerUnit: number | null;
 }
 
 function yearKey(year: number): string {
@@ -108,6 +120,10 @@ function commodityBalanceConstraintId(commodityId: string, year: number): string
   return `commodity_balance:${commodityId}:${year}`;
 }
 
+function softConstraintVariableId(constraintId: string): string {
+  return `soft_slack:${constraintId}`;
+}
+
 function countDistinctOutputs(request: SolveRequest): number {
   return new Set(request.rows.map((row) => row.outputId)).size;
 }
@@ -127,6 +143,7 @@ function emptyReporting(): SolveReportingSummary {
     commodityBalances: [],
     stateShares: [],
     bindingConstraints: [],
+    softConstraintViolations: [],
   };
 }
 
@@ -239,6 +256,53 @@ function addShareConstraint(
     const coefficient = groupVariableId === constrainedVariableId ? 1 - share : -share;
     setVariableConstraintCoefficient(variables, groupVariableId, constraintId, coefficient);
   }
+}
+
+function resolveSoftConstraintPenalty(
+  variables: Record<string, Record<string, number>>,
+): number {
+  const maxObjectiveMagnitude = Math.max(
+    0,
+    ...Object.values(variables).map((coefficients) => Math.abs(coefficients[SCENARIO_OBJECTIVE_KEY] ?? 0)),
+  );
+
+  return Math.max(
+    SOFT_CONSTRAINT_MIN_PENALTY,
+    (maxObjectiveMagnitude + 1) * SOFT_CONSTRAINT_PENALTY_MULTIPLIER,
+  );
+}
+
+function softenTrackedConstraint(
+  variables: Record<string, Record<string, number>>,
+  trackedConstraints: Record<string, TrackedConstraint>,
+  softConstraintVariableIds: Set<string>,
+  constraintId: string,
+  penaltyPerUnit: number,
+): void {
+  const trackedConstraint = trackedConstraints[constraintId];
+
+  if (!trackedConstraint) {
+    throw new Error(`Missing tracked constraint ${JSON.stringify(constraintId)} for softening.`);
+  }
+
+  if (trackedConstraint.boundType !== 'max') {
+    throw new Error(`Only max constraints can be softened, received ${trackedConstraint.boundType}.`);
+  }
+
+  if (trackedConstraint.kind !== 'max_share' && trackedConstraint.kind !== 'max_activity') {
+    throw new Error(`Constraint ${JSON.stringify(constraintId)} is not eligible for softening.`);
+  }
+
+  const variableId = softConstraintVariableId(constraintId);
+  variables[variableId] = {
+    [SCENARIO_OBJECTIVE_KEY]: penaltyPerUnit,
+    [constraintId]: -1,
+  };
+  softConstraintVariableIds.add(variableId);
+  trackedConstraint.softConstraint = {
+    variableId,
+    penaltyPerUnit,
+  };
 }
 
 function collectRequiredServiceGroups(request: SolveRequest): RequiredServiceGroup[] {
@@ -1053,6 +1117,7 @@ function dedupeAndSortDiagnostics(diagnostics: SolveDiagnostic[]): SolveDiagnost
 function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
   const constraints: Record<string, ConstraintBounds> = {};
   const trackedConstraints: Record<string, TrackedConstraint> = {};
+  const softConstraintVariableIds = new Set<string>();
   const variables: Record<string, Record<string, number>> = {};
   const diagnostics: SolveDiagnostic[] = [];
   const notes: string[] = [];
@@ -1105,6 +1170,10 @@ function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
     };
   }
 
+  const softConstraintPenaltyPerUnit = request.scenario.options.softConstraints
+    ? resolveSoftConstraintPenalty(variables)
+    : null;
+
   const validationErrors = diagnostics.filter((diagnostic) => diagnostic.severity === 'error');
   if (validationErrors.length > 0) {
     return {
@@ -1123,6 +1192,8 @@ function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
       supplyGroups,
       balancedCommodityKeys,
       trackedConstraints,
+      softConstraintVariableIds,
+      softConstraintPenaltyPerUnit,
     };
   }
 
@@ -1232,12 +1303,13 @@ function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
       }
 
       if (request.scenario.options.respectMaxShare && row.bounds.maxShare != null) {
+        const constraintId = stateConstraintId('max_share', row);
         addConstraint(
           constraints,
           trackedConstraints,
           variables,
           variableId,
-          stateConstraintId('max_share', row),
+          constraintId,
           { max: row.bounds.maxShare * group.demand },
           {
             kind: 'max_share',
@@ -1251,15 +1323,26 @@ function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
             message: `${row.stateLabel} stays within its max share for ${row.outputLabel} in ${row.year}.`,
           },
         );
+
+        if (softConstraintPenaltyPerUnit != null) {
+          softenTrackedConstraint(
+            variables,
+            trackedConstraints,
+            softConstraintVariableIds,
+            constraintId,
+            softConstraintPenaltyPerUnit,
+          );
+        }
       }
 
       if (request.scenario.options.respectMaxActivity && row.bounds.maxActivity != null) {
+        const constraintId = stateConstraintId('max_activity', row);
         addConstraint(
           constraints,
           trackedConstraints,
           variables,
           variableId,
-          stateConstraintId('max_activity', row),
+          constraintId,
           { max: row.bounds.maxActivity },
           {
             kind: 'max_activity',
@@ -1273,6 +1356,16 @@ function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
             message: `${row.stateLabel} stays within its max activity for ${row.outputLabel} in ${row.year}.`,
           },
         );
+
+        if (softConstraintPenaltyPerUnit != null) {
+          softenTrackedConstraint(
+            variables,
+            trackedConstraints,
+            softConstraintVariableIds,
+            constraintId,
+            softConstraintPenaltyPerUnit,
+          );
+        }
       }
     }
   }
@@ -1410,6 +1503,7 @@ function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
       }
 
       if (request.scenario.options.respectMaxShare && row.bounds.maxShare != null) {
+        const constraintId = stateConstraintId('max_share', row);
         addShareConstraint(
           constraints,
           trackedConstraints,
@@ -1417,7 +1511,7 @@ function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
           variableIds,
           variableId,
           row.bounds.maxShare,
-          stateConstraintId('max_share', row),
+          constraintId,
           { max: 0 },
           {
             kind: 'max_share',
@@ -1432,15 +1526,26 @@ function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
             message: `${row.stateLabel} stays within its max share for ${row.outputLabel} in ${row.year}.`,
           },
         );
+
+        if (softConstraintPenaltyPerUnit != null) {
+          softenTrackedConstraint(
+            variables,
+            trackedConstraints,
+            softConstraintVariableIds,
+            constraintId,
+            softConstraintPenaltyPerUnit,
+          );
+        }
       }
 
       if (request.scenario.options.respectMaxActivity && row.bounds.maxActivity != null) {
+        const constraintId = stateConstraintId('max_activity', row);
         addConstraint(
           constraints,
           trackedConstraints,
           variables,
           variableId,
-          stateConstraintId('max_activity', row),
+          constraintId,
           { max: row.bounds.maxActivity },
           {
             kind: 'max_activity',
@@ -1455,15 +1560,27 @@ function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
             message: `${row.stateLabel} stays within its max activity for ${row.outputLabel} in ${row.year}.`,
           },
         );
+
+        if (softConstraintPenaltyPerUnit != null) {
+          softenTrackedConstraint(
+            variables,
+            trackedConstraints,
+            softConstraintVariableIds,
+            constraintId,
+            softConstraintPenaltyPerUnit,
+          );
+        }
       }
     }
   }
+
+  const softConstraintCount = Object.values(trackedConstraints).filter((constraint) => constraint.softConstraint).length;
 
   const endogenousSupplyGroupCount = supplyGroups.filter((group) => group.control.mode !== 'externalized').length;
   const externalizedSupplyGroupCount = supplyGroups.length - endogenousSupplyGroupCount;
 
   notes.push(
-    `Built a generic LP over ${requiredServiceGroups.length} required-service groups, ${endogenousSupplyGroupCount} endogenous-supply groups, and ${Object.keys(variables).length} activity variables.`,
+    `Built a generic LP over ${requiredServiceGroups.length} required-service groups, ${endogenousSupplyGroupCount} endogenous-supply groups, ${activeRows.length} activity variables, and ${softConstraintCount} soft-slack variables.`,
   );
   notes.push(
     'Objective coefficients combine row conversion cost, exogenously priced non-balanced commodity inputs, and direct-emissions carbon cost using the resolved scenario tables.',
@@ -1471,6 +1588,11 @@ function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
   notes.push(
     `Electricity-style supply commodities enforce balance when they stay in-model; ${externalizedSupplyGroupCount} supply-year groups are externalized and fixed to zero activity.`,
   );
+  if (softConstraintPenaltyPerUnit != null) {
+    notes.push(
+      `Soft-constraint mode relaxes ${softConstraintCount} max-share and max-activity bounds with a penalty of ${formatNumber(softConstraintPenaltyPerUnit)} per slack unit.`,
+    );
+  }
 
   return {
     request,
@@ -1488,6 +1610,8 @@ function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
     supplyGroups,
     balancedCommodityKeys,
     trackedConstraints,
+    softConstraintVariableIds,
+    softConstraintPenaltyPerUnit,
   };
 }
 
@@ -1520,6 +1644,8 @@ function buildDiagnostics(
     message: `The service-and-supply LP core completed with status ${solution.status}.`,
   });
 
+  diagnostics.push(...buildSoftConstraintDiagnostics(solution, build));
+
   if (solution.status !== 'optimal') {
     diagnostics.push({
       code: 'service_and_supply_lp_not_optimal',
@@ -1538,6 +1664,44 @@ function buildDiagnostics(
   }
 
   return dedupeAndSortDiagnostics(diagnostics);
+}
+
+function buildSoftConstraintDiagnostics(
+  solution: Solution<string>,
+  build: ScenarioLpBuild,
+): SolveDiagnostic[] {
+  if (!build.request.scenario.options.softConstraints) {
+    return [];
+  }
+
+  const diagnostics: SolveDiagnostic[] = [
+    {
+      code: 'soft_constraints_enabled',
+      severity: 'info',
+      message: `Soft-constraint mode is enabled for max-share and max-activity bounds with a penalty of ${formatNumber(build.softConstraintPenaltyPerUnit ?? 0)} per slack unit.`,
+    },
+  ];
+
+  if (solution.status !== 'optimal') {
+    return diagnostics;
+  }
+
+  for (const violation of buildSoftConstraintViolationSummary(solution, build)) {
+    const kindLabel = violation.kind === 'max_share' ? 'max share' : 'max activity';
+    diagnostics.push({
+      code: violation.kind === 'max_share' ? 'soft_max_share_relaxed' : 'soft_max_activity_relaxed',
+      severity: 'warning',
+      reason: violation.kind === 'max_share' ? 'share_exhaustion' : 'activity_exhaustion',
+      message: `Soft-constraint mode let ${violation.stateLabel ?? violation.outputLabel} exceed its ${kindLabel} for ${violation.outputLabel} in ${violation.year} by ${formatNumber(violation.slack)} units at a penalty of ${formatNumber(violation.totalPenalty)}.`,
+      ...buildConstraintContext(violation.outputId, violation.year, violation.stateId, violation.rowId),
+      relatedConstraintIds: [violation.constraintId],
+      suggestion: violation.kind === 'max_share'
+        ? 'Raise the max-share cap, add more eligible states, or switch back to hard constraints once the diagnosis is complete.'
+        : 'Raise the max-activity cap, add more supply options, or switch back to hard constraints once the diagnosis is complete.',
+    });
+  }
+
+  return diagnostics;
 }
 
 function buildVariableValueMap(solution: Solution<string>): Map<string, number> {
@@ -1655,10 +1819,15 @@ function computeConstraintActualValue(
   constraintId: string,
   model: Model<string, string>,
   variableValues: Map<string, number>,
+  ignoredVariableIds: ReadonlySet<string> = new Set<string>(),
 ): number {
   let total = 0;
 
   for (const [variableId, coefficients] of Object.entries(model.variables)) {
+    if (ignoredVariableIds.has(variableId)) {
+      continue;
+    }
+
     const coefficient = coefficients[constraintId];
     if (typeof coefficient !== 'number') {
       continue;
@@ -1679,7 +1848,12 @@ function buildBindingConstraintSummary(
   return Object.values(build.trackedConstraints)
     .filter((constraint) => constraint.kind !== 'service_demand')
     .map((constraint) => {
-      const actualValue = computeConstraintActualValue(constraint.constraintId, build.model, variableValues);
+      const actualValue = computeConstraintActualValue(
+        constraint.constraintId,
+        build.model,
+        variableValues,
+        build.softConstraintVariableIds,
+      );
       const slack = constraint.boundType === 'equal'
         ? Math.abs(actualValue - constraint.boundValue)
         : constraint.boundType === 'min'
@@ -1714,6 +1888,55 @@ function buildBindingConstraintSummary(
     });
 }
 
+function buildSoftConstraintViolationSummary(
+  solution: Solution<string>,
+  build: ScenarioLpBuild,
+): SolveSoftConstraintViolationSummary[] {
+  const variableValues = buildVariableValueMap(solution);
+
+  return Object.values(build.trackedConstraints)
+    .filter((constraint): constraint is TrackedConstraint & { softConstraint: SoftConstraintMetadata } => {
+      return constraint.softConstraint != null;
+    })
+    .map((constraint) => {
+      const slack = variableValues.get(constraint.softConstraint.variableId) ?? 0;
+      const actualValue = computeConstraintActualValue(
+        constraint.constraintId,
+        build.model,
+        variableValues,
+        build.softConstraintVariableIds,
+      );
+
+      return {
+        constraintId: constraint.constraintId,
+        kind: constraint.kind as SoftConstraintKind,
+        boundType: constraint.boundType,
+        boundValue: constraint.boundValue,
+        actualValue,
+        slack,
+        penaltyPerUnit: constraint.softConstraint.penaltyPerUnit,
+        totalPenalty: slack * constraint.softConstraint.penaltyPerUnit,
+        outputId: constraint.outputId,
+        outputLabel: constraint.outputLabel,
+        year: constraint.year,
+        stateId: constraint.stateId,
+        stateLabel: constraint.stateLabel,
+        rowId: constraint.rowId,
+        commodityId: constraint.commodityId,
+        mode: constraint.mode,
+        message: constraint.message,
+      } satisfies SolveSoftConstraintViolationSummary;
+    })
+    .filter((constraint) => constraint.slack > BINDING_TOLERANCE)
+    .sort((left, right) => {
+      return left.year - right.year
+        || left.outputId.localeCompare(right.outputId)
+        || left.kind.localeCompare(right.kind)
+        || (left.stateId ?? '').localeCompare(right.stateId ?? '')
+        || left.constraintId.localeCompare(right.constraintId);
+    });
+}
+
 function buildReportingSummary(
   request: SolveRequest,
   solution: Solution<string>,
@@ -1725,6 +1948,7 @@ function buildReportingSummary(
     commodityBalances: buildCommodityBalanceSummary(request, build, variableValues),
     stateShares: buildStateShareSummary(build.activeRows, variableValues),
     bindingConstraints: buildBindingConstraintSummary(solution, build),
+    softConstraintViolations: buildSoftConstraintViolationSummary(solution, build),
   };
 }
 

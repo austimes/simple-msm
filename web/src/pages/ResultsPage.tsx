@@ -71,7 +71,11 @@ function formatDiagnosticLocation(diagnostic: SolveResult['diagnostics'][number]
   return parts.length > 0 ? parts.join(' / ') : null;
 }
 
-function formatBindingLocation(constraint: SolveResult['reporting']['bindingConstraints'][number]): string {
+function formatConstraintLocation(constraint: {
+  outputLabel: string;
+  year: number;
+  stateLabel?: string;
+}): string {
   const parts = [constraint.outputLabel, String(constraint.year), constraint.stateLabel].filter(Boolean);
   return parts.join(' / ');
 }
@@ -113,6 +117,10 @@ export default function ResultsPage() {
     (summary) => summary.outputId === 'electricity',
   ) ?? [];
   const bindingConstraints = result?.reporting.bindingConstraints ?? [];
+  const softConstraintViolations = result?.reporting.softConstraintViolations ?? [];
+  const softConstraintModeEnabled = request?.scenario.options.softConstraints
+    ?? defaultScenario.solver_options?.soft_constraints
+    ?? false;
 
   useEffect(() => {
     if (!request) {
@@ -218,6 +226,10 @@ export default function ResultsPage() {
                   : Object.keys(defaultScenario.external_commodity_demands ?? {}).length}
               </strong>
             </div>
+            <div className="scenario-stat-card">
+              <span>Constraint mode</span>
+              <strong>{softConstraintModeEnabled ? 'soft' : 'hard'}</strong>
+            </div>
           </div>
         </article>
 
@@ -316,6 +328,64 @@ export default function ResultsPage() {
       </section>
 
       <section className="scenario-panel">
+        <h2>Soft Constraint Relaxations</h2>
+        {result ? (
+          softConstraintModeEnabled ? (
+            softConstraintViolations.length > 0 ? (
+              <div className="results-raw-grid">
+                {softConstraintViolations.map((constraint) => (
+                  <article
+                    key={`${constraint.constraintId}:${constraint.outputId}:${constraint.year}:${constraint.stateId ?? 'all'}`}
+                    className="results-card"
+                  >
+                    <span className="results-card-label">{constraint.year}</span>
+                    <strong>{formatConstraintKind(constraint.kind)}</strong>
+                    <p>{constraint.message}</p>
+                    <dl className="scenario-key-value-list">
+                      <div>
+                        <dt>Scope</dt>
+                        <dd>{formatConstraintLocation(constraint)}</dd>
+                      </div>
+                      <div>
+                        <dt>Bound</dt>
+                        <dd>{constraint.boundType} {formatNumber(constraint.boundValue)}</dd>
+                      </div>
+                      <div>
+                        <dt>Actual</dt>
+                        <dd>{formatNumber(constraint.actualValue)}</dd>
+                      </div>
+                      <div>
+                        <dt>Slack used</dt>
+                        <dd>{formatNumber(constraint.slack)}</dd>
+                      </div>
+                      <div>
+                        <dt>Penalty / unit</dt>
+                        <dd>{formatNumber(constraint.penaltyPerUnit)}</dd>
+                      </div>
+                      <div>
+                        <dt>Total penalty</dt>
+                        <dd>{formatNumber(constraint.totalPenalty)}</dd>
+                      </div>
+                      <div>
+                        <dt>Mode</dt>
+                        <dd>{constraint.mode ? formatModeLabel(constraint.mode) : '—'}</dd>
+                      </div>
+                    </dl>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <p>Soft mode is enabled, but this run stayed feasible without spending any slack.</p>
+            )
+          ) : (
+            <p>Hard constraints are active. Enable <code>solver_options.soft_constraints</code> to relax max-share and max-activity bounds diagnostically.</p>
+          )
+        ) : (
+          <p>Waiting for the worker response.</p>
+        )}
+      </section>
+
+      <section className="scenario-panel">
         <h2>Binding Constraints</h2>
         {result ? (
           bindingConstraints.length > 0 ? (
@@ -331,7 +401,7 @@ export default function ResultsPage() {
                   <dl className="scenario-key-value-list">
                     <div>
                       <dt>Scope</dt>
-                      <dd>{formatBindingLocation(constraint)}</dd>
+                      <dd>{formatConstraintLocation(constraint)}</dd>
                     </div>
                     <div>
                       <dt>Bound</dt>
