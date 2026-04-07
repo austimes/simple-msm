@@ -1,6 +1,6 @@
 {
   "name": "Reference central-growth scenario",
-  "description": "Library-aligned baseline scenario using 2025 activity anchors, the simple built-in sector growth preset, and conservative state controls.",
+  "description": "Library-aligned baseline scenario using 2025 activity anchors, the simple built-in sector growth preset, conservative incumbent controls, and externalized electricity purchases.",
   "years": [
     2025,
     2030,
@@ -11,11 +11,7 @@
   ],
   "service_controls": {
     "electricity": {
-      "mode": "fixed_shares",
-      "fixed_shares": {
-        "electricity__grid_supply__incumbent_thermal_mix": 0.64,
-        "electricity__grid_supply__policy_frontier": 0.36
-      }
+      "mode": "externalized"
     },
     "residential_building_services": {
       "mode": "pinned_single",
@@ -220,7 +216,7 @@
     "2050": 0
   },
   "solver_options": {
-    "respect_max_share": true,
+    "respect_max_share": false,
     "respect_max_activity": true,
     "soft_constraints": false,
     "allow_removals_credit": true,

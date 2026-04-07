@@ -241,6 +241,31 @@ function buildSolveRequestForTest(pkg, scenario) {
   };
 }
 
+test('packaged reference scenario solves as a stable baseline on the Results path', () => {
+  const appConfig = loadAppConfig();
+  const referenceScenario = resolveScenarioDocument(
+    readJson('../public/app_config/reference_scenario.json'),
+    appConfig,
+    'reference_scenario.json',
+  );
+  const sectorStates = parseCsv(readText('../../aus_phase1_sector_state_library/data/sector_states.csv'))
+    .map(toSectorState);
+  const pkg = {
+    sectorStates,
+    appConfig,
+    defaultScenario: referenceScenario,
+  };
+
+  const request = buildSolveRequestForTest(pkg, referenceScenario);
+  const result = solveWithLpAdapter(request);
+
+  assert.equal(referenceScenario.service_controls.electricity.mode, 'externalized');
+  assert.equal(referenceScenario.solver_options?.respect_max_share, false);
+  assert.equal(result.status, 'partial');
+  assert.equal(result.raw?.solutionStatus, 'optimal');
+  assert.ok(!result.diagnostics.some((diagnostic) => diagnostic.code === 'service_and_supply_lp_not_optimal'));
+});
+
 test('compare analysis builds heuristic decomposition and narratives from the built-in transition pair', () => {
   const appConfig = loadAppConfig();
   const referenceScenario = resolveScenarioDocument(
