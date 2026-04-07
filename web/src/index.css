@@ -312,6 +312,110 @@ body {
   color: #b91c1c;
 }
 
+.page--compare {
+  padding-bottom: 32px;
+}
+
+.compare-inline-error {
+  margin-top: 16px;
+}
+
+.compare-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.compare-metric-card,
+.compare-effect-card,
+.compare-narrative-card,
+.compare-state-card {
+  display: grid;
+  gap: 12px;
+}
+
+.compare-metric-subtext {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.compare-tight-list {
+  gap: 8px;
+  margin-top: 0;
+}
+
+.compare-effect-note,
+.compare-evidence-text {
+  font-size: 12px;
+  color: #475569;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #eff6ff;
+  border: 1px solid rgba(43, 108, 176, 0.14);
+}
+
+.compare-detail-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.compare-detail-grid--panels {
+  align-items: start;
+  margin-top: 16px;
+}
+
+.compare-detail-panel {
+  margin-top: 0;
+}
+
+.compare-list {
+  display: grid;
+  gap: 12px;
+}
+
+.compare-list-item {
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: #f8fafc;
+  padding: 14px;
+}
+
+.compare-list-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.compare-list-header span {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  text-align: right;
+}
+
+.compare-year-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.compare-year-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 1px solid var(--color-border);
+  font-size: 12px;
+  color: var(--color-text);
+}
+
 .page--library,
 .page--methods {
   padding-bottom: 32px;
