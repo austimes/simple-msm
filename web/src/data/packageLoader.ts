@@ -3,6 +3,7 @@ import readmeText from '@root/aus_phase1_sector_state_library/README.md?raw';
 import phase2Text from '@root/aus_phase1_sector_state_library/docs/phase2_recommendations.md?raw';
 import { loadAppConfig } from './appConfigLoader';
 import { parseCsv } from './parseCsv';
+import { loadDefaultScenario } from './scenarioLoader';
 import type { EmissionEntry, PackageData, SectorState } from './types';
 
 function parseJsonArray<T>(raw: string): T[] {
@@ -73,5 +74,6 @@ export function loadPackage(): PackageData {
     readme: readmeText,
     phase2Memo: phase2Text,
     appConfig: loadAppConfig(),
+    defaultScenario: loadDefaultScenario(),
   };
 }
