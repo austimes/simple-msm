@@ -13,6 +13,77 @@ export type ScenarioControlMode =
   | 'off'
   | 'target';
 
+export const SCENARIO_YEARS = [2025, 2030, 2035, 2040, 2045, 2050] as const;
+
+export type ScenarioYear = (typeof SCENARIO_YEARS)[number];
+export type ScenarioYearKey = `${ScenarioYear}`;
+export type ScenarioYearValueTable = Partial<Record<ScenarioYearKey, number>>;
+
+export interface ScenarioServiceControlYearOverride {
+  mode?: ScenarioControlMode;
+  state_id?: string | null;
+  fixed_shares?: Record<string, number> | null;
+  target_value?: number | null;
+}
+
+export interface ScenarioServiceControl {
+  mode: ScenarioControlMode;
+  state_id?: string | null;
+  fixed_shares?: Record<string, number> | null;
+  target_value?: number | null;
+  disabled_state_ids?: string[] | null;
+  year_overrides?: Partial<Record<ScenarioYearKey, ScenarioServiceControlYearOverride>> | null;
+}
+
+export type ScenarioDemandGenerationMode =
+  | 'manual_table'
+  | 'anchor_plus_preset'
+  | 'anchor_plus_preset_with_overrides';
+
+export interface ScenarioDemandGeneration {
+  mode: ScenarioDemandGenerationMode;
+  anchor_year: 2025;
+  preset_id: string | null;
+  service_anchors: Record<string, number>;
+  service_growth_rates_pct_per_year?: Record<string, number> | null;
+  external_commodity_anchors?: Record<string, number> | null;
+  external_commodity_growth_rates_pct_per_year?: Record<string, number> | null;
+  year_overrides?: Record<string, Record<string, number>> | null;
+  notes?: string | null;
+}
+
+export interface ScenarioCommodityPricing {
+  preset_id: string;
+  overrides: Record<string, Record<string, number>>;
+}
+
+export interface ScenarioShareSmoothing {
+  enabled?: boolean;
+  max_delta_pp?: number;
+  notes?: string | null;
+}
+
+export interface ScenarioSolverOptions {
+  respect_max_share?: boolean;
+  respect_max_activity?: boolean;
+  soft_constraints?: boolean;
+  allow_removals_credit?: boolean;
+  share_smoothing?: ScenarioShareSmoothing;
+}
+
+export interface ScenarioDocument {
+  name: string;
+  description?: string;
+  years: ScenarioYear[];
+  service_controls: Record<string, ScenarioServiceControl>;
+  service_demands: Record<string, ScenarioYearValueTable>;
+  demand_generation: ScenarioDemandGeneration;
+  external_commodity_demands?: Record<string, ScenarioYearValueTable>;
+  commodity_pricing: ScenarioCommodityPricing;
+  carbon_price: ScenarioYearValueTable;
+  solver_options?: ScenarioSolverOptions;
+}
+
 export interface OutputRoleMetadata {
   output_role: OutputRole;
   display_label: string;
@@ -122,4 +193,5 @@ export interface PackageData {
   readme: string;
   phase2Memo: string;
   appConfig: AppConfigRegistry;
+  defaultScenario: ScenarioDocument;
 }
