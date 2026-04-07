@@ -148,6 +148,61 @@ export interface AppConfigRegistry {
   explanation_tag_rules: Record<string, ExplanationTagRule>;
 }
 
+export interface SourceLedgerEntry {
+  sourceId: string;
+  citation: string;
+  publicationDate: string;
+  institution: string;
+  location: string;
+  parametersInformed: string;
+  qualityNotes: string;
+}
+
+export interface AssumptionLedgerEntry {
+  assumptionId: string;
+  statement: string;
+  rationale: string;
+  affectedScope: string;
+  sensitivityImportance: string;
+  validationRoute: string;
+}
+
+export interface PackageSchemaField {
+  name: string;
+  type: string;
+  description: string;
+  required: boolean;
+}
+
+export interface PackageSchemaInfo {
+  title: string;
+  description: string;
+  requiredFields: string[];
+  propertyCount: number;
+  fields: PackageSchemaField[];
+}
+
+export interface PackageCompanionDoc {
+  key: string;
+  path: string;
+  title: string;
+  content: string;
+}
+
+export interface PackageEnrichment {
+  availablePaths: string[];
+  warnings: string[];
+  readme: string;
+  phase2Memo: string;
+  methodsOverview: string;
+  calibrationValidation: string;
+  uncertaintyConfidence: string;
+  sourceLedger: SourceLedgerEntry[];
+  assumptionsLedger: AssumptionLedgerEntry[];
+  sectorStatesSchema: PackageSchemaInfo | null;
+  sectorDerivations: Record<string, PackageCompanionDoc>;
+}
+
 export interface SectorState {
   sector: string;
   subsector: string;
@@ -192,6 +247,7 @@ export interface PackageData {
   sectorStates: SectorState[];
   readme: string;
   phase2Memo: string;
+  enrichment: PackageEnrichment;
   appConfig: AppConfigRegistry;
   defaultScenario: ScenarioDocument;
 }

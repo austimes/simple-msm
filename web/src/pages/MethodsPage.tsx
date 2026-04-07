@@ -4,6 +4,10 @@ import { usePackageStore } from '../data/packageStore';
 
 type MethodsTab = 'about' | 'conventions' | 'confidence' | 'phase2' | 'evidence';
 
+const sectorDerivationAliases: Record<string, string> = {
+  cement_clinker: 'cement',
+};
+
 interface ConfidenceBreakdown {
   sector: string;
   total: number;
@@ -43,6 +47,30 @@ function getSection(markdown: string, title: string): string {
     new RegExp(`^##\\s+${escapedTitle}\\s*$([\\s\\S]*?)(?=^##\\s+|$)`, 'm'),
   );
   return match?.[1].trim() ?? '';
+}
+
+function getFirstParagraph(markdown: string): string {
+  return markdown
+    .split(/\n\s*\n/)
+    .map((paragraph) => cleanInlineMarkdown(paragraph.trim()))
+    .find(Boolean) ?? '';
+}
+
+function getSectionExcerpt(markdown: string, titles: string[]): string {
+  for (const title of titles) {
+    const section = getSection(markdown, title);
+    if (section) {
+      return getFirstParagraph(section);
+    }
+  }
+
+  return '';
+}
+
+function renderSectionOrNote(content: string, keyPrefix: string, fallback: string): ReactNode[] {
+  return content
+    ? renderMarkdownBlocks(content, keyPrefix)
+    : [<p key={`${keyPrefix}-fallback`}>{fallback}</p>];
 }
 
 function renderMarkdownBlocks(content: string, keyPrefix: string): ReactNode[] {
@@ -165,6 +193,7 @@ function renderMarkdownBlocks(content: string, keyPrefix: string): ReactNode[] {
 export default function MethodsPage() {
   const readme = usePackageStore((state) => state.readme);
   const phase2Memo = usePackageStore((state) => state.phase2Memo);
+  const enrichment = usePackageStore((state) => state.enrichment);
   const sectorStates = usePackageStore((state) => state.sectorStates);
   const [activeTab, setActiveTab] = useState<MethodsTab>('about');
   const [evidenceSearch, setEvidenceSearch] = useState('');
@@ -187,8 +216,23 @@ export default function MethodsPage() {
       phase2Questions: getSection(phase2Memo, "Direct answers to the brief's open questions"),
       phase2WorkProgram: getSection(phase2Memo, 'Recommended Phase 2 work program'),
       phase2Recommendation: getSection(phase2Memo, 'Final recommendation'),
+      methodsObjective: getSection(enrichment.methodsOverview, 'Objective'),
+      methodsHierarchy: getSection(enrichment.methodsOverview, 'Source hierarchy actually used'),
+      methodsCostConvention: getSection(enrichment.methodsOverview, 'Cost convention'),
+      methodsEmissionsBoundary: getSection(enrichment.methodsOverview, 'Emissions boundary'),
+      calibrationJudgement: getSection(enrichment.calibrationValidation, 'Overall calibration judgement'),
+      calibrationDeviations: getSection(enrichment.calibrationValidation, 'Main deviations that matter'),
+      uncertaintyPractical: getSection(enrichment.uncertaintyConfidence, 'Practical interpretation for model users'),
+      uncertaintyTests: getSection(enrichment.uncertaintyConfidence, 'What to sensitivity-test first'),
+      uncertaintyBottomLine: getSection(enrichment.uncertaintyConfidence, 'Bottom line'),
     };
-  }, [phase2Memo, readme]);
+  }, [
+    enrichment.calibrationValidation,
+    enrichment.methodsOverview,
+    enrichment.uncertaintyConfidence,
+    phase2Memo,
+    readme,
+  ]);
 
   const confidenceCounts = useMemo(() => {
     return sectorStates.reduce<Record<string, number>>((counts, row) => {
@@ -265,23 +309,69 @@ export default function MethodsPage() {
     return Object.keys(confidenceCounts).sort((left, right) => left.localeCompare(right));
   }, [confidenceCounts]);
 
+  const optionalCompanionCount = useMemo(() => {
+    return enrichment.availablePaths.filter((path) => path !== 'data/sector_states.csv').length;
+  }, [enrichment.availablePaths]);
+
+  const schemaPreviewFields = enrichment.sectorStatesSchema
+    ? (() => {
+        const preferredFields = [
+          'source_ids',
+          'assumption_ids',
+          'confidence_rating',
+          'input_commodities',
+          'energy_emissions_by_pollutant',
+          'process_emissions_by_pollutant',
+        ];
+        const selectedFields = preferredFields.reduce<typeof enrichment.sectorStatesSchema.fields>(
+          (fields, fieldName) => {
+            const field = enrichment.sectorStatesSchema?.fields.find((candidate) => candidate.name === fieldName);
+
+            if (field) {
+              fields.push(field);
+            }
+
+            return fields;
+          },
+          [],
+        );
+
+        return selectedFields.length > 0
+          ? selectedFields
+          : enrichment.sectorStatesSchema.fields.slice(0, 6);
+      })()
+    : [];
+
   return (
     <div className="page page--methods">
       <h1>Methods</h1>
       <p>
-        This trust page is driven from the package README, the Phase 2 memo, and the state-level
-        evidence fields embedded directly in `sector_states.csv`.
+        This trust page is driven from the packaged library itself, then enriched with any README,
+        ledgers, schema files, and explanatory docs that happen to be present.
       </p>
 
       <section className="scenario-overview-grid">
         <article className="scenario-panel scenario-panel--hero">
           <span className="scenario-badge">Package guidance</span>
           <h2>Why this library exists</h2>
-          {introParagraphs.map((paragraph) => (
-            <p key={paragraph} className="methods-lead-paragraph">
-              {paragraph}
+          {introParagraphs.length > 0 ? (
+            introParagraphs.map((paragraph) => (
+              <p key={paragraph} className="methods-lead-paragraph">
+                {paragraph}
+              </p>
+            ))
+          ) : (
+            <p className="methods-lead-paragraph">
+              The explorer can still run from `sector_states.csv` alone, even when package-level
+              companion notes are absent.
             </p>
-          ))}
+          )}
+          {enrichment.warnings.length > 0 ? (
+            <div className="scenario-provenance-note">
+              <strong>Some optional companions were skipped.</strong>
+              <p>{enrichment.warnings.join(' ')}</p>
+            </div>
+          ) : null}
         </article>
 
         <article className="scenario-panel">
@@ -302,6 +392,10 @@ export default function MethodsPage() {
             <div className="scenario-stat-card">
               <span>Confidence classes</span>
               <strong>{Object.keys(confidenceCounts).length}</strong>
+            </div>
+            <div className="scenario-stat-card">
+              <span>Optional companions</span>
+              <strong>{optionalCompanionCount}</strong>
             </div>
           </div>
         </article>
@@ -327,23 +421,53 @@ export default function MethodsPage() {
           <div className="methods-section-stack">
             <section className="methods-content-card">
               <h2>Included in the package</h2>
-              {renderMarkdownBlocks(sections.included, 'included')}
+              {renderSectionOrNote(
+                sections.included,
+                'included',
+                'No package README section was bundled, so this view is falling back to the core library rows only.',
+              )}
             </section>
 
             <section className="methods-content-grid">
               <article className="methods-content-card">
                 <h2>Phase 1 strengths</h2>
-                {renderMarkdownBlocks(sections.strengths, 'strengths')}
+                {renderSectionOrNote(
+                  sections.strengths,
+                  'strengths',
+                  'Strength notes were not packaged with this build.',
+                )}
               </article>
               <article className="methods-content-card">
                 <h2>Phase 1 weaknesses</h2>
-                {renderMarkdownBlocks(sections.weaknesses, 'weaknesses')}
+                {renderSectionOrNote(
+                  sections.weaknesses,
+                  'weaknesses',
+                  'Weakness notes were not packaged with this build.',
+                )}
               </article>
             </section>
 
+            {sections.calibrationJudgement || sections.calibrationDeviations ? (
+              <section className="methods-content-card">
+                <h2>Calibration judgement</h2>
+                {renderSectionOrNote(
+                  sections.calibrationJudgement,
+                  'calibration-judgement',
+                  'No calibration judgement note was packaged with this build.',
+                )}
+                {sections.calibrationDeviations
+                  ? renderMarkdownBlocks(sections.calibrationDeviations, 'calibration-deviations')
+                  : null}
+              </section>
+            ) : null}
+
             <section className="methods-content-card">
               <h2>Provenance note</h2>
-              {renderMarkdownBlocks(sections.provenance, 'provenance')}
+              {renderSectionOrNote(
+                sections.provenance,
+                'provenance',
+                'The packaged README did not include a provenance note.',
+              )}
             </section>
           </div>
         ) : null}
@@ -352,12 +476,81 @@ export default function MethodsPage() {
           <div className="methods-section-stack">
             <section className="methods-content-card">
               <h2>Core modeling conventions</h2>
-              {renderMarkdownBlocks(sections.conventions, 'conventions')}
+              {renderSectionOrNote(
+                sections.conventions,
+                'conventions',
+                'No README convention section was packaged, so the app is using only the normalized library fields.',
+              )}
             </section>
             <section className="methods-content-card">
               <h2>Short guidance on use</h2>
-              {renderMarkdownBlocks(sections.guidance, 'guidance')}
+              {renderSectionOrNote(
+                sections.guidance,
+                'guidance',
+                'No short guidance note was packaged with this build.',
+              )}
             </section>
+
+            {sections.methodsObjective || sections.methodsHierarchy || sections.methodsCostConvention || sections.methodsEmissionsBoundary ? (
+              <section className="methods-content-grid">
+                <article className="methods-content-card">
+                  <h2>Methods overview</h2>
+                  {sections.methodsObjective
+                    ? renderMarkdownBlocks(sections.methodsObjective, 'methods-objective')
+                    : null}
+                  {renderSectionOrNote(
+                    sections.methodsHierarchy,
+                    'methods-hierarchy',
+                    'No package-level methods overview was bundled.',
+                  )}
+                </article>
+
+                <article className="methods-content-card">
+                  <h2>Cost and emissions conventions</h2>
+                  {renderSectionOrNote(
+                    sections.methodsCostConvention,
+                    'methods-cost',
+                    'No explicit cost convention note was bundled.',
+                  )}
+                  {sections.methodsEmissionsBoundary
+                    ? renderMarkdownBlocks(sections.methodsEmissionsBoundary, 'methods-emissions-boundary')
+                    : null}
+                </article>
+              </section>
+            ) : null}
+
+            {enrichment.sectorStatesSchema ? (
+              <section className="methods-content-card">
+                <h2>Row schema guidance</h2>
+                <p>{enrichment.sectorStatesSchema.description}</p>
+                <div className="scenario-stat-grid">
+                  <div className="scenario-stat-card">
+                    <span>Schema fields</span>
+                    <strong>{enrichment.sectorStatesSchema.propertyCount}</strong>
+                  </div>
+                  <div className="scenario-stat-card">
+                    <span>Required fields</span>
+                    <strong>{enrichment.sectorStatesSchema.requiredFields.length}</strong>
+                  </div>
+                </div>
+                <div className="library-mini-table">
+                  <div className="library-mini-table-row library-mini-table-row--header">
+                    <span>Field</span>
+                    <span>Type</span>
+                    <span>Required</span>
+                    <span>Why it matters here</span>
+                  </div>
+                  {schemaPreviewFields.map((field) => (
+                    <div key={field.name} className="library-mini-table-row">
+                      <span>{field.name}</span>
+                      <span>{field.type}</span>
+                      <span>{field.required ? 'Yes' : 'No'}</span>
+                      <span>{field.description || 'No description provided.'}</span>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ) : null}
           </div>
         ) : null}
 
@@ -397,9 +590,36 @@ export default function MethodsPage() {
 
             <section className="methods-content-card">
               <h2>Why confidence matters</h2>
-              {renderMarkdownBlocks(sections.phase2Judgement, 'phase2-judgement')}
-              {renderMarkdownBlocks(sections.phase2Weakest, 'phase2-weakest-inline')}
+              {renderSectionOrNote(
+                sections.phase2Judgement,
+                'phase2-judgement',
+                'No Phase 2 judgement note was packaged with this build.',
+              )}
+              {sections.phase2Weakest
+                ? renderMarkdownBlocks(sections.phase2Weakest, 'phase2-weakest-inline')
+                : null}
             </section>
+
+            {sections.uncertaintyPractical ? (
+              <section className="methods-content-card">
+                <h2>How to use the uncertainty labels</h2>
+                {renderMarkdownBlocks(sections.uncertaintyPractical, 'uncertainty-practical')}
+              </section>
+            ) : null}
+
+            {sections.uncertaintyTests || sections.uncertaintyBottomLine ? (
+              <section className="methods-content-card">
+                <h2>First sensitivity tests</h2>
+                {renderSectionOrNote(
+                  sections.uncertaintyTests,
+                  'uncertainty-tests',
+                  'No uncertainty sensitivity guidance was bundled with this build.',
+                )}
+                {sections.uncertaintyBottomLine
+                  ? renderMarkdownBlocks(sections.uncertaintyBottomLine, 'uncertainty-bottom-line')
+                  : null}
+              </section>
+            ) : null}
           </div>
         ) : null}
 
@@ -484,8 +704,15 @@ export default function MethodsPage() {
             </section>
 
             <section className="methods-evidence-grid">
-              {evidenceFamilies.map((family) => (
-                <article key={family.stateId} className="methods-evidence-card">
+              {evidenceFamilies.map((family) => {
+                const sectorDocKey = sectorDerivationAliases[family.sector] ?? family.sector;
+                const sectorDerivation = enrichment.sectorDerivations[sectorDocKey];
+                const derivationExcerpt = sectorDerivation
+                  ? getSectionExcerpt(sectorDerivation.content, ['Why this output was chosen', 'Key caveat'])
+                  : '';
+
+                return (
+                  <article key={family.stateId} className="methods-evidence-card">
                   <div className="library-badge-row">
                     <span className="scenario-badge">{family.sector}</span>
                     {family.confidenceRatings.map((rating) => (
@@ -534,8 +761,15 @@ export default function MethodsPage() {
                       </div>
                     </div>
                   </div>
-                </article>
-              ))}
+                  {derivationExcerpt ? (
+                    <div className="scenario-provenance-note">
+                      <strong>{sectorDerivation?.title ?? 'Sector derivation note'}</strong>
+                      <p>{derivationExcerpt}</p>
+                    </div>
+                  ) : null}
+                  </article>
+                );
+              })}
               {evidenceFamilies.length === 0 ? (
                 <article className="methods-evidence-card methods-evidence-card--empty">
                   <h3>No state families match the current evidence filters.</h3>

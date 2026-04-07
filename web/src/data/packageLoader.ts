@@ -1,10 +1,34 @@
-import csvText from '@root/aus_phase1_sector_state_library/data/sector_states.csv?raw';
-import readmeText from '@root/aus_phase1_sector_state_library/README.md?raw';
-import phase2Text from '@root/aus_phase1_sector_state_library/docs/phase2_recommendations.md?raw';
 import { loadAppConfig } from './appConfigLoader';
+import { buildPackageEnrichment, normalizePackageTextFiles } from './packageCompanions';
 import { parseCsv } from './parseCsv';
 import { loadDefaultScenario } from './scenarioLoader';
 import type { EmissionEntry, PackageData, SectorState } from './types';
+
+const packageTextFiles = normalizePackageTextFiles(
+  import.meta.glob<string>(
+    [
+      '../../../aus_phase1_sector_state_library/README.md',
+      '../../../aus_phase1_sector_state_library/data/*.csv',
+      '../../../aus_phase1_sector_state_library/data/*.json',
+      '../../../aus_phase1_sector_state_library/docs/**/*.md',
+    ],
+    {
+      eager: true,
+      import: 'default',
+      query: '?raw',
+    },
+  ),
+);
+
+function requirePackageFile(path: string): string {
+  const file = packageTextFiles[path];
+
+  if (file != null) {
+    return file;
+  }
+
+  throw new Error(`Missing required package file: ${path}`);
+}
 
 function parseJsonArray<T>(raw: string): T[] {
   if (!raw) return [];
@@ -68,13 +92,15 @@ function toSectorState(row: Record<string, string>): SectorState {
 }
 
 export function loadPackage(): PackageData {
-  const rows = parseCsv(csvText);
+  const rows = parseCsv(requirePackageFile('data/sector_states.csv'));
   const appConfig = loadAppConfig();
+  const enrichment = buildPackageEnrichment(packageTextFiles);
 
   return {
     sectorStates: rows.map(toSectorState),
-    readme: readmeText,
-    phase2Memo: phase2Text,
+    readme: enrichment.readme,
+    phase2Memo: enrichment.phase2Memo,
+    enrichment,
     appConfig,
     defaultScenario: loadDefaultScenario(appConfig),
   };
