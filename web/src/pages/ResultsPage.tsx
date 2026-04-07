@@ -28,8 +28,20 @@ function formatDiagnosticSeverity(severity: string): string {
   return severity.toUpperCase();
 }
 
+function formatReasonLabel(reason: string | undefined): string | null {
+  if (!reason) {
+    return null;
+  }
+
+  return reason.replaceAll('_', ' ');
+}
+
 function formatModeLabel(mode: string): string {
   return mode.replaceAll('_', ' ');
+}
+
+function formatConstraintKind(kind: string): string {
+  return kind.replaceAll('_', ' ');
 }
 
 function formatNumber(value: number | null | undefined): string {
@@ -50,6 +62,18 @@ function formatShare(value: number | null): string {
 
 function countDistinctOutputs(request: SolveRequest): number {
   return new Set(request.rows.map((row) => row.outputId)).size;
+}
+
+function formatDiagnosticLocation(diagnostic: SolveResult['diagnostics'][number]): string | null {
+  const parts = [diagnostic.outputId, diagnostic.year != null ? String(diagnostic.year) : null, diagnostic.stateId]
+    .filter(Boolean);
+
+  return parts.length > 0 ? parts.join(' / ') : null;
+}
+
+function formatBindingLocation(constraint: SolveResult['reporting']['bindingConstraints'][number]): string {
+  const parts = [constraint.outputLabel, String(constraint.year), constraint.stateLabel].filter(Boolean);
+  return parts.join(' / ');
 }
 
 export default function ResultsPage() {
@@ -88,6 +112,7 @@ export default function ResultsPage() {
   const electricityStateShares = result?.reporting.stateShares.filter(
     (summary) => summary.outputId === 'electricity',
   ) ?? [];
+  const bindingConstraints = result?.reporting.bindingConstraints ?? [];
 
   useEffect(() => {
     if (!request) {
@@ -291,6 +316,52 @@ export default function ResultsPage() {
       </section>
 
       <section className="scenario-panel">
+        <h2>Binding Constraints</h2>
+        {result ? (
+          bindingConstraints.length > 0 ? (
+            <div className="results-raw-grid">
+              {bindingConstraints.map((constraint) => (
+                <article
+                  key={`${constraint.constraintId}:${constraint.outputId}:${constraint.year}:${constraint.stateId ?? 'all'}`}
+                  className="results-card"
+                >
+                  <span className="results-card-label">{constraint.year}</span>
+                  <strong>{formatConstraintKind(constraint.kind)}</strong>
+                  <p>{constraint.message}</p>
+                  <dl className="scenario-key-value-list">
+                    <div>
+                      <dt>Scope</dt>
+                      <dd>{formatBindingLocation(constraint)}</dd>
+                    </div>
+                    <div>
+                      <dt>Bound</dt>
+                      <dd>{constraint.boundType} {formatNumber(constraint.boundValue)}</dd>
+                    </div>
+                    <div>
+                      <dt>Actual</dt>
+                      <dd>{formatNumber(constraint.actualValue)}</dd>
+                    </div>
+                    <div>
+                      <dt>Slack</dt>
+                      <dd>{formatNumber(constraint.slack)}</dd>
+                    </div>
+                    <div>
+                      <dt>Mode</dt>
+                      <dd>{constraint.mode ? formatModeLabel(constraint.mode) : '—'}</dd>
+                    </div>
+                  </dl>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p>No modeled caps or control constraints were binding in the solved run.</p>
+          )
+        ) : (
+          <p>Waiting for the worker response.</p>
+        )}
+      </section>
+
+      <section className="scenario-panel">
         <h2>Raw adapter output</h2>
         {result ? (
           <div className="results-raw-grid">
@@ -348,13 +419,23 @@ export default function ResultsPage() {
         ) : result ? (
           <ul className="results-diagnostic-list">
             {result.diagnostics.map((diagnostic) => (
-              <li key={diagnostic.code} className="results-diagnostic-item">
+              <li
+                key={`${diagnostic.code}:${diagnostic.outputId ?? 'global'}:${diagnostic.year ?? 'all'}:${diagnostic.stateId ?? 'all'}:${diagnostic.message}`}
+                className="results-diagnostic-item"
+              >
                 <span className={`results-severity-pill results-severity-pill--${diagnostic.severity}`}>
                   {formatDiagnosticSeverity(diagnostic.severity)}
                 </span>
                 <div>
                   <strong>{diagnostic.code}</strong>
+                  {formatReasonLabel(diagnostic.reason) ? (
+                    <p><em>{formatReasonLabel(diagnostic.reason)}</em></p>
+                  ) : null}
+                  {formatDiagnosticLocation(diagnostic) ? (
+                    <p>{formatDiagnosticLocation(diagnostic)}</p>
+                  ) : null}
                   <p>{diagnostic.message}</p>
+                  {diagnostic.suggestion ? <p>{diagnostic.suggestion}</p> : null}
                 </div>
               </li>
             ))}

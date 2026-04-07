@@ -1,10 +1,16 @@
 import type { OutputRole, ScenarioControlMode } from '../data/types';
 
-export const SOLVER_CONTRACT_VERSION = 1 as const;
+export const SOLVER_CONTRACT_VERSION = 2 as const;
 
 export type SolverContractVersion = typeof SOLVER_CONTRACT_VERSION;
 export type SolveStatus = 'partial' | 'solved' | 'error';
 export type SolveDiagnosticSeverity = 'info' | 'warning' | 'error';
+export type SolveDiagnosticReason =
+  | 'pinned_fixed_share_conflict'
+  | 'share_exhaustion'
+  | 'activity_exhaustion'
+  | 'disabled_states'
+  | 'electricity_balance_conflict';
 export type RawSolveArtifactKind = 'engine_probe' | 'scenario_lp';
 export type RawSolveSolutionStatus =
   | 'optimal'
@@ -92,10 +98,13 @@ export interface SolveDiagnostic {
   code: string;
   severity: SolveDiagnosticSeverity;
   message: string;
+  reason?: SolveDiagnosticReason;
   outputId?: string;
   year?: number;
   stateId?: string;
   rowId?: string;
+  relatedConstraintIds?: string[];
+  suggestion?: string;
 }
 
 export interface RawSolveVariableValue {
@@ -124,6 +133,17 @@ export interface SolveRequestSummary {
 }
 
 export type CommoditySolveMode = 'endogenous' | 'externalized';
+export type SolveConstraintBoundType = 'equal' | 'min' | 'max';
+export type SolveConstraintKind =
+  | 'service_demand'
+  | 'commodity_balance'
+  | 'pinned_state'
+  | 'fixed_share'
+  | 'min_share'
+  | 'max_share'
+  | 'max_activity'
+  | 'disabled_state'
+  | 'externalized_supply';
 
 export interface SolveCommodityBalanceSummary {
   commodityId: string;
@@ -149,9 +169,28 @@ export interface SolveStateShareSummary {
   share: number | null;
 }
 
+export interface SolveBindingConstraintSummary {
+  constraintId: string;
+  kind: SolveConstraintKind;
+  boundType: SolveConstraintBoundType;
+  boundValue: number;
+  actualValue: number;
+  slack: number;
+  outputId: string;
+  outputLabel: string;
+  year: number;
+  stateId?: string;
+  stateLabel?: string;
+  rowId?: string;
+  commodityId?: string;
+  mode?: ScenarioControlMode;
+  message: string;
+}
+
 export interface SolveReportingSummary {
   commodityBalances: SolveCommodityBalanceSummary[];
   stateShares: SolveStateShareSummary[];
+  bindingConstraints: SolveBindingConstraintSummary[];
 }
 
 export interface SolveResult {
