@@ -103,12 +103,12 @@ function countOptimizedRequiredServices(
 export default function ComparePage() {
   const sectorStates = usePackageStore((state) => state.sectorStates);
   const appConfig = usePackageStore((state) => state.appConfig);
-  const defaultScenario = usePackageStore((state) => state.defaultScenario);
+  const currentScenario = usePackageStore((state) => state.currentScenario);
   const [completedComparison, setCompletedComparison] = useState<CompletedComparisonState | null>(null);
 
   const comparisonBuild = useMemo(() => {
     try {
-      const plan = buildComparisonScenarioPlan(defaultScenario, appConfig);
+      const plan = buildComparisonScenarioPlan(currentScenario, appConfig);
       const solves: PreparedSolve[] = plan.order.map((key) => {
         const scenario = plan.scenarios[key];
         return {
@@ -117,7 +117,7 @@ export default function ComparePage() {
           request: buildSolveRequest({
             sectorStates,
             appConfig,
-            defaultScenario,
+            defaultScenario: currentScenario,
           }, scenario),
         };
       });
@@ -137,7 +137,7 @@ export default function ComparePage() {
         planKey: null,
       };
     }
-  }, [appConfig, defaultScenario, sectorStates]);
+  }, [appConfig, currentScenario, sectorStates]);
 
   const activeComparison = comparisonBuild.planKey != null
     && completedComparison?.planKey === comparisonBuild.planKey
@@ -194,8 +194,8 @@ export default function ComparePage() {
     return buildComparisonReport(appConfig, sectorStates, activeComparison.solves);
   }, [activeComparison, appConfig, comparisonBuild.error, sectorStates]);
 
-  const baseScenario = comparisonBuild.plan?.scenarios.base ?? defaultScenario;
-  const compareScenario = comparisonBuild.plan?.scenarios.compare ?? defaultScenario;
+  const baseScenario = comparisonBuild.plan?.scenarios.base ?? currentScenario;
+  const compareScenario = comparisonBuild.plan?.scenarios.compare ?? currentScenario;
   const baseRoleSummary = scenarioRoleSummary(baseScenario, appConfig);
   const compareRoleSummary = scenarioRoleSummary(compareScenario, appConfig);
   const baseControlModes = countControlsByMode(baseScenario);
@@ -236,7 +236,7 @@ export default function ComparePage() {
             </div>
             <div>
               <dt>Milestone years</dt>
-              <dd>{defaultScenario.years.join(', ')}</dd>
+              <dd>{currentScenario.years.join(', ')}</dd>
             </div>
             <div>
               <dt>Reference status</dt>
