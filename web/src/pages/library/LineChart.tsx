@@ -2,7 +2,6 @@ export interface LineChartSeries {
   key: string;
   label: string;
   color: string;
-  selectionKey?: string;
   values: Array<{
     year: number;
     value: number | null;
@@ -10,6 +9,8 @@ export interface LineChartSeries {
   dashArray?: string;
   active?: boolean;
 }
+
+type LineChartLegendMode = 'full' | 'compact' | 'hidden';
 
 interface LineChartProps {
   ariaLabel: string;
@@ -20,6 +21,7 @@ interface LineChartProps {
   emptyMessage?: string;
   onSelectSeries?: (series: LineChartSeries) => void;
   minDomain?: number;
+  legendMode?: LineChartLegendMode;
 }
 
 const CHART_WIDTH = 720;
@@ -71,10 +73,13 @@ export default function LineChart({
   emptyMessage = 'No values available for this chart.',
   onSelectSeries,
   minDomain,
+  legendMode = 'full',
 }: LineChartProps) {
   const xSpan = CHART_WIDTH - PADDING_LEFT - PADDING_RIGHT;
   const ySpan = CHART_HEIGHT - PADDING_TOP - PADDING_BOTTOM;
   const activeSeriesPresent = series.some((entry) => entry.active);
+  const showLegend = legendMode !== 'hidden';
+  const compactLegend = legendMode === 'compact';
   const seriesValues = series.flatMap((entry) => entry.values.map((point) => point.value).filter((value): value is number => value != null));
 
   if (series.length === 0 || seriesValues.length === 0 || years.length === 0) {
@@ -215,27 +220,49 @@ export default function LineChart({
         })}
       </svg>
 
-      <div className="library-chart-legend">
-        {series.map((entry) => (
-          <button
-            key={entry.key}
-            type="button"
-            className={`library-chart-legend-item${entry.active ? ' library-chart-legend-item--active' : ''}`}
-            onClick={() => onSelectSeries?.(entry)}
-          >
-            <span
-              className="library-chart-legend-swatch"
-              style={{
-                backgroundColor: entry.color,
-                opacity: activeSeriesPresent ? (entry.active ? 1 : 0.35) : 0.8,
-              }}
-            >
-              {entry.dashArray ? <span className="library-chart-legend-swatch--dash" /> : null}
-            </span>
-            <span>{entry.label}</span>
-          </button>
-        ))}
-      </div>
+      {showLegend ? (
+        <div className={`library-chart-legend${compactLegend ? ' library-chart-legend--compact' : ''}`}>
+          {series.map((entry) => {
+            const itemClassName = [
+              'library-chart-legend-item',
+              compactLegend ? 'library-chart-legend-item--compact' : '',
+              entry.active ? 'library-chart-legend-item--active' : '',
+              onSelectSeries ? '' : 'library-chart-legend-item--static',
+            ]
+              .filter(Boolean)
+              .join(' ');
+            const content = (
+              <>
+                <span
+                  className="library-chart-legend-swatch"
+                  style={{
+                    backgroundColor: entry.color,
+                    opacity: activeSeriesPresent ? (entry.active ? 1 : 0.35) : 0.8,
+                  }}
+                >
+                  {entry.dashArray ? <span className="library-chart-legend-swatch--dash" /> : null}
+                </span>
+                <span>{entry.label}</span>
+              </>
+            );
+
+            return onSelectSeries ? (
+              <button
+                key={entry.key}
+                type="button"
+                className={itemClassName}
+                onClick={() => onSelectSeries(entry)}
+              >
+                {content}
+              </button>
+            ) : (
+              <span key={entry.key} className={itemClassName}>
+                {content}
+              </span>
+            );
+          })}
+        </div>
+      ) : null}
     </div>
   );
 }

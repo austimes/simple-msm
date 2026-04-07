@@ -254,7 +254,6 @@ export default function LibraryPage() {
     const selectSeries = (trajectory: SectorStateTrajectory, metricKey: string): LineChartSeries => ({
       key: `${trajectory.stateId}::${metricKey}`,
       label: trajectory.label,
-      selectionKey: trajectory.stateId,
       color: colorByTrajectoryId.get(trajectory.stateId) ?? TRAJECTORY_COLORS[0],
       active: trajectory.stateId === resolvedSelectedTrajectoryId,
       values: trajectory.points.map((point) => ({
@@ -290,6 +289,15 @@ export default function LibraryPage() {
         },
       ]),
     };
+  }, [colorByTrajectoryId, resolvedSelectedTrajectoryId, visibleTrajectories]);
+
+  const trajectorySelectionItems = useMemo(() => {
+    return visibleTrajectories.map((trajectory) => ({
+      stateId: trajectory.stateId,
+      label: trajectory.label,
+      color: colorByTrajectoryId.get(trajectory.stateId) ?? TRAJECTORY_COLORS[0],
+      active: trajectory.stateId === resolvedSelectedTrajectoryId,
+    }));
   }, [colorByTrajectoryId, resolvedSelectedTrajectoryId, visibleTrajectories]);
 
   const comparisonMetrics = useMemo<MetricConfig[]>(() => {
@@ -377,7 +385,6 @@ export default function LibraryPage() {
         const series = buildInputCommoditySeries(family).map<LineChartSeries>((entry, index) => ({
           key: `${family.stateId}::${entry.commodity}`,
           label: `${entry.commodity} (${entry.unit})`,
-          selectionKey: family.stateId,
           color: COEFFICIENT_COLORS[index % COEFFICIENT_COLORS.length],
           active: family.stateId === resolvedSelectedTrajectoryId,
           values: entry.values,
@@ -390,12 +397,6 @@ export default function LibraryPage() {
         };
       });
   }, [filteredFamilies, resolvedSelectedTrajectoryId]);
-
-  const handleSeriesSelect = (series: LineChartSeries) => {
-    if (series.selectionKey) {
-      setSelectedTrajectoryId(series.selectionKey);
-    }
-  };
 
   const resetFilters = () => {
     const firstSector = sectorIndex.sectors[0] ?? '';
@@ -578,6 +579,34 @@ export default function LibraryPage() {
 
       {visibleTrajectories.length > 0 ? (
         <>
+          <section className="scenario-panel library-state-selector-panel">
+            <div className="library-panel-heading">
+              <div>
+                <h2>State highlight</h2>
+                <p>Choose one trajectory here to emphasize it across the charts, comparison matrix, detail pane, and coefficient facets.</p>
+              </div>
+              <span className="library-count-pill">{trajectorySelectionItems.length} states</span>
+            </div>
+
+            <div className="library-state-selector-grid">
+              {trajectorySelectionItems.map((trajectory) => (
+                <button
+                  key={trajectory.stateId}
+                  type="button"
+                  className={`library-state-selector-button${trajectory.active ? ' library-state-selector-button--active' : ''}`}
+                  onClick={() => setSelectedTrajectoryId(trajectory.stateId)}
+                  aria-pressed={trajectory.active}
+                >
+                  <span className="library-state-selector-swatch" style={{ backgroundColor: trajectory.color }} />
+                  <span className="library-state-selector-copy">
+                    <strong>{trajectory.label}</strong>
+                    <span>{trajectory.stateId}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </section>
+
           <section className="library-trajectory-grid">
             <article className="scenario-panel library-chart-card">
               <div className="library-panel-heading">
@@ -592,7 +621,7 @@ export default function LibraryPage() {
                 series={metricSeries.cost}
                 valueFormatter={(value) => numberFormatter.format(value)}
                 axisFormatter={formatAxisNumber}
-                onSelectSeries={handleSeriesSelect}
+                legendMode="hidden"
                 minDomain={0}
               />
             </article>
@@ -610,7 +639,7 @@ export default function LibraryPage() {
                 series={metricSeries.emissions}
                 valueFormatter={(value) => numberFormatter.format(value)}
                 axisFormatter={formatAxisNumber}
-                onSelectSeries={handleSeriesSelect}
+                legendMode="hidden"
                 minDomain={0}
               />
             </article>
@@ -628,7 +657,7 @@ export default function LibraryPage() {
                 series={metricSeries.maxShare}
                 valueFormatter={(value) => percentFormatter.format(value)}
                 axisFormatter={formatPercentAxis}
-                onSelectSeries={handleSeriesSelect}
+                legendMode="hidden"
                 minDomain={0}
               />
             </article>
@@ -646,7 +675,7 @@ export default function LibraryPage() {
                 series={metricSeries.maxActivity}
                 valueFormatter={(value) => numberFormatter.format(value)}
                 axisFormatter={formatAxisNumber}
-                onSelectSeries={handleSeriesSelect}
+                legendMode="hidden"
                 minDomain={0}
               />
             </article>
@@ -657,7 +686,7 @@ export default function LibraryPage() {
               <div>
                 <h2>Trajectory comparison matrix</h2>
                 <p>
-                  Rows are grouped by trajectory. Click any metric row to focus the detail pane and coefficient charts on that state trajectory.
+                  Rows are grouped by trajectory. Use the shared state list to drive the chart highlight, or click any metric row to focus the detail pane on that state trajectory.
                 </p>
               </div>
               <span className="library-count-pill">{visibleTrajectories.length} states</span>
@@ -939,7 +968,7 @@ export default function LibraryPage() {
             <div className="library-panel-heading">
               <div>
                 <h2>Input coefficient trajectories</h2>
-                <p>Each facet is a state trajectory. Click any coefficient line to focus that state in the detail pane above.</p>
+                <p>Each facet is a state trajectory. Use the shared state list above to keep one trajectory highlighted across these coefficient cards.</p>
               </div>
             </div>
 
@@ -954,13 +983,7 @@ export default function LibraryPage() {
                       <h3>{family.label}</h3>
                       <p>{family.serviceOrOutputName}</p>
                     </div>
-                    <button
-                      type="button"
-                      className="library-inline-select-button"
-                      onClick={() => setSelectedTrajectoryId(family.stateId)}
-                    >
-                      {family.stateId === resolvedSelectedTrajectoryId ? 'Selected' : 'Select trajectory'}
-                    </button>
+                    <span className="library-count-pill">{family.stateId}</span>
                   </div>
 
                   {series.length > 0 ? (
@@ -971,7 +994,7 @@ export default function LibraryPage() {
                         series={series}
                         valueFormatter={(value) => numberFormatter.format(value)}
                         axisFormatter={formatAxisNumber}
-                        onSelectSeries={handleSeriesSelect}
+                        legendMode="compact"
                         minDomain={0}
                       />
                       {units.length > 1 ? (
