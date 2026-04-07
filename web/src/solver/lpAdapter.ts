@@ -1,17 +1,23 @@
 import { solve, type Model, type Solution } from 'yalps';
 import type {
+  CommoditySolveMode,
   NormalizedSolverRow,
-  ResolvedSolveControl,
   RawSolveVariableValue,
+  ResolvedSolveControl,
+  SolveCommodityBalanceSummary,
   SolveDiagnostic,
+  SolveReportingSummary,
   SolveRequest,
   SolveRequestSummary,
   SolveResult,
+  SolveStateShareSummary,
 } from './contract';
 
 const SCENARIO_OBJECTIVE_KEY = 'total_cost';
 const SCENARIO_DIRECTION = 'minimize' as const;
 const SHARE_TOLERANCE = 1e-6;
+
+type ConstraintBounds = { equal?: number; min?: number; max?: number };
 
 interface RequiredServiceGroup {
   outputId: string;
@@ -21,15 +27,30 @@ interface RequiredServiceGroup {
   rows: NormalizedSolverRow[];
 }
 
+interface SupplyCommodityGroup {
+  commodityId: string;
+  year: number;
+  control: ResolvedSolveControl;
+  externalDemand: number;
+  rows: NormalizedSolverRow[];
+}
+
 interface ScenarioLpBuild {
   model: Model<string, string>;
   diagnostics: SolveDiagnostic[];
   notes: string[];
   hasUnmodeledFeatures: boolean;
+  activeRows: NormalizedSolverRow[];
+  supplyGroups: SupplyCommodityGroup[];
+  balancedCommodityKeys: Set<string>;
 }
 
 function yearKey(year: number): string {
   return String(year);
+}
+
+function commodityYearKey(commodityId: string, year: number): string {
+  return `${commodityId}::${year}`;
 }
 
 function activityVariableId(row: NormalizedSolverRow): string {
@@ -42,6 +63,10 @@ function stateConstraintId(prefix: string, row: NormalizedSolverRow): string {
 
 function demandConstraintId(outputId: string, year: number): string {
   return `demand:${outputId}:${year}`;
+}
+
+function commodityBalanceConstraintId(commodityId: string, year: number): string {
+  return `commodity_balance:${commodityId}:${year}`;
 }
 
 function countDistinctOutputs(request: SolveRequest): number {
@@ -58,6 +83,13 @@ function summarizeRequest(request: SolveRequest): SolveRequestSummary {
   };
 }
 
+function emptyReporting(): SolveReportingSummary {
+  return {
+    commodityBalances: [],
+    stateShares: [],
+  };
+}
+
 function toRawVariables(solution: Solution<string>): RawSolveVariableValue[] {
   return solution.variables.map(([id, value]) => ({ id, value }));
 }
@@ -70,9 +102,17 @@ function resolveCommodityPrice(request: SolveRequest, commodityId: string, year:
   return request.scenario.commodityPriceByCommodity[commodityId]?.valuesByYear[yearKey(year)] ?? 0;
 }
 
-function resolveRowObjectiveCost(request: SolveRequest, row: NormalizedSolverRow): number {
+function resolveRowObjectiveCost(
+  request: SolveRequest,
+  row: NormalizedSolverRow,
+  balancedCommodityKeys: Set<string>,
+): number {
   const conversionCost = row.conversionCostPerUnit ?? 0;
   const commodityCost = row.inputs.reduce((total, input) => {
+    if (balancedCommodityKeys.has(commodityYearKey(input.commodityId, row.year))) {
+      return total;
+    }
+
     return total + input.coefficient * resolveCommodityPrice(request, input.commodityId, row.year);
   }, 0);
   const carbonCost = sumDirectEmissionsPerUnit(row) * (request.scenario.carbonPriceByYear[yearKey(row.year)] ?? 0);
@@ -81,14 +121,31 @@ function resolveRowObjectiveCost(request: SolveRequest, row: NormalizedSolverRow
 }
 
 function addConstraint(
-  constraints: Record<string, { equal?: number; min?: number; max?: number }>,
+  constraints: Record<string, ConstraintBounds>,
   variables: Record<string, Record<string, number>>,
   variableId: string,
   constraintId: string,
-  constraint: { equal?: number; min?: number; max?: number },
+  constraint: ConstraintBounds,
 ): void {
   constraints[constraintId] = constraint;
   variables[variableId][constraintId] = 1;
+}
+
+function addShareConstraint(
+  constraints: Record<string, ConstraintBounds>,
+  variables: Record<string, Record<string, number>>,
+  groupVariableIds: string[],
+  constrainedVariableId: string,
+  share: number,
+  constraintId: string,
+  constraint: ConstraintBounds,
+): void {
+  constraints[constraintId] = constraint;
+
+  for (const groupVariableId of groupVariableIds) {
+    const coefficient = groupVariableId === constrainedVariableId ? 1 - share : -share;
+    variables[groupVariableId][constraintId] = coefficient;
+  }
 }
 
 function collectRequiredServiceGroups(request: SolveRequest): RequiredServiceGroup[] {
@@ -108,7 +165,7 @@ function collectRequiredServiceGroups(request: SolveRequest): RequiredServiceGro
       );
     }
 
-    const key = `${row.outputId}::${row.year}`;
+    const key = commodityYearKey(row.outputId, row.year);
     const existing = groups.get(key);
 
     if (existing) {
@@ -132,6 +189,122 @@ function collectRequiredServiceGroups(request: SolveRequest): RequiredServiceGro
 
     return left.outputId.localeCompare(right.outputId);
   });
+}
+
+function collectSupplyCommodityGroups(request: SolveRequest): SupplyCommodityGroup[] {
+  const groups = new Map<string, SupplyCommodityGroup>();
+
+  for (const row of request.rows) {
+    if (row.outputRole !== 'endogenous_supply_commodity') {
+      continue;
+    }
+
+    const control = request.scenario.controlsByOutput[row.outputId]?.[yearKey(row.year)];
+
+    if (!control) {
+      throw new Error(
+        `Missing resolved control for supply commodity ${JSON.stringify(row.outputId)} in ${row.year}.`,
+      );
+    }
+
+    const key = commodityYearKey(row.outputId, row.year);
+    const existing = groups.get(key);
+
+    if (existing) {
+      existing.rows.push(row);
+      continue;
+    }
+
+    groups.set(key, {
+      commodityId: row.outputId,
+      year: row.year,
+      control,
+      externalDemand: request.scenario.externalCommodityDemandByCommodity[row.outputId]?.[yearKey(row.year)] ?? 0,
+      rows: [row],
+    });
+  }
+
+  return Array.from(groups.values()).sort((left, right) => {
+    if (left.year !== right.year) {
+      return left.year - right.year;
+    }
+
+    return left.commodityId.localeCompare(right.commodityId);
+  });
+}
+
+function validateFixedShareControl(
+  outputId: string,
+  year: number,
+  rows: NormalizedSolverRow[],
+  control: ResolvedSolveControl,
+  controlLabel: string,
+): SolveDiagnostic[] {
+  const diagnostics: SolveDiagnostic[] = [];
+  const availableStateIds = new Set(rows.map((row) => row.stateId));
+  const disabledStateIds = new Set(control.disabledStateIds);
+  const shares = control.fixedShares;
+
+  if (!shares || Object.keys(shares).length === 0) {
+    diagnostics.push({
+      code: 'missing_fixed_shares',
+      severity: 'error',
+      message: `${controlLabel} for ${outputId} in ${year} requires at least one state share.`,
+      outputId,
+      year,
+    });
+    return diagnostics;
+  }
+
+  let shareTotal = 0;
+  for (const [stateId, share] of Object.entries(shares)) {
+    shareTotal += share;
+
+    if (!availableStateIds.has(stateId)) {
+      diagnostics.push({
+        code: 'unknown_fixed_share_state',
+        severity: 'error',
+        message: `Fixed-share state ${JSON.stringify(stateId)} is not available for ${outputId} in ${year}.`,
+        outputId,
+        year,
+        stateId,
+      });
+    }
+
+    if (disabledStateIds.has(stateId)) {
+      diagnostics.push({
+        code: 'disabled_fixed_share_state',
+        severity: 'error',
+        message: `Fixed-share state ${JSON.stringify(stateId)} is disabled for ${outputId} in ${year}.`,
+        outputId,
+        year,
+        stateId,
+      });
+    }
+
+    if (share < 0) {
+      diagnostics.push({
+        code: 'negative_fixed_share',
+        severity: 'error',
+        message: `Fixed share for ${JSON.stringify(stateId)} in ${outputId} ${year} must be non-negative.`,
+        outputId,
+        year,
+        stateId,
+      });
+    }
+  }
+
+  if (Math.abs(shareTotal - 1) > SHARE_TOLERANCE) {
+    diagnostics.push({
+      code: 'fixed_share_total_must_equal_one',
+      severity: 'error',
+      message: `Fixed shares for ${outputId} in ${year} sum to ${shareTotal.toFixed(6)} instead of 1.`,
+      outputId,
+      year,
+    });
+  }
+
+  return diagnostics;
 }
 
 function validateRequiredServiceGroup(group: RequiredServiceGroup): SolveDiagnostic[] {
@@ -176,108 +349,81 @@ function validateRequiredServiceGroup(group: RequiredServiceGroup): SolveDiagnos
     return diagnostics;
   }
 
-  if (group.control.mode !== 'fixed_shares') {
-    return diagnostics;
-  }
-
-  const shares = group.control.fixedShares;
-  if (!shares || Object.keys(shares).length === 0) {
-    diagnostics.push({
-      code: 'missing_fixed_shares',
-      severity: 'error',
-      message: `Fixed-share control for ${group.outputId} in ${group.year} requires at least one state share.`,
-      outputId: group.outputId,
-      year: group.year,
-    });
-    return diagnostics;
-  }
-
-  let shareTotal = 0;
-  for (const [stateId, share] of Object.entries(shares)) {
-    shareTotal += share;
-
-    if (!availableStateIds.has(stateId)) {
-      diagnostics.push({
-        code: 'unknown_fixed_share_state',
-        severity: 'error',
-        message: `Fixed-share state ${JSON.stringify(stateId)} is not available for ${group.outputId} in ${group.year}.`,
-        outputId: group.outputId,
-        year: group.year,
-        stateId,
-      });
-    }
-
-    if (disabledStateIds.has(stateId)) {
-      diagnostics.push({
-        code: 'disabled_fixed_share_state',
-        severity: 'error',
-        message: `Fixed-share state ${JSON.stringify(stateId)} is disabled for ${group.outputId} in ${group.year}.`,
-        outputId: group.outputId,
-        year: group.year,
-        stateId,
-      });
-    }
-
-    if (share < 0) {
-      diagnostics.push({
-        code: 'negative_fixed_share',
-        severity: 'error',
-        message: `Fixed share for ${JSON.stringify(stateId)} in ${group.outputId} ${group.year} must be non-negative.`,
-        outputId: group.outputId,
-        year: group.year,
-        stateId,
-      });
-    }
-  }
-
-  if (Math.abs(shareTotal - 1) > SHARE_TOLERANCE) {
-    diagnostics.push({
-      code: 'fixed_share_total_must_equal_one',
-      severity: 'error',
-      message: `Fixed shares for ${group.outputId} in ${group.year} sum to ${shareTotal.toFixed(6)} instead of 1.`,
-      outputId: group.outputId,
-      year: group.year,
-    });
+  if (group.control.mode === 'fixed_shares') {
+    diagnostics.push(
+      ...validateFixedShareControl(
+        group.outputId,
+        group.year,
+        group.rows,
+        group.control,
+        'Fixed-share control',
+      ),
+    );
   }
 
   return diagnostics;
 }
 
+function validateSupplyCommodityGroup(group: SupplyCommodityGroup): SolveDiagnostic[] {
+  const diagnostics: SolveDiagnostic[] = [];
+
+  if (group.control.mode === 'externalized' || group.control.mode === 'optimize') {
+    return diagnostics;
+  }
+
+  if (group.control.mode === 'fixed_shares') {
+    diagnostics.push(
+      ...validateFixedShareControl(
+        group.commodityId,
+        group.year,
+        group.rows,
+        group.control,
+        'Fixed-share supply control',
+      ),
+    );
+    return diagnostics;
+  }
+
+  diagnostics.push({
+    code: 'invalid_supply_control_mode',
+    severity: 'error',
+    message: `Supply commodity ${group.commodityId} in ${group.year} must use fixed_shares, optimize, or externalized mode.`,
+    outputId: group.commodityId,
+    year: group.year,
+  });
+
+  return diagnostics;
+}
+
 function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
-  const constraints: Record<string, { equal?: number; min?: number; max?: number }> = {};
+  const constraints: Record<string, ConstraintBounds> = {};
   const variables: Record<string, Record<string, number>> = {};
   const diagnostics: SolveDiagnostic[] = [];
   const notes: string[] = [];
-  const groups = collectRequiredServiceGroups(request);
+  const requiredServiceGroups = collectRequiredServiceGroups(request);
+  const supplyGroups = collectSupplyCommodityGroups(request);
 
-  if (groups.length === 0) {
+  if (requiredServiceGroups.length === 0) {
     throw new Error('Solve request does not include any required-service rows to optimize.');
   }
 
-  for (const group of groups) {
+  for (const group of requiredServiceGroups) {
     diagnostics.push(...validateRequiredServiceGroup(group));
   }
 
-  const ignoredRows = request.rows.filter((row) => row.outputRole !== 'required_service');
-  const hasUnmodeledFeatures =
-    ignoredRows.length > 0
-    || Object.keys(request.scenario.externalCommodityDemandByCommodity).length > 0
-    || request.scenario.options.shareSmoothing.enabled;
+  for (const group of supplyGroups) {
+    diagnostics.push(...validateSupplyCommodityGroup(group));
+  }
+
+  const ignoredRows = request.rows.filter((row) => row.outputRole === 'optional_removals');
+  const hasUnmodeledFeatures = ignoredRows.length > 0 || request.scenario.options.shareSmoothing.enabled;
 
   if (ignoredRows.length > 0) {
     const ignoredOutputCount = new Set(ignoredRows.map((row) => row.outputId)).size;
     diagnostics.push({
-      code: 'non_required_rows_pending',
+      code: 'optional_rows_pending',
       severity: 'warning',
-      message: `${ignoredRows.length} non-required rows across ${ignoredOutputCount} outputs remain outside the current LP core and are ignored for this solve.`,
-    });
-  }
-
-  if (Object.keys(request.scenario.externalCommodityDemandByCommodity).length > 0) {
-    diagnostics.push({
-      code: 'commodity_balance_pending',
-      severity: 'warning',
-      message: 'External commodity demand tables are present, but endogenous commodity-balance constraints are not yet active in this solver core.',
+      message: `${ignoredRows.length} optional-removal rows across ${ignoredOutputCount} outputs remain outside the current LP core and are ignored for this solve.`,
     });
   }
 
@@ -287,6 +433,20 @@ function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
       severity: 'warning',
       message: 'Share smoothing is enabled in the scenario, but the rollout proxy is not yet enforced in the LP core.',
     });
+  }
+
+  const balancedCommodityKeys = new Set(
+    supplyGroups
+      .filter((group) => group.control.mode !== 'externalized')
+      .map((group) => commodityYearKey(group.commodityId, group.year)),
+  );
+
+  const activeRows = request.rows.filter((row) => row.outputRole !== 'optional_removals');
+
+  for (const row of activeRows) {
+    variables[activityVariableId(row)] = {
+      [SCENARIO_OBJECTIVE_KEY]: resolveRowObjectiveCost(request, row, balancedCommodityKeys),
+    };
   }
 
   const validationErrors = diagnostics.filter((diagnostic) => diagnostic.severity === 'error');
@@ -301,10 +461,13 @@ function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
       diagnostics,
       notes,
       hasUnmodeledFeatures,
+      activeRows,
+      supplyGroups,
+      balancedCommodityKeys,
     };
   }
 
-  for (const group of groups) {
+  for (const group of requiredServiceGroups) {
     const demandId = demandConstraintId(group.outputId, group.year);
     const disabledStateIds = new Set(group.control.disabledStateIds);
     const fixedShares = group.control.fixedShares ?? {};
@@ -313,10 +476,7 @@ function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
 
     for (const row of group.rows) {
       const variableId = activityVariableId(row);
-      variables[variableId] = {
-        [SCENARIO_OBJECTIVE_KEY]: resolveRowObjectiveCost(request, row),
-        [demandId]: 1,
-      };
+      variables[variableId][demandId] = 1;
 
       if (disabledStateIds.has(row.stateId)) {
         addConstraint(constraints, variables, variableId, stateConstraintId('disabled', row), { equal: 0 });
@@ -373,11 +533,110 @@ function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
     }
   }
 
+  for (const group of supplyGroups) {
+    const variableIds = group.rows.map((row) => activityVariableId(row));
+    const disabledStateIds = new Set(group.control.disabledStateIds);
+    const fixedShares = group.control.fixedShares ?? {};
+
+    if (group.control.mode === 'externalized') {
+      for (const row of group.rows) {
+        addConstraint(
+          constraints,
+          variables,
+          activityVariableId(row),
+          stateConstraintId('externalized', row),
+          { equal: 0 },
+        );
+      }
+
+      continue;
+    }
+
+    const balanceId = commodityBalanceConstraintId(group.commodityId, group.year);
+    constraints[balanceId] = { equal: group.externalDemand };
+
+    for (const row of activeRows) {
+      if (row.year !== group.year || row.outputId === group.commodityId) {
+        continue;
+      }
+
+      const coefficient = row.inputs.reduce((total, input) => {
+        return input.commodityId === group.commodityId ? total + input.coefficient : total;
+      }, 0);
+
+      if (coefficient !== 0) {
+        variables[activityVariableId(row)][balanceId] = -coefficient;
+      }
+    }
+
+    for (const row of group.rows) {
+      const variableId = activityVariableId(row);
+      variables[variableId][balanceId] = (variables[variableId][balanceId] ?? 0) + 1;
+
+      if (disabledStateIds.has(row.stateId)) {
+        addConstraint(constraints, variables, variableId, stateConstraintId('disabled', row), { equal: 0 });
+        continue;
+      }
+
+      if (group.control.mode === 'fixed_shares') {
+        addShareConstraint(
+          constraints,
+          variables,
+          variableIds,
+          variableId,
+          fixedShares[row.stateId] ?? 0,
+          stateConstraintId('fixed_share', row),
+          { equal: 0 },
+        );
+      }
+
+      if (row.bounds.minShare != null) {
+        addShareConstraint(
+          constraints,
+          variables,
+          variableIds,
+          variableId,
+          row.bounds.minShare,
+          stateConstraintId('min_share', row),
+          { min: 0 },
+        );
+      }
+
+      if (request.scenario.options.respectMaxShare && row.bounds.maxShare != null) {
+        addShareConstraint(
+          constraints,
+          variables,
+          variableIds,
+          variableId,
+          row.bounds.maxShare,
+          stateConstraintId('max_share', row),
+          { max: 0 },
+        );
+      }
+
+      if (request.scenario.options.respectMaxActivity && row.bounds.maxActivity != null) {
+        addConstraint(
+          constraints,
+          variables,
+          variableId,
+          stateConstraintId('max_activity', row),
+          { max: row.bounds.maxActivity },
+        );
+      }
+    }
+  }
+
+  const endogenousSupplyGroupCount = supplyGroups.filter((group) => group.control.mode !== 'externalized').length;
+  const externalizedSupplyGroupCount = supplyGroups.length - endogenousSupplyGroupCount;
+
   notes.push(
-    `Built a generic required-service LP over ${groups.length} output-year groups and ${Object.keys(variables).length} activity variables.`,
+    `Built a generic LP over ${requiredServiceGroups.length} required-service groups, ${endogenousSupplyGroupCount} endogenous-supply groups, and ${Object.keys(variables).length} activity variables.`,
   );
   notes.push(
-    'Objective coefficients combine row conversion cost, priced commodity inputs, and direct-emissions carbon cost using the resolved scenario tables.',
+    'Objective coefficients combine row conversion cost, exogenously priced non-balanced commodity inputs, and direct-emissions carbon cost using the resolved scenario tables.',
+  );
+  notes.push(
+    `Electricity-style supply commodities enforce balance when they stay in-model; ${externalizedSupplyGroupCount} supply-year groups are externalized and fixed to zero activity.`,
   );
 
   return {
@@ -390,6 +649,9 @@ function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
     diagnostics,
     notes,
     hasUnmodeledFeatures,
+    activeRows,
+    supplyGroups,
+    balancedCommodityKeys,
   };
 }
 
@@ -410,16 +672,16 @@ function buildDiagnostics(
   }
 
   diagnostics.push({
-    code: 'required_service_lp_completed',
+    code: 'service_and_supply_lp_completed',
     severity: solution.status === 'optimal' ? 'info' : 'warning',
-    message: `The required-service LP core completed with status ${solution.status}.`,
+    message: `The service-and-supply LP core completed with status ${solution.status}.`,
   });
 
   if (solution.status !== 'optimal') {
     diagnostics.push({
-      code: 'required_service_lp_not_optimal',
+      code: 'service_and_supply_lp_not_optimal',
       severity: 'error',
-      message: 'The current LP core could not find an optimal feasible solution for the required-service constraints.',
+      message: 'The current LP core could not find an optimal feasible solution for the required-service and endogenous-supply constraints.',
     });
   }
 
@@ -427,11 +689,141 @@ function buildDiagnostics(
     diagnostics.push({
       code: 'partial_domain_coverage',
       severity: 'warning',
-      message: 'The LP solved the required-service core, but commodity balances, removals, or rollout smoothing still need downstream tasks.',
+      message: 'The LP solved required services and in-model supply commodities, but removals or rollout smoothing still need downstream tasks.',
     });
   }
 
   return diagnostics;
+}
+
+function buildVariableValueMap(solution: Solution<string>): Map<string, number> {
+  return new Map(solution.variables);
+}
+
+function buildStateShareSummary(
+  rows: NormalizedSolverRow[],
+  variableValues: Map<string, number>,
+): SolveStateShareSummary[] {
+  const groupedRows = new Map<string, { outputId: string; outputLabel: string; year: number; rows: NormalizedSolverRow[] }>();
+
+  for (const row of rows) {
+    const key = commodityYearKey(row.outputId, row.year);
+    const existing = groupedRows.get(key);
+
+    if (existing) {
+      existing.rows.push(row);
+      continue;
+    }
+
+    groupedRows.set(key, {
+      outputId: row.outputId,
+      outputLabel: row.outputLabel,
+      year: row.year,
+      rows: [row],
+    });
+  }
+
+  return Array.from(groupedRows.values())
+    .sort((left, right) => {
+      if (left.year !== right.year) {
+        return left.year - right.year;
+      }
+
+      return left.outputId.localeCompare(right.outputId);
+    })
+    .flatMap((group) => {
+      const totalActivity = group.rows.reduce((total, row) => {
+        return total + (variableValues.get(activityVariableId(row)) ?? 0);
+      }, 0);
+
+      return [...group.rows]
+        .sort((left, right) => left.stateLabel.localeCompare(right.stateLabel))
+        .map((row) => {
+          const activity = variableValues.get(activityVariableId(row)) ?? 0;
+          return {
+            outputId: group.outputId,
+            outputLabel: group.outputLabel,
+            year: group.year,
+            stateId: row.stateId,
+            stateLabel: row.stateLabel,
+            activity,
+            share: totalActivity > 0 ? activity / totalActivity : null,
+          } satisfies SolveStateShareSummary;
+        });
+    });
+}
+
+function buildCommodityBalanceSummary(
+  request: SolveRequest,
+  build: ScenarioLpBuild,
+  variableValues: Map<string, number>,
+): SolveCommodityBalanceSummary[] {
+  return build.supplyGroups.map((group) => {
+    const mode: CommoditySolveMode = group.control.mode === 'externalized' ? 'externalized' : 'endogenous';
+    const supply = group.rows.reduce((total, row) => {
+      return total + (variableValues.get(activityVariableId(row)) ?? 0);
+    }, 0);
+    const modeledDemand = build.activeRows.reduce((total, row) => {
+      if (row.year !== group.year || row.outputId === group.commodityId) {
+        return total;
+      }
+
+      const activity = variableValues.get(activityVariableId(row)) ?? 0;
+      if (activity === 0) {
+        return total;
+      }
+
+      const rowDemand = row.inputs.reduce((rowTotal, input) => {
+        return input.commodityId === group.commodityId
+          ? rowTotal + input.coefficient * activity
+          : rowTotal;
+      }, 0);
+
+      return total + rowDemand;
+    }, 0);
+    const totalDemand = modeledDemand + group.externalDemand;
+    const averageSupplyCost = supply > 0
+      ? group.rows.reduce((total, row) => {
+        const activity = variableValues.get(activityVariableId(row)) ?? 0;
+        return total + resolveRowObjectiveCost(request, row, build.balancedCommodityKeys) * activity;
+      }, 0) / supply
+      : mode === 'externalized'
+        ? resolveCommodityPrice(request, group.commodityId, group.year)
+        : null;
+    const averageDirectEmissionsIntensity = supply > 0
+      ? group.rows.reduce((total, row) => {
+        const activity = variableValues.get(activityVariableId(row)) ?? 0;
+        return total + sumDirectEmissionsPerUnit(row) * activity;
+      }, 0) / supply
+      : null;
+
+    return {
+      commodityId: group.commodityId,
+      year: group.year,
+      mode,
+      supply,
+      modeledDemand,
+      externalDemand: group.externalDemand,
+      totalDemand,
+      pricedExogenousDemand: mode === 'externalized' ? totalDemand : 0,
+      balanceGap: mode === 'endogenous' ? supply - totalDemand : null,
+      averageSupplyCost,
+      averageDirectEmissionsIntensity,
+    } satisfies SolveCommodityBalanceSummary;
+  });
+}
+
+function buildReportingSummary(
+  request: SolveRequest,
+  solution: Solution<string>,
+  build: ScenarioLpBuild,
+): SolveReportingSummary {
+  const variableValues = buildVariableValueMap(solution);
+
+  return {
+    commodityBalances: buildCommodityBalanceSummary(request, build, variableValues),
+    stateShares: buildStateShareSummary(build.activeRows, variableValues),
+  };
 }
 
 function buildAdapterErrorResult(
@@ -445,6 +837,7 @@ function buildAdapterErrorResult(
     status: 'error',
     engine: { name: 'yalps', worker: true },
     summary: summarizeRequest(request),
+    reporting: emptyReporting(),
     raw: null,
     diagnostics,
     timingsMs: {
@@ -491,6 +884,7 @@ export function solveWithLpAdapter(request: SolveRequest): SolveResult {
       : 'error',
     engine: { name: 'yalps', worker: true },
     summary: summarizeRequest(request),
+    reporting: buildReportingSummary(request, solution, build),
     raw: {
       kind: 'scenario_lp',
       objectiveDirection: SCENARIO_DIRECTION,
