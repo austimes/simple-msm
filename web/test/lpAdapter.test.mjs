@@ -12,6 +12,8 @@ function createRow({
   outputRole = 'required_service',
   inputs = [],
   maxShare = null,
+  minShare = null,
+  maxActivity = null,
 }) {
   return {
     rowId,
@@ -29,9 +31,9 @@ function createRow({
     inputs,
     directEmissions: [],
     bounds: {
-      minShare: null,
+      minShare,
       maxShare,
-      maxActivity: null,
+      maxActivity,
     },
   };
 }
@@ -45,6 +47,12 @@ function assertClose(actual, expected, message) {
     Math.abs((actual ?? Number.NaN) - expected) < 1e-9,
     `${message}: expected ${expected}, received ${actual}`,
   );
+}
+
+function findDiagnostic(result, code, outputId) {
+  return result.diagnostics.find((diagnostic) => {
+    return diagnostic.code === code && (outputId == null || diagnostic.outputId === outputId);
+  });
 }
 
 test('required-service LP solves pinned, fixed-share, and optimize controls generically', () => {
@@ -253,6 +261,15 @@ test('required-service LP solves pinned, fixed-share, and optimize controls gene
   assertClose(variables.get('activity:process_incumbent::2030'), 60, '2030 process optimize low-cost capped row');
   assertClose(variables.get('activity:process_transition::2030'), 40, '2030 process optimize residual row');
   assertClose(variables.get('activity:process_hydrogen::2030'), 0, '2030 process disabled row');
+
+  const bindingConstraintIds = new Set(
+    result.reporting.bindingConstraints.map((constraint) => constraint.constraintId),
+  );
+
+  assert.ok(bindingConstraintIds.has('pinned:heat_fossil::2025'));
+  assert.ok(bindingConstraintIds.has('fixed_share:heat_electric::2030'));
+  assert.ok(bindingConstraintIds.has('max_share:process_incumbent::2030'));
+  assert.ok(bindingConstraintIds.has('disabled:process_hydrogen::2030'));
 });
 
 test('endogenous electricity enforces balance and removes exogenous electricity double counting', () => {
@@ -487,4 +504,217 @@ test('externalized electricity bypasses supply states and prices electricity exo
   assert.equal(electricitySummary?.balanceGap, null);
   assertClose(electricitySummary?.pricedExogenousDemand, 50, 'externalized exogenous purchases');
   assertClose(electricitySummary?.averageSupplyCost, 4, 'externalized electricity price');
+});
+
+test('infeasible runs report deterministic service-year and electricity diagnostics', () => {
+  const request = {
+    contractVersion: SOLVER_CONTRACT_VERSION,
+    requestId: 'lp-adapter-infeasibility-diagnostics',
+    rows: [
+      createRow({
+        rowId: 'pin_locked::2030',
+        outputId: 'pin_service',
+        year: 2030,
+        stateId: 'pin_locked',
+        cost: 1,
+        maxShare: 0.5,
+      }),
+      createRow({
+        rowId: 'pin_flexible::2030',
+        outputId: 'pin_service',
+        year: 2030,
+        stateId: 'pin_flexible',
+        cost: 2,
+      }),
+      createRow({
+        rowId: 'share_a::2030',
+        outputId: 'share_service',
+        year: 2030,
+        stateId: 'share_a',
+        cost: 1,
+        maxShare: 0.4,
+      }),
+      createRow({
+        rowId: 'share_b::2030',
+        outputId: 'share_service',
+        year: 2030,
+        stateId: 'share_b',
+        cost: 2,
+        maxShare: 0.4,
+      }),
+      createRow({
+        rowId: 'activity_a::2030',
+        outputId: 'activity_service',
+        year: 2030,
+        stateId: 'activity_a',
+        cost: 1,
+        maxActivity: 30,
+      }),
+      createRow({
+        rowId: 'activity_b::2030',
+        outputId: 'activity_service',
+        year: 2030,
+        stateId: 'activity_b',
+        cost: 2,
+        maxActivity: 20,
+      }),
+      createRow({
+        rowId: 'disabled_a::2030',
+        outputId: 'disabled_service',
+        year: 2030,
+        stateId: 'disabled_a',
+        cost: 1,
+      }),
+      createRow({
+        rowId: 'disabled_b::2030',
+        outputId: 'disabled_service',
+        year: 2030,
+        stateId: 'disabled_b',
+        cost: 2,
+      }),
+      createRow({
+        rowId: 'process_grid::2030',
+        outputId: 'process_service',
+        year: 2030,
+        stateId: 'process_grid',
+        cost: 1,
+        inputs: [
+          {
+            commodityId: 'electricity',
+            coefficient: 1,
+            unit: 'MWh/unit',
+          },
+        ],
+      }),
+      createRow({
+        rowId: 'grid_limited::2030',
+        outputId: 'electricity',
+        outputRole: 'endogenous_supply_commodity',
+        year: 2030,
+        stateId: 'grid_limited',
+        cost: 1,
+        maxActivity: 40,
+      }),
+    ],
+    scenario: {
+      name: 'Infeasibility diagnostics regression',
+      description: null,
+      years: [2030],
+      controlsByOutput: {
+        pin_service: {
+          2030: {
+            mode: 'pinned_single',
+            stateId: 'pin_locked',
+            fixedShares: null,
+            disabledStateIds: [],
+            targetValue: null,
+          },
+        },
+        share_service: {
+          2030: {
+            mode: 'optimize',
+            stateId: null,
+            fixedShares: null,
+            disabledStateIds: [],
+            targetValue: null,
+          },
+        },
+        activity_service: {
+          2030: {
+            mode: 'optimize',
+            stateId: null,
+            fixedShares: null,
+            disabledStateIds: [],
+            targetValue: null,
+          },
+        },
+        disabled_service: {
+          2030: {
+            mode: 'optimize',
+            stateId: null,
+            fixedShares: null,
+            disabledStateIds: ['disabled_a', 'disabled_b'],
+            targetValue: null,
+          },
+        },
+        process_service: {
+          2030: {
+            mode: 'optimize',
+            stateId: null,
+            fixedShares: null,
+            disabledStateIds: [],
+            targetValue: null,
+          },
+        },
+        electricity: {
+          2030: {
+            mode: 'optimize',
+            stateId: null,
+            fixedShares: null,
+            disabledStateIds: [],
+            targetValue: null,
+          },
+        },
+      },
+      serviceDemandByOutput: {
+        pin_service: { 2030: 100 },
+        share_service: { 2030: 100 },
+        activity_service: { 2030: 100 },
+        disabled_service: { 2030: 50 },
+        process_service: { 2030: 50 },
+      },
+      externalCommodityDemandByCommodity: {
+        electricity: { 2030: 10 },
+      },
+      commodityPriceByCommodity: {
+        electricity: {
+          unit: 'AUD/MWh',
+          valuesByYear: { 2030: 2 },
+        },
+      },
+      carbonPriceByYear: { 2030: 0 },
+      options: {
+        respectMaxShare: true,
+        respectMaxActivity: true,
+        softConstraints: false,
+        allowRemovalsCredit: false,
+        shareSmoothing: {
+          enabled: false,
+          maxDeltaPp: null,
+        },
+      },
+    },
+  };
+
+  const result = solveWithLpAdapter(request);
+
+  assert.equal(result.status, 'error');
+  assert.equal(result.raw?.solutionStatus, 'infeasible');
+  assert.deepEqual(result.reporting.bindingConstraints, []);
+
+  assert.equal(
+    findDiagnostic(result, 'exact_control_share_conflict', 'pin_service')?.reason,
+    'pinned_fixed_share_conflict',
+  );
+  assert.equal(findDiagnostic(result, 'exact_control_share_conflict', 'pin_service')?.year, 2030);
+  assert.equal(
+    findDiagnostic(result, 'service_max_share_exhaustion', 'share_service')?.reason,
+    'share_exhaustion',
+  );
+  assert.equal(
+    findDiagnostic(result, 'service_max_activity_exhaustion', 'activity_service')?.reason,
+    'activity_exhaustion',
+  );
+  assert.equal(
+    findDiagnostic(result, 'service_states_disabled', 'disabled_service')?.reason,
+    'disabled_states',
+  );
+  assert.equal(
+    findDiagnostic(result, 'electricity_balance_shortfall', 'electricity')?.reason,
+    'electricity_balance_conflict',
+  );
+  assert.deepEqual(
+    findDiagnostic(result, 'electricity_balance_shortfall', 'electricity')?.relatedConstraintIds,
+    ['commodity_balance:electricity:2030'],
+  );
 });

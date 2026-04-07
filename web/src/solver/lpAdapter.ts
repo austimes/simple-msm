@@ -4,7 +4,10 @@ import type {
   NormalizedSolverRow,
   RawSolveVariableValue,
   ResolvedSolveControl,
+  SolveBindingConstraintSummary,
   SolveCommodityBalanceSummary,
+  SolveConstraintBoundType,
+  SolveConstraintKind,
   SolveDiagnostic,
   SolveReportingSummary,
   SolveRequest,
@@ -16,11 +19,15 @@ import type {
 const SCENARIO_OBJECTIVE_KEY = 'total_cost';
 const SCENARIO_DIRECTION = 'minimize' as const;
 const SHARE_TOLERANCE = 1e-6;
+const BINDING_TOLERANCE = 1e-6;
 
 type ConstraintBounds = { equal?: number; min?: number; max?: number };
 
+type TrackedConstraintInput = Omit<TrackedConstraint, 'constraintId' | 'boundType' | 'boundValue'>;
+
 interface RequiredServiceGroup {
   outputId: string;
+  outputLabel: string;
   year: number;
   demand: number;
   control: ResolvedSolveControl;
@@ -29,20 +36,52 @@ interface RequiredServiceGroup {
 
 interface SupplyCommodityGroup {
   commodityId: string;
+  commodityLabel: string;
   year: number;
   control: ResolvedSolveControl;
   externalDemand: number;
   rows: NormalizedSolverRow[];
 }
 
+interface TrackedConstraint {
+  constraintId: string;
+  kind: SolveConstraintKind;
+  boundType: SolveConstraintBoundType;
+  boundValue: number;
+  outputId: string;
+  outputLabel: string;
+  year: number;
+  stateId?: string;
+  stateLabel?: string;
+  rowId?: string;
+  commodityId?: string;
+  mode?: ResolvedSolveControl['mode'];
+  message: string;
+}
+
+interface RowShareProfile {
+  row: NormalizedSolverRow;
+  disabled: boolean;
+  lowerShare: number;
+  upperShare: number;
+  upperShareIgnoringActivity: number;
+  exactShare: number | null;
+  maxShareLimit: number | null;
+  maxActivityLimit: number | null;
+  commodityCoefficient: number;
+}
+
 interface ScenarioLpBuild {
+  request: SolveRequest;
   model: Model<string, string>;
   diagnostics: SolveDiagnostic[];
   notes: string[];
   hasUnmodeledFeatures: boolean;
   activeRows: NormalizedSolverRow[];
+  requiredServiceGroups: RequiredServiceGroup[];
   supplyGroups: SupplyCommodityGroup[];
   balancedCommodityKeys: Set<string>;
+  trackedConstraints: Record<string, TrackedConstraint>;
 }
 
 function yearKey(year: number): string {
@@ -87,6 +126,7 @@ function emptyReporting(): SolveReportingSummary {
   return {
     commodityBalances: [],
     stateShares: [],
+    bindingConstraints: [],
   };
 }
 
@@ -96,6 +136,12 @@ function toRawVariables(solution: Solution<string>): RawSolveVariableValue[] {
 
 function sumDirectEmissionsPerUnit(row: NormalizedSolverRow): number {
   return row.directEmissions.reduce((total, emission) => total + emission.value, 0);
+}
+
+function sumInputCoefficient(row: NormalizedSolverRow, commodityId: string): number {
+  return row.inputs.reduce((total, input) => {
+    return input.commodityId === commodityId ? total + input.coefficient : total;
+  }, 0);
 }
 
 function resolveCommodityPrice(request: SolveRequest, commodityId: string, year: number): number {
@@ -120,31 +166,78 @@ function resolveRowObjectiveCost(
   return conversionCost + commodityCost + carbonCost;
 }
 
+function resolveConstraintBound(constraint: ConstraintBounds): {
+  boundType: SolveConstraintBoundType;
+  boundValue: number;
+} {
+  if (constraint.equal != null) {
+    return { boundType: 'equal', boundValue: constraint.equal };
+  }
+
+  if (constraint.min != null) {
+    return { boundType: 'min', boundValue: constraint.min };
+  }
+
+  if (constraint.max != null) {
+    return { boundType: 'max', boundValue: constraint.max };
+  }
+
+  throw new Error('Tracked LP constraints must define an equal, min, or max bound.');
+}
+
+function setVariableConstraintCoefficient(
+  variables: Record<string, Record<string, number>>,
+  variableId: string,
+  constraintId: string,
+  coefficient: number,
+): void {
+  variables[variableId][constraintId] = (variables[variableId][constraintId] ?? 0) + coefficient;
+}
+
+function trackConstraint(
+  constraints: Record<string, ConstraintBounds>,
+  trackedConstraints: Record<string, TrackedConstraint>,
+  constraintId: string,
+  constraint: ConstraintBounds,
+  metadata: TrackedConstraintInput,
+): void {
+  constraints[constraintId] = constraint;
+  trackedConstraints[constraintId] = {
+    constraintId,
+    ...metadata,
+    ...resolveConstraintBound(constraint),
+  };
+}
+
 function addConstraint(
   constraints: Record<string, ConstraintBounds>,
+  trackedConstraints: Record<string, TrackedConstraint>,
   variables: Record<string, Record<string, number>>,
   variableId: string,
   constraintId: string,
   constraint: ConstraintBounds,
+  metadata: TrackedConstraintInput,
 ): void {
-  constraints[constraintId] = constraint;
-  variables[variableId][constraintId] = 1;
+  trackConstraint(constraints, trackedConstraints, constraintId, constraint, metadata);
+  setVariableConstraintCoefficient(variables, variableId, constraintId, 1);
 }
 
 function addShareConstraint(
   constraints: Record<string, ConstraintBounds>,
+  trackedConstraints: Record<string, TrackedConstraint>,
   variables: Record<string, Record<string, number>>,
   groupVariableIds: string[],
   constrainedVariableId: string,
   share: number,
   constraintId: string,
   constraint: ConstraintBounds,
+  metadata: TrackedConstraintInput,
 ): void {
-  constraints[constraintId] = constraint;
+  trackConstraint(constraints, trackedConstraints, constraintId, constraint, metadata);
 
   for (const groupVariableId of groupVariableIds) {
     const coefficient = groupVariableId === constrainedVariableId ? 1 - share : -share;
-    variables[groupVariableId][constraintId] = coefficient;
+    setVariableConstraintCoefficient(variables, groupVariableId, constraintId, coefficient);
   }
 }
 
@@ -175,6 +268,7 @@ function collectRequiredServiceGroups(request: SolveRequest): RequiredServiceGro
 
     groups.set(key, {
       outputId: row.outputId,
+      outputLabel: row.outputLabel,
       year: row.year,
       demand,
       control,
@@ -217,6 +311,7 @@ function collectSupplyCommodityGroups(request: SolveRequest): SupplyCommodityGro
 
     groups.set(key, {
       commodityId: row.outputId,
+      commodityLabel: row.outputLabel,
       year: row.year,
       control,
       externalDemand: request.scenario.externalCommodityDemandByCommodity[row.outputId]?.[yearKey(row.year)] ?? 0,
@@ -231,6 +326,32 @@ function collectSupplyCommodityGroups(request: SolveRequest): SupplyCommodityGro
 
     return left.commodityId.localeCompare(right.commodityId);
   });
+}
+
+function controlConstraintPrefix(controlMode: ResolvedSolveControl['mode']): string {
+  return controlMode === 'pinned_single' ? 'pinned' : 'fixed_share';
+}
+
+function sharePercent(value: number): string {
+  return `${(value * 100).toFixed(1)}%`;
+}
+
+function formatNumber(value: number): string {
+  return Number.isInteger(value) ? String(value) : value.toFixed(3);
+}
+
+function buildConstraintContext(
+  outputId: string,
+  year: number,
+  stateId?: string,
+  rowId?: string,
+): Pick<SolveDiagnostic, 'outputId' | 'year' | 'stateId' | 'rowId'> {
+  return {
+    outputId,
+    year,
+    stateId,
+    rowId,
+  };
 }
 
 function validateFixedShareControl(
@@ -249,9 +370,10 @@ function validateFixedShareControl(
     diagnostics.push({
       code: 'missing_fixed_shares',
       severity: 'error',
+      reason: 'pinned_fixed_share_conflict',
       message: `${controlLabel} for ${outputId} in ${year} requires at least one state share.`,
-      outputId,
-      year,
+      ...buildConstraintContext(outputId, year),
+      suggestion: 'Provide at least one fixed share or switch the control mode away from fixed_shares.',
     });
     return diagnostics;
   }
@@ -264,10 +386,10 @@ function validateFixedShareControl(
       diagnostics.push({
         code: 'unknown_fixed_share_state',
         severity: 'error',
+        reason: 'pinned_fixed_share_conflict',
         message: `Fixed-share state ${JSON.stringify(stateId)} is not available for ${outputId} in ${year}.`,
-        outputId,
-        year,
-        stateId,
+        ...buildConstraintContext(outputId, year, stateId),
+        suggestion: 'Choose a state that exists in the library rows for this service-year.',
       });
     }
 
@@ -275,10 +397,10 @@ function validateFixedShareControl(
       diagnostics.push({
         code: 'disabled_fixed_share_state',
         severity: 'error',
+        reason: 'disabled_states',
         message: `Fixed-share state ${JSON.stringify(stateId)} is disabled for ${outputId} in ${year}.`,
-        outputId,
-        year,
-        stateId,
+        ...buildConstraintContext(outputId, year, stateId),
+        suggestion: 'Re-enable the state or remove it from the fixed-share mix.',
       });
     }
 
@@ -286,10 +408,10 @@ function validateFixedShareControl(
       diagnostics.push({
         code: 'negative_fixed_share',
         severity: 'error',
+        reason: 'pinned_fixed_share_conflict',
         message: `Fixed share for ${JSON.stringify(stateId)} in ${outputId} ${year} must be non-negative.`,
-        outputId,
-        year,
-        stateId,
+        ...buildConstraintContext(outputId, year, stateId),
+        suggestion: 'Set all fixed shares to zero or positive values.',
       });
     }
   }
@@ -298,9 +420,10 @@ function validateFixedShareControl(
     diagnostics.push({
       code: 'fixed_share_total_must_equal_one',
       severity: 'error',
+      reason: 'pinned_fixed_share_conflict',
       message: `Fixed shares for ${outputId} in ${year} sum to ${shareTotal.toFixed(6)} instead of 1.`,
-      outputId,
-      year,
+      ...buildConstraintContext(outputId, year),
+      suggestion: 'Adjust the fixed shares so the total equals 100%.',
     });
   }
 
@@ -317,9 +440,10 @@ function validateRequiredServiceGroup(group: RequiredServiceGroup): SolveDiagnos
       diagnostics.push({
         code: 'missing_pinned_state',
         severity: 'error',
+        reason: 'pinned_fixed_share_conflict',
         message: `Pinned control for ${group.outputId} in ${group.year} is missing state_id.`,
-        outputId: group.outputId,
-        year: group.year,
+        ...buildConstraintContext(group.outputId, group.year),
+        suggestion: 'Select a state_id for the pinned_single control.',
       });
       return diagnostics;
     }
@@ -328,10 +452,10 @@ function validateRequiredServiceGroup(group: RequiredServiceGroup): SolveDiagnos
       diagnostics.push({
         code: 'unknown_pinned_state',
         severity: 'error',
+        reason: 'pinned_fixed_share_conflict',
         message: `Pinned state ${JSON.stringify(group.control.stateId)} is not available for ${group.outputId} in ${group.year}.`,
-        outputId: group.outputId,
-        year: group.year,
-        stateId: group.control.stateId,
+        ...buildConstraintContext(group.outputId, group.year, group.control.stateId),
+        suggestion: 'Choose a pinned state that exists in the library rows for this service-year.',
       });
     }
 
@@ -339,10 +463,10 @@ function validateRequiredServiceGroup(group: RequiredServiceGroup): SolveDiagnos
       diagnostics.push({
         code: 'disabled_pinned_state',
         severity: 'error',
+        reason: 'disabled_states',
         message: `Pinned state ${JSON.stringify(group.control.stateId)} is disabled for ${group.outputId} in ${group.year}.`,
-        outputId: group.outputId,
-        year: group.year,
-        stateId: group.control.stateId,
+        ...buildConstraintContext(group.outputId, group.year, group.control.stateId),
+        suggestion: 'Re-enable the pinned state or choose a different pinned state.',
       });
     }
 
@@ -388,15 +512,547 @@ function validateSupplyCommodityGroup(group: SupplyCommodityGroup): SolveDiagnos
     code: 'invalid_supply_control_mode',
     severity: 'error',
     message: `Supply commodity ${group.commodityId} in ${group.year} must use fixed_shares, optimize, or externalized mode.`,
-    outputId: group.commodityId,
-    year: group.year,
+    ...buildConstraintContext(group.commodityId, group.year),
+    suggestion: 'Use fixed_shares, optimize, or externalized for endogenous supply commodities.',
   });
 
   return diagnostics;
 }
 
+function clampShare(value: number): number {
+  return Math.max(0, Math.min(1, value));
+}
+
+function resolveExactShare(control: ResolvedSolveControl, row: NormalizedSolverRow): number | null {
+  if (control.mode === 'pinned_single') {
+    return row.stateId === control.stateId ? 1 : 0;
+  }
+
+  if (control.mode === 'fixed_shares') {
+    return control.fixedShares?.[row.stateId] ?? 0;
+  }
+
+  return null;
+}
+
+function buildRowShareProfiles(
+  rows: NormalizedSolverRow[],
+  control: ResolvedSolveControl,
+  referenceDemand: number,
+  request: SolveRequest,
+  commodityId?: string,
+): RowShareProfile[] {
+  const disabledStateIds = new Set(control.disabledStateIds);
+
+  return [...rows]
+    .sort((left, right) => left.stateLabel.localeCompare(right.stateLabel))
+    .map((row) => {
+      const disabled = disabledStateIds.has(row.stateId);
+      const maxShareLimit = request.scenario.options.respectMaxShare ? row.bounds.maxShare : null;
+      const maxActivityLimit = request.scenario.options.respectMaxActivity ? row.bounds.maxActivity : null;
+      const upperShareIgnoringActivity = disabled
+        ? 0
+        : maxShareLimit == null
+          ? 1
+          : clampShare(maxShareLimit);
+      const upperShareFromActivity = disabled || referenceDemand <= SHARE_TOLERANCE || maxActivityLimit == null
+        ? 1
+        : Math.max(0, maxActivityLimit / referenceDemand);
+      const upperShare = disabled
+        ? 0
+        : clampShare(Math.min(upperShareIgnoringActivity, upperShareFromActivity));
+
+      return {
+        row,
+        disabled,
+        lowerShare: disabled || referenceDemand <= SHARE_TOLERANCE ? 0 : Math.max(0, row.bounds.minShare ?? 0),
+        upperShare,
+        upperShareIgnoringActivity,
+        exactShare: resolveExactShare(control, row),
+        maxShareLimit,
+        maxActivityLimit,
+        commodityCoefficient: commodityId ? sumInputCoefficient(row, commodityId) : 0,
+      } satisfies RowShareProfile;
+    });
+}
+
+function sumShares(profiles: RowShareProfile[], field: 'lowerShare' | 'upperShare' | 'upperShareIgnoringActivity'): number {
+  return profiles.reduce((total, profile) => total + profile[field], 0);
+}
+
+function estimateMinimumCommodityDemandForGroup(
+  group: RequiredServiceGroup,
+  request: SolveRequest,
+  commodityId: string,
+): number | null {
+  if (group.demand <= SHARE_TOLERANCE) {
+    return 0;
+  }
+
+  const profiles = buildRowShareProfiles(group.rows, group.control, group.demand, request, commodityId);
+
+  if (group.control.mode === 'pinned_single' || group.control.mode === 'fixed_shares') {
+    return group.demand * profiles.reduce((total, profile) => {
+      return total + (profile.exactShare ?? 0) * profile.commodityCoefficient;
+    }, 0);
+  }
+
+  const activeProfiles = profiles.filter((profile) => !profile.disabled);
+  if (activeProfiles.length === 0) {
+    return null;
+  }
+
+  const lowerTotal = sumShares(activeProfiles, 'lowerShare');
+  const upperTotal = sumShares(activeProfiles, 'upperShare');
+  if (lowerTotal > 1 + SHARE_TOLERANCE || upperTotal < 1 - SHARE_TOLERANCE) {
+    return null;
+  }
+
+  const allocations = new Map<string, number>();
+  for (const profile of activeProfiles) {
+    allocations.set(profile.row.rowId, profile.lowerShare);
+  }
+
+  let remainingShare = 1 - lowerTotal;
+  for (const profile of [...activeProfiles].sort((left, right) => {
+    if (left.commodityCoefficient !== right.commodityCoefficient) {
+      return left.commodityCoefficient - right.commodityCoefficient;
+    }
+
+    return left.row.stateLabel.localeCompare(right.row.stateLabel);
+  })) {
+    if (remainingShare <= SHARE_TOLERANCE) {
+      break;
+    }
+
+    const currentShare = allocations.get(profile.row.rowId) ?? 0;
+    const extraCapacity = profile.upperShare - currentShare;
+    if (extraCapacity <= SHARE_TOLERANCE) {
+      continue;
+    }
+
+    const addedShare = Math.min(remainingShare, extraCapacity);
+    allocations.set(profile.row.rowId, currentShare + addedShare);
+    remainingShare -= addedShare;
+  }
+
+  if (remainingShare > SHARE_TOLERANCE) {
+    return null;
+  }
+
+  return group.demand * activeProfiles.reduce((total, profile) => {
+    return total + (allocations.get(profile.row.rowId) ?? 0) * profile.commodityCoefficient;
+  }, 0);
+}
+
+function estimateMinimumCommodityDemand(
+  build: ScenarioLpBuild,
+  commodityId: string,
+  year: number,
+): number | null {
+  let total = 0;
+
+  for (const group of build.requiredServiceGroups) {
+    if (group.year !== year) {
+      continue;
+    }
+
+    const groupDemand = estimateMinimumCommodityDemandForGroup(group, build.request, commodityId);
+    if (groupDemand == null) {
+      const touchesCommodity = group.rows.some((row) => sumInputCoefficient(row, commodityId) !== 0);
+      if (touchesCommodity) {
+        return null;
+      }
+
+      continue;
+    }
+
+    total += groupDemand;
+  }
+
+  return total;
+}
+
+function estimateMaximumSupplyActivity(
+  group: SupplyCommodityGroup,
+  request: SolveRequest,
+  includeDisabledStates = false,
+): number {
+  if (group.control.mode === 'externalized') {
+    return 0;
+  }
+
+  const disabledStateIds = new Set(group.control.disabledStateIds);
+  const rows = includeDisabledStates
+    ? group.rows
+    : group.rows.filter((row) => !disabledStateIds.has(row.stateId));
+
+  if (rows.length === 0) {
+    return 0;
+  }
+
+  if (group.control.mode === 'fixed_shares') {
+    const fixedShares = group.control.fixedShares ?? {};
+    let hasPositiveShare = false;
+    let maximumActivity = Number.POSITIVE_INFINITY;
+
+    for (const row of rows) {
+      const share = fixedShares[row.stateId] ?? 0;
+      if (share <= SHARE_TOLERANCE) {
+        continue;
+      }
+
+      hasPositiveShare = true;
+      if (request.scenario.options.respectMaxActivity && row.bounds.maxActivity != null) {
+        maximumActivity = Math.min(maximumActivity, row.bounds.maxActivity / share);
+      }
+    }
+
+    return hasPositiveShare ? maximumActivity : 0;
+  }
+
+  if (!request.scenario.options.respectMaxActivity) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  if (rows.some((row) => row.bounds.maxActivity == null)) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  return rows.reduce((total, row) => total + (row.bounds.maxActivity ?? 0), 0);
+}
+
+function buildRequiredServiceInfeasibilityDiagnostics(build: ScenarioLpBuild): SolveDiagnostic[] {
+  const diagnostics: SolveDiagnostic[] = [];
+
+  for (const group of build.requiredServiceGroups) {
+    if (group.demand <= SHARE_TOLERANCE) {
+      continue;
+    }
+
+    const profiles = buildRowShareProfiles(group.rows, group.control, group.demand, build.request);
+    const activeProfiles = profiles.filter((profile) => !profile.disabled);
+    const disabledProfiles = profiles.filter((profile) => profile.disabled);
+
+    if (group.control.mode === 'pinned_single' || group.control.mode === 'fixed_shares') {
+      for (const profile of profiles) {
+        const exactShare = profile.exactShare ?? 0;
+
+        if (profile.disabled && exactShare > SHARE_TOLERANCE) {
+          diagnostics.push({
+            code: 'exact_control_hits_disabled_state',
+            severity: 'error',
+            reason: 'disabled_states',
+            message: `${group.outputLabel} in ${group.year} requires disabled state ${profile.row.stateLabel} under the current ${group.control.mode.replaceAll('_', ' ')} control.`,
+            ...buildConstraintContext(group.outputId, group.year, profile.row.stateId, profile.row.rowId),
+            relatedConstraintIds: [stateConstraintId('disabled', profile.row), stateConstraintId(controlConstraintPrefix(group.control.mode), profile.row)],
+            suggestion: 'Re-enable the state or relax the exact pinned or fixed-share control for this service-year.',
+          });
+        }
+
+        if (exactShare > profile.upperShareIgnoringActivity + SHARE_TOLERANCE) {
+          diagnostics.push({
+            code: 'exact_control_share_conflict',
+            severity: 'error',
+            reason: 'pinned_fixed_share_conflict',
+            message: `${group.outputLabel} in ${group.year} assigns ${sharePercent(exactShare)} to ${profile.row.stateLabel}, above its max share of ${sharePercent(profile.maxShareLimit ?? 0)}.`,
+            ...buildConstraintContext(group.outputId, group.year, profile.row.stateId, profile.row.rowId),
+            relatedConstraintIds: [stateConstraintId(controlConstraintPrefix(group.control.mode), profile.row), stateConstraintId('max_share', profile.row)],
+            suggestion: 'Relax the exact control or raise the state max share cap for this service-year.',
+          });
+          continue;
+        }
+
+        if (exactShare > profile.upperShare + SHARE_TOLERANCE) {
+          diagnostics.push({
+            code: 'exact_control_activity_conflict',
+            severity: 'error',
+            reason: 'activity_exhaustion',
+            message: `${group.outputLabel} in ${group.year} needs ${formatNumber(exactShare * group.demand)} units from ${profile.row.stateLabel}, but its max activity is ${formatNumber(profile.maxActivityLimit ?? 0)}.`,
+            ...buildConstraintContext(group.outputId, group.year, profile.row.stateId, profile.row.rowId),
+            relatedConstraintIds: [stateConstraintId(controlConstraintPrefix(group.control.mode), profile.row), stateConstraintId('max_activity', profile.row)],
+            suggestion: 'Relax the exact control, increase max activity, or shift activity to additional states.',
+          });
+        }
+
+        if (exactShare + SHARE_TOLERANCE < profile.lowerShare) {
+          diagnostics.push({
+            code: 'exact_control_min_share_conflict',
+            severity: 'error',
+            reason: 'pinned_fixed_share_conflict',
+            message: `${group.outputLabel} in ${group.year} assigns ${sharePercent(exactShare)} to ${profile.row.stateLabel}, below its minimum share of ${sharePercent(profile.lowerShare)}.`,
+            ...buildConstraintContext(group.outputId, group.year, profile.row.stateId, profile.row.rowId),
+            relatedConstraintIds: [stateConstraintId(controlConstraintPrefix(group.control.mode), profile.row), stateConstraintId('min_share', profile.row)],
+            suggestion: 'Relax the exact control or lower the minimum-share bound for the affected state.',
+          });
+        }
+      }
+
+      continue;
+    }
+
+    if (activeProfiles.length === 0) {
+      diagnostics.push({
+        code: 'service_states_disabled',
+        severity: 'error',
+        reason: 'disabled_states',
+        message: `${group.outputLabel} in ${group.year} has positive demand but every available state is disabled.`,
+        ...buildConstraintContext(group.outputId, group.year),
+        relatedConstraintIds: disabledProfiles.map((profile) => stateConstraintId('disabled', profile.row)),
+        suggestion: 'Re-enable at least one state for this service-year or drop the demand to zero.',
+      });
+      continue;
+    }
+
+    const lowerTotal = sumShares(activeProfiles, 'lowerShare');
+    if (lowerTotal > 1 + SHARE_TOLERANCE) {
+      diagnostics.push({
+        code: 'service_min_share_exhaustion',
+        severity: 'error',
+        reason: 'share_exhaustion',
+        message: `${group.outputLabel} in ${group.year} requires at least ${sharePercent(lowerTotal)} of demand once minimum-share bounds are applied.`,
+        ...buildConstraintContext(group.outputId, group.year),
+        relatedConstraintIds: activeProfiles
+          .filter((profile) => profile.lowerShare > SHARE_TOLERANCE)
+          .map((profile) => stateConstraintId('min_share', profile.row)),
+        suggestion: 'Lower one or more minimum-share bounds so the total minimum share is at most 100%.',
+      });
+    }
+
+    const upperTotal = sumShares(activeProfiles, 'upperShare');
+    if (upperTotal < 1 - SHARE_TOLERANCE) {
+      const upperIgnoringActivityTotal = sumShares(activeProfiles, 'upperShareIgnoringActivity');
+      const upperWithDisabledStates = sumShares(profiles, 'upperShareIgnoringActivity');
+
+      if (disabledProfiles.length > 0 && upperWithDisabledStates >= 1 - SHARE_TOLERANCE) {
+        diagnostics.push({
+          code: 'service_disabled_states_exhausted',
+          severity: 'error',
+          reason: 'disabled_states',
+          message: `${group.outputLabel} in ${group.year} would have enough eligible share if disabled states were re-enabled.`,
+          ...buildConstraintContext(group.outputId, group.year),
+          relatedConstraintIds: disabledProfiles.map((profile) => stateConstraintId('disabled', profile.row)),
+          suggestion: 'Re-enable one or more disabled states for this service-year.',
+        });
+      }
+
+      if (upperIgnoringActivityTotal < 1 - SHARE_TOLERANCE) {
+        diagnostics.push({
+          code: 'service_max_share_exhaustion',
+          severity: 'error',
+          reason: 'share_exhaustion',
+          message: `${group.outputLabel} in ${group.year} can cover at most ${sharePercent(upperIgnoringActivityTotal)} of demand under the current max-share bounds.`,
+          ...buildConstraintContext(group.outputId, group.year),
+          relatedConstraintIds: activeProfiles
+            .filter((profile) => profile.maxShareLimit != null)
+            .map((profile) => stateConstraintId('max_share', profile.row)),
+          suggestion: 'Raise one or more max-share caps or add more eligible states to cover the remaining demand.',
+        });
+      } else {
+        diagnostics.push({
+          code: 'service_max_activity_exhaustion',
+          severity: 'error',
+          reason: 'activity_exhaustion',
+          message: `${group.outputLabel} in ${group.year} can supply at most ${formatNumber(upperTotal * group.demand)} units after max-activity caps, below the required ${formatNumber(group.demand)}.`,
+          ...buildConstraintContext(group.outputId, group.year),
+          relatedConstraintIds: activeProfiles
+            .filter((profile) => profile.maxActivityLimit != null)
+            .map((profile) => stateConstraintId('max_activity', profile.row)),
+          suggestion: 'Increase max activity, re-enable more states, or lower demand for this service-year.',
+        });
+      }
+    }
+
+  }
+
+  return diagnostics;
+}
+
+function buildSupplyCommodityInfeasibilityDiagnostics(build: ScenarioLpBuild): SolveDiagnostic[] {
+  const diagnostics: SolveDiagnostic[] = [];
+
+  for (const group of build.supplyGroups) {
+    if (group.control.mode === 'externalized') {
+      continue;
+    }
+
+    const minimumModeledDemand = estimateMinimumCommodityDemand(build, group.commodityId, group.year);
+    if (minimumModeledDemand == null) {
+      continue;
+    }
+
+    const minimumRequiredSupply = minimumModeledDemand + group.externalDemand;
+    if (minimumRequiredSupply <= SHARE_TOLERANCE) {
+      continue;
+    }
+
+    const profiles = buildRowShareProfiles(
+      group.rows,
+      group.control,
+      minimumRequiredSupply,
+      build.request,
+      group.commodityId,
+    );
+    const activeProfiles = profiles.filter((profile) => !profile.disabled);
+    const disabledProfiles = profiles.filter((profile) => profile.disabled);
+
+    if (group.control.mode === 'fixed_shares') {
+      for (const profile of profiles) {
+        const exactShare = profile.exactShare ?? 0;
+
+        if (exactShare > profile.upperShareIgnoringActivity + SHARE_TOLERANCE) {
+          diagnostics.push({
+            code: 'supply_fixed_share_conflict',
+            severity: 'error',
+            reason: 'pinned_fixed_share_conflict',
+            message: `${group.commodityLabel} in ${group.year} assigns ${sharePercent(exactShare)} to ${profile.row.stateLabel}, above its max share of ${sharePercent(profile.maxShareLimit ?? 0)}.`,
+            ...buildConstraintContext(group.commodityId, group.year, profile.row.stateId, profile.row.rowId),
+            relatedConstraintIds: [stateConstraintId('fixed_share', profile.row), stateConstraintId('max_share', profile.row)],
+            suggestion: 'Relax the fixed supply shares or raise the affected max-share cap.',
+          });
+          continue;
+        }
+
+        if (exactShare + SHARE_TOLERANCE < profile.lowerShare) {
+          diagnostics.push({
+            code: 'supply_fixed_share_min_conflict',
+            severity: 'error',
+            reason: 'pinned_fixed_share_conflict',
+            message: `${group.commodityLabel} in ${group.year} assigns ${sharePercent(exactShare)} to ${profile.row.stateLabel}, below its minimum share of ${sharePercent(profile.lowerShare)}.`,
+            ...buildConstraintContext(group.commodityId, group.year, profile.row.stateId, profile.row.rowId),
+            relatedConstraintIds: [stateConstraintId('fixed_share', profile.row), stateConstraintId('min_share', profile.row)],
+            suggestion: 'Relax the fixed supply shares or lower the state minimum share.',
+          });
+        }
+
+        if (exactShare > profile.upperShare + SHARE_TOLERANCE) {
+          diagnostics.push({
+            code: 'supply_fixed_share_activity_conflict',
+            severity: 'error',
+            reason: 'electricity_balance_conflict',
+            message: `${group.commodityLabel} in ${group.year} needs ${formatNumber(exactShare * minimumRequiredSupply)} units from ${profile.row.stateLabel}, but its max activity is ${formatNumber(profile.maxActivityLimit ?? 0)}.`,
+            ...buildConstraintContext(group.commodityId, group.year, profile.row.stateId, profile.row.rowId),
+            relatedConstraintIds: [stateConstraintId('fixed_share', profile.row), stateConstraintId('max_activity', profile.row)],
+            suggestion: 'Relax the supply fixed shares, raise the max activity cap, or lower electricity demand.',
+          });
+        }
+      }
+    } else if (group.control.mode === 'optimize') {
+      if (activeProfiles.length === 0) {
+        diagnostics.push({
+          code: 'supply_states_disabled',
+          severity: 'error',
+          reason: 'disabled_states',
+          message: `${group.commodityLabel} in ${group.year} is required, but every supply state is disabled.`,
+          ...buildConstraintContext(group.commodityId, group.year),
+          relatedConstraintIds: disabledProfiles.map((profile) => stateConstraintId('disabled', profile.row)),
+          suggestion: 'Re-enable at least one supply state or externalize the commodity for this year.',
+        });
+        continue;
+      }
+
+      const lowerTotal = sumShares(activeProfiles, 'lowerShare');
+      if (lowerTotal > 1 + SHARE_TOLERANCE) {
+        diagnostics.push({
+          code: 'supply_min_share_exhaustion',
+          severity: 'error',
+          reason: 'share_exhaustion',
+          message: `${group.commodityLabel} in ${group.year} requires at least ${sharePercent(lowerTotal)} of supply once minimum-share bounds are applied.`,
+          ...buildConstraintContext(group.commodityId, group.year),
+          relatedConstraintIds: activeProfiles
+            .filter((profile) => profile.lowerShare > SHARE_TOLERANCE)
+            .map((profile) => stateConstraintId('min_share', profile.row)),
+          suggestion: 'Lower one or more supply minimum-share bounds so they sum to at most 100%.',
+        });
+      }
+
+      const upperShareTotal = sumShares(activeProfiles, 'upperShareIgnoringActivity');
+      if (upperShareTotal < 1 - SHARE_TOLERANCE) {
+        diagnostics.push({
+          code: 'supply_max_share_exhaustion',
+          severity: 'error',
+          reason: 'share_exhaustion',
+          message: `${group.commodityLabel} in ${group.year} can cover at most ${sharePercent(upperShareTotal)} of required supply under the current max-share bounds.`,
+          ...buildConstraintContext(group.commodityId, group.year),
+          relatedConstraintIds: activeProfiles
+            .filter((profile) => profile.maxShareLimit != null)
+            .map((profile) => stateConstraintId('max_share', profile.row)),
+          suggestion: 'Raise one or more max-share caps or externalize the commodity for this year.',
+        });
+      }
+    }
+
+    const maximumSupply = estimateMaximumSupplyActivity(group, build.request);
+    if (Number.isFinite(maximumSupply) && maximumSupply + SHARE_TOLERANCE < minimumRequiredSupply) {
+      const maximumSupplyIfReenabled = estimateMaximumSupplyActivity(group, build.request, true);
+      if (
+        disabledProfiles.length > 0
+        && Number.isFinite(maximumSupplyIfReenabled)
+        && maximumSupplyIfReenabled + SHARE_TOLERANCE >= minimumRequiredSupply
+      ) {
+        diagnostics.push({
+          code: 'electricity_balance_disabled_supply',
+          severity: 'error',
+          reason: 'disabled_states',
+          message: `${group.commodityLabel} in ${group.year} would meet the minimum required ${formatNumber(minimumRequiredSupply)} units if disabled supply states were re-enabled.`,
+          ...buildConstraintContext(group.commodityId, group.year),
+          relatedConstraintIds: disabledProfiles.map((profile) => stateConstraintId('disabled', profile.row)),
+          suggestion: 'Re-enable one or more disabled supply states or externalize the commodity for this year.',
+        });
+      }
+
+      diagnostics.push({
+        code: 'electricity_balance_shortfall',
+        severity: 'error',
+        reason: 'electricity_balance_conflict',
+        message: `${group.commodityLabel} in ${group.year} needs at least ${formatNumber(minimumRequiredSupply)} units to cover modeled and external demand, but the enabled supply states can provide at most ${formatNumber(maximumSupply)}.`,
+        ...buildConstraintContext(group.commodityId, group.year),
+        relatedConstraintIds: [commodityBalanceConstraintId(group.commodityId, group.year)],
+        suggestion: 'Raise supply max activity, relax exact supply controls, re-enable supply states, or externalize the commodity for this year.',
+      });
+    }
+  }
+
+  return diagnostics;
+}
+
+function compareDiagnostics(left: SolveDiagnostic, right: SolveDiagnostic): number {
+  const severityRank = { error: 0, warning: 1, info: 2 } satisfies Record<SolveDiagnostic['severity'], number>;
+
+  return severityRank[left.severity] - severityRank[right.severity]
+    || (left.year ?? 0) - (right.year ?? 0)
+    || (left.outputId ?? '').localeCompare(right.outputId ?? '')
+    || (left.stateId ?? '').localeCompare(right.stateId ?? '')
+    || left.code.localeCompare(right.code)
+    || left.message.localeCompare(right.message);
+}
+
+function dedupeAndSortDiagnostics(diagnostics: SolveDiagnostic[]): SolveDiagnostic[] {
+  const uniqueDiagnostics = new Map<string, SolveDiagnostic>();
+
+  for (const diagnostic of diagnostics) {
+    const signature = [
+      diagnostic.code,
+      diagnostic.severity,
+      diagnostic.reason ?? '',
+      diagnostic.outputId ?? '',
+      diagnostic.year ?? '',
+      diagnostic.stateId ?? '',
+      diagnostic.rowId ?? '',
+      diagnostic.message,
+    ].join('|');
+
+    if (!uniqueDiagnostics.has(signature)) {
+      uniqueDiagnostics.set(signature, diagnostic);
+    }
+  }
+
+  return Array.from(uniqueDiagnostics.values()).sort(compareDiagnostics);
+}
+
 function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
   const constraints: Record<string, ConstraintBounds> = {};
+  const trackedConstraints: Record<string, TrackedConstraint> = {};
   const variables: Record<string, Record<string, number>> = {};
   const diagnostics: SolveDiagnostic[] = [];
   const notes: string[] = [];
@@ -452,18 +1108,21 @@ function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
   const validationErrors = diagnostics.filter((diagnostic) => diagnostic.severity === 'error');
   if (validationErrors.length > 0) {
     return {
+      request,
       model: {
         direction: SCENARIO_DIRECTION,
         objective: SCENARIO_OBJECTIVE_KEY,
         constraints: {},
         variables: {},
       },
-      diagnostics,
+      diagnostics: dedupeAndSortDiagnostics(diagnostics),
       notes,
       hasUnmodeledFeatures,
       activeRows,
+      requiredServiceGroups,
       supplyGroups,
       balancedCommodityKeys,
+      trackedConstraints,
     };
   }
 
@@ -472,62 +1131,147 @@ function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
     const disabledStateIds = new Set(group.control.disabledStateIds);
     const fixedShares = group.control.fixedShares ?? {};
 
-    constraints[demandId] = { equal: group.demand };
+    trackConstraint(constraints, trackedConstraints, demandId, { equal: group.demand }, {
+      kind: 'service_demand',
+      outputId: group.outputId,
+      outputLabel: group.outputLabel,
+      year: group.year,
+      mode: group.control.mode,
+      message: `Meet required demand for ${group.outputLabel} in ${group.year}.`,
+    });
 
     for (const row of group.rows) {
       const variableId = activityVariableId(row);
-      variables[variableId][demandId] = 1;
+      setVariableConstraintCoefficient(variables, variableId, demandId, 1);
 
       if (disabledStateIds.has(row.stateId)) {
-        addConstraint(constraints, variables, variableId, stateConstraintId('disabled', row), { equal: 0 });
+        addConstraint(
+          constraints,
+          trackedConstraints,
+          variables,
+          variableId,
+          stateConstraintId('disabled', row),
+          { equal: 0 },
+          {
+            kind: 'disabled_state',
+            outputId: row.outputId,
+            outputLabel: row.outputLabel,
+            year: row.year,
+            stateId: row.stateId,
+            stateLabel: row.stateLabel,
+            rowId: row.rowId,
+            mode: group.control.mode,
+            message: `${row.stateLabel} is disabled for ${row.outputLabel} in ${row.year}.`,
+          },
+        );
         continue;
       }
 
       if (group.control.mode === 'pinned_single') {
         addConstraint(
           constraints,
+          trackedConstraints,
           variables,
           variableId,
           stateConstraintId('pinned', row),
           { equal: row.stateId === group.control.stateId ? group.demand : 0 },
+          {
+            kind: 'pinned_state',
+            outputId: row.outputId,
+            outputLabel: row.outputLabel,
+            year: row.year,
+            stateId: row.stateId,
+            stateLabel: row.stateLabel,
+            rowId: row.rowId,
+            mode: group.control.mode,
+            message: `${row.stateLabel} is pinned for ${row.outputLabel} in ${row.year}.`,
+          },
         );
       } else if (group.control.mode === 'fixed_shares') {
         addConstraint(
           constraints,
+          trackedConstraints,
           variables,
           variableId,
           stateConstraintId('fixed_share', row),
           { equal: (fixedShares[row.stateId] ?? 0) * group.demand },
+          {
+            kind: 'fixed_share',
+            outputId: row.outputId,
+            outputLabel: row.outputLabel,
+            year: row.year,
+            stateId: row.stateId,
+            stateLabel: row.stateLabel,
+            rowId: row.rowId,
+            mode: group.control.mode,
+            message: `${row.stateLabel} follows the fixed share for ${row.outputLabel} in ${row.year}.`,
+          },
         );
       }
 
       if (row.bounds.minShare != null) {
         addConstraint(
           constraints,
+          trackedConstraints,
           variables,
           variableId,
           stateConstraintId('min_share', row),
           { min: row.bounds.minShare * group.demand },
+          {
+            kind: 'min_share',
+            outputId: row.outputId,
+            outputLabel: row.outputLabel,
+            year: row.year,
+            stateId: row.stateId,
+            stateLabel: row.stateLabel,
+            rowId: row.rowId,
+            mode: group.control.mode,
+            message: `${row.stateLabel} keeps at least its minimum share in ${row.outputLabel} ${row.year}.`,
+          },
         );
       }
 
       if (request.scenario.options.respectMaxShare && row.bounds.maxShare != null) {
         addConstraint(
           constraints,
+          trackedConstraints,
           variables,
           variableId,
           stateConstraintId('max_share', row),
           { max: row.bounds.maxShare * group.demand },
+          {
+            kind: 'max_share',
+            outputId: row.outputId,
+            outputLabel: row.outputLabel,
+            year: row.year,
+            stateId: row.stateId,
+            stateLabel: row.stateLabel,
+            rowId: row.rowId,
+            mode: group.control.mode,
+            message: `${row.stateLabel} stays within its max share for ${row.outputLabel} in ${row.year}.`,
+          },
         );
       }
 
       if (request.scenario.options.respectMaxActivity && row.bounds.maxActivity != null) {
         addConstraint(
           constraints,
+          trackedConstraints,
           variables,
           variableId,
           stateConstraintId('max_activity', row),
           { max: row.bounds.maxActivity },
+          {
+            kind: 'max_activity',
+            outputId: row.outputId,
+            outputLabel: row.outputLabel,
+            year: row.year,
+            stateId: row.stateId,
+            stateLabel: row.stateLabel,
+            rowId: row.rowId,
+            mode: group.control.mode,
+            message: `${row.stateLabel} stays within its max activity for ${row.outputLabel} in ${row.year}.`,
+          },
         );
       }
     }
@@ -542,10 +1286,23 @@ function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
       for (const row of group.rows) {
         addConstraint(
           constraints,
+          trackedConstraints,
           variables,
           activityVariableId(row),
           stateConstraintId('externalized', row),
           { equal: 0 },
+          {
+            kind: 'externalized_supply',
+            outputId: row.outputId,
+            outputLabel: row.outputLabel,
+            year: row.year,
+            stateId: row.stateId,
+            stateLabel: row.stateLabel,
+            rowId: row.rowId,
+            commodityId: group.commodityId,
+            mode: group.control.mode,
+            message: `${row.stateLabel} is bypassed because ${row.outputLabel} is externalized in ${row.year}.`,
+          },
         );
       }
 
@@ -553,74 +1310,150 @@ function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
     }
 
     const balanceId = commodityBalanceConstraintId(group.commodityId, group.year);
-    constraints[balanceId] = { equal: group.externalDemand };
+    trackConstraint(constraints, trackedConstraints, balanceId, { equal: group.externalDemand }, {
+      kind: 'commodity_balance',
+      outputId: group.commodityId,
+      outputLabel: group.commodityLabel,
+      year: group.year,
+      commodityId: group.commodityId,
+      mode: group.control.mode,
+      message: `${group.commodityLabel} balances modeled and external demand in ${group.year}.`,
+    });
 
     for (const row of activeRows) {
       if (row.year !== group.year || row.outputId === group.commodityId) {
         continue;
       }
 
-      const coefficient = row.inputs.reduce((total, input) => {
-        return input.commodityId === group.commodityId ? total + input.coefficient : total;
-      }, 0);
-
+      const coefficient = sumInputCoefficient(row, group.commodityId);
       if (coefficient !== 0) {
-        variables[activityVariableId(row)][balanceId] = -coefficient;
+        setVariableConstraintCoefficient(variables, activityVariableId(row), balanceId, -coefficient);
       }
     }
 
     for (const row of group.rows) {
       const variableId = activityVariableId(row);
-      variables[variableId][balanceId] = (variables[variableId][balanceId] ?? 0) + 1;
+      setVariableConstraintCoefficient(variables, variableId, balanceId, 1);
 
       if (disabledStateIds.has(row.stateId)) {
-        addConstraint(constraints, variables, variableId, stateConstraintId('disabled', row), { equal: 0 });
+        addConstraint(
+          constraints,
+          trackedConstraints,
+          variables,
+          variableId,
+          stateConstraintId('disabled', row),
+          { equal: 0 },
+          {
+            kind: 'disabled_state',
+            outputId: row.outputId,
+            outputLabel: row.outputLabel,
+            year: row.year,
+            stateId: row.stateId,
+            stateLabel: row.stateLabel,
+            rowId: row.rowId,
+            commodityId: group.commodityId,
+            mode: group.control.mode,
+            message: `${row.stateLabel} is disabled for ${row.outputLabel} in ${row.year}.`,
+          },
+        );
         continue;
       }
 
       if (group.control.mode === 'fixed_shares') {
         addShareConstraint(
           constraints,
+          trackedConstraints,
           variables,
           variableIds,
           variableId,
           fixedShares[row.stateId] ?? 0,
           stateConstraintId('fixed_share', row),
           { equal: 0 },
+          {
+            kind: 'fixed_share',
+            outputId: row.outputId,
+            outputLabel: row.outputLabel,
+            year: row.year,
+            stateId: row.stateId,
+            stateLabel: row.stateLabel,
+            rowId: row.rowId,
+            commodityId: group.commodityId,
+            mode: group.control.mode,
+            message: `${row.stateLabel} follows the fixed share for ${row.outputLabel} in ${row.year}.`,
+          },
         );
       }
 
       if (row.bounds.minShare != null) {
         addShareConstraint(
           constraints,
+          trackedConstraints,
           variables,
           variableIds,
           variableId,
           row.bounds.minShare,
           stateConstraintId('min_share', row),
           { min: 0 },
+          {
+            kind: 'min_share',
+            outputId: row.outputId,
+            outputLabel: row.outputLabel,
+            year: row.year,
+            stateId: row.stateId,
+            stateLabel: row.stateLabel,
+            rowId: row.rowId,
+            commodityId: group.commodityId,
+            mode: group.control.mode,
+            message: `${row.stateLabel} keeps at least its minimum share in ${row.outputLabel} ${row.year}.`,
+          },
         );
       }
 
       if (request.scenario.options.respectMaxShare && row.bounds.maxShare != null) {
         addShareConstraint(
           constraints,
+          trackedConstraints,
           variables,
           variableIds,
           variableId,
           row.bounds.maxShare,
           stateConstraintId('max_share', row),
           { max: 0 },
+          {
+            kind: 'max_share',
+            outputId: row.outputId,
+            outputLabel: row.outputLabel,
+            year: row.year,
+            stateId: row.stateId,
+            stateLabel: row.stateLabel,
+            rowId: row.rowId,
+            commodityId: group.commodityId,
+            mode: group.control.mode,
+            message: `${row.stateLabel} stays within its max share for ${row.outputLabel} in ${row.year}.`,
+          },
         );
       }
 
       if (request.scenario.options.respectMaxActivity && row.bounds.maxActivity != null) {
         addConstraint(
           constraints,
+          trackedConstraints,
           variables,
           variableId,
           stateConstraintId('max_activity', row),
           { max: row.bounds.maxActivity },
+          {
+            kind: 'max_activity',
+            outputId: row.outputId,
+            outputLabel: row.outputLabel,
+            year: row.year,
+            stateId: row.stateId,
+            stateLabel: row.stateLabel,
+            rowId: row.rowId,
+            commodityId: group.commodityId,
+            mode: group.control.mode,
+            message: `${row.stateLabel} stays within its max activity for ${row.outputLabel} in ${row.year}.`,
+          },
         );
       }
     }
@@ -640,19 +1473,29 @@ function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
   );
 
   return {
+    request,
     model: {
       direction: SCENARIO_DIRECTION,
       objective: SCENARIO_OBJECTIVE_KEY,
       constraints,
       variables,
     },
-    diagnostics,
+    diagnostics: dedupeAndSortDiagnostics(diagnostics),
     notes,
     hasUnmodeledFeatures,
     activeRows,
+    requiredServiceGroups,
     supplyGroups,
     balancedCommodityKeys,
+    trackedConstraints,
   };
+}
+
+function buildInfeasibilityDiagnostics(build: ScenarioLpBuild): SolveDiagnostic[] {
+  return dedupeAndSortDiagnostics([
+    ...buildRequiredServiceInfeasibilityDiagnostics(build),
+    ...buildSupplyCommodityInfeasibilityDiagnostics(build),
+  ]);
 }
 
 function buildDiagnostics(
@@ -661,14 +1504,14 @@ function buildDiagnostics(
 ): SolveDiagnostic[] {
   const diagnostics = [...build.diagnostics];
 
-  diagnostics.unshift({
+  diagnostics.push({
     code: 'worker_boundary_ready',
     severity: 'info',
     message: 'The solve request was normalized, transferred to a Web Worker, and executed through the LP adapter.',
   });
 
   if (!solution) {
-    return diagnostics;
+    return dedupeAndSortDiagnostics(diagnostics);
   }
 
   diagnostics.push({
@@ -683,6 +1526,7 @@ function buildDiagnostics(
       severity: 'error',
       message: 'The current LP core could not find an optimal feasible solution for the required-service and endogenous-supply constraints.',
     });
+    diagnostics.push(...buildInfeasibilityDiagnostics(build));
   }
 
   if (build.hasUnmodeledFeatures && solution.status === 'optimal') {
@@ -693,7 +1537,7 @@ function buildDiagnostics(
     });
   }
 
-  return diagnostics;
+  return dedupeAndSortDiagnostics(diagnostics);
 }
 
 function buildVariableValueMap(solution: Solution<string>): Map<string, number> {
@@ -773,13 +1617,7 @@ function buildCommodityBalanceSummary(
         return total;
       }
 
-      const rowDemand = row.inputs.reduce((rowTotal, input) => {
-        return input.commodityId === group.commodityId
-          ? rowTotal + input.coefficient * activity
-          : rowTotal;
-      }, 0);
-
-      return total + rowDemand;
+      return total + sumInputCoefficient(row, group.commodityId) * activity;
     }, 0);
     const totalDemand = modeledDemand + group.externalDemand;
     const averageSupplyCost = supply > 0
@@ -813,6 +1651,69 @@ function buildCommodityBalanceSummary(
   });
 }
 
+function computeConstraintActualValue(
+  constraintId: string,
+  model: Model<string, string>,
+  variableValues: Map<string, number>,
+): number {
+  let total = 0;
+
+  for (const [variableId, coefficients] of Object.entries(model.variables)) {
+    const coefficient = coefficients[constraintId];
+    if (typeof coefficient !== 'number') {
+      continue;
+    }
+
+    total += coefficient * (variableValues.get(variableId) ?? 0);
+  }
+
+  return total;
+}
+
+function buildBindingConstraintSummary(
+  solution: Solution<string>,
+  build: ScenarioLpBuild,
+): SolveBindingConstraintSummary[] {
+  const variableValues = buildVariableValueMap(solution);
+
+  return Object.values(build.trackedConstraints)
+    .filter((constraint) => constraint.kind !== 'service_demand')
+    .map((constraint) => {
+      const actualValue = computeConstraintActualValue(constraint.constraintId, build.model, variableValues);
+      const slack = constraint.boundType === 'equal'
+        ? Math.abs(actualValue - constraint.boundValue)
+        : constraint.boundType === 'min'
+          ? actualValue - constraint.boundValue
+          : constraint.boundValue - actualValue;
+
+      return {
+        constraintId: constraint.constraintId,
+        kind: constraint.kind,
+        boundType: constraint.boundType,
+        boundValue: constraint.boundValue,
+        actualValue,
+        slack,
+        outputId: constraint.outputId,
+        outputLabel: constraint.outputLabel,
+        year: constraint.year,
+        stateId: constraint.stateId,
+        stateLabel: constraint.stateLabel,
+        rowId: constraint.rowId,
+        commodityId: constraint.commodityId,
+        mode: constraint.mode,
+        message: constraint.message,
+      } satisfies SolveBindingConstraintSummary;
+    })
+    .filter((constraint) => Math.abs(constraint.slack) <= BINDING_TOLERANCE)
+    .sort((left, right) => {
+      return left.year - right.year
+        || left.outputId.localeCompare(right.outputId)
+        || left.kind.localeCompare(right.kind)
+        || (left.stateId ?? '').localeCompare(right.stateId ?? '')
+        || left.constraintId.localeCompare(right.constraintId);
+    });
+}
+
 function buildReportingSummary(
   request: SolveRequest,
   solution: Solution<string>,
@@ -823,6 +1724,7 @@ function buildReportingSummary(
   return {
     commodityBalances: buildCommodityBalanceSummary(request, build, variableValues),
     stateShares: buildStateShareSummary(build.activeRows, variableValues),
+    bindingConstraints: buildBindingConstraintSummary(solution, build),
   };
 }
 
@@ -884,7 +1786,9 @@ export function solveWithLpAdapter(request: SolveRequest): SolveResult {
       : 'error',
     engine: { name: 'yalps', worker: true },
     summary: summarizeRequest(request),
-    reporting: buildReportingSummary(request, solution, build),
+    reporting: solution.status === 'optimal'
+      ? buildReportingSummary(request, solution, build)
+      : emptyReporting(),
     raw: {
       kind: 'scenario_lp',
       objectiveDirection: SCENARIO_DIRECTION,

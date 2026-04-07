@@ -29,6 +29,7 @@ function buildErrorResult(request: SolveRequest, diagnostics: SolveDiagnostic[])
     reporting: {
       commodityBalances: [],
       stateShares: [],
+      bindingConstraints: [],
     },
     raw: null,
     diagnostics,
