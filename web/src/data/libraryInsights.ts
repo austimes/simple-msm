@@ -14,6 +14,49 @@ export interface SectorStateFamily {
   assumptionIds: string[];
 }
 
+export interface SectorSubsectorIndex {
+  sectors: string[];
+  subsectorsBySector: Record<string, string[]>;
+}
+
+export interface TrajectoryPoint {
+  year: number;
+  rowKey: string;
+  cost: number | null;
+  energyTotal: number | null;
+  processTotal: number | null;
+  maxShare: number | null;
+  maxActivity: number | null;
+  row: SectorState;
+}
+
+export interface SectorStateTrajectory {
+  stateId: string;
+  label: string;
+  sector: string;
+  subsector: string;
+  serviceOrOutputName: string;
+  region: string;
+  outputUnit: string;
+  emissionsUnit: string;
+  currency: string;
+  representative: SectorState;
+  rows: SectorState[];
+  points: TrajectoryPoint[];
+  confidenceRatings: string[];
+  sourceIds: string[];
+  assumptionIds: string[];
+}
+
+export interface InputCommoditySeries {
+  commodity: string;
+  unit: string;
+  values: Array<{
+    year: number;
+    value: number | null;
+  }>;
+}
+
 const referencePatterns = [
   { pattern: /incumbent/i, score: 40 },
   { pattern: /baseline/i, score: 35 },
@@ -52,6 +95,31 @@ export function buildSectorStateSearchText(row: SectorState): string {
   ]
     .join(' ')
     .toLowerCase();
+}
+
+export function buildSectorStateFamilySearchText(family: SectorStateFamily): string {
+  return family.rows.map((row) => buildSectorStateSearchText(row)).join(' ');
+}
+
+export function buildSectorSubsectorIndex(sectorStates: SectorState[]): SectorSubsectorIndex {
+  const subsectorsBySector = sectorStates.reduce<Record<string, Set<string>>>((result, row) => {
+    if (!result[row.sector]) {
+      result[row.sector] = new Set<string>();
+    }
+
+    result[row.sector].add(row.subsector);
+    return result;
+  }, {});
+
+  const sectors = Object.keys(subsectorsBySector).sort((left, right) => left.localeCompare(right));
+
+  return {
+    sectors,
+    subsectorsBySector: sectors.reduce<Record<string, string[]>>((result, sector) => {
+      result[sector] = Array.from(subsectorsBySector[sector]).sort((left, right) => left.localeCompare(right));
+      return result;
+    }, {}),
+  };
 }
 
 export function buildSectorStateFamilies(sectorStates: SectorState[]): SectorStateFamily[] {
@@ -94,6 +162,63 @@ export function buildSectorStateFamilies(sectorStates: SectorState[]): SectorSta
         left.label.localeCompare(right.label)
       );
     });
+}
+
+export function buildSectorStateTrajectory(family: SectorStateFamily): SectorStateTrajectory {
+  const representative = family.representative;
+
+  return {
+    stateId: family.stateId,
+    label: family.label,
+    sector: family.sector,
+    subsector: family.subsector,
+    serviceOrOutputName: family.serviceOrOutputName,
+    region: representative.region,
+    outputUnit: representative.output_unit,
+    emissionsUnit: representative.emissions_units,
+    currency: representative.currency,
+    representative,
+    rows: family.rows,
+    points: family.rows.map((row) => ({
+      year: row.year,
+      rowKey: `${row.state_id}:${row.year}`,
+      cost: row.output_cost_per_unit,
+      energyTotal: sumEmissionEntries(row.energy_emissions_by_pollutant),
+      processTotal: sumEmissionEntries(row.process_emissions_by_pollutant),
+      maxShare: row.max_share,
+      maxActivity: row.max_activity,
+      row,
+    })),
+    confidenceRatings: family.confidenceRatings,
+    sourceIds: family.sourceIds,
+    assumptionIds: family.assumptionIds,
+  };
+}
+
+export function buildInputCommoditySeries(family: SectorStateFamily): InputCommoditySeries[] {
+  const commodityUnits = new Map<string, string>();
+
+  family.rows.forEach((row) => {
+    row.input_commodities.forEach((commodity, index) => {
+      if (!commodityUnits.has(commodity)) {
+        commodityUnits.set(commodity, row.input_units[index] ?? '—');
+      }
+    });
+  });
+
+  return Array.from(commodityUnits.entries())
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([commodity, unit]) => ({
+      commodity,
+      unit,
+      values: family.rows.map((row) => {
+        const index = row.input_commodities.indexOf(commodity);
+        return {
+          year: row.year,
+          value: index >= 0 ? row.input_coefficients[index] ?? null : null,
+        };
+      }),
+    }));
 }
 
 function scoreReferenceCandidate(row: SectorState): number {

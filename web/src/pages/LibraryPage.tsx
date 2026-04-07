@@ -1,41 +1,55 @@
 import { useMemo, useState } from 'react';
 import {
+  buildInputCommoditySeries,
   buildSectorStateFamilies,
-  buildSectorStateSearchText,
-  findReferenceSectorState,
-  sumEmissionEntries,
+  buildSectorStateFamilySearchText,
+  buildSectorStateTrajectory,
+  buildSectorSubsectorIndex,
+  type SectorStateTrajectory,
 } from '../data/libraryInsights';
 import { usePackageStore } from '../data/packageStore';
-import type { SectorState } from '../data/types';
+import type { AssumptionLedgerEntry, SectorState, SourceLedgerEntry } from '../data/types';
+import LineChart, { type LineChartSeries } from './library/LineChart';
 
 interface LibraryFilters {
   search: string;
-  sector: string;
-  subsector: string;
-  service: string;
-  year: string;
   confidence: string;
   region: string;
-  stateLabel: string;
   sourceId: string;
   assumptionId: string;
 }
 
+interface MetricConfig {
+  key: 'cost' | 'energy' | 'process' | 'maxShare' | 'maxActivity';
+  label: string;
+  pick: (trajectory: SectorStateTrajectory, year: number) => number | null;
+  formatCell: (value: number | null, trajectory: SectorStateTrajectory) => string;
+}
+
+interface TrajectoryNarrativeProps {
+  label: string;
+  rows: SectorState[];
+  pick: (row: SectorState) => string;
+}
+
 const EMPTY_FILTERS: LibraryFilters = {
   search: '',
-  sector: '',
-  subsector: '',
-  service: '',
-  year: '',
   confidence: '',
   region: '',
-  stateLabel: '',
   sourceId: '',
   assumptionId: '',
 };
 
+const TRAJECTORY_COLORS = ['#0f766e', '#b45309', '#1d4ed8', '#be123c', '#7c3aed', '#0f766e'];
+const COEFFICIENT_COLORS = ['#0f766e', '#b45309', '#1d4ed8', '#be123c', '#7c3aed', '#059669'];
+
 const numberFormatter = new Intl.NumberFormat('en-AU', {
   maximumFractionDigits: 2,
+});
+
+const compactNumberFormatter = new Intl.NumberFormat('en-AU', {
+  notation: 'compact',
+  maximumFractionDigits: 1,
 });
 
 const percentFormatter = new Intl.NumberFormat('en-AU', {
@@ -43,9 +57,10 @@ const percentFormatter = new Intl.NumberFormat('en-AU', {
   maximumFractionDigits: 1,
 });
 
-function buildStateRowKey(state: SectorState): string {
-  return `${state.state_id}:${state.year}`;
-}
+const axisPercentFormatter = new Intl.NumberFormat('en-AU', {
+  style: 'percent',
+  maximumFractionDigits: 0,
+});
 
 function formatNullableNumber(value: number | null, suffix = ''): string {
   if (value == null) {
@@ -55,62 +70,79 @@ function formatNullableNumber(value: number | null, suffix = ''): string {
   return `${numberFormatter.format(value)}${suffix}`;
 }
 
-function formatCost(row: SectorState): string {
-  if (row.output_cost_per_unit == null) {
-    return 'n/a';
-  }
-
-  return `${row.currency} ${numberFormatter.format(row.output_cost_per_unit)}`;
+function formatAxisNumber(value: number): string {
+  return compactNumberFormatter.format(value);
 }
 
-function formatDelta(value: number | null): string {
+function formatPercentAxis(value: number): string {
+  return axisPercentFormatter.format(value);
+}
+
+function formatCostValue(value: number | null, currency: string): string {
   if (value == null) {
     return '—';
   }
 
-  const sign = value > 0 ? '+' : '';
-  return `${sign}${numberFormatter.format(value)}`;
+  return `${currency} ${numberFormatter.format(value)}`;
 }
 
-function matchesFilters(row: SectorState, filters: LibraryFilters): boolean {
-  if (filters.sector && row.sector !== filters.sector) {
+function formatRange(values: Array<number | null>, formatter: (value: number) => string): string {
+  const numericValues = values.filter((value): value is number => value != null);
+
+  if (numericValues.length === 0) {
+    return '—';
+  }
+
+  const min = Math.min(...numericValues);
+  const max = Math.max(...numericValues);
+  return min === max ? formatter(min) : `${formatter(min)} to ${formatter(max)}`;
+}
+
+function buildNarrativeEntries(rows: SectorState[], pick: (row: SectorState) => string) {
+  const entries = rows
+    .map((row) => ({ year: row.year, value: pick(row).trim() }))
+    .filter((entry) => entry.value.length > 0);
+
+  const uniqueValues = Array.from(new Set(entries.map((entry) => entry.value)));
+
+  return {
+    sharedValue: uniqueValues.length === 1 ? uniqueValues[0] : null,
+    entries: uniqueValues.length === 1 ? [] : entries,
+  };
+}
+
+function matchesTrajectoryFilters(
+  trajectory: ReturnType<typeof buildSectorStateFamilies>[number],
+  selectedSector: string,
+  selectedSubsector: string,
+  filters: LibraryFilters,
+) {
+  if (selectedSector && trajectory.sector !== selectedSector) {
     return false;
   }
 
-  if (filters.subsector && row.subsector !== filters.subsector) {
+  if (selectedSubsector && trajectory.subsector !== selectedSubsector) {
     return false;
   }
 
-  if (filters.service && row.service_or_output_name !== filters.service) {
+  if (filters.confidence && !trajectory.confidenceRatings.includes(filters.confidence)) {
     return false;
   }
 
-  if (filters.year && String(row.year) !== filters.year) {
+  if (filters.region && !trajectory.rows.some((row) => row.region === filters.region)) {
     return false;
   }
 
-  if (filters.confidence && row.confidence_rating !== filters.confidence) {
+  if (filters.sourceId && !trajectory.sourceIds.includes(filters.sourceId)) {
     return false;
   }
 
-  if (filters.region && row.region !== filters.region) {
-    return false;
-  }
-
-  if (filters.stateLabel && row.state_label !== filters.stateLabel) {
-    return false;
-  }
-
-  if (filters.sourceId && !row.source_ids.includes(filters.sourceId)) {
-    return false;
-  }
-
-  if (filters.assumptionId && !row.assumption_ids.includes(filters.assumptionId)) {
+  if (filters.assumptionId && !trajectory.assumptionIds.includes(filters.assumptionId)) {
     return false;
   }
 
   if (filters.search) {
-    const searchText = buildSectorStateSearchText(row);
+    const searchText = buildSectorStateFamilySearchText(trajectory);
     const tokens = filters.search
       .toLowerCase()
       .split(/\s+/)
@@ -124,178 +156,287 @@ function matchesFilters(row: SectorState, filters: LibraryFilters): boolean {
   return true;
 }
 
-function buildInputRows(row: SectorState) {
-  return row.input_commodities.map((commodity, index) => ({
-    commodity,
-    coefficient: row.input_coefficients[index] ?? null,
-    unit: row.input_units[index] ?? '—',
-  }));
-}
+function TrajectoryNarrative({ label, rows, pick }: TrajectoryNarrativeProps) {
+  const detail = buildNarrativeEntries(rows, pick);
 
-function buildInputDeltaRows(selected: SectorState, reference: SectorState) {
-  const selectedCoefficients = new Map(
-    selected.input_commodities.map((commodity, index) => [commodity, selected.input_coefficients[index] ?? 0]),
+  return (
+    <div>
+      <dt>{label}</dt>
+      <dd>
+        {detail.sharedValue ? (
+          detail.sharedValue
+        ) : detail.entries.length > 0 ? (
+          <div className="library-yearly-note-list">
+            {detail.entries.map((entry) => (
+              <div key={`${label}:${entry.year}:${entry.value}`} className="library-yearly-note-item">
+                <span>{entry.year}</span>
+                <p>{entry.value}</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          '—'
+        )}
+      </dd>
+    </div>
   );
-  const selectedUnits = new Map(
-    selected.input_commodities.map((commodity, index) => [commodity, selected.input_units[index] ?? '—']),
-  );
-  const referenceCoefficients = new Map(
-    reference.input_commodities.map((commodity, index) => [commodity, reference.input_coefficients[index] ?? 0]),
-  );
-  const referenceUnits = new Map(
-    reference.input_commodities.map((commodity, index) => [commodity, reference.input_units[index] ?? '—']),
-  );
-
-  return Array.from(
-    new Set([...selected.input_commodities, ...reference.input_commodities]),
-  )
-    .sort((left, right) => left.localeCompare(right))
-    .map((commodity) => {
-      const selectedValue = selectedCoefficients.get(commodity) ?? 0;
-      const referenceValue = referenceCoefficients.get(commodity) ?? 0;
-      return {
-        commodity,
-        unit: selectedUnits.get(commodity) ?? referenceUnits.get(commodity) ?? '—',
-        selectedValue,
-        referenceValue,
-        delta: selectedValue - referenceValue,
-      };
-    });
 }
 
 export default function LibraryPage() {
   const enrichment = usePackageStore((state) => state.enrichment);
   const sectorStates = usePackageStore((state) => state.sectorStates);
   const [filters, setFilters] = useState<LibraryFilters>(EMPTY_FILTERS);
-  const [selectedRowKey, setSelectedRowKey] = useState<string | null>(null);
+  const [selectedSector, setSelectedSector] = useState('');
+  const [selectedSubsector, setSelectedSubsector] = useState('');
+  const [selectedTrajectoryId, setSelectedTrajectoryId] = useState<string | null>(null);
 
   const families = useMemo(() => buildSectorStateFamilies(sectorStates), [sectorStates]);
+  const sectorIndex = useMemo(() => buildSectorSubsectorIndex(sectorStates), [sectorStates]);
+
+  const resolvedSelectedSector =
+    selectedSector && sectorIndex.sectors.includes(selectedSector)
+      ? selectedSector
+      : sectorIndex.sectors[0] ?? '';
+  const visibleSubsectors = resolvedSelectedSector ? sectorIndex.subsectorsBySector[resolvedSelectedSector] ?? [] : [];
+  const resolvedSelectedSubsector =
+    selectedSubsector && visibleSubsectors.includes(selectedSubsector)
+      ? selectedSubsector
+      : visibleSubsectors[0] ?? '';
 
   const filterOptions = useMemo(() => {
     return {
-      sectors: Array.from(new Set(sectorStates.map((row) => row.sector))).sort((left, right) => left.localeCompare(right)),
-      subsectors: Array.from(new Set(sectorStates.map((row) => row.subsector))).sort((left, right) => left.localeCompare(right)),
-      services: Array.from(new Set(sectorStates.map((row) => row.service_or_output_name))).sort((left, right) => left.localeCompare(right)),
-      years: Array.from(new Set(sectorStates.map((row) => row.year))).sort((left, right) => left - right),
       confidenceRatings: Array.from(new Set(sectorStates.map((row) => row.confidence_rating))).sort((left, right) => left.localeCompare(right)),
       regions: Array.from(new Set(sectorStates.map((row) => row.region))).sort((left, right) => left.localeCompare(right)),
-      stateLabels: Array.from(new Set(families.map((family) => family.label))).sort((left, right) => left.localeCompare(right)),
       sourceIds: Array.from(new Set(sectorStates.flatMap((row) => row.source_ids))).sort((left, right) => left.localeCompare(right)),
       assumptionIds: Array.from(new Set(sectorStates.flatMap((row) => row.assumption_ids))).sort((left, right) => left.localeCompare(right)),
     };
-  }, [families, sectorStates]);
+  }, [sectorStates]);
 
-  const filteredStates = useMemo(() => {
-    return sectorStates
-      .filter((row) => matchesFilters(row, filters))
-      .sort((left, right) => {
-        return (
-          left.sector.localeCompare(right.sector) ||
-          left.subsector.localeCompare(right.subsector) ||
-          left.service_or_output_name.localeCompare(right.service_or_output_name) ||
-          left.year - right.year ||
-          left.state_label.localeCompare(right.state_label)
-        );
+  const filteredFamilies = useMemo(() => {
+    return families.filter((family) => matchesTrajectoryFilters(family, resolvedSelectedSector, resolvedSelectedSubsector, filters));
+  }, [families, resolvedSelectedSector, resolvedSelectedSubsector, filters]);
+
+  const visibleTrajectories = useMemo(() => filteredFamilies.map((family) => buildSectorStateTrajectory(family)), [filteredFamilies]);
+
+  const visibleYears = useMemo(() => {
+    return Array.from(new Set(visibleTrajectories.flatMap((trajectory) => trajectory.points.map((point) => point.year)))).sort(
+      (left, right) => left - right,
+    );
+  }, [visibleTrajectories]);
+
+  const resolvedSelectedTrajectoryId =
+    selectedTrajectoryId && visibleTrajectories.some((trajectory) => trajectory.stateId === selectedTrajectoryId)
+      ? selectedTrajectoryId
+      : visibleTrajectories[0]?.stateId ?? null;
+
+  const selectedTrajectory =
+    visibleTrajectories.find((trajectory) => trajectory.stateId === resolvedSelectedTrajectoryId) ?? null;
+
+  const visibleConfidenceCounts = useMemo(() => {
+    return filteredFamilies.reduce<Record<string, number>>((counts, family) => {
+      family.confidenceRatings.forEach((rating) => {
+        counts[rating] = (counts[rating] ?? 0) + 1;
       });
-  }, [filters, sectorStates]);
-
-  const resolvedSelectedRowKey =
-    selectedRowKey && filteredStates.some((row) => buildStateRowKey(row) === selectedRowKey)
-      ? selectedRowKey
-      : filteredStates[0]
-        ? buildStateRowKey(filteredStates[0])
-        : null;
-
-  const selectedState = filteredStates.find((row) => buildStateRowKey(row) === resolvedSelectedRowKey) ?? null;
-  const selectedFamily = families.find((family) => family.stateId === selectedState?.state_id) ?? null;
-  const referenceState = selectedState ? findReferenceSectorState(selectedState, sectorStates) : null;
-
-  const filteredConfidenceCounts = useMemo(() => {
-    return filteredStates.reduce<Record<string, number>>((counts, row) => {
-      counts[row.confidence_rating] = (counts[row.confidence_rating] ?? 0) + 1;
       return counts;
     }, {});
-  }, [filteredStates]);
+  }, [filteredFamilies]);
 
-  const filteredFamiliesCount = useMemo(() => {
-    return new Set(filteredStates.map((row) => row.state_id)).size;
-  }, [filteredStates]);
+  const lowConfidenceTrajectories = (visibleConfidenceCounts['Low'] ?? 0) + (visibleConfidenceCounts['Exploratory'] ?? 0);
+  const serviceCount = new Set(filteredFamilies.map((family) => family.serviceOrOutputName)).size;
 
-  const lowConfidenceRows = (filteredConfidenceCounts['Low'] ?? 0) + (filteredConfidenceCounts['Exploratory'] ?? 0);
-  const selectedInputRows = selectedState ? buildInputRows(selectedState) : [];
-  const referenceInputRows = selectedState && referenceState ? buildInputDeltaRows(selectedState, referenceState) : [];
-  const selectedEnergyTotal = selectedState ? sumEmissionEntries(selectedState.energy_emissions_by_pollutant) : null;
-  const selectedProcessTotal = selectedState ? sumEmissionEntries(selectedState.process_emissions_by_pollutant) : null;
-  const referenceEnergyTotal = referenceState ? sumEmissionEntries(referenceState.energy_emissions_by_pollutant) : null;
-  const referenceProcessTotal = referenceState ? sumEmissionEntries(referenceState.process_emissions_by_pollutant) : null;
+  const colorByTrajectoryId = useMemo(() => {
+    return new Map(
+      visibleTrajectories.map((trajectory, index) => [trajectory.stateId, TRAJECTORY_COLORS[index % TRAJECTORY_COLORS.length]]),
+    );
+  }, [visibleTrajectories]);
+
+  const metricSeries = useMemo(() => {
+    const selectSeries = (trajectory: SectorStateTrajectory, metricKey: string): LineChartSeries => ({
+      key: `${trajectory.stateId}::${metricKey}`,
+      label: trajectory.label,
+      selectionKey: trajectory.stateId,
+      color: colorByTrajectoryId.get(trajectory.stateId) ?? TRAJECTORY_COLORS[0],
+      active: trajectory.stateId === resolvedSelectedTrajectoryId,
+      values: trajectory.points.map((point) => ({
+        year: point.year,
+        value:
+          metricKey === 'cost'
+            ? point.cost
+            : metricKey === 'maxShare'
+              ? point.maxShare
+              : metricKey === 'maxActivity'
+                ? point.maxActivity
+                : metricKey === 'energy'
+                  ? point.energyTotal
+                  : point.processTotal,
+      })),
+    });
+
+    return {
+      cost: visibleTrajectories.map((trajectory) => selectSeries(trajectory, 'cost')),
+      maxShare: visibleTrajectories.map((trajectory) => selectSeries(trajectory, 'maxShare')),
+      maxActivity: visibleTrajectories.map((trajectory) => selectSeries(trajectory, 'maxActivity')),
+      emissions: visibleTrajectories.flatMap((trajectory) => [
+        {
+          ...selectSeries(trajectory, 'energy'),
+          key: `${trajectory.stateId}::energy`,
+          label: `${trajectory.label} · energy`,
+        },
+        {
+          ...selectSeries(trajectory, 'process'),
+          key: `${trajectory.stateId}::process`,
+          label: `${trajectory.label} · process`,
+          dashArray: '7 5',
+        },
+      ]),
+    };
+  }, [colorByTrajectoryId, resolvedSelectedTrajectoryId, visibleTrajectories]);
+
+  const comparisonMetrics = useMemo<MetricConfig[]>(() => {
+    return [
+      {
+        key: 'cost',
+        label: 'Cost',
+        pick: (trajectory, year) => trajectory.points.find((point) => point.year === year)?.cost ?? null,
+        formatCell: (value, trajectory) => (value == null ? '—' : `${trajectory.currency} ${numberFormatter.format(value)}`),
+      },
+      {
+        key: 'energy',
+        label: 'Energy',
+        pick: (trajectory, year) => trajectory.points.find((point) => point.year === year)?.energyTotal ?? null,
+        formatCell: (value) => formatNullableNumber(value),
+      },
+      {
+        key: 'process',
+        label: 'Process emissions',
+        pick: (trajectory, year) => trajectory.points.find((point) => point.year === year)?.processTotal ?? null,
+        formatCell: (value) => formatNullableNumber(value),
+      },
+      {
+        key: 'maxShare',
+        label: 'Max share',
+        pick: (trajectory, year) => trajectory.points.find((point) => point.year === year)?.maxShare ?? null,
+        formatCell: (value) => (value == null ? '—' : percentFormatter.format(value)),
+      },
+      {
+        key: 'maxActivity',
+        label: 'Max activity',
+        pick: (trajectory, year) => trajectory.points.find((point) => point.year === year)?.maxActivity ?? null,
+        formatCell: (value) => formatNullableNumber(value),
+      },
+    ];
+  }, []);
+
   const sourceLedgerById = useMemo(() => {
     return new Map(enrichment.sourceLedger.map((entry) => [entry.sourceId, entry]));
   }, [enrichment.sourceLedger]);
+
   const assumptionsLedgerById = useMemo(() => {
     return new Map(enrichment.assumptionsLedger.map((entry) => [entry.assumptionId, entry]));
   }, [enrichment.assumptionsLedger]);
-  const selectedSourceEntries = selectedState
-    ? selectedState.source_ids.reduce<NonNullable<ReturnType<typeof sourceLedgerById.get>>[]>(
-        (entries, sourceId) => {
-          const entry = sourceLedgerById.get(sourceId);
 
-          if (entry) {
-            entries.push(entry);
-          }
+  const selectedSourceEntries = selectedTrajectory
+    ? selectedTrajectory.sourceIds.reduce<SourceLedgerEntry[]>((entries, sourceId) => {
+        const entry = sourceLedgerById.get(sourceId);
 
-          return entries;
-        },
-        [],
-      )
+        if (entry) {
+          entries.push(entry);
+        }
+
+        return entries;
+      }, [])
     : [];
-  const selectedAssumptionEntries = selectedState
-    ? selectedState.assumption_ids.reduce<NonNullable<ReturnType<typeof assumptionsLedgerById.get>>[]>(
-        (entries, assumptionId) => {
-          const entry = assumptionsLedgerById.get(assumptionId);
 
-          if (entry) {
-            entries.push(entry);
-          }
+  const selectedAssumptionEntries = selectedTrajectory
+    ? selectedTrajectory.assumptionIds.reduce<AssumptionLedgerEntry[]>((entries, assumptionId) => {
+        const entry = assumptionsLedgerById.get(assumptionId);
 
-          return entries;
-        },
-        [],
-      )
+        if (entry) {
+          entries.push(entry);
+        }
+
+        return entries;
+      }, [])
     : [];
+
+  const coefficientCards = useMemo(() => {
+    return [...filteredFamilies]
+      .sort((left, right) => {
+        if (left.stateId === resolvedSelectedTrajectoryId) {
+          return -1;
+        }
+
+        if (right.stateId === resolvedSelectedTrajectoryId) {
+          return 1;
+        }
+
+        return left.label.localeCompare(right.label);
+      })
+      .map((family) => {
+        const units = Array.from(new Set(buildInputCommoditySeries(family).map((entry) => entry.unit)));
+        const series = buildInputCommoditySeries(family).map<LineChartSeries>((entry, index) => ({
+          key: `${family.stateId}::${entry.commodity}`,
+          label: `${entry.commodity} (${entry.unit})`,
+          selectionKey: family.stateId,
+          color: COEFFICIENT_COLORS[index % COEFFICIENT_COLORS.length],
+          active: family.stateId === resolvedSelectedTrajectoryId,
+          values: entry.values,
+        }));
+
+        return {
+          family,
+          units,
+          series,
+        };
+      });
+  }, [filteredFamilies, resolvedSelectedTrajectoryId]);
+
+  const handleSeriesSelect = (series: LineChartSeries) => {
+    if (series.selectionKey) {
+      setSelectedTrajectoryId(series.selectionKey);
+    }
+  };
+
+  const resetFilters = () => {
+    const firstSector = sectorIndex.sectors[0] ?? '';
+    setFilters(EMPTY_FILTERS);
+    setSelectedSector(firstSector);
+    setSelectedSubsector((sectorIndex.subsectorsBySector[firstSector] ?? [])[0] ?? '');
+    setSelectedTrajectoryId(null);
+  };
 
   return (
     <div className="page page--library">
       <h1>Library</h1>
       <p>
-        Explore every sector-state row in the package, then inspect the evidence,
-        confidence, constraints, and year-specific coefficients that back it.
+        Compare sector-state trajectories over time, then drill into the notes, assumptions,
+        sources, and input coefficient curves behind each available state for the selected subsector.
       </p>
 
       <section className="scenario-overview-grid">
         <article className="scenario-panel scenario-panel--hero">
-          <span className="scenario-badge">Read-only trust</span>
-          <h2>Inspectable state library</h2>
+          <span className="scenario-badge">Trajectory view</span>
+          <h2>{resolvedSelectedSubsector ? `${resolvedSelectedSector} / ${resolvedSelectedSubsector}` : 'Sector-state trajectories'}</h2>
           <p>
-            The explorer is driven directly from `sector_states.csv`, so the detail panel stays
-            aligned with the same state-year rows the solver consumes while still picking up any
-            packaged source and assumption ledgers.
+            The current package has one service/output per sector-subsector pair, so this view can
+            stay focused on single-select sector and subsector chips without hiding additional service filters.
           </p>
           <dl className="scenario-key-value-list">
             <div>
-              <dt>Visible state-year rows</dt>
-              <dd>{filteredStates.length}</dd>
+              <dt>Visible trajectories</dt>
+              <dd>{visibleTrajectories.length}</dd>
             </div>
             <div>
-              <dt>Distinct state families</dt>
-              <dd>{filteredFamiliesCount}</dd>
+              <dt>Milestone years</dt>
+              <dd>{visibleYears.length}</dd>
             </div>
             <div>
-              <dt>Visible services/outputs</dt>
-              <dd>{new Set(filteredStates.map((row) => row.service_or_output_name)).size}</dd>
+              <dt>Visible services</dt>
+              <dd>{serviceCount}</dd>
             </div>
             <div>
-              <dt>Low or exploratory rows</dt>
-              <dd>{lowConfidenceRows}</dd>
+              <dt>Low or exploratory trajectories</dt>
+              <dd>{lowConfidenceTrajectories}</dd>
             </div>
           </dl>
         </article>
@@ -303,7 +444,7 @@ export default function LibraryPage() {
         <article className="scenario-panel">
           <h2>Confidence mix</h2>
           <div className="scenario-stat-grid">
-            {Object.entries(filteredConfidenceCounts).map(([rating, count]) => (
+            {Object.entries(visibleConfidenceCounts).map(([rating, count]) => (
               <div key={rating} className="scenario-stat-card">
                 <span>{rating}</span>
                 <strong>{count}</strong>
@@ -313,546 +454,368 @@ export default function LibraryPage() {
         </article>
       </section>
 
-      <section className="library-layout">
-        <aside className="scenario-panel library-filter-panel">
-          <div className="library-panel-heading">
-            <div>
-              <h2>Filters</h2>
-              <p>Narrow the explorer by sector, year, confidence, and trust metadata.</p>
-            </div>
-            <button
-              type="button"
-              className="library-clear-button"
-              onClick={() => setFilters(EMPTY_FILTERS)}
+      <section className="scenario-panel library-filter-strip">
+        <div className="library-panel-heading">
+          <div>
+            <h2>Scope</h2>
+            <p>Click a sector to refresh the available subsectors, then use the advanced filters to narrow the comparison.</p>
+          </div>
+          <button type="button" className="library-clear-button" onClick={resetFilters}>
+            Reset view
+          </button>
+        </div>
+
+        <div className="library-chip-section">
+          <span className="library-chip-label">Sector</span>
+          <div className="library-chip-row">
+            {sectorIndex.sectors.map((sector) => (
+              <button
+                key={sector}
+                type="button"
+                className={`library-chip${sector === resolvedSelectedSector ? ' library-chip--active' : ''}`}
+                onClick={() => {
+                  setSelectedSector(sector);
+                  setSelectedSubsector('');
+                  setSelectedTrajectoryId(null);
+                }}
+              >
+                {sector}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="library-chip-section">
+          <span className="library-chip-label">Subsector</span>
+          <div className="library-chip-row">
+            {visibleSubsectors.map((subsector) => (
+              <button
+                key={subsector}
+                type="button"
+                className={`library-chip${subsector === resolvedSelectedSubsector ? ' library-chip--active' : ''}`}
+                onClick={() => {
+                  setSelectedSubsector(subsector);
+                  setSelectedTrajectoryId(null);
+                }}
+              >
+                {subsector}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="library-filter-grid">
+          <label className="library-field library-field--wide">
+            <span>Search</span>
+            <input
+              value={filters.search}
+              onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
+              placeholder="State label, evidence, notes, source ID"
+            />
+          </label>
+
+          <label className="library-field">
+            <span>Confidence</span>
+            <select
+              value={filters.confidence}
+              onChange={(event) => setFilters((current) => ({ ...current, confidence: event.target.value }))}
             >
-              Clear all
-            </button>
-          </div>
+              <option value="">All ratings</option>
+              {filterOptions.confidenceRatings.map((confidence) => (
+                <option key={confidence} value={confidence}>
+                  {confidence}
+                </option>
+              ))}
+            </select>
+          </label>
 
-          <div className="library-filter-grid">
-            <label className="library-field">
-              <span>Search</span>
-              <input
-                value={filters.search}
-                onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
-                placeholder="State label, evidence, source ID, notes"
+          <label className="library-field">
+            <span>Region</span>
+            <select
+              value={filters.region}
+              onChange={(event) => setFilters((current) => ({ ...current, region: event.target.value }))}
+            >
+              <option value="">All regions</option>
+              {filterOptions.regions.map((region) => (
+                <option key={region} value={region}>
+                  {region}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="library-field">
+            <span>Source ID</span>
+            <select
+              value={filters.sourceId}
+              onChange={(event) => setFilters((current) => ({ ...current, sourceId: event.target.value }))}
+            >
+              <option value="">All sources</option>
+              {filterOptions.sourceIds.map((sourceId) => (
+                <option key={sourceId} value={sourceId}>
+                  {sourceId}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="library-field">
+            <span>Assumption ID</span>
+            <select
+              value={filters.assumptionId}
+              onChange={(event) => setFilters((current) => ({ ...current, assumptionId: event.target.value }))}
+            >
+              <option value="">All assumptions</option>
+              {filterOptions.assumptionIds.map((assumptionId) => (
+                <option key={assumptionId} value={assumptionId}>
+                  {assumptionId}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      </section>
+
+      {visibleTrajectories.length > 0 ? (
+        <>
+          <section className="library-trajectory-grid">
+            <article className="scenario-panel library-chart-card">
+              <div className="library-panel-heading">
+                <div>
+                  <h2>Cost trajectory</h2>
+                  <p>Conversion cost per output unit over time for each available state.</p>
+                </div>
+              </div>
+              <LineChart
+                ariaLabel="Cost trajectories"
+                years={visibleYears}
+                series={metricSeries.cost}
+                valueFormatter={(value) => numberFormatter.format(value)}
+                axisFormatter={formatAxisNumber}
+                onSelectSeries={handleSeriesSelect}
+                minDomain={0}
               />
-            </label>
+            </article>
 
-            <label className="library-field">
-              <span>Sector</span>
-              <select
-                value={filters.sector}
-                onChange={(event) => setFilters((current) => ({ ...current, sector: event.target.value }))}
-              >
-                <option value="">All sectors</option>
-                {filterOptions.sectors.map((sector) => (
-                  <option key={sector} value={sector}>
-                    {sector}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <article className="scenario-panel library-chart-card">
+              <div className="library-panel-heading">
+                <div>
+                  <h2>Energy and process emissions</h2>
+                  <p>Shared plot with solid energy lines and dashed process-emissions lines.</p>
+                </div>
+              </div>
+              <LineChart
+                ariaLabel="Energy and process emissions trajectories"
+                years={visibleYears}
+                series={metricSeries.emissions}
+                valueFormatter={(value) => numberFormatter.format(value)}
+                axisFormatter={formatAxisNumber}
+                onSelectSeries={handleSeriesSelect}
+                minDomain={0}
+              />
+            </article>
 
-            <label className="library-field">
-              <span>Subsector</span>
-              <select
-                value={filters.subsector}
-                onChange={(event) => setFilters((current) => ({ ...current, subsector: event.target.value }))}
-              >
-                <option value="">All subsectors</option>
-                {filterOptions.subsectors.map((subsector) => (
-                  <option key={subsector} value={subsector}>
-                    {subsector}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <article className="scenario-panel library-chart-card">
+              <div className="library-panel-heading">
+                <div>
+                  <h2>Max share</h2>
+                  <p>Upper share envelope by state trajectory.</p>
+                </div>
+              </div>
+              <LineChart
+                ariaLabel="Max share trajectories"
+                years={visibleYears}
+                series={metricSeries.maxShare}
+                valueFormatter={(value) => percentFormatter.format(value)}
+                axisFormatter={formatPercentAxis}
+                onSelectSeries={handleSeriesSelect}
+                minDomain={0}
+              />
+            </article>
 
-            <label className="library-field">
-              <span>Service/output</span>
-              <select
-                value={filters.service}
-                onChange={(event) => setFilters((current) => ({ ...current, service: event.target.value }))}
-              >
-                <option value="">All services</option>
-                {filterOptions.services.map((service) => (
-                  <option key={service} value={service}>
-                    {service}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <article className="scenario-panel library-chart-card">
+              <div className="library-panel-heading">
+                <div>
+                  <h2>Max activity</h2>
+                  <p>Activity cap over time for each trajectory.</p>
+                </div>
+              </div>
+              <LineChart
+                ariaLabel="Max activity trajectories"
+                years={visibleYears}
+                series={metricSeries.maxActivity}
+                valueFormatter={(value) => numberFormatter.format(value)}
+                axisFormatter={formatAxisNumber}
+                onSelectSeries={handleSeriesSelect}
+                minDomain={0}
+              />
+            </article>
+          </section>
 
-            <label className="library-field">
-              <span>Year</span>
-              <select
-                value={filters.year}
-                onChange={(event) => setFilters((current) => ({ ...current, year: event.target.value }))}
-              >
-                <option value="">All years</option>
-                {filterOptions.years.map((year) => (
-                  <option key={year} value={String(year)}>
-                    {year}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="library-field">
-              <span>Confidence</span>
-              <select
-                value={filters.confidence}
-                onChange={(event) => setFilters((current) => ({ ...current, confidence: event.target.value }))}
-              >
-                <option value="">All ratings</option>
-                {filterOptions.confidenceRatings.map((confidence) => (
-                  <option key={confidence} value={confidence}>
-                    {confidence}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="library-field">
-              <span>Region</span>
-              <select
-                value={filters.region}
-                onChange={(event) => setFilters((current) => ({ ...current, region: event.target.value }))}
-              >
-                <option value="">All regions</option>
-                {filterOptions.regions.map((region) => (
-                  <option key={region} value={region}>
-                    {region}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="library-field">
-              <span>State family</span>
-              <select
-                value={filters.stateLabel}
-                onChange={(event) => setFilters((current) => ({ ...current, stateLabel: event.target.value }))}
-              >
-                <option value="">All labels</option>
-                {filterOptions.stateLabels.map((stateLabel) => (
-                  <option key={stateLabel} value={stateLabel}>
-                    {stateLabel}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="library-field">
-              <span>Source ID</span>
-              <select
-                value={filters.sourceId}
-                onChange={(event) => setFilters((current) => ({ ...current, sourceId: event.target.value }))}
-              >
-                <option value="">All sources</option>
-                {filterOptions.sourceIds.map((sourceId) => (
-                  <option key={sourceId} value={sourceId}>
-                    {sourceId}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="library-field">
-              <span>Assumption ID</span>
-              <select
-                value={filters.assumptionId}
-                onChange={(event) => setFilters((current) => ({ ...current, assumptionId: event.target.value }))}
-              >
-                <option value="">All assumptions</option>
-                {filterOptions.assumptionIds.map((assumptionId) => (
-                  <option key={assumptionId} value={assumptionId}>
-                    {assumptionId}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-        </aside>
-
-        <section className="library-content">
           <article className="scenario-panel library-list-panel">
             <div className="library-panel-heading">
               <div>
-                <h2>Explorer</h2>
-                <p>Click any state-year row to open the full trust and constraints detail.</p>
+                <h2>Trajectory comparison matrix</h2>
+                <p>
+                  Rows are grouped by trajectory. Click any metric row to focus the detail pane and coefficient charts on that state trajectory.
+                </p>
               </div>
-              <span className="library-count-pill">{filteredStates.length} rows</span>
+              <span className="library-count-pill">{visibleTrajectories.length} states</span>
             </div>
 
-            {filteredStates.length > 0 ? (
-              <div className="library-table-shell">
-                <div className="library-table library-table--header" role="row">
-                  <span>Year</span>
-                  <span>Sector</span>
-                  <span>Subsector</span>
-                  <span>State label</span>
-                  <span>Confidence</span>
-                  <span>Unit</span>
-                  <span>Cost</span>
-                  <span>Energy</span>
-                  <span>Process</span>
-                  <span>Max share</span>
-                  <span>Max activity</span>
-                </div>
-                <div className="library-table-body">
-                  {filteredStates.map((row) => {
-                    const rowKey = buildStateRowKey(row);
-                    const isSelected = rowKey === resolvedSelectedRowKey;
-                    return (
-                      <button
-                        key={rowKey}
-                        type="button"
-                        className={`library-table library-table--row${isSelected ? ' library-table--row-selected' : ''}`}
-                        onClick={() => setSelectedRowKey(rowKey)}
+            <div className="library-comparison-shell">
+              <table className="library-comparison-table">
+                <thead>
+                  <tr>
+                    <th>State</th>
+                    <th>Metric</th>
+                    {visibleYears.map((year) => (
+                      <th key={year}>{year}</th>
+                    ))}
+                  </tr>
+                </thead>
+                {visibleTrajectories.map((trajectory) => (
+                  <tbody
+                    key={trajectory.stateId}
+                    className={trajectory.stateId === resolvedSelectedTrajectoryId ? 'library-comparison-group library-comparison-group--selected' : 'library-comparison-group'}
+                  >
+                    {comparisonMetrics.map((metric, index) => (
+                      <tr
+                        key={`${trajectory.stateId}:${metric.key}`}
+                        className="library-comparison-row"
+                        onClick={() => setSelectedTrajectoryId(trajectory.stateId)}
                       >
-                        <span>{row.year}</span>
-                        <span>{row.sector}</span>
-                        <span>{row.subsector}</span>
-                        <span className="library-label-cell">
-                          <strong>{row.state_label}</strong>
-                          <small>{row.service_or_output_name}</small>
-                        </span>
-                        <span>
-                          <span className={`library-confidence-pill library-confidence-pill--${row.confidence_rating.toLowerCase()}`}>
-                            {row.confidence_rating}
-                          </span>
-                        </span>
-                        <span>{row.output_unit}</span>
-                        <span>{formatCost(row)}</span>
-                        <span>{formatNullableNumber(sumEmissionEntries(row.energy_emissions_by_pollutant))}</span>
-                        <span>{formatNullableNumber(sumEmissionEntries(row.process_emissions_by_pollutant))}</span>
-                        <span>{row.max_share == null ? '—' : percentFormatter.format(row.max_share)}</span>
-                        <span>{formatNullableNumber(row.max_activity)}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : (
-              <div className="library-empty-state">
-                <h3>No rows match the current filters.</h3>
-                <p>Try clearing one or two trust filters to broaden the explorer.</p>
-              </div>
-            )}
+                        {index === 0 ? (
+                          <th rowSpan={comparisonMetrics.length} className="library-comparison-trajectory-cell">
+                            <strong>{trajectory.label}</strong>
+                            <small>{trajectory.stateId}</small>
+                            <span>{trajectory.serviceOrOutputName}</span>
+                          </th>
+                        ) : null}
+                        <th className="library-comparison-metric-cell">{metric.label}</th>
+                        {visibleYears.map((year) => (
+                          <td key={`${trajectory.stateId}:${metric.key}:${year}`}>{metric.formatCell(metric.pick(trajectory, year), trajectory)}</td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                ))}
+              </table>
+            </div>
           </article>
 
           <article className="scenario-panel library-detail-panel">
-            {selectedState ? (
+            {selectedTrajectory ? (
               <>
                 <div className="library-detail-hero">
                   <div>
                     <div className="library-badge-row">
-                      <span className="scenario-badge">State detail</span>
-                      <span className={`library-confidence-pill library-confidence-pill--${selectedState.confidence_rating.toLowerCase()}`}>
-                        {selectedState.confidence_rating}
-                      </span>
+                      <span className="scenario-badge">Selected trajectory</span>
+                      {selectedTrajectory.confidenceRatings.map((rating) => (
+                        <span key={rating} className={`library-confidence-pill library-confidence-pill--${rating.toLowerCase()}`}>
+                          {rating}
+                        </span>
+                      ))}
                     </div>
-                    <h2>{selectedState.state_label}</h2>
-                    <p>{selectedState.state_description}</p>
+                    <h2>{selectedTrajectory.label}</h2>
+                    <p>{selectedTrajectory.representative.state_description}</p>
                   </div>
                   <dl className="library-detail-summary">
                     <div>
+                      <dt>State ID</dt>
+                      <dd>{selectedTrajectory.stateId}</dd>
+                    </div>
+                    <div>
                       <dt>Sector</dt>
-                      <dd>{selectedState.sector}</dd>
+                      <dd>{selectedTrajectory.sector}</dd>
                     </div>
                     <div>
                       <dt>Subsector</dt>
-                      <dd>{selectedState.subsector}</dd>
+                      <dd>{selectedTrajectory.subsector}</dd>
                     </div>
                     <div>
                       <dt>Service/output</dt>
-                      <dd>{selectedState.service_or_output_name}</dd>
+                      <dd>{selectedTrajectory.serviceOrOutputName}</dd>
                     </div>
                     <div>
-                      <dt>Year</dt>
-                      <dd>{selectedState.year}</dd>
+                      <dt>Years</dt>
+                      <dd>{selectedTrajectory.points.map((point) => point.year).join(', ')}</dd>
                     </div>
                     <div>
                       <dt>Region</dt>
-                      <dd>{selectedState.region}</dd>
-                    </div>
-                    <div>
-                      <dt>Output unit</dt>
-                      <dd>{selectedState.output_unit}</dd>
+                      <dd>{selectedTrajectory.region}</dd>
                     </div>
                   </dl>
                 </div>
 
                 <div className="library-detail-grid">
                   <section className="library-detail-section">
-                    <h3>Cost and bounds</h3>
+                    <h3>Trajectory at a glance</h3>
+                    <div className="scenario-stat-grid">
+                      <div className="scenario-stat-card">
+                        <span>Cost range</span>
+                        <strong>{formatRange(selectedTrajectory.points.map((point) => point.cost), (value) => formatCostValue(value, selectedTrajectory.currency))}</strong>
+                      </div>
+                      <div className="scenario-stat-card">
+                        <span>Energy range</span>
+                        <strong>{formatRange(selectedTrajectory.points.map((point) => point.energyTotal), formatNullableNumber)}</strong>
+                      </div>
+                      <div className="scenario-stat-card">
+                        <span>Process range</span>
+                        <strong>{formatRange(selectedTrajectory.points.map((point) => point.processTotal), formatNullableNumber)}</strong>
+                      </div>
+                      <div className="scenario-stat-card">
+                        <span>Max share range</span>
+                        <strong>{formatRange(selectedTrajectory.points.map((point) => point.maxShare), (value) => percentFormatter.format(value))}</strong>
+                      </div>
+                      <div className="scenario-stat-card">
+                        <span>Max activity range</span>
+                        <strong>{formatRange(selectedTrajectory.points.map((point) => point.maxActivity), formatNullableNumber)}</strong>
+                      </div>
+                    </div>
+                    <p className="library-inline-note">
+                      Cost is shown in {selectedTrajectory.currency} per {selectedTrajectory.outputUnit}; emissions use {selectedTrajectory.emissionsUnit}.
+                    </p>
+                  </section>
+
+                  <section className="library-detail-section">
+                    <h3>Trajectory notes</h3>
                     <dl className="library-detail-list">
-                      <div>
-                        <dt>Output cost per unit</dt>
-                        <dd>{formatCost(selectedState)}</dd>
-                      </div>
-                      <div>
-                        <dt>Cost basis year</dt>
-                        <dd>{selectedState.cost_basis_year ?? '—'}</dd>
-                      </div>
-                      <div>
-                        <dt>Output quantity basis</dt>
-                        <dd>{selectedState.output_quantity_basis}</dd>
-                      </div>
-                      <div>
-                        <dt>Cost components summary</dt>
-                        <dd>{selectedState.cost_components_summary}</dd>
-                      </div>
-                      <div>
-                        <dt>Min share</dt>
-                        <dd>{selectedState.min_share == null ? '—' : percentFormatter.format(selectedState.min_share)}</dd>
-                      </div>
-                      <div>
-                        <dt>Max share</dt>
-                        <dd>{selectedState.max_share == null ? '—' : percentFormatter.format(selectedState.max_share)}</dd>
-                      </div>
-                      <div>
-                        <dt>Max activity</dt>
-                        <dd>{formatNullableNumber(selectedState.max_activity)}</dd>
-                      </div>
+                      <TrajectoryNarrative label="Output quantity basis" rows={selectedTrajectory.rows} pick={(row) => row.output_quantity_basis} />
+                      <TrajectoryNarrative label="Cost components summary" rows={selectedTrajectory.rows} pick={(row) => row.cost_components_summary} />
+                      <TrajectoryNarrative label="Input basis notes" rows={selectedTrajectory.rows} pick={(row) => row.input_basis_notes} />
+                      <TrajectoryNarrative label="Emissions boundary notes" rows={selectedTrajectory.rows} pick={(row) => row.emissions_boundary_notes} />
                     </dl>
                   </section>
-
-                  <section className="library-detail-section">
-                    <h3>State family trajectory</h3>
-                    {selectedFamily ? (
-                      <div className="library-mini-table">
-                        <div className="library-mini-table-row library-mini-table-row--header">
-                          <span>Year</span>
-                          <span>Cost</span>
-                          <span>Energy</span>
-                          <span>Process</span>
-                          <span>Max share</span>
-                        </div>
-                        {selectedFamily.rows.map((row) => (
-                          <div
-                            key={buildStateRowKey(row)}
-                            className={`library-mini-table-row${row.year === selectedState.year ? ' library-mini-table-row--active' : ''}`}
-                          >
-                            <span>{row.year}</span>
-                            <span>{formatCost(row)}</span>
-                            <span>{formatNullableNumber(sumEmissionEntries(row.energy_emissions_by_pollutant))}</span>
-                            <span>{formatNullableNumber(sumEmissionEntries(row.process_emissions_by_pollutant))}</span>
-                            <span>{row.max_share == null ? '—' : percentFormatter.format(row.max_share)}</span>
-                          </div>
-                        ))}
-                      </div>
-                    ) : null}
-                  </section>
                 </div>
-
-                <section className="library-detail-section">
-                  <div className="library-section-header">
-                    <div>
-                      <h3>Input commodities</h3>
-                      <p>{selectedState.input_basis_notes}</p>
-                    </div>
-                  </div>
-                  {selectedInputRows.length > 0 ? (
-                    <div className="library-mini-table">
-                      <div className="library-mini-table-row library-mini-table-row--header">
-                        <span>Commodity</span>
-                        <span>Coefficient</span>
-                        <span>Unit</span>
-                      </div>
-                      {selectedInputRows.map((inputRow) => (
-                        <div key={inputRow.commodity} className="library-mini-table-row">
-                          <span>{inputRow.commodity}</span>
-                          <span>{formatNullableNumber(inputRow.coefficient)}</span>
-                          <span>{inputRow.unit}</span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="library-inline-note">No explicit input commodities are embedded for this row.</p>
-                  )}
-                </section>
-
-                <div className="library-detail-grid">
-                  <section className="library-detail-section">
-                    <div className="library-section-header">
-                      <div>
-                        <h3>Energy emissions</h3>
-                        <p>{selectedState.emissions_boundary_notes}</p>
-                      </div>
-                      <strong>{formatNullableNumber(selectedEnergyTotal, ` ${selectedState.emissions_units}`)}</strong>
-                    </div>
-                    {selectedState.energy_emissions_by_pollutant.length > 0 ? (
-                      <div className="library-mini-table">
-                        <div className="library-mini-table-row library-mini-table-row--header">
-                          <span>Pollutant</span>
-                          <span>Value</span>
-                        </div>
-                        {selectedState.energy_emissions_by_pollutant.map((entry) => (
-                          <div key={entry.pollutant} className="library-mini-table-row">
-                            <span>{entry.pollutant}</span>
-                            <span>{formatNullableNumber(entry.value)}</span>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="library-inline-note">No direct energy emissions are recorded for this row.</p>
-                    )}
-                  </section>
-
-                  <section className="library-detail-section">
-                    <div className="library-section-header">
-                      <div>
-                        <h3>Process emissions</h3>
-                        <p>{selectedState.emissions_boundary_notes}</p>
-                      </div>
-                      <strong>{formatNullableNumber(selectedProcessTotal, ` ${selectedState.emissions_units}`)}</strong>
-                    </div>
-                    {selectedState.process_emissions_by_pollutant.length > 0 ? (
-                      <div className="library-mini-table">
-                        <div className="library-mini-table-row library-mini-table-row--header">
-                          <span>Pollutant</span>
-                          <span>Value</span>
-                        </div>
-                        {selectedState.process_emissions_by_pollutant.map((entry) => (
-                          <div key={entry.pollutant} className="library-mini-table-row">
-                            <span>{entry.pollutant}</span>
-                            <span>{formatNullableNumber(entry.value)}</span>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="library-inline-note">No process emissions are recorded for this row.</p>
-                    )}
-                  </section>
-                </div>
-
-                <section className="library-detail-section">
-                  <div className="library-section-header">
-                    <div>
-                      <h3>Reference delta</h3>
-                      <p>
-                        Compared with the default reference candidate for the same service,
-                        year, and region.
-                      </p>
-                    </div>
-                    <strong>{referenceState?.state_label ?? 'No reference found'}</strong>
-                  </div>
-
-                  {selectedState && referenceState ? (
-                    <>
-                      <div className="scenario-stat-grid">
-                        <div className="scenario-stat-card">
-                          <span>Conversion cost delta</span>
-                          <strong>
-                            {selectedState.output_cost_per_unit != null && referenceState.output_cost_per_unit != null
-                              ? formatDelta(selectedState.output_cost_per_unit - referenceState.output_cost_per_unit)
-                              : '—'}
-                          </strong>
-                        </div>
-                        <div className="scenario-stat-card">
-                          <span>Direct energy delta</span>
-                          <strong>
-                            {selectedEnergyTotal != null && referenceEnergyTotal != null
-                              ? formatDelta(selectedEnergyTotal - referenceEnergyTotal)
-                              : '—'}
-                          </strong>
-                        </div>
-                        <div className="scenario-stat-card">
-                          <span>Process emissions delta</span>
-                          <strong>
-                            {selectedProcessTotal != null && referenceProcessTotal != null
-                              ? formatDelta(selectedProcessTotal - referenceProcessTotal)
-                              : '—'}
-                          </strong>
-                        </div>
-                        <div className="scenario-stat-card">
-                          <span>Max share delta</span>
-                          <strong>
-                            {selectedState.max_share != null && referenceState.max_share != null
-                              ? formatDelta(selectedState.max_share - referenceState.max_share)
-                              : '—'}
-                          </strong>
-                        </div>
-                      </div>
-                      <p className="library-inline-note">
-                        Confidence comparison: {selectedState.confidence_rating} versus {referenceState.confidence_rating}.
-                      </p>
-                      <div className="library-mini-table">
-                        <div className="library-mini-table-row library-mini-table-row--header">
-                          <span>Commodity</span>
-                          <span>Reference</span>
-                          <span>Selected</span>
-                          <span>Delta</span>
-                        </div>
-                        {referenceInputRows.map((inputRow) => (
-                          <div key={inputRow.commodity} className="library-mini-table-row">
-                            <span>{inputRow.commodity}</span>
-                            <span>{formatNullableNumber(inputRow.referenceValue)}</span>
-                            <span>{formatNullableNumber(inputRow.selectedValue)}</span>
-                            <span>{formatDelta(inputRow.delta)} {inputRow.unit}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </>
-                  ) : (
-                    <p className="library-inline-note">A same-year reference state is not available for this selection.</p>
-                  )}
-                </section>
 
                 <div className="library-detail-grid">
                   <section className="library-detail-section">
                     <h3>Evidence and confidence</h3>
                     <dl className="library-detail-list">
-                      <div>
-                        <dt>Evidence summary</dt>
-                        <dd>{selectedState.evidence_summary}</dd>
-                      </div>
-                      <div>
-                        <dt>Derivation method</dt>
-                        <dd>{selectedState.derivation_method}</dd>
-                      </div>
-                      <div>
-                        <dt>Confidence rating</dt>
-                        <dd>{selectedState.confidence_rating}</dd>
-                      </div>
-                      <div>
-                        <dt>Review notes</dt>
-                        <dd>{selectedState.review_notes}</dd>
-                      </div>
+                      <TrajectoryNarrative label="Evidence summary" rows={selectedTrajectory.rows} pick={(row) => row.evidence_summary} />
+                      <TrajectoryNarrative label="Derivation method" rows={selectedTrajectory.rows} pick={(row) => row.derivation_method} />
+                      <TrajectoryNarrative label="Confidence rating" rows={selectedTrajectory.rows} pick={(row) => row.confidence_rating} />
+                      <TrajectoryNarrative label="Review notes" rows={selectedTrajectory.rows} pick={(row) => row.review_notes} />
                     </dl>
                   </section>
 
                   <section className="library-detail-section">
                     <h3>Limits and expansion path</h3>
                     <dl className="library-detail-list">
-                      <div>
-                        <dt>Rollout limit notes</dt>
-                        <dd>{selectedState.rollout_limit_notes}</dd>
-                      </div>
-                      <div>
-                        <dt>Availability conditions</dt>
-                        <dd>{selectedState.availability_conditions}</dd>
-                      </div>
-                      <div>
-                        <dt>Candidate expansion pathway</dt>
-                        <dd>{selectedState.candidate_expansion_pathway}</dd>
-                      </div>
-                      <div>
-                        <dt>TIMES/VedaLang mapping notes</dt>
-                        <dd>{selectedState.times_or_vedalang_mapping_notes}</dd>
-                      </div>
+                      <TrajectoryNarrative label="Rollout limit notes" rows={selectedTrajectory.rows} pick={(row) => row.rollout_limit_notes} />
+                      <TrajectoryNarrative label="Availability conditions" rows={selectedTrajectory.rows} pick={(row) => row.availability_conditions} />
+                      <TrajectoryNarrative label="Candidate expansion pathway" rows={selectedTrajectory.rows} pick={(row) => row.candidate_expansion_pathway} />
+                      <TrajectoryNarrative label="TIMES/VedaLang mapping notes" rows={selectedTrajectory.rows} pick={(row) => row.times_or_vedalang_mapping_notes} />
                     </dl>
                     <div className="library-boolean-grid">
                       <div className="scenario-stat-card">
                         <span>Expand to explicit capacity</span>
-                        <strong>{selectedState.would_expand_to_explicit_capacity ? 'Yes' : 'No'}</strong>
+                        <strong>{selectedTrajectory.rows.some((row) => row.would_expand_to_explicit_capacity) ? 'Yes' : 'No'}</strong>
                       </div>
                       <div className="scenario-stat-card">
                         <span>Expand to process chain</span>
-                        <strong>{selectedState.would_expand_to_process_chain ? 'Yes' : 'No'}</strong>
+                        <strong>{selectedTrajectory.rows.some((row) => row.would_expand_to_process_chain) ? 'Yes' : 'No'}</strong>
                       </div>
                     </div>
                   </section>
@@ -864,7 +827,7 @@ export default function LibraryPage() {
                     <div>
                       <span className="library-tag-group-title">Source IDs</span>
                       <div className="library-tag-list">
-                        {selectedState.source_ids.map((sourceId) => (
+                        {selectedTrajectory.sourceIds.map((sourceId) => (
                           <span key={sourceId} className="library-tag">
                             {sourceId}
                           </span>
@@ -874,7 +837,7 @@ export default function LibraryPage() {
                     <div>
                       <span className="library-tag-group-title">Assumption IDs</span>
                       <div className="library-tag-list">
-                        {selectedState.assumption_ids.map((assumptionId) => (
+                        {selectedTrajectory.assumptionIds.map((assumptionId) => (
                           <span key={assumptionId} className="library-tag">
                             {assumptionId}
                           </span>
@@ -882,6 +845,7 @@ export default function LibraryPage() {
                       </div>
                     </div>
                   </div>
+
                   {selectedSourceEntries.length > 0 || selectedAssumptionEntries.length > 0 ? (
                     <div className="library-detail-grid">
                       {selectedSourceEntries.length > 0 ? (
@@ -958,21 +922,78 @@ export default function LibraryPage() {
                     </div>
                   ) : enrichment.sourceLedger.length === 0 && enrichment.assumptionsLedger.length === 0 ? (
                     <p className="library-inline-note">
-                      Optional source and assumption ledgers were not packaged, so this view can
-                      only show the raw trust IDs for the selected row.
+                      Optional source and assumption ledgers were not packaged, so this view can only show the raw trust IDs for the selected trajectory.
                     </p>
                   ) : null}
                 </section>
               </>
             ) : (
               <div className="library-empty-state">
-                <h3>Select a state-year row</h3>
-                <p>The detail drawer will populate once the explorer has a visible selection.</p>
+                <h3>No trajectory selected</h3>
+                <p>Choose a subsector with visible states to populate the detail view.</p>
               </div>
             )}
           </article>
+
+          <article className="scenario-panel library-coefficient-panel">
+            <div className="library-panel-heading">
+              <div>
+                <h2>Input coefficient trajectories</h2>
+                <p>Each facet is a state trajectory. Click any coefficient line to focus that state in the detail pane above.</p>
+              </div>
+            </div>
+
+            <div className="library-coefficient-grid">
+              {coefficientCards.map(({ family, units, series }) => (
+                <section
+                  key={family.stateId}
+                  className={`library-detail-section${family.stateId === resolvedSelectedTrajectoryId ? ' library-detail-section--selected' : ''}`}
+                >
+                  <div className="library-section-header">
+                    <div>
+                      <h3>{family.label}</h3>
+                      <p>{family.serviceOrOutputName}</p>
+                    </div>
+                    <button
+                      type="button"
+                      className="library-inline-select-button"
+                      onClick={() => setSelectedTrajectoryId(family.stateId)}
+                    >
+                      {family.stateId === resolvedSelectedTrajectoryId ? 'Selected' : 'Select trajectory'}
+                    </button>
+                  </div>
+
+                  {series.length > 0 ? (
+                    <>
+                      <LineChart
+                        ariaLabel={`${family.label} input coefficient trajectories`}
+                        years={visibleYears}
+                        series={series}
+                        valueFormatter={(value) => numberFormatter.format(value)}
+                        axisFormatter={formatAxisNumber}
+                        onSelectSeries={handleSeriesSelect}
+                        minDomain={0}
+                      />
+                      {units.length > 1 ? (
+                        <p className="library-inline-note">Multiple coefficient units are overlaid here; read the legend carefully.</p>
+                      ) : (
+                        <p className="library-inline-note">Coefficient unit: {units[0] ?? '—'}.</p>
+                      )}
+                    </>
+                  ) : (
+                    <p className="library-inline-note">No explicit input coefficient trajectories are packaged for this state.</p>
+                  )}
+                </section>
+              ))}
+            </div>
+          </article>
+        </>
+      ) : (
+        <section className="scenario-panel library-empty-state">
+          <h2>No trajectories match the current filters.</h2>
+          <p>Clear one or two advanced filters or switch subsectors to restore the comparison views.</p>
         </section>
-      </section>
+      )}
     </div>
   );
 }
