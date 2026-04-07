@@ -23,15 +23,24 @@ interface LineChartProps {
   onSelectSeries?: (series: LineChartSeries) => void;
   minDomain?: number;
   legendMode?: LineChartLegendMode;
+  layoutScale?: number;
 }
 
-const CHART_WIDTH = 720;
-const CHART_HEIGHT = 280;
-const PADDING_LEFT = 92;
-const PADDING_RIGHT = 20;
-const PADDING_TOP = 20;
-const PADDING_BOTTOM = 42;
-const AXIS_TITLE_X = 22;
+const BASE_CHART_WIDTH = 720;
+const BASE_CHART_HEIGHT = 280;
+const BASE_PADDING_LEFT = 92;
+const BASE_PADDING_RIGHT = 20;
+const BASE_PADDING_TOP = 20;
+const BASE_PADDING_BOTTOM = 42;
+const BASE_AXIS_TITLE_X = 22;
+const BASE_TICK_LABEL_OFFSET = 10;
+const BASE_TICK_LABEL_BASELINE = 4;
+const BASE_YEAR_LABEL_OFFSET = 12;
+const BASE_ACTIVE_STROKE_WIDTH = 4;
+const BASE_STROKE_WIDTH = 3;
+const BASE_HIT_AREA_WIDTH = 14;
+const BASE_ACTIVE_POINT_RADIUS = 4.5;
+const BASE_POINT_RADIUS = 3.5;
 const TICK_COUNT = 4;
 
 function splitIntoSegments(
@@ -77,9 +86,20 @@ export default function LineChart({
   onSelectSeries,
   minDomain,
   legendMode = 'full',
+  layoutScale = 1,
 }: LineChartProps) {
-  const xSpan = CHART_WIDTH - PADDING_LEFT - PADDING_RIGHT;
-  const ySpan = CHART_HEIGHT - PADDING_TOP - PADDING_BOTTOM;
+  const chartWidth = BASE_CHART_WIDTH * layoutScale;
+  const chartHeight = BASE_CHART_HEIGHT * layoutScale;
+  const paddingLeft = BASE_PADDING_LEFT * layoutScale;
+  const paddingRight = BASE_PADDING_RIGHT * layoutScale;
+  const paddingTop = BASE_PADDING_TOP * layoutScale;
+  const paddingBottom = BASE_PADDING_BOTTOM * layoutScale;
+  const axisTitleX = BASE_AXIS_TITLE_X * layoutScale;
+  const tickLabelOffset = BASE_TICK_LABEL_OFFSET * layoutScale;
+  const tickLabelBaseline = BASE_TICK_LABEL_BASELINE * layoutScale;
+  const yearLabelOffset = BASE_YEAR_LABEL_OFFSET * layoutScale;
+  const xSpan = chartWidth - paddingLeft - paddingRight;
+  const ySpan = chartHeight - paddingTop - paddingBottom;
   const activeSeriesPresent = series.some((entry) => entry.active);
   const showLegend = legendMode !== 'hidden';
   const compactLegend = legendMode === 'compact';
@@ -106,14 +126,14 @@ export default function LineChart({
 
   const xForYear = (year: number) => {
     if (years.length === 1) {
-      return PADDING_LEFT + xSpan / 2;
+      return paddingLeft + xSpan / 2;
     }
 
     const index = years.indexOf(year);
-    return PADDING_LEFT + (xSpan * index) / (years.length - 1);
+    return paddingLeft + (xSpan * index) / (years.length - 1);
   };
 
-  const yForValue = (value: number) => PADDING_TOP + ((domainMax - value) / (domainMax - domainMin)) * ySpan;
+  const yForValue = (value: number) => paddingTop + ((domainMax - value) / (domainMax - domainMin)) * ySpan;
   const tickFormatter = axisFormatter ?? valueFormatter;
   const tickValues = Array.from({ length: TICK_COUNT + 1 }, (_, index) => {
     return domainMin + ((domainMax - domainMin) * (TICK_COUNT - index)) / TICK_COUNT;
@@ -122,18 +142,18 @@ export default function LineChart({
   return (
     <div className="library-chart-shell">
       <svg
-        viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
+        viewBox={`0 0 ${chartWidth} ${chartHeight}`}
         role="img"
         aria-label={ariaLabel}
         className="library-chart-svg"
       >
         {yAxisLabel ? (
           <text
-            x={AXIS_TITLE_X}
-            y={PADDING_TOP + ySpan / 2}
+            x={axisTitleX}
+            y={paddingTop + ySpan / 2}
             textAnchor="middle"
             className="library-chart-axis-title"
-            transform={`rotate(-90 ${AXIS_TITLE_X} ${PADDING_TOP + ySpan / 2})`}
+            transform={`rotate(-90 ${axisTitleX} ${paddingTop + ySpan / 2})`}
           >
             {yAxisLabel}
           </text>
@@ -144,13 +164,13 @@ export default function LineChart({
           return (
             <g key={tickValue}>
               <line
-                x1={PADDING_LEFT}
-                x2={CHART_WIDTH - PADDING_RIGHT}
+                x1={paddingLeft}
+                x2={chartWidth - paddingRight}
                 y1={y}
                 y2={y}
                 className="library-chart-grid-line"
               />
-              <text x={PADDING_LEFT - 10} y={y + 4} textAnchor="end" className="library-chart-axis-label">
+              <text x={paddingLeft - tickLabelOffset} y={y + tickLabelBaseline} textAnchor="end" className="library-chart-axis-label">
                 {tickFormatter(tickValue)}
               </text>
             </g>
@@ -161,7 +181,7 @@ export default function LineChart({
           <text
             key={year}
             x={xForYear(year)}
-            y={CHART_HEIGHT - 12}
+            y={chartHeight - yearLabelOffset}
             textAnchor="middle"
             className="library-chart-axis-label"
           >
@@ -190,7 +210,7 @@ export default function LineChart({
                       d={path}
                       fill="none"
                       stroke={entry.color}
-                      strokeWidth={entry.active ? 4 : 3}
+                      strokeWidth={entry.active ? BASE_ACTIVE_STROKE_WIDTH * layoutScale : BASE_STROKE_WIDTH * layoutScale}
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeDasharray={entry.dashArray}
@@ -201,7 +221,7 @@ export default function LineChart({
                         d={path}
                         fill="none"
                         stroke="transparent"
-                        strokeWidth={14}
+                        strokeWidth={BASE_HIT_AREA_WIDTH * layoutScale}
                         strokeLinecap="round"
                         strokeLinejoin="round"
                         onClick={() => onSelectSeries(entry)}
@@ -222,7 +242,7 @@ export default function LineChart({
                     key={`${entry.key}:point:${index}`}
                     cx={point.x}
                     cy={point.y}
-                    r={entry.active ? 4.5 : 3.5}
+                    r={entry.active ? BASE_ACTIVE_POINT_RADIUS * layoutScale : BASE_POINT_RADIUS * layoutScale}
                     fill={entry.color}
                     opacity={opacity}
                     onClick={onSelectSeries ? () => onSelectSeries(entry) : undefined}
