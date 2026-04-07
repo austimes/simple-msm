@@ -26,6 +26,10 @@ function buildErrorResult(request: SolveRequest, diagnostics: SolveDiagnostic[])
       serviceDemandOutputCount: Object.keys(request.scenario.serviceDemandByOutput).length,
       externalCommodityCount: Object.keys(request.scenario.externalCommodityDemandByCommodity).length,
     },
+    reporting: {
+      commodityBalances: [],
+      stateShares: [],
+    },
     raw: null,
     diagnostics,
     timingsMs: {

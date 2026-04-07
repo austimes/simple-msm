@@ -4,6 +4,10 @@ import { buildSolveRequest } from '../solver/buildSolveRequest';
 import type { SolveRequest, SolveResult } from '../solver/contract';
 import { runSolveInWorker } from '../solver/solverClient';
 
+const numberFormatter = new Intl.NumberFormat('en-AU', {
+  maximumFractionDigits: 2,
+});
+
 type CompletedSolveState =
   | {
       status: 'success';
@@ -22,6 +26,26 @@ function formatSolveStatus(status: SolveResult['status']): string {
 
 function formatDiagnosticSeverity(severity: string): string {
   return severity.toUpperCase();
+}
+
+function formatModeLabel(mode: string): string {
+  return mode.replaceAll('_', ' ');
+}
+
+function formatNumber(value: number | null | undefined): string {
+  if (value == null) {
+    return '—';
+  }
+
+  return numberFormatter.format(value);
+}
+
+function formatShare(value: number | null): string {
+  if (value == null) {
+    return '—';
+  }
+
+  return `${(value * 100).toFixed(1)}%`;
 }
 
 function countDistinctOutputs(request: SolveRequest): number {
@@ -58,6 +82,12 @@ export default function ResultsPage() {
     : null;
   const result = activeSolve?.status === 'success' ? activeSolve.result : null;
   const isLoading = requestBuild.error == null && request != null && activeSolve == null;
+  const electricityBalances = result?.reporting.commodityBalances.filter(
+    (summary) => summary.commodityId === 'electricity',
+  ) ?? [];
+  const electricityStateShares = result?.reporting.stateShares.filter(
+    (summary) => summary.outputId === 'electricity',
+  ) ?? [];
 
   useEffect(() => {
     if (!request) {
@@ -100,7 +130,7 @@ export default function ResultsPage() {
       <h1>Results</h1>
       <p>
         The solver now normalizes the library package, resolves the scenario into a stable
-        request contract, and runs the required-service LP core in a dedicated worker so
+        request contract, and runs the service-and-supply LP core in a dedicated worker so
         the main UI thread stays free.
       </p>
 
@@ -118,7 +148,7 @@ export default function ResultsPage() {
           </h2>
           <p>
             {result
-              ? 'The request crossed the worker boundary, executed through the generic required-service LP core, and returned raw diagnostics.'
+              ? 'The request crossed the worker boundary, executed through the generic service-and-supply LP core, and returned structured electricity-balance reporting alongside the raw diagnostics.'
               : requestBuild.error
                 ? requestBuild.error
               : 'Preparing the normalized request and dispatching the solve worker.'}
@@ -183,6 +213,81 @@ export default function ResultsPage() {
             </div>
           </div>
         </article>
+      </section>
+
+      <section className="scenario-panel">
+        <h2>Electricity Mode And Balance</h2>
+        {result ? (
+          electricityBalances.length > 0 ? (
+            <div className="results-raw-grid">
+              {electricityBalances.map((summary) => {
+                const yearShares = electricityStateShares.filter((share) => share.year === summary.year);
+
+                return (
+                  <article key={summary.year} className="results-card">
+                    <span className="results-card-label">{summary.year}</span>
+                    <strong>{formatModeLabel(summary.mode)}</strong>
+                    <p>
+                      {summary.mode === 'endogenous'
+                        ? 'Electricity stays in-model and the solver enforces annual balance against modeled consumption plus residual external demand.'
+                        : 'Electricity supply states are bypassed and all electricity purchases stay on the exogenous price table for this year.'}
+                    </p>
+
+                    <dl className="scenario-key-value-list">
+                      <div>
+                        <dt>Supply</dt>
+                        <dd>{formatNumber(summary.supply)}</dd>
+                      </div>
+                      <div>
+                        <dt>Modeled demand</dt>
+                        <dd>{formatNumber(summary.modeledDemand)}</dd>
+                      </div>
+                      <div>
+                        <dt>External demand</dt>
+                        <dd>{formatNumber(summary.externalDemand)}</dd>
+                      </div>
+                      <div>
+                        <dt>Total demand</dt>
+                        <dd>{formatNumber(summary.totalDemand)}</dd>
+                      </div>
+                      <div>
+                        <dt>Balance gap</dt>
+                        <dd>{formatNumber(summary.balanceGap)}</dd>
+                      </div>
+                      <div>
+                        <dt>Avg supply cost</dt>
+                        <dd>{formatNumber(summary.averageSupplyCost)}</dd>
+                      </div>
+                      <div>
+                        <dt>Avg direct emissions</dt>
+                        <dd>{formatNumber(summary.averageDirectEmissionsIntensity)}</dd>
+                      </div>
+                      <div>
+                        <dt>Exogenous purchases</dt>
+                        <dd>{formatNumber(summary.pricedExogenousDemand)}</dd>
+                      </div>
+                    </dl>
+
+                    {yearShares.length > 0 ? (
+                      <dl className="scenario-key-value-list">
+                        {yearShares.map((share) => (
+                          <div key={`${share.year}:${share.stateId}`}>
+                            <dt>{share.stateLabel}</dt>
+                            <dd>{formatNumber(share.activity)} / {formatShare(share.share)}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    ) : null}
+                  </article>
+                );
+              })}
+            </div>
+          ) : (
+            <p>No electricity supply rows were present in the solved request.</p>
+          )
+        ) : (
+          <p>Waiting for the worker response.</p>
+        )}
       </section>
 
       <section className="scenario-panel">

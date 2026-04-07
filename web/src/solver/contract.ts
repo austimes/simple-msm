@@ -123,6 +123,37 @@ export interface SolveRequestSummary {
   externalCommodityCount: number;
 }
 
+export type CommoditySolveMode = 'endogenous' | 'externalized';
+
+export interface SolveCommodityBalanceSummary {
+  commodityId: string;
+  year: number;
+  mode: CommoditySolveMode;
+  supply: number;
+  modeledDemand: number;
+  externalDemand: number;
+  totalDemand: number;
+  pricedExogenousDemand: number;
+  balanceGap: number | null;
+  averageSupplyCost: number | null;
+  averageDirectEmissionsIntensity: number | null;
+}
+
+export interface SolveStateShareSummary {
+  outputId: string;
+  outputLabel: string;
+  year: number;
+  stateId: string;
+  stateLabel: string;
+  activity: number;
+  share: number | null;
+}
+
+export interface SolveReportingSummary {
+  commodityBalances: SolveCommodityBalanceSummary[];
+  stateShares: SolveStateShareSummary[];
+}
+
 export interface SolveResult {
   contractVersion: SolverContractVersion;
   requestId: string;
@@ -132,6 +163,7 @@ export interface SolveResult {
     worker: true;
   };
   summary: SolveRequestSummary;
+  reporting: SolveReportingSummary;
   raw: RawSolveArtifact | null;
   diagnostics: SolveDiagnostic[];
   timingsMs: {
