@@ -1,6 +1,7 @@
 import csvText from '@root/aus_phase1_sector_state_library/data/sector_states.csv?raw';
 import readmeText from '@root/aus_phase1_sector_state_library/README.md?raw';
 import phase2Text from '@root/aus_phase1_sector_state_library/docs/phase2_recommendations.md?raw';
+import { loadAppConfig } from './appConfigLoader';
 import { parseCsv } from './parseCsv';
 import type { EmissionEntry, PackageData, SectorState } from './types';
 
@@ -71,5 +72,6 @@ export function loadPackage(): PackageData {
     sectorStates: rows.map(toSectorState),
     readme: readmeText,
     phase2Memo: phase2Text,
+    appConfig: loadAppConfig(),
   };
 }
