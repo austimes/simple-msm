@@ -75,6 +75,21 @@ function buildPath(points: Array<{ x: number; y: number }>) {
   return points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ');
 }
 
+function scaleDashArray(dashArray: string | undefined, layoutScale: number) {
+  if (!dashArray || layoutScale === 1) {
+    return dashArray;
+  }
+
+  return dashArray
+    .trim()
+    .split(/[\s,]+/)
+    .map((part) => {
+      const value = Number(part);
+      return Number.isFinite(value) ? String(value * layoutScale) : part;
+    })
+    .join(' ');
+}
+
 export default function LineChart({
   ariaLabel,
   years,
@@ -169,6 +184,7 @@ export default function LineChart({
                 y1={y}
                 y2={y}
                 className="library-chart-grid-line"
+                style={{ strokeWidth: layoutScale }}
               />
               <text x={paddingLeft - tickLabelOffset} y={y + tickLabelBaseline} textAnchor="end" className="library-chart-axis-label">
                 {tickFormatter(tickValue)}
@@ -204,6 +220,7 @@ export default function LineChart({
             <g key={entry.key}>
               {segments.map((segment, index) => {
                 const path = buildPath(segment);
+                const dashArray = scaleDashArray(entry.dashArray, layoutScale);
                 return (
                   <g key={`${entry.key}:${index}`}>
                     <path
@@ -213,7 +230,7 @@ export default function LineChart({
                       strokeWidth={entry.active ? BASE_ACTIVE_STROKE_WIDTH * layoutScale : BASE_STROKE_WIDTH * layoutScale}
                       strokeLinecap="round"
                       strokeLinejoin="round"
-                      strokeDasharray={entry.dashArray}
+                      strokeDasharray={dashArray}
                       opacity={opacity}
                     />
                     {onSelectSeries ? (
