@@ -164,6 +164,7 @@ function buildInputDeltaRows(selected: SectorState, reference: SectorState) {
 }
 
 export default function LibraryPage() {
+  const enrichment = usePackageStore((state) => state.enrichment);
   const sectorStates = usePackageStore((state) => state.sectorStates);
   const [filters, setFilters] = useState<LibraryFilters>(EMPTY_FILTERS);
   const [selectedRowKey, setSelectedRowKey] = useState<string | null>(null);
@@ -227,6 +228,40 @@ export default function LibraryPage() {
   const selectedProcessTotal = selectedState ? sumEmissionEntries(selectedState.process_emissions_by_pollutant) : null;
   const referenceEnergyTotal = referenceState ? sumEmissionEntries(referenceState.energy_emissions_by_pollutant) : null;
   const referenceProcessTotal = referenceState ? sumEmissionEntries(referenceState.process_emissions_by_pollutant) : null;
+  const sourceLedgerById = useMemo(() => {
+    return new Map(enrichment.sourceLedger.map((entry) => [entry.sourceId, entry]));
+  }, [enrichment.sourceLedger]);
+  const assumptionsLedgerById = useMemo(() => {
+    return new Map(enrichment.assumptionsLedger.map((entry) => [entry.assumptionId, entry]));
+  }, [enrichment.assumptionsLedger]);
+  const selectedSourceEntries = selectedState
+    ? selectedState.source_ids.reduce<NonNullable<ReturnType<typeof sourceLedgerById.get>>[]>(
+        (entries, sourceId) => {
+          const entry = sourceLedgerById.get(sourceId);
+
+          if (entry) {
+            entries.push(entry);
+          }
+
+          return entries;
+        },
+        [],
+      )
+    : [];
+  const selectedAssumptionEntries = selectedState
+    ? selectedState.assumption_ids.reduce<NonNullable<ReturnType<typeof assumptionsLedgerById.get>>[]>(
+        (entries, assumptionId) => {
+          const entry = assumptionsLedgerById.get(assumptionId);
+
+          if (entry) {
+            entries.push(entry);
+          }
+
+          return entries;
+        },
+        [],
+      )
+    : [];
 
   return (
     <div className="page page--library">
@@ -242,7 +277,8 @@ export default function LibraryPage() {
           <h2>Inspectable state library</h2>
           <p>
             The explorer is driven directly from `sector_states.csv`, so the detail panel stays
-            aligned with the same state-year rows the solver consumes.
+            aligned with the same state-year rows the solver consumes while still picking up any
+            packaged source and assumption ledgers.
           </p>
           <dl className="scenario-key-value-list">
             <div>
@@ -846,6 +882,86 @@ export default function LibraryPage() {
                       </div>
                     </div>
                   </div>
+                  {selectedSourceEntries.length > 0 || selectedAssumptionEntries.length > 0 ? (
+                    <div className="library-detail-grid">
+                      {selectedSourceEntries.length > 0 ? (
+                        <section className="library-detail-section">
+                          <h3>Source ledger entries</h3>
+                          <div className="library-tag-groups">
+                            {selectedSourceEntries.map((entry) => (
+                              <div key={entry.sourceId}>
+                                <span className="library-tag-group-title">
+                                  {entry.sourceId} · {entry.institution}
+                                </span>
+                                <dl className="library-detail-list">
+                                  <div>
+                                    <dt>Citation</dt>
+                                    <dd>{entry.citation}</dd>
+                                  </div>
+                                  <div>
+                                    <dt>Publication date</dt>
+                                    <dd>{entry.publicationDate || '—'}</dd>
+                                  </div>
+                                  <div>
+                                    <dt>Parameters informed</dt>
+                                    <dd>{entry.parametersInformed}</dd>
+                                  </div>
+                                  <div>
+                                    <dt>Authority note</dt>
+                                    <dd>{entry.qualityNotes}</dd>
+                                  </div>
+                                  <div>
+                                    <dt>Location</dt>
+                                    <dd>{entry.location}</dd>
+                                  </div>
+                                </dl>
+                              </div>
+                            ))}
+                          </div>
+                        </section>
+                      ) : null}
+
+                      {selectedAssumptionEntries.length > 0 ? (
+                        <section className="library-detail-section">
+                          <h3>Assumption ledger entries</h3>
+                          <div className="library-tag-groups">
+                            {selectedAssumptionEntries.map((entry) => (
+                              <div key={entry.assumptionId}>
+                                <span className="library-tag-group-title">{entry.assumptionId}</span>
+                                <dl className="library-detail-list">
+                                  <div>
+                                    <dt>Statement</dt>
+                                    <dd>{entry.statement}</dd>
+                                  </div>
+                                  <div>
+                                    <dt>Rationale</dt>
+                                    <dd>{entry.rationale}</dd>
+                                  </div>
+                                  <div>
+                                    <dt>Affected scope</dt>
+                                    <dd>{entry.affectedScope}</dd>
+                                  </div>
+                                  <div>
+                                    <dt>Sensitivity importance</dt>
+                                    <dd>{entry.sensitivityImportance}</dd>
+                                  </div>
+                                  <div>
+                                    <dt>Validation route</dt>
+                                    <dd>{entry.validationRoute}</dd>
+                                  </div>
+                                </dl>
+                              </div>
+                            ))}
+                          </div>
+                        </section>
+                      ) : null}
+                    </div>
+                  ) : enrichment.sourceLedger.length === 0 && enrichment.assumptionsLedger.length === 0 ? (
+                    <p className="library-inline-note">
+                      Optional source and assumption ledgers were not packaged, so this view can
+                      only show the raw trust IDs for the selected row.
+                    </p>
+                  ) : null}
                 </section>
               </>
             ) : (
