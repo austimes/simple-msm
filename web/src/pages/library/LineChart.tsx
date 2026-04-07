@@ -18,6 +18,7 @@ interface LineChartProps {
   series: LineChartSeries[];
   valueFormatter: (value: number) => string;
   axisFormatter?: (value: number) => string;
+  yAxisLabel?: string;
   emptyMessage?: string;
   onSelectSeries?: (series: LineChartSeries) => void;
   minDomain?: number;
@@ -26,10 +27,11 @@ interface LineChartProps {
 
 const CHART_WIDTH = 720;
 const CHART_HEIGHT = 280;
-const PADDING_LEFT = 64;
+const PADDING_LEFT = 92;
 const PADDING_RIGHT = 20;
 const PADDING_TOP = 20;
 const PADDING_BOTTOM = 42;
+const AXIS_TITLE_X = 22;
 const TICK_COUNT = 4;
 
 function splitIntoSegments(
@@ -70,6 +72,7 @@ export default function LineChart({
   series,
   valueFormatter,
   axisFormatter,
+  yAxisLabel,
   emptyMessage = 'No values available for this chart.',
   onSelectSeries,
   minDomain,
@@ -124,6 +127,18 @@ export default function LineChart({
         aria-label={ariaLabel}
         className="library-chart-svg"
       >
+        {yAxisLabel ? (
+          <text
+            x={AXIS_TITLE_X}
+            y={PADDING_TOP + ySpan / 2}
+            textAnchor="middle"
+            className="library-chart-axis-title"
+            transform={`rotate(-90 ${AXIS_TITLE_X} ${PADDING_TOP + ySpan / 2})`}
+          >
+            {yAxisLabel}
+          </text>
+        ) : null}
+
         {tickValues.map((tickValue) => {
           const y = yForValue(tickValue);
           return (

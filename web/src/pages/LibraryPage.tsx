@@ -62,6 +62,24 @@ const axisPercentFormatter = new Intl.NumberFormat('en-AU', {
   maximumFractionDigits: 0,
 });
 
+function formatUnitLabel(unit: string): string {
+  return unit.trim().replaceAll('_', ' ');
+}
+
+function buildCostUnitLabel(currency: string, outputUnit: string): string {
+  return `${formatUnitLabel(currency)} per ${formatUnitLabel(outputUnit)}`;
+}
+
+function resolveSharedUnitLabel(units: string[], mixedLabel = 'Mixed units'): string {
+  const uniqueUnits = Array.from(new Set(units.map((unit) => unit.trim()).filter(Boolean)));
+
+  if (uniqueUnits.length === 0) {
+    return 'Units unavailable';
+  }
+
+  return uniqueUnits.length === 1 ? uniqueUnits[0] : mixedLabel;
+}
+
 function formatNullableNumber(value: number | null, suffix = ''): string {
   if (value == null) {
     return '—';
@@ -408,6 +426,18 @@ export default function LibraryPage() {
     };
   }, [colorByTrajectoryId, filteredFamilies, resolvedSelectedTrajectoryId]);
 
+  const chartAxisLabels = useMemo(() => {
+    return {
+      cost: resolveSharedUnitLabel(
+        visibleTrajectories.map((trajectory) => buildCostUnitLabel(trajectory.currency, trajectory.outputUnit)),
+      ),
+      emissions: resolveSharedUnitLabel(visibleTrajectories.map((trajectory) => formatUnitLabel(trajectory.emissionsUnit))),
+      maxShare: '%',
+      maxActivity: resolveSharedUnitLabel(visibleTrajectories.map((trajectory) => formatUnitLabel(trajectory.outputUnit))),
+      coefficients: resolveSharedUnitLabel(coefficientChart.units.map((unit) => formatUnitLabel(unit))),
+    };
+  }, [coefficientChart.units, visibleTrajectories]);
+
   const resetFilters = () => {
     const firstSector = sectorIndex.sectors[0] ?? '';
     setFilters(EMPTY_FILTERS);
@@ -631,6 +661,7 @@ export default function LibraryPage() {
                 series={metricSeries.cost}
                 valueFormatter={(value) => numberFormatter.format(value)}
                 axisFormatter={formatAxisNumber}
+                yAxisLabel={chartAxisLabels.cost}
                 legendMode="hidden"
                 minDomain={0}
               />
@@ -649,6 +680,7 @@ export default function LibraryPage() {
                 series={metricSeries.emissions}
                 valueFormatter={(value) => numberFormatter.format(value)}
                 axisFormatter={formatAxisNumber}
+                yAxisLabel={chartAxisLabels.emissions}
                 legendMode="hidden"
                 minDomain={0}
               />
@@ -667,6 +699,7 @@ export default function LibraryPage() {
                 series={metricSeries.maxShare}
                 valueFormatter={(value) => percentFormatter.format(value)}
                 axisFormatter={formatPercentAxis}
+                yAxisLabel={chartAxisLabels.maxShare}
                 legendMode="hidden"
                 minDomain={0}
               />
@@ -685,6 +718,7 @@ export default function LibraryPage() {
                 series={metricSeries.maxActivity}
                 valueFormatter={(value) => numberFormatter.format(value)}
                 axisFormatter={formatAxisNumber}
+                yAxisLabel={chartAxisLabels.maxActivity}
                 legendMode="hidden"
                 minDomain={0}
               />
@@ -707,6 +741,7 @@ export default function LibraryPage() {
                   series={coefficientChart.series}
                   valueFormatter={(value) => numberFormatter.format(value)}
                   axisFormatter={formatAxisNumber}
+                  yAxisLabel={chartAxisLabels.coefficients}
                   legendMode="hidden"
                   minDomain={0}
                 />
@@ -739,8 +774,8 @@ export default function LibraryPage() {
                   State colors match the shared highlight selector and the charts above.
                   {coefficientChart.commodityStyles.length > 1 ? ' Line styles distinguish input commodities.' : ''}{' '}
                   {coefficientChart.units.length > 1
-                    ? `Coefficient units overlaid here: ${coefficientChart.units.join(', ')}.`
-                    : `Coefficient unit: ${coefficientChart.units[0] ?? '—'}.`}
+                    ? `Coefficient units overlaid here: ${coefficientChart.units.map((unit) => formatUnitLabel(unit)).join(', ')}.`
+                    : `Coefficient unit: ${formatUnitLabel(coefficientChart.units[0] ?? '—')}.`}
                 </p>
               </>
             ) : (
@@ -870,7 +905,8 @@ export default function LibraryPage() {
                       </div>
                     </div>
                     <p className="library-inline-note">
-                      Cost is shown in {selectedTrajectory.currency} per {selectedTrajectory.outputUnit}; emissions use {selectedTrajectory.emissionsUnit}.
+                      Cost is shown in {buildCostUnitLabel(selectedTrajectory.currency, selectedTrajectory.outputUnit)}; emissions use{' '}
+                      {formatUnitLabel(selectedTrajectory.emissionsUnit)}.
                     </p>
                   </section>
 

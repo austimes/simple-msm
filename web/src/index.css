@@ -686,6 +686,13 @@ body {
   font-weight: 600;
 }
 
+.library-chart-axis-title {
+  fill: #475569;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
 .library-chart-hit-area {
   cursor: pointer;
 }
