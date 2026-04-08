@@ -22,6 +22,7 @@ function formatCarbonPriceRange(preset: CarbonPricePreset): string {
   const years = Object.keys(preset.values_by_year).sort();
   const first = preset.values_by_year[years[0]];
   const last = preset.values_by_year[years[years.length - 1]];
+  if (first === 0 && last === 0) return preset.label;
   const unit = formatUnit(preset.unit);
   return `${unit.replace('$/', `$${first}–${last}/`)}`;
 }

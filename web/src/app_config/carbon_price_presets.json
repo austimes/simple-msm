@@ -1,4 +1,11 @@
 {
+  "none": {
+    "label": "None",
+    "description": "No carbon price applied.",
+    "unit": "AUD_2024_per_tCO2",
+    "values_by_year": { "2025": 0, "2030": 0, "2035": 0, "2040": 0, "2045": 0, "2050": 0 },
+    "provenance_note": "App-owned sensitivity band."
+  },
   "low": {
     "label": "Low",
     "description": "Modest rising carbon price reaching $50/tCO2 by 2050.",
