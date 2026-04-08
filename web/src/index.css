@@ -1585,6 +1585,20 @@ body {
   opacity: 0.4;
 }
 
+.workspace-subsector-title--clickable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.workspace-subsector-title--clickable:hover {
+  color: var(--color-primary);
+}
+
+.workspace-mode-badge--disabled {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
 .workspace-mode-badge {
   display: inline-block;
   margin-left: 6px;
@@ -1768,6 +1782,11 @@ body {
 .config-badge--readonly {
   background: #f1f5f9;
   color: var(--color-text-muted);
+}
+
+.config-badge--user {
+  background: #f0fdf4;
+  color: #15803d;
 }
 
 .config-badge--active {

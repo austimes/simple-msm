@@ -92,6 +92,7 @@ export const usePackageStore = create<PackageStore>((set, get) => {
       set({
         currentScenario: nextScenario,
         currentScenarioSource: 'draft',
+        activeConfigurationId: null,
         persistenceNotice: 'Scenario draft autosaves in this browser as you edit it.',
         persistenceError,
       });
@@ -121,6 +122,7 @@ export const usePackageStore = create<PackageStore>((set, get) => {
       set({
         currentScenario: nextScenario,
         currentScenarioSource: 'draft',
+        activeConfigurationId: null,
         persistenceError,
       });
     },
@@ -134,6 +136,7 @@ export const usePackageStore = create<PackageStore>((set, get) => {
       set({
         currentScenario: nextScenario,
         currentScenarioSource: 'draft',
+        activeConfigurationId: null,
         persistenceError,
       });
     },
@@ -164,16 +167,17 @@ export const usePackageStore = create<PackageStore>((set, get) => {
 
       const enabledIds = Array.from(allStateIds).filter((id) => !disabled.has(id));
 
-      if (enabledIds.length === 0) {
-        return;
-      }
-
       control.disabled_state_ids = disabled.size > 0 ? Array.from(disabled) : [];
 
       const metadata = get().appConfig.output_roles[outputId];
       const allowed = new Set(metadata?.allowed_control_modes ?? []);
 
-      if (enabledIds.length === 1) {
+      if (enabledIds.length === 0) {
+        // All states disabled → turn the subsector off
+        control.mode = 'off';
+        control.state_id = null;
+        control.fixed_shares = null;
+      } else if (enabledIds.length === 1) {
         if (allowed.has('pinned_single')) {
           control.mode = 'pinned_single';
           control.state_id = enabledIds[0];
@@ -204,6 +208,7 @@ export const usePackageStore = create<PackageStore>((set, get) => {
       set({
         currentScenario: nextScenario,
         currentScenarioSource: 'draft',
+        activeConfigurationId: null,
         persistenceError,
       });
     },
@@ -227,6 +232,7 @@ export const usePackageStore = create<PackageStore>((set, get) => {
       set({
         currentScenario: nextScenario,
         currentScenarioSource: 'draft',
+        activeConfigurationId: null,
         persistenceError,
       });
     },
@@ -245,6 +251,7 @@ export const usePackageStore = create<PackageStore>((set, get) => {
       set({
         currentScenario: nextScenario,
         currentScenarioSource: 'draft',
+        activeConfigurationId: null,
         persistenceError,
       });
     },

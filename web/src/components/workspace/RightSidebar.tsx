@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { usePackageStore } from '../../data/packageStore';
 import {
   buildStateCatalog,
@@ -15,6 +15,21 @@ export default function RightSidebar() {
   const currentScenario = usePackageStore((s) => s.currentScenario);
   const toggleStateEnabled = usePackageStore((s) => s.toggleStateEnabled);
   const includedOutputIds = usePackageStore((s) => s.includedOutputIds);
+
+  // Track which disabled subsectors the user has expanded to re-select states
+  const [expandedDisabled, setExpandedDisabled] = useState<Set<string>>(new Set());
+
+  const toggleExpanded = useCallback((outputId: string) => {
+    setExpandedDisabled((prev) => {
+      const next = new Set(prev);
+      if (next.has(outputId)) {
+        next.delete(outputId);
+      } else {
+        next.add(outputId);
+      }
+      return next;
+    });
+  }, []);
 
   const catalog = useMemo(
     () => buildStateCatalog(sectorStates, appConfig),
@@ -42,33 +57,45 @@ export default function RightSidebar() {
             const enabledIds = new Set(
               getEnabledStateIds(currentScenario, sub.outputId, allStateIds),
             );
+            const allDisabled = enabledIds.size === 0;
+            const isCollapsed = allDisabled && !expandedDisabled.has(sub.outputId);
 
             return (
               <div
                 key={sub.outputId}
-                className={`workspace-subsector-group${outOfScope || isOff ? ' workspace-subsector-group--dimmed' : ''}`}
+                className={`workspace-subsector-group${outOfScope || isOff || allDisabled ? ' workspace-subsector-group--dimmed' : ''}`}
               >
-                <div className="workspace-subsector-title">
+                <div
+                  className={`workspace-subsector-title${allDisabled ? ' workspace-subsector-title--clickable' : ''}`}
+                  onClick={allDisabled ? () => toggleExpanded(sub.outputId) : undefined}
+                >
                   {sub.outputLabel}
-                  {isOff && <span className="workspace-mode-badge">off</span>}
+                  {allDisabled && (
+                    <span className="workspace-mode-badge workspace-mode-badge--disabled">
+                      disabled {isCollapsed ? '▸' : '▾'}
+                    </span>
+                  )}
+                  {isOff && !allDisabled && <span className="workspace-mode-badge">off</span>}
                 </div>
-                <div className="workspace-state-chips">
-                  {sub.states.map((state) => {
-                    const isOn = !isOff && !outOfScope && enabledIds.has(state.stateId);
-                    return (
-                      <button
-                        key={state.stateId}
-                        type="button"
-                        className={`workspace-state-chip ${isOn ? 'workspace-state-chip--on' : 'workspace-state-chip--off'}`}
-                        onClick={() =>
-                          toggleStateEnabled(sub.outputId, state.stateId)
-                        }
-                      >
-                        {state.stateLabel}
-                      </button>
-                    );
-                  })}
-                </div>
+                {!isCollapsed && (
+                  <div className="workspace-state-chips">
+                    {sub.states.map((state) => {
+                      const isOn = !isOff && !outOfScope && enabledIds.has(state.stateId);
+                      return (
+                        <button
+                          key={state.stateId}
+                          type="button"
+                          className={`workspace-state-chip ${isOn ? 'workspace-state-chip--on' : 'workspace-state-chip--off'}`}
+                          onClick={() =>
+                            toggleStateEnabled(sub.outputId, state.stateId)
+                          }
+                        >
+                          {state.stateLabel}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             );
           })}

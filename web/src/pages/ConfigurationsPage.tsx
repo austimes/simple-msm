@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { usePackageStore } from '../data/packageStore';
 import type { SolveConfiguration } from '../data/configurationTypes';
 import {
   loadBuiltinConfigurations,
   loadUserConfigurations,
+  fetchUserConfigurations,
   saveUserConfiguration,
   deleteUserConfiguration,
   createConfigurationFromScenario,
@@ -26,17 +27,27 @@ export default function ConfigurationsPage() {
 
   const builtinConfigs = loadBuiltinConfigurations();
 
+  const refreshUserConfigs = useCallback(async () => {
+    const configs = await fetchUserConfigurations();
+    setUserConfigs(configs);
+  }, []);
+
   function handleLoad(config: SolveConfiguration) {
     loadConfiguration(config);
   }
 
-  function handleSaveCurrent() {
+  async function handleSaveAs() {
+    const name = prompt('Configuration name:');
+    if (!name?.trim()) return;
+
     const config = createConfigurationFromScenario(
       currentScenario,
       defaultScenario,
       includedOutputIds,
       appConfig,
     );
+    config.name = name.trim();
+    config.id = slugify(name.trim());
 
     // Avoid id collision with built-ins
     const builtinIds = new Set(builtinConfigs.map((c) => c.id));
@@ -44,19 +55,42 @@ export default function ConfigurationsPage() {
       config.id = `${config.id}-custom`;
     }
 
-    const error = saveUserConfiguration(config);
+    const error = await saveUserConfiguration(config);
     if (error) {
       setSaveNotice(`Error: ${error}`);
     } else {
-      setSaveNotice(`Saved "${config.name}" as a user configuration.`);
-      setUserConfigs(loadUserConfigurations());
+      setSaveNotice(`Saved "${config.name}" as a new user configuration.`);
+      await refreshUserConfigs();
     }
   }
 
-  function handleDelete(configId: string) {
-    deleteUserConfiguration(configId);
-    setUserConfigs(loadUserConfigurations());
-    setSaveNotice(`Deleted configuration.`);
+  async function handleOverwrite(existingConfig: SolveConfiguration) {
+    const config = createConfigurationFromScenario(
+      currentScenario,
+      defaultScenario,
+      includedOutputIds,
+      appConfig,
+    );
+    config.id = existingConfig.id;
+    config.name = existingConfig.name;
+
+    const error = await saveUserConfiguration(config);
+    if (error) {
+      setSaveNotice(`Error: ${error}`);
+    } else {
+      setSaveNotice(`Updated "${config.name}".`);
+      await refreshUserConfigs();
+    }
+  }
+
+  async function handleDelete(configId: string) {
+    const error = await deleteUserConfiguration(configId);
+    if (error) {
+      setSaveNotice(`Error: ${error}`);
+    } else {
+      setSaveNotice('Deleted configuration.');
+      await refreshUserConfigs();
+    }
   }
 
   function handleExport(config: SolveConfiguration) {
@@ -70,6 +104,11 @@ export default function ConfigurationsPage() {
     link.click();
     URL.revokeObjectURL(url);
   }
+
+  // Find the active user config for the "Save" (overwrite) button
+  const activeUserConfig = activeConfigurationId
+    ? userConfigs.find((c) => c.id === activeConfigurationId)
+    : null;
 
   return (
     <div className="page">
@@ -86,16 +125,25 @@ export default function ConfigurationsPage() {
         </p>
       )}
 
-      <div className="scenario-action-row" style={{ marginTop: 16 }}>
-        <button type="button" className="scenario-button" onClick={handleSaveCurrent}>
-          Save current scenario as configuration
+      <div className="scenario-action-row" style={{ marginTop: 16, gap: 8 }}>
+        <button type="button" className="scenario-button" onClick={handleSaveAs}>
+          Save as new configuration…
         </button>
+        {activeUserConfig && (
+          <button
+            type="button"
+            className="scenario-button"
+            onClick={() => handleOverwrite(activeUserConfig)}
+          >
+            Save to "{activeUserConfig.name}"
+          </button>
+        )}
       </div>
 
       <section className="scenario-panel" style={{ marginTop: 24 }}>
         <h2>Built-in configurations</h2>
         <p style={{ color: 'var(--color-text-muted)', fontSize: 14, marginBottom: 16 }}>
-          Shipped with the app — read-only. Each corresponds to a test case.
+          Shipped with the app — read-only test fixtures.
         </p>
         <div className="config-card-grid">
           {builtinConfigs.map((config) => (
@@ -110,12 +158,12 @@ export default function ConfigurationsPage() {
         </div>
       </section>
 
-      {userConfigs.length > 0 && (
-        <section className="scenario-panel" style={{ marginTop: 16 }}>
-          <h2>User configurations</h2>
-          <p style={{ color: 'var(--color-text-muted)', fontSize: 14, marginBottom: 16 }}>
-            Saved in your browser. Export to share or use from the CLI.
-          </p>
+      <section className="scenario-panel" style={{ marginTop: 16 }}>
+        <h2>User configurations</h2>
+        <p style={{ color: 'var(--color-text-muted)', fontSize: 14, marginBottom: 16 }}>
+          Saved in the repository under <code>configurations/user/</code>. You can load, modify, and re-save these.
+        </p>
+        {userConfigs.length > 0 ? (
           <div className="config-card-grid">
             {userConfigs.map((config) => (
               <ConfigCard
@@ -128,8 +176,12 @@ export default function ConfigurationsPage() {
               />
             ))}
           </div>
-        </section>
-      )}
+        ) : (
+          <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>
+            No user configurations yet. Use "Save as new configuration" above to create one.
+          </p>
+        )}
+      </section>
     </div>
   );
 }
@@ -163,8 +215,10 @@ function ConfigCard({
     <article className={`scenario-stat-card config-card${isActive ? ' config-card--active' : ''}`}>
       <div className="config-card-header">
         <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0 }}>{config.name}</h3>
-        {config.readonly && (
-          <span className="config-badge config-badge--readonly">built-in</span>
+        {config.readonly ? (
+          <span className="config-badge config-badge--readonly">test</span>
+        ) : (
+          <span className="config-badge config-badge--user">user</span>
         )}
         {isActive && (
           <span className="config-badge config-badge--active">active</span>
@@ -221,5 +275,15 @@ function ConfigCard({
         )}
       </div>
     </article>
+  );
+}
+
+function slugify(name: string): string {
+  return (
+    name
+      .trim()
+      .toLowerCase()
+      .replaceAll(/[^a-z0-9]+/g, '-')
+      .replaceAll(/^-+|-+$/g, '') || `config-${Date.now()}`
   );
 }

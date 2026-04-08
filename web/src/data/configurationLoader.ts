@@ -6,8 +6,6 @@
 import type { SolveConfiguration } from './configurationTypes';
 import type { AppConfigRegistry, ScenarioDocument, ScenarioServiceControl } from './types';
 
-const USER_CONFIGS_STORAGE_KEY = 'simple-msm.user-configurations.v1';
-
 // --- Built-in configuration loading (Vite eager import) ---
 
 const builtinConfigModules = import.meta.glob<string>(
@@ -43,45 +41,72 @@ export function loadBuiltinConfigurations(): SolveConfiguration[] {
   return cachedBuiltinConfigs;
 }
 
-// --- User configuration persistence ---
+// --- User configuration persistence (repo-backed via dev server API) ---
+
+// Bundled user configs loaded at build time (for production / static builds)
+const userConfigModules = import.meta.glob<string>(
+  '/public/configurations/user/*.json',
+  { eager: true, import: 'default', query: '?raw' },
+);
+
+function parseBundledUserConfigs(): SolveConfiguration[] {
+  const configs: SolveConfiguration[] = [];
+  for (const [, raw] of Object.entries(userConfigModules)) {
+    try {
+      const parsed = JSON.parse(raw) as SolveConfiguration;
+      parsed.readonly = false;
+      configs.push(parsed);
+    } catch { /* skip malformed */ }
+  }
+  return configs.sort((a, b) => a.name.localeCompare(b.name));
+}
 
 export function loadUserConfigurations(): SolveConfiguration[] {
+  return parseBundledUserConfigs();
+}
+
+export async function fetchUserConfigurations(): Promise<SolveConfiguration[]> {
   try {
-    const raw = localStorage.getItem(USER_CONFIGS_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as SolveConfiguration[];
-    return parsed.map((c) => ({ ...c, readonly: false }));
+    const res = await fetch('/api/user-configurations');
+    if (!res.ok) return loadUserConfigurations();
+    const configs = (await res.json()) as SolveConfiguration[];
+    return configs.map((c) => ({ ...c, readonly: false }));
   } catch {
-    return [];
+    return loadUserConfigurations();
   }
 }
 
-export function saveUserConfigurations(configs: SolveConfiguration[]): string | null {
+export async function saveUserConfiguration(config: SolveConfiguration): Promise<string | null> {
+  const toSave = { ...config, readonly: false };
   try {
-    const toSave = configs.map((c) => ({ ...c, readonly: false }));
-    localStorage.setItem(USER_CONFIGS_STORAGE_KEY, JSON.stringify(toSave));
+    const res = await fetch('/api/user-configurations', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(toSave),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      return (data as { error?: string }).error ?? 'Failed to save configuration.';
+    }
     return null;
   } catch (error) {
-    return error instanceof Error ? error.message : 'Failed to save configurations.';
+    return error instanceof Error ? error.message : 'Failed to save configuration.';
   }
 }
 
-export function saveUserConfiguration(config: SolveConfiguration): string | null {
-  const existing = loadUserConfigurations();
-  const index = existing.findIndex((c) => c.id === config.id);
-
-  if (index >= 0) {
-    existing[index] = { ...config, readonly: false };
-  } else {
-    existing.push({ ...config, readonly: false });
+export async function deleteUserConfiguration(configId: string): Promise<string | null> {
+  try {
+    const res = await fetch(`/api/user-configurations?id=${encodeURIComponent(configId)}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      return (data as { error?: string }).error ?? 'Failed to delete configuration.';
+    }
+    return null;
+  } catch (error) {
+    return error instanceof Error ? error.message : 'Failed to delete configuration.';
   }
-
-  return saveUserConfigurations(existing);
-}
-
-export function deleteUserConfiguration(configId: string): string | null {
-  const existing = loadUserConfigurations();
-  return saveUserConfigurations(existing.filter((c) => c.id !== configId));
 }
 
 // --- Combined loading ---
