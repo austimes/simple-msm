@@ -1630,8 +1630,67 @@ body {
   color: var(--color-primary);
 }
 
-.workspace-chart-section {
+.workspace-chart-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
   margin-top: 24px;
+}
+
+@media (max-width: 900px) {
+  .workspace-chart-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.workspace-chart-section {
+  min-width: 0;
+}
+
+.workspace-active-states {
+  margin-top: 24px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid var(--color-border);
+  font-size: 13px;
+}
+
+.workspace-active-states summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.workspace-active-states-list {
+  margin-top: 8px;
+}
+
+.workspace-active-states-group h4 {
+  margin: 12px 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.workspace-active-states-year {
+  margin-left: 8px;
+  margin-bottom: 4px;
+}
+
+.workspace-active-states-year-label {
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.workspace-active-states-year ul {
+  margin: 2px 0 0 16px;
+  padding: 0;
+  list-style: disc;
+}
+
+.workspace-active-states-year li {
+  font-size: 12px;
+  color: var(--color-text-secondary);
 }
 
 .workspace-cta {

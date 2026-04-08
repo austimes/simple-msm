@@ -6,12 +6,16 @@ import RightSidebar from '../components/workspace/RightSidebar';
 import StackedAreaChart from '../components/charts/StackedAreaChart';
 import {
   buildEmissionsBySectorChart,
+  buildEmissionsBySubsectorChart,
   buildCommodityConsumptionChart,
   buildDemandOverTimeChart,
+  buildDemandBySubsectorChart,
+  buildConversionCostBySubsectorChart,
 } from '../results/chartData';
+import type { SolveRequest, SolveResult } from '../solver/contract';
 
 export default function ScenarioWorkspacePage() {
-  const { phase, result, request, error, solve } = useScenarioSolve();
+  const { phase, result, request, error } = useScenarioSolve();
 
 
   const activeConfigurationId = usePackageStore((state) => state.activeConfigurationId);
@@ -19,17 +23,34 @@ export default function ScenarioWorkspacePage() {
 
   const isSolving = phase === 'solving';
 
+  const demandChart = useMemo(
+    () => (request ? buildDemandOverTimeChart(request) : null),
+    [request],
+  );
+  const demandBySubsectorChart = useMemo(
+    () => (request ? buildDemandBySubsectorChart(request) : null),
+    [request],
+  );
   const emissionsChart = useMemo(
     () => (request && result ? buildEmissionsBySectorChart(request, result) : null),
+    [request, result],
+  );
+  const emissionsBySubsectorChart = useMemo(
+    () => (request && result ? buildEmissionsBySubsectorChart(request, result) : null),
     [request, result],
   );
   const consumptionChart = useMemo(
     () => (request && result ? buildCommodityConsumptionChart(request, result) : null),
     [request, result],
   );
-  const demandChart = useMemo(
-    () => (request ? buildDemandOverTimeChart(request) : null),
-    [request],
+  const conversionCostChart = useMemo(
+    () => (request && result ? buildConversionCostBySubsectorChart(request, result) : null),
+    [request, result],
+  );
+
+  const activeStatesSummary = useMemo(
+    () => (request && result ? buildActiveStatesSummary(request, result) : null),
+    [request, result],
   );
 
   const warningCount = result?.diagnostics.filter((d) => d.severity === 'warning').length ?? 0;
@@ -69,20 +90,64 @@ export default function ScenarioWorkspacePage() {
 
         {phase === 'solved' && result && request && (
           <>
-            {emissionsChart && (
-              <div className="workspace-chart-section">
-                <StackedAreaChart data={emissionsChart} />
-              </div>
-            )}
-            {consumptionChart && (
-              <div className="workspace-chart-section">
-                <StackedAreaChart data={consumptionChart} />
-              </div>
-            )}
-            {demandChart && (
-              <div className="workspace-chart-section">
-                <StackedAreaChart data={demandChart} />
-              </div>
+            <div className="workspace-chart-grid">
+              {demandChart && (
+                <div className="workspace-chart-section">
+                  <StackedAreaChart data={demandChart} />
+                </div>
+              )}
+              {demandBySubsectorChart && (
+                <div className="workspace-chart-section">
+                  <StackedAreaChart data={demandBySubsectorChart} />
+                </div>
+              )}
+              {emissionsChart && (
+                <div className="workspace-chart-section">
+                  <StackedAreaChart data={emissionsChart} />
+                </div>
+              )}
+              {emissionsBySubsectorChart && (
+                <div className="workspace-chart-section">
+                  <StackedAreaChart data={emissionsBySubsectorChart} />
+                </div>
+              )}
+              {consumptionChart && (
+                <div className="workspace-chart-section">
+                  <StackedAreaChart data={consumptionChart} />
+                </div>
+              )}
+              {conversionCostChart && (
+                <div className="workspace-chart-section">
+                  <StackedAreaChart data={conversionCostChart} />
+                </div>
+              )}
+            </div>
+
+            {activeStatesSummary && activeStatesSummary.length > 0 && (
+              <details className="workspace-active-states">
+                <summary>Active States Summary ({activeStatesSummary.length} entries)</summary>
+                <div className="workspace-active-states-list">
+                  {activeStatesSummary.map((group) => (
+                    <div key={group.outputLabel} className="workspace-active-states-group">
+                      <h4>{group.outputLabel}</h4>
+                      {group.yearEntries.map((ye) => (
+                        <div key={ye.year} className="workspace-active-states-year">
+                          <span className="workspace-active-states-year-label">{ye.year}</span>
+                          <ul>
+                            {ye.states.map((s) => (
+                              <li key={s.stateLabel}>
+                                {s.stateLabel}
+                                {s.share != null && ` — ${(s.share * 100).toFixed(1)}%`}
+                                {` (activity: ${s.activity.toPrecision(3)})`}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </details>
             )}
 
             {(warningCount > 0 || errorCount > 0) && (
@@ -110,4 +175,71 @@ export default function ScenarioWorkspacePage() {
       </aside>
     </div>
   );
+}
+
+interface ActiveStateEntry {
+  stateLabel: string;
+  share: number | null;
+  activity: number;
+}
+
+interface ActiveStatesYearEntry {
+  year: number;
+  states: ActiveStateEntry[];
+}
+
+interface ActiveStatesOutputGroup {
+  outputLabel: string;
+  yearEntries: ActiveStatesYearEntry[];
+}
+
+function buildActiveStatesSummary(
+  request: SolveRequest,
+  result: SolveResult,
+): ActiveStatesOutputGroup[] {
+  const outputLabels = new Map<string, string>();
+  for (const row of request.rows) {
+    if (!outputLabels.has(row.outputId)) {
+      outputLabels.set(row.outputId, row.outputLabel);
+    }
+  }
+
+  // Group stateShares by output → year
+  const byOutput = new Map<string, Map<number, ActiveStateEntry[]>>();
+  for (const ss of result.reporting.stateShares) {
+    if (ss.activity === 0 && (ss.share === null || ss.share === 0)) continue;
+
+    let yearMap = byOutput.get(ss.outputId);
+    if (!yearMap) {
+      yearMap = new Map();
+      byOutput.set(ss.outputId, yearMap);
+    }
+    let entries = yearMap.get(ss.year);
+    if (!entries) {
+      entries = [];
+      yearMap.set(ss.year, entries);
+    }
+    entries.push({
+      stateLabel: ss.stateLabel,
+      share: ss.share,
+      activity: ss.activity,
+    });
+  }
+
+  const groups: ActiveStatesOutputGroup[] = [];
+  for (const [outputId, yearMap] of byOutput) {
+    const yearEntries: ActiveStatesYearEntry[] = [];
+    const sortedYears = [...yearMap.keys()].sort((a, b) => a - b);
+    for (const year of sortedYears) {
+      const states = yearMap.get(year)!;
+      states.sort((a, b) => b.activity - a.activity);
+      yearEntries.push({ year, states });
+    }
+    groups.push({
+      outputLabel: outputLabels.get(outputId) ?? outputId,
+      yearEntries,
+    });
+  }
+
+  return groups;
 }
