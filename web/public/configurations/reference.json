@@ -1,0 +1,7 @@
+{
+  "id": "reference",
+  "name": "Reference central-growth scenario",
+  "description": "Full-model baseline: library-aligned reference scenario with no overrides. All outputs included, incumbents pinned, electricity externalized.",
+  "readonly": true,
+  "serviceControls": {}
+}
