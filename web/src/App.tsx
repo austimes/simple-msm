@@ -6,15 +6,13 @@ import ResultsPage from './pages/ResultsPage';
 import ComparePage from './pages/ComparePage';
 import LibraryPage from './pages/LibraryPage';
 import MethodsPage from './pages/MethodsPage';
-import ConfigurationsPage from './pages/ConfigurationsPage';
-
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route element={<AppLayout />}>
           <Route index element={<ScenarioWorkspacePage />} />
-          <Route path="configurations" element={<ConfigurationsPage />} />
+          <Route path="configurations" element={<Navigate to="/" replace />} />
           <Route path="results" element={<Navigate to="/" replace />} />
           <Route path="legacy/scenario" element={<ScenarioPage />} />
           <Route path="legacy/results" element={<ResultsPage />} />
