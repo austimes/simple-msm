@@ -674,7 +674,7 @@ export default function LibraryPage() {
                   axisFormatter={formatAxisNumber}
                   yAxisLabel={chartAxisLabels.coefficients}
                   legendMode="hidden"
-                  layoutScale={2}
+
                   minDomain={0}
                 />
 
