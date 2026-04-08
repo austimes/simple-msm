@@ -96,26 +96,6 @@ function formatPercentAxis(value: number): string {
   return axisPercentFormatter.format(value);
 }
 
-function formatCostValue(value: number | null, currency: string): string {
-  if (value == null) {
-    return '—';
-  }
-
-  return `${currency} ${numberFormatter.format(value)}`;
-}
-
-function formatRange(values: Array<number | null>, formatter: (value: number) => string): string {
-  const numericValues = values.filter((value): value is number => value != null);
-
-  if (numericValues.length === 0) {
-    return '—';
-  }
-
-  const min = Math.min(...numericValues);
-  const max = Math.max(...numericValues);
-  return min === max ? formatter(min) : `${formatter(min)} to ${formatter(max)}`;
-}
-
 function buildNarrativeEntries(rows: SectorState[], pick: (row: SectorState) => string) {
   const entries = rows
     .map((row) => ({ year: row.year, value: pick(row).trim() }))
@@ -249,18 +229,6 @@ export default function LibraryPage() {
 
   const selectedTrajectory =
     visibleTrajectories.find((trajectory) => trajectory.stateId === resolvedSelectedTrajectoryId) ?? null;
-
-  const visibleConfidenceCounts = useMemo(() => {
-    return filteredFamilies.reduce<Record<string, number>>((counts, family) => {
-      family.confidenceRatings.forEach((rating) => {
-        counts[rating] = (counts[rating] ?? 0) + 1;
-      });
-      return counts;
-    }, {});
-  }, [filteredFamilies]);
-
-  const lowConfidenceTrajectories = (visibleConfidenceCounts['Low'] ?? 0) + (visibleConfidenceCounts['Exploratory'] ?? 0);
-  const serviceCount = new Set(filteredFamilies.map((family) => family.serviceOrOutputName)).size;
 
   const colorByTrajectoryId = useMemo(() => {
     return new Map(
@@ -454,169 +422,132 @@ export default function LibraryPage() {
         sources, and input coefficient curves behind each available state for the selected subsector.
       </p>
 
-      <section className="scenario-overview-grid">
-        <article className="scenario-panel scenario-panel--hero">
-          <span className="scenario-badge">Trajectory view</span>
-          <h2>{resolvedSelectedSubsector ? `${resolvedSelectedSector} / ${resolvedSelectedSubsector}` : 'Sector-state trajectories'}</h2>
-          <p>
-            The current package has one service/output per sector-subsector pair, so this view can
-            stay focused on single-select sector and subsector chips without hiding additional service filters.
-          </p>
-          <dl className="scenario-key-value-list">
-            <div>
-              <dt>Visible trajectories</dt>
-              <dd>{visibleTrajectories.length}</dd>
-            </div>
-            <div>
-              <dt>Milestone years</dt>
-              <dd>{visibleYears.length}</dd>
-            </div>
-            <div>
-              <dt>Visible services</dt>
-              <dd>{serviceCount}</dd>
-            </div>
-            <div>
-              <dt>Low or exploratory trajectories</dt>
-              <dd>{lowConfidenceTrajectories}</dd>
-            </div>
-          </dl>
-        </article>
-
-        <article className="scenario-panel">
-          <h2>Confidence mix</h2>
-          <div className="scenario-stat-grid">
-            {Object.entries(visibleConfidenceCounts).map(([rating, count]) => (
-              <div key={rating} className="scenario-stat-card">
-                <span>{rating}</span>
-                <strong>{count}</strong>
+      <div className="library-sidebar-layout">
+        <aside className="library-sidebar">
+          <section className="scenario-panel library-filter-strip">
+            <div className="library-panel-heading">
+              <div>
+                <h2>Scope</h2>
+                <p>Click a sector to refresh the available subsectors, then use the advanced filters to narrow the comparison.</p>
               </div>
-            ))}
-          </div>
-        </article>
-      </section>
-
-      <section className="scenario-panel library-filter-strip">
-        <div className="library-panel-heading">
-          <div>
-            <h2>Scope</h2>
-            <p>Click a sector to refresh the available subsectors, then use the advanced filters to narrow the comparison.</p>
-          </div>
-          <button type="button" className="library-clear-button" onClick={resetFilters}>
-            Reset view
-          </button>
-        </div>
-
-        <div className="library-chip-section">
-          <span className="library-chip-label">Sector</span>
-          <div className="library-chip-row">
-            {sectorIndex.sectors.map((sector) => (
-              <button
-                key={sector}
-                type="button"
-                className={`library-chip${sector === resolvedSelectedSector ? ' library-chip--active' : ''}`}
-                onClick={() => {
-                  setSelectedSector(sector);
-                  setSelectedSubsector('');
-                  setSelectedTrajectoryId(null);
-                }}
-              >
-                {sector}
+              <button type="button" className="library-clear-button" onClick={resetFilters}>
+                Reset view
               </button>
-            ))}
-          </div>
-        </div>
+            </div>
 
-        <div className="library-chip-section">
-          <span className="library-chip-label">Subsector</span>
-          <div className="library-chip-row">
-            {visibleSubsectors.map((subsector) => (
-              <button
-                key={subsector}
-                type="button"
-                className={`library-chip${subsector === resolvedSelectedSubsector ? ' library-chip--active' : ''}`}
-                onClick={() => {
-                  setSelectedSubsector(subsector);
-                  setSelectedTrajectoryId(null);
-                }}
-              >
-                {subsector}
-              </button>
-            ))}
-          </div>
-        </div>
+            <div className="library-chip-section">
+              <span className="library-chip-label">Sector</span>
+              <div className="library-chip-row">
+                {sectorIndex.sectors.map((sector) => (
+                  <button
+                    key={sector}
+                    type="button"
+                    className={`library-chip${sector === resolvedSelectedSector ? ' library-chip--active' : ''}`}
+                    onClick={() => {
+                      setSelectedSector(sector);
+                      setSelectedSubsector('');
+                      setSelectedTrajectoryId(null);
+                    }}
+                  >
+                    {sector}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-        <div className="library-filter-grid">
-          <label className="library-field library-field--wide">
-            <span>Search</span>
-            <input
-              value={filters.search}
-              onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
-              placeholder="State label, evidence, notes, source ID"
-            />
-          </label>
+            <div className="library-chip-section">
+              <span className="library-chip-label">Subsector</span>
+              <div className="library-chip-row">
+                {visibleSubsectors.map((subsector) => (
+                  <button
+                    key={subsector}
+                    type="button"
+                    className={`library-chip${subsector === resolvedSelectedSubsector ? ' library-chip--active' : ''}`}
+                    onClick={() => {
+                      setSelectedSubsector(subsector);
+                      setSelectedTrajectoryId(null);
+                    }}
+                  >
+                    {subsector}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-          <label className="library-field">
-            <span>Confidence</span>
-            <select
-              value={filters.confidence}
-              onChange={(event) => setFilters((current) => ({ ...current, confidence: event.target.value }))}
-            >
-              <option value="">All ratings</option>
-              {filterOptions.confidenceRatings.map((confidence) => (
-                <option key={confidence} value={confidence}>
-                  {confidence}
-                </option>
-              ))}
-            </select>
-          </label>
+            <div className="library-filter-grid">
+              <label className="library-field library-field--wide">
+                <span>Search</span>
+                <input
+                  value={filters.search}
+                  onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
+                  placeholder="State label, evidence, notes, source ID"
+                />
+              </label>
 
-          <label className="library-field">
-            <span>Region</span>
-            <select
-              value={filters.region}
-              onChange={(event) => setFilters((current) => ({ ...current, region: event.target.value }))}
-            >
-              <option value="">All regions</option>
-              {filterOptions.regions.map((region) => (
-                <option key={region} value={region}>
-                  {region}
-                </option>
-              ))}
-            </select>
-          </label>
+              <label className="library-field">
+                <span>Confidence</span>
+                <select
+                  value={filters.confidence}
+                  onChange={(event) => setFilters((current) => ({ ...current, confidence: event.target.value }))}
+                >
+                  <option value="">All ratings</option>
+                  {filterOptions.confidenceRatings.map((confidence) => (
+                    <option key={confidence} value={confidence}>
+                      {confidence}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
-          <label className="library-field">
-            <span>Source ID</span>
-            <select
-              value={filters.sourceId}
-              onChange={(event) => setFilters((current) => ({ ...current, sourceId: event.target.value }))}
-            >
-              <option value="">All sources</option>
-              {filterOptions.sourceIds.map((sourceId) => (
-                <option key={sourceId} value={sourceId}>
-                  {sourceId}
-                </option>
-              ))}
-            </select>
-          </label>
+              <label className="library-field">
+                <span>Region</span>
+                <select
+                  value={filters.region}
+                  onChange={(event) => setFilters((current) => ({ ...current, region: event.target.value }))}
+                >
+                  <option value="">All regions</option>
+                  {filterOptions.regions.map((region) => (
+                    <option key={region} value={region}>
+                      {region}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
-          <label className="library-field">
-            <span>Assumption ID</span>
-            <select
-              value={filters.assumptionId}
-              onChange={(event) => setFilters((current) => ({ ...current, assumptionId: event.target.value }))}
-            >
-              <option value="">All assumptions</option>
-              {filterOptions.assumptionIds.map((assumptionId) => (
-                <option key={assumptionId} value={assumptionId}>
-                  {assumptionId}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-      </section>
+              <label className="library-field">
+                <span>Source ID</span>
+                <select
+                  value={filters.sourceId}
+                  onChange={(event) => setFilters((current) => ({ ...current, sourceId: event.target.value }))}
+                >
+                  <option value="">All sources</option>
+                  {filterOptions.sourceIds.map((sourceId) => (
+                    <option key={sourceId} value={sourceId}>
+                      {sourceId}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
+              <label className="library-field">
+                <span>Assumption ID</span>
+                <select
+                  value={filters.assumptionId}
+                  onChange={(event) => setFilters((current) => ({ ...current, assumptionId: event.target.value }))}
+                >
+                  <option value="">All assumptions</option>
+                  {filterOptions.assumptionIds.map((assumptionId) => (
+                    <option key={assumptionId} value={assumptionId}>
+                      {assumptionId}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          </section>
+        </aside>
+
+        <div className="library-main-content">
       {visibleTrajectories.length > 0 ? (
         <>
           <section className="scenario-panel library-state-selector-panel">
@@ -882,36 +813,6 @@ export default function LibraryPage() {
 
                 <div className="library-detail-grid">
                   <section className="library-detail-section">
-                    <h3>Trajectory at a glance</h3>
-                    <div className="scenario-stat-grid">
-                      <div className="scenario-stat-card">
-                        <span>Cost range</span>
-                        <strong>{formatRange(selectedTrajectory.points.map((point) => point.cost), (value) => formatCostValue(value, selectedTrajectory.currency))}</strong>
-                      </div>
-                      <div className="scenario-stat-card">
-                        <span>Energy range</span>
-                        <strong>{formatRange(selectedTrajectory.points.map((point) => point.energyTotal), formatNullableNumber)}</strong>
-                      </div>
-                      <div className="scenario-stat-card">
-                        <span>Process range</span>
-                        <strong>{formatRange(selectedTrajectory.points.map((point) => point.processTotal), formatNullableNumber)}</strong>
-                      </div>
-                      <div className="scenario-stat-card">
-                        <span>Max share range</span>
-                        <strong>{formatRange(selectedTrajectory.points.map((point) => point.maxShare), (value) => percentFormatter.format(value))}</strong>
-                      </div>
-                      <div className="scenario-stat-card">
-                        <span>Max activity range</span>
-                        <strong>{formatRange(selectedTrajectory.points.map((point) => point.maxActivity), formatNullableNumber)}</strong>
-                      </div>
-                    </div>
-                    <p className="library-inline-note">
-                      Cost is shown in {buildCostUnitLabel(selectedTrajectory.currency, selectedTrajectory.outputUnit)}; emissions use{' '}
-                      {formatUnitLabel(selectedTrajectory.emissionsUnit)}.
-                    </p>
-                  </section>
-
-                  <section className="library-detail-section">
                     <h3>Trajectory notes</h3>
                     <dl className="library-detail-list">
                       <TrajectoryNarrative label="Output quantity basis" rows={selectedTrajectory.rows} pick={(row) => row.output_quantity_basis} />
@@ -1074,6 +975,8 @@ export default function LibraryPage() {
           <p>Clear one or two advanced filters or switch subsectors to restore the comparison views.</p>
         </section>
       )}
+        </div>
+      </div>
     </div>
   );
 }

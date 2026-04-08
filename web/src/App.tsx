@@ -1,5 +1,6 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import AppLayout from './layouts/AppLayout';
+import ScenarioWorkspacePage from './pages/ScenarioWorkspacePage';
 import ScenarioPage from './pages/ScenarioPage';
 import ResultsPage from './pages/ResultsPage';
 import ComparePage from './pages/ComparePage';
@@ -11,8 +12,10 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route element={<AppLayout />}>
-          <Route index element={<ScenarioPage />} />
-          <Route path="results" element={<ResultsPage />} />
+          <Route index element={<ScenarioWorkspacePage />} />
+          <Route path="results" element={<Navigate to="/" replace />} />
+          <Route path="legacy/scenario" element={<ScenarioPage />} />
+          <Route path="legacy/results" element={<ResultsPage />} />
           <Route path="compare" element={<ComparePage />} />
           <Route path="library" element={<LibraryPage />} />
           <Route path="methods" element={<MethodsPage />} />
