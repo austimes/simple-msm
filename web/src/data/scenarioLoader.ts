@@ -1,7 +1,7 @@
 import Ajv2020 from 'ajv/dist/2020';
 import type { ErrorObject } from 'ajv';
-import referenceScenarioText from '@root/web/public/app_config/reference_scenario.json?raw';
-import scenarioSchemaText from '@root/web/public/app_config/scenario_schema.json?raw';
+import referenceScenarioText from '@root/web/src/app_config/reference_scenario.json?raw';
+import scenarioSchemaText from '@root/web/src/app_config/scenario_schema.json?raw';
 import { resolveScenarioDocument } from './demandResolution.ts';
 import type { AppConfigRegistry, ScenarioDocument } from './types';
 

@@ -1,0 +1,94 @@
+{
+  "electrification": {
+    "label": "Electrification",
+    "description": "Tag when electricity input rises relative to the incumbent and fossil fuel inputs fall.",
+    "comparison_basis": "coefficient_delta",
+    "positive_input_commodities": ["electricity"],
+    "negative_input_commodities": ["coal", "natural_gas", "refined_liquid_fuels"],
+    "applies_to_output_roles": ["required_service"]
+  },
+  "efficiency_improvement": {
+    "label": "Efficiency improvement",
+    "description": "Tag when total energy input per unit of output falls against the reference state.",
+    "comparison_basis": "mixed",
+    "derived_signals": ["total_energy_input_per_output_down"],
+    "metadata_signals": ["output_unit_consistent_with_reference"],
+    "applies_to_output_roles": ["required_service"]
+  },
+  "fossil_to_gas_switch": {
+    "label": "Fossil-to-gas switch",
+    "description": "Tag when natural gas input rises while coal or refined liquids fall.",
+    "comparison_basis": "coefficient_delta",
+    "positive_input_commodities": ["natural_gas"],
+    "negative_input_commodities": ["coal", "refined_liquid_fuels"],
+    "applies_to_output_roles": ["required_service"]
+  },
+  "fossil_to_biomass_switch": {
+    "label": "Fossil-to-biomass switch",
+    "description": "Tag when biomass input rises while fossil fuel inputs fall.",
+    "comparison_basis": "coefficient_delta",
+    "positive_input_commodities": ["biomass"],
+    "negative_input_commodities": ["coal", "natural_gas", "refined_liquid_fuels"],
+    "applies_to_output_roles": ["required_service"]
+  },
+  "fossil_to_hydrogen_switch": {
+    "label": "Fossil-to-hydrogen switch",
+    "description": "Tag when hydrogen input rises while fossil fuel inputs fall.",
+    "comparison_basis": "coefficient_delta",
+    "positive_input_commodities": ["hydrogen"],
+    "negative_input_commodities": ["coal", "natural_gas", "refined_liquid_fuels"],
+    "applies_to_output_roles": ["required_service"]
+  },
+  "ccs_or_sequestration": {
+    "label": "CCS / sequestration",
+    "description": "Tag when sequestration-service demand appears or process and direct emissions fall without a full output substitution.",
+    "comparison_basis": "mixed",
+    "positive_input_commodities": ["sequestration_service"],
+    "derived_signals": ["process_emissions_down", "energy_emissions_down"],
+    "applies_to_output_roles": ["required_service", "optional_removals"]
+  },
+  "clinker_reduction_or_material_substitution": {
+    "label": "Clinker reduction / material substitution",
+    "description": "Tag cement states that cut process emissions through lower-clinker or substitute-material pathways.",
+    "comparison_basis": "mixed",
+    "derived_signals": ["cement_process_emissions_down"],
+    "metadata_signals": ["state_label_or_description_mentions:clinker", "state_label_or_description_mentions:substitution"],
+    "applies_to_outputs": ["cement_equivalent"]
+  },
+  "scrap_eaf_shift": {
+    "label": "Scrap-EAF shift",
+    "description": "Tag steel states that rely more on electricity and scrap steel and less on coal and iron ore.",
+    "comparison_basis": "coefficient_delta",
+    "positive_input_commodities": ["electricity", "scrap_steel"],
+    "negative_input_commodities": ["coal", "iron_ore"],
+    "applies_to_outputs": ["crude_steel"]
+  },
+  "removals": {
+    "label": "Removals",
+    "description": "Tag states whose primary output is a removals service rather than a demanded end-use service.",
+    "comparison_basis": "metadata_signal",
+    "metadata_signals": ["output_role:optional_removals"],
+    "applies_to_output_roles": ["optional_removals"]
+  },
+  "incumbent_lock_in": {
+    "label": "Incumbent lock-in",
+    "description": "Tag incumbent or fossil-heavy pathways that remain selected despite lower-emissions alternatives.",
+    "comparison_basis": "metadata_signal",
+    "metadata_signals": ["state_id_contains:incumbent", "state_label_contains:Incumbent", "state_label_contains:fossil"],
+    "applies_to_output_roles": ["required_service", "endogenous_supply_commodity"]
+  },
+  "rollout_cap_binding": {
+    "label": "Rollout cap binding",
+    "description": "Tag when a scenario explanation should point to max-share, max-activity, or rollout notes as active limits.",
+    "comparison_basis": "metadata_signal",
+    "metadata_signals": ["max_share_present", "max_activity_present", "rollout_limit_notes_present"],
+    "applies_to_output_roles": ["required_service", "endogenous_supply_commodity", "optional_removals"]
+  },
+  "exploratory_dependence": {
+    "label": "Exploratory dependence",
+    "description": "Tag states that rely on low-confidence or exploratory evidence ratings.",
+    "comparison_basis": "metadata_signal",
+    "metadata_signals": ["confidence_rating:low", "confidence_rating:exploratory"],
+    "applies_to_output_roles": ["required_service", "endogenous_supply_commodity", "optional_removals"]
+  }
+}

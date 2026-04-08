@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useScenarioSolve } from '../hooks/useScenarioSolve';
+import { usePackageStore } from '../data/packageStore';
 import LeftSidebar from '../components/workspace/LeftSidebar';
 import RightSidebar from '../components/workspace/RightSidebar';
 import StackedAreaChart from '../components/charts/StackedAreaChart';
@@ -10,16 +11,13 @@ import {
 } from '../results/chartData';
 
 export default function ScenarioWorkspacePage() {
-  const { phase, result, request, error, isStale, solve } = useScenarioSolve();
+  const { phase, result, request, error, solve } = useScenarioSolve();
+
+
+  const activeConfigurationId = usePackageStore((state) => state.activeConfigurationId);
+  const includedOutputIds = usePackageStore((state) => state.includedOutputIds);
 
   const isSolving = phase === 'solving';
-
-  const buttonLabel =
-    phase === 'solving'
-      ? 'Solving…'
-      : phase === 'solved' && !isStale
-        ? 'Re-solve'
-        : 'Solve';
 
   const emissionsChart = useMemo(
     () => (request && result ? buildEmissionsBySectorChart(request, result) : null),
@@ -47,20 +45,15 @@ export default function ScenarioWorkspacePage() {
         <h2>Solve &amp; Results</h2>
 
         <div className="workspace-solve-bar">
-          <button
-            className="workspace-solve-button"
-            disabled={isSolving}
-            onClick={solve}
-          >
-            {buttonLabel}
-          </button>
-        </div>
+          {isSolving && <span className="workspace-solve-status">Solving…</span>}
+          {activeConfigurationId && (
+            <span className="workspace-solve-status">
+              Config: <strong>{activeConfigurationId}</strong>
+              {includedOutputIds && ` (${includedOutputIds.length} outputs scoped)`}
+            </span>
+          )}
 
-        {isStale && (
-          <p className="workspace-solve-status workspace-solve-stale">
-            Scenario has changed since last solve
-          </p>
-        )}
+        </div>
 
         {phase === 'error' && error && (
           <p className="workspace-solve-status workspace-solve-error">
@@ -71,12 +64,6 @@ export default function ScenarioWorkspacePage() {
         {phase === 'solved' && result && (
           <p className="workspace-solve-status">
             Solved in {result.timingsMs.total.toFixed(2)} ms
-          </p>
-        )}
-
-        {phase === 'idle' && (
-          <p className="workspace-cta">
-            Configure your scenario in the sidebars, then click Solve to see results.
           </p>
         )}
 

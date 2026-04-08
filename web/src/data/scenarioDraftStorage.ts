@@ -1,7 +1,7 @@
 import { parseScenarioDocument } from './scenarioLoader';
 import type { AppConfigRegistry, ScenarioDocument } from './types';
 
-export const SCENARIO_DRAFT_STORAGE_KEY = 'simple-msm.scenario-draft.v1';
+export const SCENARIO_DRAFT_STORAGE_KEY = 'simple-msm.scenario-draft.v2';
 
 export interface StorageLike {
   getItem(key: string): string | null;

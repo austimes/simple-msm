@@ -218,14 +218,190 @@ export function resolveScenarioForSolve(
   };
 }
 
+export interface BuildSolveRequestOptions {
+  includedOutputIds?: string[];
+}
+
+function rowMayBeActive(
+  row: NormalizedSolverRow,
+  control: ResolvedSolveControl | undefined,
+): boolean {
+  if (!control) {
+    return true;
+  }
+
+  if (control.mode === 'off') {
+    return false;
+  }
+
+  if (control.mode === 'externalized') {
+    return false;
+  }
+
+  if (control.mode === 'pinned_single') {
+    return row.stateId === control.stateId;
+  }
+
+  if (control.mode === 'fixed_shares') {
+    const share = control.fixedShares?.[row.stateId] ?? 0;
+    return share > 0;
+  }
+
+  if (control.disabledStateIds.includes(row.stateId)) {
+    return false;
+  }
+
+  return true;
+}
+
+function expandIncludedOutputsForDependencies(
+  rows: NormalizedSolverRow[],
+  scenario: ResolvedScenarioForSolve,
+  appConfig: AppConfigRegistry,
+  seedOutputIds: Set<string>,
+): Set<string> {
+  const included = new Set(seedOutputIds);
+  let changed = true;
+
+  while (changed) {
+    changed = false;
+
+    for (const row of rows) {
+      if (!included.has(row.outputId)) {
+        continue;
+      }
+
+      for (const year of scenario.years) {
+        if (row.year !== year) {
+          continue;
+        }
+
+        const control = scenario.controlsByOutput[row.outputId]?.[yearKey(year)];
+        if (!rowMayBeActive(row, control)) {
+          continue;
+        }
+
+        for (const input of row.inputs) {
+          const inputMetadata = appConfig.output_roles[input.commodityId];
+          if (!inputMetadata || inputMetadata.output_role !== 'endogenous_supply_commodity') {
+            continue;
+          }
+
+          if (input.coefficient !== 0 && !included.has(input.commodityId)) {
+            included.add(input.commodityId);
+            changed = true;
+          }
+        }
+      }
+    }
+  }
+
+  return included;
+}
+
+function filterSolveRequestForOutputs(
+  rows: NormalizedSolverRow[],
+  scenario: ResolvedScenarioForSolve,
+  includedOutputIds: Set<string>,
+  seedOutputIds: Set<string>,
+): { rows: NormalizedSolverRow[]; scenario: ResolvedScenarioForSolve } {
+  const filteredRows = rows.filter((row) => includedOutputIds.has(row.outputId));
+
+  const filteredControlsByOutput: Record<string, Record<string, ResolvedSolveControl>> = {};
+  for (const outputId of includedOutputIds) {
+    if (scenario.controlsByOutput[outputId]) {
+      filteredControlsByOutput[outputId] = scenario.controlsByOutput[outputId];
+    }
+  }
+
+  const filteredServiceDemandByOutput: Record<string, Record<string, number>> = {};
+  for (const outputId of includedOutputIds) {
+    if (scenario.serviceDemandByOutput[outputId]) {
+      filteredServiceDemandByOutput[outputId] = scenario.serviceDemandByOutput[outputId];
+    }
+  }
+
+  const filteredExternalCommodityDemandByCommodity: Record<string, Record<string, number>> = {};
+  for (const outputId of seedOutputIds) {
+    if (scenario.externalCommodityDemandByCommodity[outputId]) {
+      filteredExternalCommodityDemandByCommodity[outputId] = scenario.externalCommodityDemandByCommodity[outputId];
+    }
+  }
+
+  return {
+    rows: filteredRows,
+    scenario: {
+      ...scenario,
+      controlsByOutput: filteredControlsByOutput,
+      serviceDemandByOutput: filteredServiceDemandByOutput,
+      externalCommodityDemandByCommodity: filteredExternalCommodityDemandByCommodity,
+    },
+  };
+}
+
+export function collectOutputIdsForSelection(
+  rows: NormalizedSolverRow[],
+  selection: { sectors?: string[]; subsectors?: string[]; outputIds?: string[] },
+): string[] {
+  const outputIds = new Set<string>();
+
+  if (selection.outputIds) {
+    for (const outputId of selection.outputIds) {
+      outputIds.add(outputId);
+    }
+  }
+
+  if (selection.sectors) {
+    const sectors = new Set(selection.sectors);
+    for (const row of rows) {
+      if (sectors.has(row.sector)) {
+        outputIds.add(row.outputId);
+      }
+    }
+  }
+
+  if (selection.subsectors) {
+    const subsectors = new Set(selection.subsectors);
+    for (const row of rows) {
+      if (subsectors.has(row.subsector)) {
+        outputIds.add(row.outputId);
+      }
+    }
+  }
+
+  return Array.from(outputIds);
+}
+
 export function buildSolveRequest(
   pkg: Pick<PackageData, 'sectorStates' | 'appConfig' | 'defaultScenario'>,
   scenario = pkg.defaultScenario,
+  options: BuildSolveRequestOptions = {},
 ): SolveRequest {
+  const allRows = normalizeSolverRows(pkg);
+  const resolvedScenario = resolveScenarioForSolve(scenario, pkg.appConfig);
+
+  if (!options.includedOutputIds || options.includedOutputIds.length === 0) {
+    return {
+      contractVersion: SOLVER_CONTRACT_VERSION,
+      requestId: createRequestId(),
+      rows: allRows,
+      scenario: resolvedScenario,
+    };
+  }
+
+  const seedOutputIds = new Set(options.includedOutputIds);
+  const expandedOutputIds = expandIncludedOutputsForDependencies(
+    allRows,
+    resolvedScenario,
+    pkg.appConfig,
+    seedOutputIds,
+  );
+  const filtered = filterSolveRequestForOutputs(allRows, resolvedScenario, expandedOutputIds, seedOutputIds);
+
   return {
     contractVersion: SOLVER_CONTRACT_VERSION,
     requestId: createRequestId(),
-    rows: normalizeSolverRows(pkg),
-    scenario: resolveScenarioForSolve(scenario, pkg.appConfig),
+    rows: filtered.rows,
+    scenario: filtered.scenario,
   };
 }

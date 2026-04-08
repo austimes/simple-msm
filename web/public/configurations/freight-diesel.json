@@ -1,0 +1,20 @@
+{
+  "id": "freight-diesel",
+  "name": "Freight transport only (diesel)",
+  "description": "Freight road transport pinned to diesel incumbent. No electricity dependency.",
+  "readonly": true,
+  "includedOutputIds": ["freight_road_transport"],
+  "serviceControls": {
+    "freight_road_transport": { "mode": "pinned_single", "state_id": "road_transport__freight_road__diesel" },
+    "electricity": { "mode": "externalized" },
+    "land_sequestration": { "mode": "off" },
+    "engineered_removals": { "mode": "off" }
+  },
+  "solverOptions": {
+    "respect_max_share": false,
+    "respect_max_activity": true,
+    "soft_constraints": false,
+    "allow_removals_credit": false,
+    "share_smoothing": { "enabled": false }
+  }
+}

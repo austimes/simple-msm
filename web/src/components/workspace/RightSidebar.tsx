@@ -14,10 +14,16 @@ export default function RightSidebar() {
   const appConfig = usePackageStore((s) => s.appConfig);
   const currentScenario = usePackageStore((s) => s.currentScenario);
   const toggleStateEnabled = usePackageStore((s) => s.toggleStateEnabled);
+  const includedOutputIds = usePackageStore((s) => s.includedOutputIds);
 
   const catalog = useMemo(
     () => buildStateCatalog(sectorStates, appConfig),
     [sectorStates, appConfig],
+  );
+
+  const scopeSet = useMemo(
+    () => (includedOutputIds ? new Set(includedOutputIds) : null),
+    [includedOutputIds],
   );
 
   return (
@@ -29,19 +35,26 @@ export default function RightSidebar() {
             {formatSectorName(sectorEntry.sector)}
           </div>
           {sectorEntry.subsectors.map((sub) => {
+            const outOfScope = scopeSet !== null && !scopeSet.has(sub.outputId);
+            const controlMode = currentScenario.service_controls[sub.outputId]?.mode;
+            const isOff = controlMode === 'off';
             const allStateIds = sub.states.map((s) => s.stateId);
             const enabledIds = new Set(
               getEnabledStateIds(currentScenario, sub.outputId, allStateIds),
             );
 
             return (
-              <div key={sub.outputId} className="workspace-subsector-group">
+              <div
+                key={sub.outputId}
+                className={`workspace-subsector-group${outOfScope || isOff ? ' workspace-subsector-group--dimmed' : ''}`}
+              >
                 <div className="workspace-subsector-title">
                   {sub.outputLabel}
+                  {isOff && <span className="workspace-mode-badge">off</span>}
                 </div>
                 <div className="workspace-state-chips">
                   {sub.states.map((state) => {
-                    const isOn = enabledIds.has(state.stateId);
+                    const isOn = !isOff && !outOfScope && enabledIds.has(state.stateId);
                     return (
                       <button
                         key={state.stateId}

@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePackageStore } from '../data/packageStore';
 import { buildSolveRequest } from '../solver/buildSolveRequest';
 import type { SolveRequest, SolveResult } from '../solver/contract';
@@ -11,7 +11,6 @@ export interface SolveState {
   result: SolveResult | null;
   request: SolveRequest | null;
   error: string | null;
-  isStale: boolean;
   solve: () => void;
 }
 
@@ -19,27 +18,29 @@ export function useScenarioSolve(): SolveState {
   const sectorStates = usePackageStore((state) => state.sectorStates);
   const appConfig = usePackageStore((state) => state.appConfig);
   const currentScenario = usePackageStore((state) => state.currentScenario);
+  const includedOutputIds = usePackageStore((state) => state.includedOutputIds);
 
   const [phase, setPhase] = useState<SolvePhase>('idle');
   const [result, setResult] = useState<SolveResult | null>(null);
   const [request, setRequest] = useState<SolveRequest | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [solvedScenario, setSolvedScenario] = useState<object | null>(null);
 
   const cancelledRef = useRef(0);
-
-  const isStale = phase === 'solved' && solvedScenario !== currentScenario;
 
   const solve = useCallback(() => {
     const solveId = ++cancelledRef.current;
 
     let builtRequest: SolveRequest;
     try {
-      builtRequest = buildSolveRequest({
-        sectorStates,
-        appConfig,
-        defaultScenario: currentScenario,
-      });
+      builtRequest = buildSolveRequest(
+        {
+          sectorStates,
+          appConfig,
+          defaultScenario: currentScenario,
+        },
+        currentScenario,
+        includedOutputIds ? { includedOutputIds } : {},
+      );
     } catch (err) {
       setPhase('error');
       setError(err instanceof Error ? err.message : 'Failed to build solve request.');
@@ -61,7 +62,6 @@ export function useScenarioSolve(): SolveState {
         setPhase('solved');
         setResult(workerResult);
         setRequest(builtRequest);
-        setSolvedScenario(currentScenario);
       })
       .catch((err) => {
         if (cancelledRef.current !== solveId) {
@@ -72,14 +72,18 @@ export function useScenarioSolve(): SolveState {
         setError(err instanceof Error ? err.message : 'Unknown solve failure.');
         setResult(null);
       });
-  }, [sectorStates, appConfig, currentScenario]);
+  }, [sectorStates, appConfig, currentScenario, includedOutputIds]);
+
+  // Auto-solve whenever the scenario changes
+  useEffect(() => {
+    solve();
+  }, [solve]);
 
   return {
     phase,
     result,
     request,
     error,
-    isStale,
     solve,
   };
 }

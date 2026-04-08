@@ -1137,7 +1137,11 @@ function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
   }
 
   const ignoredRows = request.rows.filter((row) => row.outputRole === 'optional_removals');
-  const hasUnmodeledFeatures = ignoredRows.length > 0 || request.scenario.options.shareSmoothing.enabled;
+  const activeIgnoredRows = ignoredRows.filter((row) => {
+    const control = request.scenario.controlsByOutput[row.outputId]?.[yearKey(row.year)];
+    return control?.mode !== 'off';
+  });
+  const hasUnmodeledFeatures = activeIgnoredRows.length > 0 || request.scenario.options.shareSmoothing.enabled;
 
   if (ignoredRows.length > 0) {
     const ignoredOutputCount = new Set(ignoredRows.map((row) => row.outputId)).size;
@@ -1970,6 +1974,35 @@ function buildAdapterErrorResult(
       total: performance.now() - startedAt,
       solve: 0,
     },
+  };
+}
+
+export function inspectScenarioLpBuild(request: SolveRequest) {
+  const build = buildScenarioLpModel(request);
+
+  return {
+    diagnostics: build.diagnostics,
+    notes: build.notes,
+    requiredServiceGroups: build.requiredServiceGroups.map((group) => ({
+      outputId: group.outputId,
+      outputLabel: group.outputLabel,
+      year: group.year,
+      demand: group.demand,
+      mode: group.control.mode,
+      disabledStateIds: group.control.disabledStateIds,
+      rowCount: group.rows.length,
+    })),
+    supplyGroups: build.supplyGroups.map((group) => ({
+      commodityId: group.commodityId,
+      commodityLabel: group.commodityLabel,
+      year: group.year,
+      externalDemand: group.externalDemand,
+      mode: group.control.mode,
+      disabledStateIds: group.control.disabledStateIds,
+      rowCount: group.rows.length,
+    })),
+    variableCount: Object.keys(build.model.variables).length,
+    constraintCount: Object.keys(build.model.constraints).length,
   };
 }
 

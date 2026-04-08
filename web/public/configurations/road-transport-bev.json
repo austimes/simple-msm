@@ -1,0 +1,20 @@
+{
+  "id": "road-transport-bev",
+  "name": "Road transport BEV",
+  "description": "Passenger road transport pinned to BEV with electricity externalized.",
+  "readonly": true,
+  "includedOutputIds": ["passenger_road_transport"],
+  "serviceControls": {
+    "passenger_road_transport": { "mode": "pinned_single", "state_id": "road_transport__passenger_road__bev" },
+    "electricity": { "mode": "externalized" },
+    "land_sequestration": { "mode": "off" },
+    "engineered_removals": { "mode": "off" }
+  },
+  "solverOptions": {
+    "respect_max_share": false,
+    "respect_max_activity": true,
+    "soft_constraints": false,
+    "allow_removals_credit": false,
+    "share_smoothing": { "enabled": false }
+  }
+}

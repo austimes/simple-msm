@@ -6,13 +6,17 @@ import {
 } from './scenarioDraftStorage';
 import { loadPackage } from './packageLoader';
 import type { PackageData, ScenarioControlMode, ScenarioDocument, ScenarioServiceControl } from './types';
+import type { SolveConfiguration } from './configurationTypes';
+import { applyConfigurationToScenario } from './configurationLoader';
 
-export type ScenarioDraftSource = 'reference' | 'local_draft' | 'imported' | 'draft';
+export type ScenarioDraftSource = 'reference' | 'local_draft' | 'imported' | 'draft' | 'configuration';
 
 interface PackageStore extends PackageData {
   loaded: boolean;
   currentScenario: ScenarioDocument;
   currentScenarioSource: ScenarioDraftSource;
+  activeConfigurationId: string | null;
+  includedOutputIds: string[] | undefined;
   persistenceNotice: string | null;
   persistenceError: string | null;
   replaceCurrentScenario: (
@@ -26,6 +30,8 @@ interface PackageStore extends PackageData {
   toggleStateEnabled: (outputId: string, stateId: string) => void;
   setOutputControlMode: (outputId: string, mode: ScenarioControlMode) => void;
   setDemandPreset: (presetId: string) => void;
+  loadConfiguration: (config: SolveConfiguration) => void;
+  setIncludedOutputIds: (outputIds: string[] | undefined) => void;
 }
 
 function cloneScenario(scenario: ScenarioDocument): ScenarioDocument {
@@ -48,6 +54,8 @@ export const usePackageStore = create<PackageStore>((set, get) => {
     loaded: true,
     currentScenario: initialScenario,
     currentScenarioSource: persistedDraft.scenario ? 'local_draft' : 'reference',
+    activeConfigurationId: null,
+    includedOutputIds: undefined,
     persistenceNotice: persistedDraft.notice,
     persistenceError: persistedDraft.error,
     replaceCurrentScenario: (scenario, source = 'draft', notice = null) => {
@@ -94,6 +102,8 @@ export const usePackageStore = create<PackageStore>((set, get) => {
       set({
         currentScenario: nextScenario,
         currentScenarioSource: 'reference',
+        activeConfigurationId: null,
+        includedOutputIds: undefined,
         persistenceNotice: 'Reset to the packaged reference scenario and cleared the local draft.',
         persistenceError,
       });
@@ -143,12 +153,32 @@ export const usePackageStore = create<PackageStore>((set, get) => {
 
       control.disabled_state_ids = disabled.size > 0 ? Array.from(disabled) : [];
 
+      const metadata = get().appConfig.output_roles[outputId];
+      const allowed = new Set(metadata?.allowed_control_modes ?? []);
+
       if (enabledIds.length === 1) {
-        control.mode = 'pinned_single';
-        control.state_id = enabledIds[0];
+        if (allowed.has('pinned_single')) {
+          control.mode = 'pinned_single';
+          control.state_id = enabledIds[0];
+          control.fixed_shares = null;
+        } else if (allowed.has('fixed_shares')) {
+          control.mode = 'fixed_shares';
+          control.fixed_shares = { [enabledIds[0]]: 1 };
+          control.state_id = null;
+        } else {
+          control.mode = metadata?.default_control_mode ?? 'optimize';
+          control.state_id = null;
+        }
       } else {
-        control.mode = 'optimize';
+        if (allowed.has('optimize')) {
+          control.mode = 'optimize';
+        } else {
+          control.mode = metadata?.default_control_mode ?? 'optimize';
+        }
         control.state_id = null;
+        if (control.mode !== 'fixed_shares') {
+          control.fixed_shares = null;
+        }
       }
 
       nextScenario.service_controls[outputId] = control;
@@ -161,6 +191,12 @@ export const usePackageStore = create<PackageStore>((set, get) => {
       });
     },
     setOutputControlMode: (outputId, mode) => {
+      const metadata = get().appConfig.output_roles[outputId];
+      const allowed = metadata?.allowed_control_modes ?? [];
+      if (allowed.length > 0 && !allowed.includes(mode)) {
+        return;
+      }
+
       const nextScenario = cloneScenario(get().currentScenario);
 
       const control: ScenarioServiceControl = nextScenario.service_controls[outputId] ?? {
@@ -194,6 +230,26 @@ export const usePackageStore = create<PackageStore>((set, get) => {
         currentScenarioSource: 'draft',
         persistenceError,
       });
+    },
+    loadConfiguration: (config) => {
+      const { scenario, includedOutputIds } = applyConfigurationToScenario(
+        config,
+        get().defaultScenario,
+      );
+      const nextScenario = cloneScenario(scenario);
+      const persistenceError = persistScenarioDraft(nextScenario);
+
+      set({
+        currentScenario: nextScenario,
+        currentScenarioSource: 'configuration',
+        activeConfigurationId: config.id,
+        includedOutputIds,
+        persistenceNotice: `Loaded configuration "${config.name}".`,
+        persistenceError,
+      });
+    },
+    setIncludedOutputIds: (outputIds) => {
+      set({ includedOutputIds: outputIds });
     },
   };
 });

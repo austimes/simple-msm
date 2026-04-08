@@ -44,7 +44,7 @@ export default function ScenarioPage() {
   const persistenceError = usePackageStore((state) => state.persistenceError);
   const replaceCurrentScenario = usePackageStore((state) => state.replaceCurrentScenario);
   const updateScenarioMetadata = usePackageStore((state) => state.updateScenarioMetadata);
-  const resetCurrentScenario = usePackageStore((state) => state.resetCurrentScenario);
+
   const [importError, setImportError] = useState<string | null>(null);
 
   const demandPreset = currentScenario.demand_generation.preset_id
@@ -165,13 +165,7 @@ export default function ScenarioPage() {
             >
               Import JSON
             </button>
-            <button
-              type="button"
-              className="scenario-button scenario-button--ghost"
-              onClick={resetCurrentScenario}
-            >
-              Reset To Reference
-            </button>
+
           </div>
 
           <input

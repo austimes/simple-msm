@@ -1,0 +1,22 @@
+{
+  "id": "industrial-heat-electrified",
+  "name": "Industrial heat electrified",
+  "description": "Low, medium, and high temperature heat pinned to electrified states with electricity externalized. Tests auto-inclusion of electricity.",
+  "readonly": true,
+  "includedOutputIds": ["low_temperature_heat", "medium_temperature_heat", "high_temperature_heat"],
+  "serviceControls": {
+    "low_temperature_heat": { "mode": "pinned_single", "state_id": "generic_industrial_heat__low_temperature_heat__electrified" },
+    "medium_temperature_heat": { "mode": "pinned_single", "state_id": "generic_industrial_heat__medium_temperature_heat__electrified" },
+    "high_temperature_heat": { "mode": "pinned_single", "state_id": "generic_industrial_heat__high_temperature_heat__electrified" },
+    "electricity": { "mode": "externalized" },
+    "land_sequestration": { "mode": "off" },
+    "engineered_removals": { "mode": "off" }
+  },
+  "solverOptions": {
+    "respect_max_share": false,
+    "respect_max_activity": true,
+    "soft_constraints": false,
+    "allow_removals_credit": false,
+    "share_smoothing": { "enabled": false }
+  }
+}

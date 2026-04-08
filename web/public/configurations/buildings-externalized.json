@@ -1,0 +1,21 @@
+{
+  "id": "buildings-externalized",
+  "name": "Buildings only — electricity externalized",
+  "description": "Residential and commercial building services pinned to incumbent mixed fuels with electricity externalized.",
+  "readonly": true,
+  "includedOutputIds": ["residential_building_services", "commercial_building_services"],
+  "serviceControls": {
+    "residential_building_services": { "mode": "pinned_single", "state_id": "buildings__residential__incumbent_mixed_fuels" },
+    "commercial_building_services": { "mode": "pinned_single", "state_id": "buildings__commercial__incumbent_mixed_fuels" },
+    "electricity": { "mode": "externalized" },
+    "land_sequestration": { "mode": "off" },
+    "engineered_removals": { "mode": "off" }
+  },
+  "solverOptions": {
+    "respect_max_share": false,
+    "respect_max_activity": true,
+    "soft_constraints": false,
+    "allow_removals_credit": false,
+    "share_smoothing": { "enabled": false }
+  }
+}
