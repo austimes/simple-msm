@@ -1,0 +1,23 @@
+{
+  "low": {
+    "label": "Low",
+    "description": "Modest rising carbon price reaching $50/tCO2 by 2050.",
+    "unit": "AUD_2024_per_tCO2",
+    "values_by_year": { "2025": 30, "2030": 35, "2035": 40, "2040": 45, "2045": 47, "2050": 50 },
+    "provenance_note": "App-owned sensitivity band."
+  },
+  "medium": {
+    "label": "Medium",
+    "description": "Moderate rising carbon price reaching $100/tCO2 by 2050.",
+    "unit": "AUD_2024_per_tCO2",
+    "values_by_year": { "2025": 30, "2030": 45, "2035": 60, "2040": 75, "2045": 90, "2050": 100 },
+    "provenance_note": "App-owned sensitivity band."
+  },
+  "high": {
+    "label": "High",
+    "description": "Strong decarbonisation signal reaching $300/tCO2 by 2050.",
+    "unit": "AUD_2024_per_tCO2",
+    "values_by_year": { "2025": 30, "2030": 60, "2035": 110, "2040": 170, "2045": 235, "2050": 300 },
+    "provenance_note": "App-owned sensitivity band."
+  }
+}

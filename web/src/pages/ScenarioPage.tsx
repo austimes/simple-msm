@@ -132,8 +132,8 @@ export default function ScenarioPage() {
               <dd>{demandPreset?.label ?? currentScenario.demand_generation.preset_id ?? 'Manual table'}</dd>
             </div>
             <div>
-              <dt>Commodity pricing preset</dt>
-              <dd>{currentScenario.commodity_pricing.preset_id}</dd>
+              <dt>Commodity pricing</dt>
+              <dd>Per-commodity selections</dd>
             </div>
           </dl>
 

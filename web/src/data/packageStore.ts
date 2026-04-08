@@ -5,7 +5,7 @@ import {
   persistScenarioDraft,
 } from './scenarioDraftStorage';
 import { loadPackage } from './packageLoader';
-import type { PackageData, ScenarioControlMode, ScenarioDocument, ScenarioServiceControl } from './types';
+import type { PackageData, PriceLevel, ScenarioControlMode, ScenarioDocument, ScenarioServiceControl } from './types';
 import type { SolveConfiguration } from './configurationTypes';
 import { applyConfigurationToScenario } from './configurationLoader';
 
@@ -26,7 +26,8 @@ interface PackageStore extends PackageData {
   ) => void;
   updateScenarioMetadata: (updates: { name?: string; description?: string }) => void;
   resetCurrentScenario: () => void;
-  setCommodityPricePreset: (presetId: string) => void;
+  setCommodityPriceLevel: (commodityId: string, level: PriceLevel) => void;
+  setCarbonPricePreset: (presetId: string) => void;
   toggleStateEnabled: (outputId: string, stateId: string) => void;
   setOutputControlMode: (outputId: string, mode: ScenarioControlMode) => void;
   setDemandPreset: (presetId: string) => void;
@@ -108,10 +109,26 @@ export const usePackageStore = create<PackageStore>((set, get) => {
         persistenceError,
       });
     },
-    setCommodityPricePreset: (presetId) => {
+    setCommodityPriceLevel: (commodityId, level) => {
       const nextScenario = cloneScenario(get().currentScenario);
-      nextScenario.commodity_pricing.preset_id = presetId;
-      nextScenario.commodity_pricing.overrides = {};
+      nextScenario.commodity_pricing.selections_by_commodity = {
+        ...nextScenario.commodity_pricing.selections_by_commodity,
+        [commodityId]: level,
+      };
+      delete nextScenario.commodity_pricing.overrides[commodityId];
+      const persistenceError = persistScenarioDraft(nextScenario);
+
+      set({
+        currentScenario: nextScenario,
+        currentScenarioSource: 'draft',
+        persistenceError,
+      });
+    },
+    setCarbonPricePreset: (presetId) => {
+      const preset = get().appConfig.carbon_price_presets[presetId];
+      if (!preset) return;
+      const nextScenario = cloneScenario(get().currentScenario);
+      nextScenario.carbon_price = { ...preset.values_by_year };
       const persistenceError = persistScenarioDraft(nextScenario);
 
       set({

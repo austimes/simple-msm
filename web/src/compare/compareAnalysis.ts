@@ -419,7 +419,11 @@ export function buildTransitionCounterfactual(
     preset_id: 'simple_sector_growth_high',
   };
   draft.commodity_pricing = {
-    preset_id: 'cheap_clean_energy',
+    selections_by_commodity: Object.fromEntries(
+      Object.keys(baseScenario.commodity_pricing.selections_by_commodity ?? {}).map(
+        (id) => [id, 'low' as const],
+      ),
+    ),
     overrides: {},
   };
   draft.carbon_price = {
@@ -1214,7 +1218,7 @@ function buildNarratives(
       id: 'price',
       title: 'Price Effect',
       summary: `Changing the commodity-price preset and carbon-price path ${describeSigned(compare.metrics.totalEmissions - noPrice.metrics.totalEmissions, 'pushes emissions up', 'pulls emissions down')} while ${describeSigned(diff(compare.metrics.totalCost, noPrice.metrics.totalCost) ?? 0, 'raising modeled cost', 'lowering modeled cost')}. The explanation stays heuristic because price shifts also alter which states become attractive.`,
-      evidence: `Reference pricing is ${base.scenario.commodity_pricing.preset_id}; compare pricing is ${compare.scenario.commodity_pricing.preset_id} with carbon moving from ${base.scenario.carbon_price['2050'] ?? 0} to ${compare.scenario.carbon_price['2050'] ?? 0} by 2050.`,
+      evidence: `Reference and compare scenarios use per-commodity price selections with carbon moving from ${base.scenario.carbon_price['2050'] ?? 0} to ${compare.scenario.carbon_price['2050'] ?? 0} by 2050.`,
     },
     {
       id: 'state-choice',

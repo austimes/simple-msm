@@ -204,16 +204,26 @@
     }
   },
   "commodity_pricing": {
-    "preset_id": "central_placeholder_2024aud",
+    "selections_by_commodity": {
+      "electricity": "medium",
+      "natural_gas": "medium",
+      "coal": "medium",
+      "refined_liquid_fuels": "medium",
+      "hydrogen": "medium",
+      "biomass": "medium",
+      "iron_ore": "medium",
+      "scrap_steel": "medium",
+      "sequestration_service": "medium"
+    },
     "overrides": {}
   },
   "carbon_price": {
-    "2025": 0,
-    "2030": 0,
-    "2035": 0,
-    "2040": 0,
-    "2045": 0,
-    "2050": 0
+    "2025": 30,
+    "2030": 35,
+    "2035": 40,
+    "2040": 45,
+    "2045": 47,
+    "2050": 50
   },
   "solver_options": {
     "respect_max_share": false,

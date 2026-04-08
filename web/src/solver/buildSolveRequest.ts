@@ -167,24 +167,22 @@ export function resolveScenarioForSolve(
     return resolved;
   }, {});
 
-  const pricePreset = appConfig.commodity_price_presets[resolvedScenario.commodity_pricing.preset_id];
-
-  if (!pricePreset) {
-    throw new Error(
-      `Unknown commodity price preset ${JSON.stringify(resolvedScenario.commodity_pricing.preset_id)}`,
-    );
-  }
+  const commodityDrivers = appConfig.commodity_price_presets;
 
   const commodityIds = new Set([
-    ...Object.keys(pricePreset.prices_by_commodity),
+    ...Object.keys(commodityDrivers),
     ...Object.keys(resolvedScenario.commodity_pricing.overrides),
   ]);
 
   const commodityPriceByCommodity = Array.from(commodityIds).reduce<
     Record<string, ResolvedCommodityPriceSeries>
   >((resolved, commodityId) => {
+    const driver = commodityDrivers[commodityId];
+    const level = resolvedScenario.commodity_pricing.selections_by_commodity?.[commodityId] ?? 'medium';
+    const baseSeries = driver?.levels[level];
+
     resolved[commodityId] = resolveCommodityPriceSeries(
-      pricePreset.prices_by_commodity[commodityId],
+      baseSeries,
       resolvedScenario.commodity_pricing.overrides[commodityId],
       years,
     );

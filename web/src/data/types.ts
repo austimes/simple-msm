@@ -19,6 +19,9 @@ export type ScenarioYear = (typeof SCENARIO_YEARS)[number];
 export type ScenarioYearKey = `${ScenarioYear}`;
 export type ScenarioYearValueTable = Partial<Record<ScenarioYearKey, number>>;
 
+export const PRICE_LEVELS = ['low', 'medium', 'high'] as const;
+export type PriceLevel = (typeof PRICE_LEVELS)[number];
+
 export interface ScenarioServiceControlYearOverride {
   mode?: ScenarioControlMode;
   state_id?: string | null;
@@ -53,7 +56,7 @@ export interface ScenarioDemandGeneration {
 }
 
 export interface ScenarioCommodityPricing {
-  preset_id: string;
+  selections_by_commodity: Partial<Record<string, PriceLevel>>;
   overrides: Record<string, Record<string, number>>;
 }
 
@@ -119,10 +122,17 @@ export interface CommodityPriceSeries {
   values_by_year: Record<string, number>;
 }
 
-export interface CommodityPricePreset {
+export interface CommodityPriceDriver {
+  label: string;
+  levels: Record<PriceLevel, CommodityPriceSeries>;
+  provenance_note: string;
+}
+
+export interface CarbonPricePreset {
   label: string;
   description: string;
-  prices_by_commodity: Record<string, CommodityPriceSeries>;
+  unit: string;
+  values_by_year: Record<string, number>;
   provenance_note: string;
 }
 
@@ -144,7 +154,8 @@ export interface AppConfigRegistry {
   output_roles: Record<string, OutputRoleMetadata>;
   baseline_activity_anchors: Record<string, BaselineActivityAnchor>;
   demand_growth_presets: Record<string, DemandGrowthPreset>;
-  commodity_price_presets: Record<string, CommodityPricePreset>;
+  commodity_price_presets: Record<string, CommodityPriceDriver>;
+  carbon_price_presets: Record<string, CarbonPricePreset>;
   explanation_tag_rules: Record<string, ExplanationTagRule>;
 }
 

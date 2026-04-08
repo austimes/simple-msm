@@ -33,7 +33,9 @@ export interface SolveConfiguration {
   serviceControls: Record<string, SolveConfigurationServiceControl>;
   /** Demand growth preset to apply (overrides the reference preset). */
   demandPresetId?: string;
-  /** Commodity price preset to apply (overrides the reference preset). */
+  /** Per-commodity price level selections (overrides reference selections). */
+  commodityPriceSelections?: Partial<Record<string, import('./types').PriceLevel>>;
+  /** @deprecated Legacy commodity price preset ID for migration. */
   commodityPricePresetId?: string;
   /** Solver options overrides — merged on top of the reference scenario options. */
   solverOptions?: ScenarioSolverOptions;

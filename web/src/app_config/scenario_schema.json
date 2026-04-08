@@ -237,11 +237,14 @@
     },
     "commodity_pricing": {
       "type": "object",
-      "required": [
-        "preset_id",
-        "overrides"
-      ],
       "properties": {
+        "selections_by_commodity": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "enum": ["low", "medium", "high"]
+          }
+        },
         "preset_id": {
           "type": "string"
         },

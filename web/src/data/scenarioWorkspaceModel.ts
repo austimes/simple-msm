@@ -1,5 +1,6 @@
 import type {
   AppConfigRegistry,
+  PriceLevel,
   ScenarioDocument,
   SectorState,
 } from './types';
@@ -102,6 +103,22 @@ export function getActiveDemandPreset(
   return preset_id;
 }
 
-export function getActivePricePreset(scenario: ScenarioDocument): string {
-  return scenario.commodity_pricing.preset_id;
+export function getCommodityPriceLevel(
+  scenario: ScenarioDocument,
+  commodityId: string,
+): PriceLevel {
+  return scenario.commodity_pricing.selections_by_commodity?.[commodityId] ?? 'medium';
+}
+
+export function getActiveCarbonPricePreset(
+  scenario: ScenarioDocument,
+  appConfig: AppConfigRegistry,
+): string | null {
+  for (const [presetId, preset] of Object.entries(appConfig.carbon_price_presets)) {
+    const match = Object.entries(preset.values_by_year).every(
+      ([year, value]) => scenario.carbon_price[year] === value,
+    );
+    if (match) return presetId;
+  }
+  return null;
 }

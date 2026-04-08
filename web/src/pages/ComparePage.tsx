@@ -277,8 +277,8 @@ export default function ComparePage() {
               <dd>{baseScenario.name}</dd>
             </div>
             <div>
-              <dt>Commodity pricing preset</dt>
-              <dd>{baseScenario.commodity_pricing.preset_id}</dd>
+              <dt>Commodity pricing</dt>
+              <dd>Per-commodity selections</dd>
             </div>
             <div>
               <dt>2050 carbon price</dt>
@@ -310,8 +310,8 @@ export default function ComparePage() {
               <dd>{compareScenario.name}</dd>
             </div>
             <div>
-              <dt>Commodity pricing preset</dt>
-              <dd>{compareScenario.commodity_pricing.preset_id}</dd>
+              <dt>Commodity pricing</dt>
+              <dd>Per-commodity selections</dd>
             </div>
             <div>
               <dt>2050 carbon price</dt>

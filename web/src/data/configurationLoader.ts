@@ -131,9 +131,27 @@ export function applyConfigurationToScenario(
     scenario.demand_generation.external_commodity_growth_rates_pct_per_year = null;
   }
 
-  // Apply commodity price preset
-  if (config.commodityPricePresetId) {
-    scenario.commodity_pricing.preset_id = config.commodityPricePresetId;
+  // Apply commodity price selections
+  if (config.commodityPriceSelections) {
+    scenario.commodity_pricing.selections_by_commodity = {
+      ...scenario.commodity_pricing.selections_by_commodity,
+      ...config.commodityPriceSelections,
+    };
+    scenario.commodity_pricing.overrides = {};
+  } else if (config.commodityPricePresetId) {
+    // Legacy migration: map old preset IDs to per-commodity selections
+    const legacyMap: Record<string, import('./types').PriceLevel> = {
+      central_placeholder_2024aud: 'medium',
+      fossil_shock: 'high',
+      cheap_clean_energy: 'low',
+    };
+    const level = legacyMap[config.commodityPricePresetId] ?? 'medium';
+    const allCommodityIds = Object.keys(scenario.commodity_pricing.selections_by_commodity ?? {});
+    const selections: Partial<Record<string, import('./types').PriceLevel>> = {};
+    for (const id of allCommodityIds) {
+      selections[id] = level;
+    }
+    scenario.commodity_pricing.selections_by_commodity = selections;
     scenario.commodity_pricing.overrides = {};
   }
 
@@ -194,10 +212,16 @@ export function createConfigurationFromScenario(
       ? (scenario.demand_generation.preset_id ?? undefined)
       : undefined;
 
-  const commodityPricePresetId =
-    scenario.commodity_pricing.preset_id !== referenceScenario.commodity_pricing.preset_id
-      ? scenario.commodity_pricing.preset_id
-      : undefined;
+  // Capture per-commodity selections that differ from reference
+  const refSelections = referenceScenario.commodity_pricing.selections_by_commodity ?? {};
+  const curSelections = scenario.commodity_pricing.selections_by_commodity ?? {};
+  const diffSelections: Partial<Record<string, import('./types').PriceLevel>> = {};
+  for (const [id, level] of Object.entries(curSelections)) {
+    if (refSelections[id] !== level) {
+      diffSelections[id] = level;
+    }
+  }
+  const commodityPriceSelections = Object.keys(diffSelections).length > 0 ? diffSelections : undefined;
 
   return {
     id,
@@ -207,7 +231,7 @@ export function createConfigurationFromScenario(
     includedOutputIds,
     serviceControls,
     demandPresetId,
-    commodityPricePresetId,
+    commodityPriceSelections,
     solverOptions: scenario.solver_options,
   };
 }
