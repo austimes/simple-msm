@@ -3,6 +3,28 @@ import { usePackageStore } from '../../data/packageStore';
 import { getActiveDemandPreset, getCommodityPriceLevel, getActiveCarbonPricePreset } from '../../data/scenarioWorkspaceModel';
 import { loadBuiltinConfigurations, loadUserConfigurations } from '../../data/configurationLoader';
 import { PRICE_LEVELS } from '../../data/types';
+import type { CommodityPriceSeries, CarbonPricePreset } from '../../data/types';
+
+function formatUnit(raw: string): string {
+  return raw
+    .replace(/^AUD_2024_per_/, '$/')
+    .replace('tCO2_stored', 'tCO₂')
+    .replace('tCO2', 'tCO₂');
+}
+
+function formatCommodityPrice(series: CommodityPriceSeries): string {
+  const unit = formatUnit(series.unit);
+  const val = series.values_by_year['2025'];
+  return val != null ? `${unit.replace('$/', `$${val}/`)}` : formatUnit(series.unit);
+}
+
+function formatCarbonPriceRange(preset: CarbonPricePreset): string {
+  const years = Object.keys(preset.values_by_year).sort();
+  const first = preset.values_by_year[years[0]];
+  const last = preset.values_by_year[years[years.length - 1]];
+  const unit = formatUnit(preset.unit);
+  return `${unit.replace('$/', `$${first}–${last}/`)}`;
+}
 
 export default function LeftSidebar() {
   const appConfig = usePackageStore((s) => s.appConfig);
@@ -48,15 +70,16 @@ export default function LeftSidebar() {
           return (
             <div key={commodityId} className="workspace-subsector-group">
               <div className="workspace-subsector-title">{driver.label}</div>
-              <div className="workspace-state-chips">
+              <div className="workspace-chip-group workspace-chip-group--inline">
                 {PRICE_LEVELS.map((level) => (
                   <button
                     key={level}
                     type="button"
-                    className={`workspace-state-chip ${activeLevel === level ? 'workspace-state-chip--on' : 'workspace-state-chip--off'}`}
+                    className={`workspace-chip${activeLevel === level ? ' workspace-chip--active' : ''}`}
                     onClick={() => setCommodityPriceLevel(commodityId, level)}
+                    title={level}
                   >
-                    {level}
+                    {formatCommodityPrice(driver.levels[level])}
                   </button>
                 ))}
               </div>
@@ -67,7 +90,7 @@ export default function LeftSidebar() {
 
       <div className="workspace-section">
         <span className="workspace-section-title">Emissions Price</span>
-        <div className="workspace-chip-group">
+        <div className="workspace-chip-group workspace-chip-group--inline">
           {Object.entries(appConfig.carbon_price_presets).map(([id, preset]) => (
             <button
               key={id}
@@ -75,7 +98,7 @@ export default function LeftSidebar() {
               onClick={() => setCarbonPricePreset(id)}
               title={preset.description}
             >
-              {preset.label}
+              {formatCarbonPriceRange(preset)}
             </button>
           ))}
           {activeCarbonPreset === null && (

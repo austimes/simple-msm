@@ -1520,6 +1520,12 @@ body {
   gap: 8px;
 }
 
+.workspace-chip-group--inline {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 .workspace-chip {
   display: inline-flex;
   align-items: center;
