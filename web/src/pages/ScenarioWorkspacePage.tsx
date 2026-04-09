@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useScenarioSolve } from '../hooks/useScenarioSolve';
 import { usePackageStore } from '../data/packageStore';
+import { getIncludedOutputIds } from '../data/configurationLoader';
 import LeftSidebar from '../components/workspace/LeftSidebar';
 import RightSidebar from '../components/workspace/RightSidebar';
 import StackedAreaChart from '../components/charts/StackedAreaChart';
@@ -18,7 +19,8 @@ export default function ScenarioWorkspacePage() {
 
 
   const activeConfigurationId = usePackageStore((state) => state.activeConfigurationId);
-  const includedOutputIds = usePackageStore((state) => state.includedOutputIds);
+  const currentConfiguration = usePackageStore((state) => state.currentConfiguration);
+  const includedOutputIds = getIncludedOutputIds(currentConfiguration);
 
   const isSolving = phase === 'solving';
 

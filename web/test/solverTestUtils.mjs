@@ -143,7 +143,7 @@ export function buildScenario(appConfig, overrides = {}) {
  */
 export function solveScoped(pkg, scenario, includedOutputIds) {
   const request = buildSolveRequest(
-    { sectorStates: pkg.sectorStates, appConfig: pkg.appConfig, defaultScenario: scenario },
+    { sectorStates: pkg.sectorStates, appConfig: pkg.appConfig },
     scenario,
     includedOutputIds ? { includedOutputIds } : {},
   );

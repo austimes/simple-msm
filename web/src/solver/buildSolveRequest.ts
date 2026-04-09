@@ -13,7 +13,20 @@ import {
   type ResolvedScenarioForSolve,
   type ResolvedSolveControl,
   type SolveRequest,
-} from './contract';
+} from './contract.ts';
+
+function getIncludedOutputIds(configuration: ScenarioDocument): string[] | undefined {
+  const value = configuration.app_metadata?.included_output_ids;
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const normalized = Array.from(
+    new Set(value.filter((entry) => typeof entry === 'string').map((entry) => entry.trim()).filter(Boolean)),
+  );
+
+  return normalized.length > 0 ? normalized : undefined;
+}
 
 function createRequestId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -368,14 +381,15 @@ export function collectOutputIdsForSelection(
 }
 
 export function buildSolveRequest(
-  pkg: Pick<PackageData, 'sectorStates' | 'appConfig' | 'defaultScenario'>,
-  scenario = pkg.defaultScenario,
+  pkg: Pick<PackageData, 'sectorStates' | 'appConfig'>,
+  configuration: ScenarioDocument,
   options: BuildSolveRequestOptions = {},
 ): SolveRequest {
   const allRows = normalizeSolverRows(pkg);
-  const resolvedScenario = resolveScenarioForSolve(scenario, pkg.appConfig);
+  const resolvedScenario = resolveScenarioForSolve(configuration, pkg.appConfig);
+  const includedOutputIds = options.includedOutputIds ?? getIncludedOutputIds(configuration);
 
-  if (!options.includedOutputIds || options.includedOutputIds.length === 0) {
+  if (!includedOutputIds || includedOutputIds.length === 0) {
     return {
       contractVersion: SOLVER_CONTRACT_VERSION,
       requestId: createRequestId(),
@@ -384,7 +398,7 @@ export function buildSolveRequest(
     };
   }
 
-  const seedOutputIds = new Set(options.includedOutputIds);
+  const seedOutputIds = new Set(includedOutputIds);
   const expandedOutputIds = expandIncludedOutputsForDependencies(
     allRows,
     resolvedScenario,

@@ -1,5 +1,6 @@
 import { parseScenarioDocument } from './scenarioLoader';
 import type { AppConfigRegistry, ScenarioDocument } from './types';
+import { withIncludedOutputIds } from './configurationLoader';
 
 export const SCENARIO_DRAFT_STORAGE_KEY = 'simple-msm.scenario-draft.v2';
 export const CONFIG_META_STORAGE_KEY = 'simple-msm.config-meta.v1';
@@ -13,9 +14,14 @@ export interface StorageLike {
 export interface PersistedConfigMeta {
   activeConfigurationId: string;
   activeConfigurationReadonly: boolean;
+  baseConfiguration: ScenarioDocument;
+}
+
+interface LegacyPersistedConfigMeta {
+  activeConfigurationId: string;
+  activeConfigurationReadonly: boolean;
   baseConfigurationScenario: ScenarioDocument;
-  baseIncludedOutputIds: string[] | undefined;
-  includedOutputIds: string[] | undefined;
+  baseIncludedOutputIds?: string[];
 }
 
 export interface ScenarioDraftLoadResult {
@@ -155,9 +161,28 @@ function loadPersistedConfigMeta(
   try {
     const raw = storage.getItem(CONFIG_META_STORAGE_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as PersistedConfigMeta;
-    if (!parsed.activeConfigurationId || !parsed.baseConfigurationScenario) return null;
-    return parsed;
+    const parsed = JSON.parse(raw) as PersistedConfigMeta | LegacyPersistedConfigMeta;
+
+    if (!parsed.activeConfigurationId) {
+      return null;
+    }
+
+    if ('baseConfiguration' in parsed && parsed.baseConfiguration) {
+      return parsed;
+    }
+
+    if ('baseConfigurationScenario' in parsed && parsed.baseConfigurationScenario) {
+      return {
+        activeConfigurationId: parsed.activeConfigurationId,
+        activeConfigurationReadonly: parsed.activeConfigurationReadonly,
+        baseConfiguration: withIncludedOutputIds(
+          structuredClone(parsed.baseConfigurationScenario),
+          parsed.baseIncludedOutputIds,
+        ),
+      };
+    }
+
+    return null;
   } catch {
     return null;
   }

@@ -151,8 +151,7 @@ test('baseline incumbent scenario solves optimally', () => {
   const request = buildSolveRequest({
     sectorStates: pkg.sectorStates,
     appConfig: pkg.appConfig,
-    defaultScenario: scenario,
-  });
+  }, scenario);
 
   const result = solveWithLpAdapter(request);
 
@@ -165,8 +164,7 @@ test('every required-service output has exactly one active state per year', () =
   const request = buildSolveRequest({
     sectorStates: pkg.sectorStates,
     appConfig: pkg.appConfig,
-    defaultScenario: scenario,
-  });
+  }, scenario);
 
   const result = solveWithLpAdapter(request);
   const activeShares = result.reporting.stateShares.filter((s) => s.activity > 1e-6);
@@ -195,8 +193,7 @@ test('electricity is externalized with zero supply', () => {
   const request = buildSolveRequest({
     sectorStates: pkg.sectorStates,
     appConfig: pkg.appConfig,
-    defaultScenario: scenario,
-  });
+  }, scenario);
 
   const result = solveWithLpAdapter(request);
 
@@ -211,8 +208,7 @@ test('demand is met for all service outputs in every year', () => {
   const request = buildSolveRequest({
     sectorStates: pkg.sectorStates,
     appConfig: pkg.appConfig,
-    defaultScenario: scenario,
-  });
+  }, scenario);
 
   const result = solveWithLpAdapter(request);
   const activeShares = result.reporting.stateShares.filter((s) => s.activity > 1e-6);

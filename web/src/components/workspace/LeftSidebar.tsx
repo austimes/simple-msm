@@ -3,6 +3,7 @@ import { usePackageStore } from '../../data/packageStore';
 import { getActiveDemandPreset, getCommodityPriceLevel, getActiveCarbonPricePreset } from '../../data/scenarioWorkspaceModel';
 import {
   getConfigurationId,
+  getIncludedOutputIds,
   isReadonlyConfiguration,
   loadBuiltinConfigurations,
   loadUserConfigurations,
@@ -39,8 +40,7 @@ function formatCarbonPriceRange(preset: CarbonPricePreset): string {
 
 export default function LeftSidebar() {
   const appConfig = usePackageStore((s) => s.appConfig);
-  const currentScenario = usePackageStore((s) => s.currentScenario);
-  const includedOutputIds = usePackageStore((s) => s.includedOutputIds);
+  const currentConfiguration = usePackageStore((s) => s.currentConfiguration);
   const setDemandPreset = usePackageStore((s) => s.setDemandPreset);
   const setCommodityPriceLevel = usePackageStore((s) => s.setCommodityPriceLevel);
   const setCarbonPricePreset = usePackageStore((s) => s.setCarbonPricePreset);
@@ -48,9 +48,10 @@ export default function LeftSidebar() {
   const activeConfigurationId = usePackageStore((s) => s.activeConfigurationId);
   const activeConfigurationReadonly = usePackageStore((s) => s.activeConfigurationReadonly);
   const isConfigurationDirty = usePackageStore((s) => s.isConfigurationDirty);
+  const includedOutputIds = getIncludedOutputIds(currentConfiguration);
 
-  const activeDemandPreset = getActiveDemandPreset(currentScenario, appConfig);
-  const activeCarbonPreset = getActiveCarbonPricePreset(currentScenario, appConfig);
+  const activeDemandPreset = getActiveDemandPreset(currentConfiguration, appConfig);
+  const activeCarbonPreset = getActiveCarbonPricePreset(currentConfiguration, appConfig);
 
   const builtinConfigs = useMemo(() => loadBuiltinConfigurations(), []);
   const [userConfigs, setUserConfigs] = useState(() => loadUserConfigurations());
@@ -72,7 +73,7 @@ export default function LeftSidebar() {
       : null;
 
   function buildUserConfiguration(name: string, configurationId: string): ScenarioDocument {
-    const configuration = createConfigurationFromScenario(currentScenario, includedOutputIds);
+    const configuration = createConfigurationFromScenario(currentConfiguration, includedOutputIds);
     configuration.name = name;
     configuration.app_metadata = {
       ...(configuration.app_metadata ?? {}),
@@ -158,7 +159,7 @@ export default function LeftSidebar() {
       <div className="workspace-section">
         <span className="workspace-section-title">Commodity Prices</span>
         {Object.entries(appConfig.commodity_price_presets).map(([commodityId, driver]) => {
-          const activeLevel = getCommodityPriceLevel(currentScenario, commodityId);
+          const activeLevel = getCommodityPriceLevel(currentConfiguration, commodityId);
           return (
             <div key={commodityId} className="workspace-subsector-group">
               <div className="workspace-subsector-title">{driver.label}</div>

@@ -38,24 +38,24 @@ function slugifyScenarioName(name: string): string {
 export default function ScenarioPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const appConfig = usePackageStore((state) => state.appConfig);
-  const currentScenario = usePackageStore((state) => state.currentScenario);
-  const currentScenarioSource = usePackageStore((state) => state.currentScenarioSource);
+  const currentConfiguration = usePackageStore((state) => state.currentConfiguration);
+  const currentConfigurationSource = usePackageStore((state) => state.currentConfigurationSource);
   const persistenceNotice = usePackageStore((state) => state.persistenceNotice);
   const persistenceError = usePackageStore((state) => state.persistenceError);
-  const replaceCurrentScenario = usePackageStore((state) => state.replaceCurrentScenario);
-  const updateScenarioMetadata = usePackageStore((state) => state.updateScenarioMetadata);
+  const replaceCurrentConfiguration = usePackageStore((state) => state.replaceCurrentConfiguration);
+  const updateConfigurationMetadata = usePackageStore((state) => state.updateConfigurationMetadata);
 
   const [importError, setImportError] = useState<string | null>(null);
 
-  const demandPreset = currentScenario.demand_generation.preset_id
-    ? appConfig.demand_growth_presets[currentScenario.demand_generation.preset_id]
+  const demandPreset = currentConfiguration.demand_generation.preset_id
+    ? appConfig.demand_growth_presets[currentConfiguration.demand_generation.preset_id]
     : null;
 
-  const serviceDemandEntries = Object.entries(currentScenario.service_demands);
+  const serviceDemandEntries = Object.entries(currentConfiguration.service_demands);
   const externalCommodityEntries = Object.entries(
-    currentScenario.external_commodity_demands ?? {},
+    currentConfiguration.external_commodity_demands ?? {},
   );
-  const controlsByMode = Object.values(currentScenario.service_controls).reduce<
+  const controlsByMode = Object.values(currentConfiguration.service_controls).reduce<
     Record<string, number>
   >((counts, control) => {
     counts[control.mode] = (counts[control.mode] ?? 0) + 1;
@@ -63,14 +63,14 @@ export default function ScenarioPage() {
   }, {});
 
   function handleExport(): void {
-    const blob = new Blob([JSON.stringify(currentScenario, null, 2)], {
+    const blob = new Blob([JSON.stringify(currentConfiguration, null, 2)], {
       type: 'application/json',
     });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
 
     link.href = url;
-    link.download = `${slugifyScenarioName(currentScenario.name)}.json`;
+    link.download = `${slugifyScenarioName(currentConfiguration.name)}.json`;
     link.click();
 
     URL.revokeObjectURL(url);
@@ -86,7 +86,7 @@ export default function ScenarioPage() {
     try {
       const importedScenario = parseScenarioDocument(await file.text(), appConfig, file.name);
 
-      replaceCurrentScenario(
+      replaceCurrentConfiguration(
         importedScenario,
         'imported',
         `Imported ${file.name} and saved it as the active browser draft.`,
@@ -111,25 +111,25 @@ export default function ScenarioPage() {
       <section className="scenario-overview-grid">
         <article className="scenario-panel scenario-panel--hero">
           <span className="scenario-badge">Active draft</span>
-          <h2>{currentScenario.name || 'Untitled scenario'}</h2>
-          <p>{currentScenario.description ?? 'No description yet. Imported or edited drafts autosave in this browser.'}</p>
+          <h2>{currentConfiguration.name || 'Untitled scenario'}</h2>
+          <p>{currentConfiguration.description ?? 'No description yet. Imported or edited drafts autosave in this browser.'}</p>
 
           <dl className="scenario-key-value-list">
             <div>
               <dt>Draft source</dt>
-              <dd>{formatScenarioSource(currentScenarioSource)}</dd>
+              <dd>{formatScenarioSource(currentConfigurationSource)}</dd>
             </div>
             <div>
               <dt>Milestone years</dt>
-              <dd>{currentScenario.years.join(', ')}</dd>
+              <dd>{currentConfiguration.years.join(', ')}</dd>
             </div>
             <div>
               <dt>Demand generation mode</dt>
-              <dd>{formatModeLabel(currentScenario.demand_generation.mode)}</dd>
+              <dd>{formatModeLabel(currentConfiguration.demand_generation.mode)}</dd>
             </div>
             <div>
               <dt>Demand preset</dt>
-              <dd>{demandPreset?.label ?? currentScenario.demand_generation.preset_id ?? 'Manual table'}</dd>
+              <dd>{demandPreset?.label ?? currentConfiguration.demand_generation.preset_id ?? 'Manual table'}</dd>
             </div>
             <div>
               <dt>Commodity pricing</dt>
@@ -185,8 +185,8 @@ export default function ScenarioPage() {
               <input
                 className="scenario-input"
                 type="text"
-                value={currentScenario.name}
-                onChange={(event) => updateScenarioMetadata({ name: event.target.value })}
+                value={currentConfiguration.name}
+                onChange={(event) => updateConfigurationMetadata({ name: event.target.value })}
               />
             </label>
 
@@ -194,9 +194,9 @@ export default function ScenarioPage() {
               <span>Description</span>
               <textarea
                 className="scenario-input scenario-textarea"
-                value={currentScenario.description ?? ''}
+                value={currentConfiguration.description ?? ''}
                 rows={4}
-                onChange={(event) => updateScenarioMetadata({ description: event.target.value })}
+                onChange={(event) => updateConfigurationMetadata({ description: event.target.value })}
               />
             </label>
           </div>
@@ -232,7 +232,7 @@ export default function ScenarioPage() {
             </div>
             <div className="scenario-stat-card">
               <span>Carbon price years</span>
-              <strong>{Object.keys(currentScenario.carbon_price).length}</strong>
+              <strong>{Object.keys(currentConfiguration.carbon_price).length}</strong>
             </div>
           </div>
         </article>
@@ -245,7 +245,7 @@ export default function ScenarioPage() {
             <article key={service} className="scenario-demand-card">
               <h3>{service}</h3>
               <dl>
-                {currentScenario.years.map((year) => {
+                {currentConfiguration.years.map((year) => {
                   const value = demandByYear[String(year) as keyof typeof demandByYear];
                   return (
                     <div key={year}>

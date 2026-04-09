@@ -9,34 +9,31 @@ import { loadPackage } from './packageLoader';
 import type { PackageData, PriceLevel, ScenarioControlMode, ScenarioDocument, ScenarioServiceControl } from './types';
 import {
   getConfigurationId,
-  getIncludedOutputIds,
   isReadonlyConfiguration,
   loadBuiltinConfigurations,
   withIncludedOutputIds,
 } from './configurationLoader';
 import { getEnabledStateIds } from './scenarioWorkspaceModel';
 
-export type ScenarioDraftSource = 'reference' | 'local_draft' | 'imported' | 'draft' | 'configuration';
+export type ConfigurationDraftSource = 'reference' | 'local_draft' | 'imported' | 'draft' | 'configuration';
 
 interface PackageStore extends PackageData {
   loaded: boolean;
-  currentScenario: ScenarioDocument;
-  currentScenarioSource: ScenarioDraftSource;
+  currentConfiguration: ScenarioDocument;
+  currentConfigurationSource: ConfigurationDraftSource;
   activeConfigurationId: string | null;
   activeConfigurationReadonly: boolean;
   isConfigurationDirty: boolean;
-  baseConfigurationScenario: ScenarioDocument | null;
-  baseIncludedOutputIds: string[] | undefined;
-  includedOutputIds: string[] | undefined;
+  baseConfiguration: ScenarioDocument | null;
   persistenceNotice: string | null;
   persistenceError: string | null;
-  replaceCurrentScenario: (
-    scenario: ScenarioDocument,
-    source?: Exclude<ScenarioDraftSource, 'reference'>,
+  replaceCurrentConfiguration: (
+    configuration: ScenarioDocument,
+    source?: Exclude<ConfigurationDraftSource, 'reference'>,
     notice?: string | null,
   ) => void;
-  updateScenarioMetadata: (updates: { name?: string; description?: string }) => void;
-  resetCurrentScenario: () => void;
+  updateConfigurationMetadata: (updates: { name?: string; description?: string }) => void;
+  resetCurrentConfiguration: () => void;
   setCommodityPriceLevel: (commodityId: string, level: PriceLevel) => void;
   setCarbonPricePreset: (presetId: string) => void;
   toggleStateEnabled: (outputId: string, stateId: string) => void;
@@ -46,13 +43,13 @@ interface PackageStore extends PackageData {
   setIncludedOutputIds: (outputIds: string[] | undefined) => void;
 }
 
-function cloneScenario(scenario: ScenarioDocument): ScenarioDocument {
-  return structuredClone(scenario);
+function cloneConfiguration(configuration: ScenarioDocument): ScenarioDocument {
+  return structuredClone(configuration);
 }
 
-function scenariosEqual(a: ScenarioDocument, b: ScenarioDocument): boolean {
-  const normalize = (s: ScenarioDocument): unknown => {
-    const clone = structuredClone(s);
+function configurationsEqual(a: ScenarioDocument, b: ScenarioDocument): boolean {
+  const normalize = (configuration: ScenarioDocument): unknown => {
+    const clone = structuredClone(configuration);
     for (const control of Object.values(clone.service_controls ?? {})) {
       if (control?.disabled_state_ids) {
         control.disabled_state_ids = [...control.disabled_state_ids].sort();
@@ -63,15 +60,6 @@ function scenariosEqual(a: ScenarioDocument, b: ScenarioDocument): boolean {
   return normalize(a) === normalize(b);
 }
 
-function includedOutputIdsEqual(
-  a: string[] | undefined,
-  b: string[] | undefined,
-): boolean {
-  if (a === b) return true;
-  if (!a || !b) return a === b;
-  return JSON.stringify([...a].sort()) === JSON.stringify([...b].sort());
-}
-
 function normalizeDescription(description: string | undefined): string | undefined {
   return description?.trim() ? description : undefined;
 }
@@ -79,20 +67,16 @@ function normalizeDescription(description: string | undefined): string | undefin
 function persistActiveConfigurationMeta(state: {
   activeConfigurationId: string | null;
   activeConfigurationReadonly: boolean;
-  baseConfigurationScenario: ScenarioDocument | null;
-  baseIncludedOutputIds: string[] | undefined;
-  includedOutputIds: string[] | undefined;
+  baseConfiguration: ScenarioDocument | null;
 }): void {
-  if (!state.activeConfigurationId || !state.baseConfigurationScenario) {
+  if (!state.activeConfigurationId || !state.baseConfiguration) {
     return;
   }
 
   persistConfigMeta({
     activeConfigurationId: state.activeConfigurationId,
     activeConfigurationReadonly: state.activeConfigurationReadonly,
-    baseConfigurationScenario: cloneScenario(state.baseConfigurationScenario),
-    baseIncludedOutputIds: state.baseIncludedOutputIds,
-    includedOutputIds: state.includedOutputIds,
+    baseConfiguration: cloneConfiguration(state.baseConfiguration),
   });
 }
 
@@ -101,29 +85,24 @@ export const usePackageStore = create<PackageStore>((set, get) => {
   const persistedDraft = loadPersistedScenarioDraft(pkg.appConfig);
 
   // Determine initial state: persisted draft → first builtin config → bare default
-  let initialScenario: ScenarioDocument;
-  let initialSource: ScenarioDraftSource;
+  let initialConfiguration: ScenarioDocument;
+  let initialSource: ConfigurationDraftSource;
   let initialConfigId: string | null = null;
   let initialConfigReadonly = false;
-  let initialBaseScenario: ScenarioDocument | null = null;
-  let initialBaseIncludedOutputIds: string[] | undefined;
-  let initialIncludedOutputIds: string[] | undefined;
+  let initialBaseConfiguration: ScenarioDocument | null = null;
   let initialDirty = false;
 
   if (persistedDraft.scenario) {
-    initialScenario = cloneScenario(persistedDraft.scenario);
+    initialConfiguration = cloneConfiguration(persistedDraft.scenario);
     initialSource = 'local_draft';
 
     const restoredMeta = persistedDraft.configMeta;
-    if (restoredMeta?.baseConfigurationScenario) {
+    if (restoredMeta?.baseConfiguration) {
       initialConfigId = restoredMeta.activeConfigurationId;
       initialConfigReadonly = restoredMeta.activeConfigurationReadonly;
-      initialBaseScenario = cloneScenario(restoredMeta.baseConfigurationScenario);
-      initialBaseIncludedOutputIds = restoredMeta.baseIncludedOutputIds;
-      initialIncludedOutputIds = restoredMeta.includedOutputIds ?? getIncludedOutputIds(initialScenario);
+      initialBaseConfiguration = cloneConfiguration(restoredMeta.baseConfiguration);
       initialDirty =
-        !scenariosEqual(initialScenario, restoredMeta.baseConfigurationScenario) ||
-        !includedOutputIdsEqual(restoredMeta.includedOutputIds, restoredMeta.baseIncludedOutputIds);
+        !configurationsEqual(initialConfiguration, restoredMeta.baseConfiguration);
     }
   } else {
     // No persisted draft — load the first builtin configuration as the default
@@ -132,49 +111,41 @@ export const usePackageStore = create<PackageStore>((set, get) => {
 
     if (defaultConfig) {
       const defaultConfigId = getConfigurationId(defaultConfig) ?? defaultConfig.name;
-      const includedOutputIds = getIncludedOutputIds(defaultConfig);
 
-      initialScenario = cloneScenario(defaultConfig);
+      initialConfiguration = cloneConfiguration(defaultConfig);
       initialSource = 'configuration';
       initialConfigId = defaultConfigId;
       initialConfigReadonly = isReadonlyConfiguration(defaultConfig);
-      initialBaseScenario = cloneScenario(initialScenario);
-      initialBaseIncludedOutputIds = includedOutputIds;
-      initialIncludedOutputIds = includedOutputIds;
+      initialBaseConfiguration = cloneConfiguration(initialConfiguration);
 
-      persistScenarioDraft(initialScenario);
+      persistScenarioDraft(initialConfiguration);
       persistConfigMeta({
         activeConfigurationId: defaultConfigId,
         activeConfigurationReadonly: initialConfigReadonly,
-        baseConfigurationScenario: cloneScenario(initialScenario),
-        baseIncludedOutputIds: includedOutputIds,
-        includedOutputIds,
+        baseConfiguration: cloneConfiguration(initialConfiguration),
       });
     } else {
-      initialScenario = cloneScenario(pkg.defaultScenario);
+      initialConfiguration = cloneConfiguration(pkg.defaultScenario);
       initialSource = 'reference';
     }
   }
 
-  function commitScenarioEdit(nextScenario: ScenarioDocument) {
+  function commitConfigurationEdit(nextConfiguration: ScenarioDocument) {
     const state = get();
-    const persistenceError = persistScenarioDraft(nextScenario);
-    const dirty = state.baseConfigurationScenario
-      ? !scenariosEqual(nextScenario, state.baseConfigurationScenario) ||
-        !includedOutputIdsEqual(state.includedOutputIds, state.baseIncludedOutputIds)
+    const persistenceError = persistScenarioDraft(nextConfiguration);
+    const dirty = state.baseConfiguration
+      ? !configurationsEqual(nextConfiguration, state.baseConfiguration)
       : false;
 
     persistActiveConfigurationMeta({
       activeConfigurationId: state.activeConfigurationId,
       activeConfigurationReadonly: state.activeConfigurationReadonly,
-      baseConfigurationScenario: state.baseConfigurationScenario,
-      baseIncludedOutputIds: state.baseIncludedOutputIds,
-      includedOutputIds: state.includedOutputIds,
+      baseConfiguration: state.baseConfiguration,
     });
 
     set({
-      currentScenario: nextScenario,
-      currentScenarioSource: 'draft',
+      currentConfiguration: nextConfiguration,
+      currentConfigurationSource: 'draft',
       isConfigurationDirty: dirty,
       persistenceNotice: 'Scenario draft autosaves in this browser as you edit it.',
       persistenceError,
@@ -184,89 +155,83 @@ export const usePackageStore = create<PackageStore>((set, get) => {
   return {
     ...pkg,
     loaded: true,
-    currentScenario: initialScenario,
-    currentScenarioSource: initialSource,
+    currentConfiguration: initialConfiguration,
+    currentConfigurationSource: initialSource,
     activeConfigurationId: initialConfigId,
     activeConfigurationReadonly: initialConfigReadonly,
     isConfigurationDirty: initialDirty,
-    baseConfigurationScenario: initialBaseScenario,
-    baseIncludedOutputIds: initialBaseIncludedOutputIds,
-    includedOutputIds: initialIncludedOutputIds,
+    baseConfiguration: initialBaseConfiguration,
     persistenceNotice: persistedDraft.notice,
     persistenceError: persistedDraft.error,
-    replaceCurrentScenario: (scenario, source = 'draft', notice = null) => {
-      const nextScenario = cloneScenario(scenario);
-      const persistenceError = persistScenarioDraft(nextScenario);
+    replaceCurrentConfiguration: (configuration, source = 'draft', notice = null) => {
+      const nextConfiguration = cloneConfiguration(configuration);
+      const persistenceError = persistScenarioDraft(nextConfiguration);
       persistConfigMeta(null);
 
       set({
-        currentScenario: nextScenario,
-        currentScenarioSource: source,
+        currentConfiguration: nextConfiguration,
+        currentConfigurationSource: source,
         activeConfigurationId: null,
         activeConfigurationReadonly: false,
-        baseConfigurationScenario: null,
-        baseIncludedOutputIds: undefined,
-        includedOutputIds: getIncludedOutputIds(nextScenario),
+        baseConfiguration: null,
         isConfigurationDirty: false,
         persistenceNotice: notice ?? 'Scenario draft autosaved in this browser.',
         persistenceError,
       });
     },
-    updateScenarioMetadata: (updates) => {
-      const nextScenario = cloneScenario(get().currentScenario);
+    updateConfigurationMetadata: (updates) => {
+      const nextConfiguration = cloneConfiguration(get().currentConfiguration);
 
       if (updates.name !== undefined) {
-        nextScenario.name = updates.name;
+        nextConfiguration.name = updates.name;
       }
 
       if (updates.description !== undefined) {
         const description = normalizeDescription(updates.description);
 
         if (description) {
-          nextScenario.description = description;
+          nextConfiguration.description = description;
         } else {
-          delete nextScenario.description;
+          delete nextConfiguration.description;
         }
       }
 
-      commitScenarioEdit(nextScenario);
+      commitConfigurationEdit(nextConfiguration);
     },
-    resetCurrentScenario: () => {
-      const nextScenario = cloneScenario(get().defaultScenario);
+    resetCurrentConfiguration: () => {
+      const nextConfiguration = cloneConfiguration(get().defaultScenario);
       const persistenceError = clearPersistedScenarioDraft();
       persistConfigMeta(null);
 
       set({
-        currentScenario: nextScenario,
-        currentScenarioSource: 'reference',
+        currentConfiguration: nextConfiguration,
+        currentConfigurationSource: 'reference',
         activeConfigurationId: null,
         activeConfigurationReadonly: false,
-        baseConfigurationScenario: null,
-        baseIncludedOutputIds: undefined,
+        baseConfiguration: null,
         isConfigurationDirty: false,
-        includedOutputIds: getIncludedOutputIds(nextScenario),
         persistenceNotice: 'Reset to the packaged reference scenario and cleared the local draft.',
         persistenceError,
       });
     },
     setCommodityPriceLevel: (commodityId, level) => {
-      const nextScenario = cloneScenario(get().currentScenario);
-      nextScenario.commodity_pricing.selections_by_commodity = {
-        ...nextScenario.commodity_pricing.selections_by_commodity,
+      const nextConfiguration = cloneConfiguration(get().currentConfiguration);
+      nextConfiguration.commodity_pricing.selections_by_commodity = {
+        ...nextConfiguration.commodity_pricing.selections_by_commodity,
         [commodityId]: level,
       };
-      delete nextScenario.commodity_pricing.overrides[commodityId];
-      commitScenarioEdit(nextScenario);
+      delete nextConfiguration.commodity_pricing.overrides[commodityId];
+      commitConfigurationEdit(nextConfiguration);
     },
     setCarbonPricePreset: (presetId) => {
       const preset = get().appConfig.carbon_price_presets[presetId];
       if (!preset) return;
-      const nextScenario = cloneScenario(get().currentScenario);
-      nextScenario.carbon_price = { ...preset.values_by_year };
-      commitScenarioEdit(nextScenario);
+      const nextConfiguration = cloneConfiguration(get().currentConfiguration);
+      nextConfiguration.carbon_price = { ...preset.values_by_year };
+      commitConfigurationEdit(nextConfiguration);
     },
     toggleStateEnabled: (outputId, stateId) => {
-      const nextScenario = cloneScenario(get().currentScenario);
+      const nextConfiguration = cloneConfiguration(get().currentConfiguration);
 
       const allStateIds = Array.from(
         new Set(
@@ -276,7 +241,7 @@ export const usePackageStore = create<PackageStore>((set, get) => {
         ),
       );
 
-      const enabled = new Set(getEnabledStateIds(nextScenario, outputId, allStateIds));
+      const enabled = new Set(getEnabledStateIds(nextConfiguration, outputId, allStateIds));
 
       if (enabled.has(stateId)) {
         enabled.delete(stateId);
@@ -290,7 +255,7 @@ export const usePackageStore = create<PackageStore>((set, get) => {
       const metadata = get().appConfig.output_roles[outputId];
       const allowed = new Set(metadata?.allowed_control_modes ?? []);
 
-      const existing = nextScenario.service_controls[outputId] ?? {
+      const existing = nextConfiguration.service_controls[outputId] ?? {
         mode: 'optimize',
         disabled_state_ids: [],
       };
@@ -332,8 +297,8 @@ export const usePackageStore = create<PackageStore>((set, get) => {
         }
       }
 
-      nextScenario.service_controls[outputId] = control;
-      commitScenarioEdit(nextScenario);
+      nextConfiguration.service_controls[outputId] = control;
+      commitConfigurationEdit(nextConfiguration);
     },
     setOutputControlMode: (outputId, mode) => {
       const metadata = get().appConfig.output_roles[outputId];
@@ -342,82 +307,59 @@ export const usePackageStore = create<PackageStore>((set, get) => {
         return;
       }
 
-      const nextScenario = cloneScenario(get().currentScenario);
+      const nextConfiguration = cloneConfiguration(get().currentConfiguration);
 
-      const control: ScenarioServiceControl = nextScenario.service_controls[outputId] ?? {
+      const control: ScenarioServiceControl = nextConfiguration.service_controls[outputId] ?? {
         mode: 'optimize',
         disabled_state_ids: [],
       };
 
-      nextScenario.service_controls[outputId] = { ...control, mode };
-      commitScenarioEdit(nextScenario);
+      nextConfiguration.service_controls[outputId] = { ...control, mode };
+      commitConfigurationEdit(nextConfiguration);
     },
     setDemandPreset: (presetId) => {
-      const nextScenario = cloneScenario(get().currentScenario);
-      nextScenario.demand_generation.preset_id = presetId;
+      const nextConfiguration = cloneConfiguration(get().currentConfiguration);
+      nextConfiguration.demand_generation.preset_id = presetId;
 
-      if (nextScenario.demand_generation.mode === 'manual_table') {
-        nextScenario.demand_generation.mode = 'anchor_plus_preset';
+      if (nextConfiguration.demand_generation.mode === 'manual_table') {
+        nextConfiguration.demand_generation.mode = 'anchor_plus_preset';
       }
 
-      nextScenario.demand_generation.service_growth_rates_pct_per_year = null;
-      nextScenario.demand_generation.external_commodity_growth_rates_pct_per_year = null;
-      commitScenarioEdit(nextScenario);
+      nextConfiguration.demand_generation.service_growth_rates_pct_per_year = null;
+      nextConfiguration.demand_generation.external_commodity_growth_rates_pct_per_year = null;
+      commitConfigurationEdit(nextConfiguration);
     },
     loadConfiguration: (config) => {
-      const nextScenario = cloneScenario(config);
-      const baseScenario = cloneScenario(nextScenario);
+      const nextConfiguration = cloneConfiguration(config);
+      const baseConfiguration = cloneConfiguration(nextConfiguration);
       const configId = getConfigurationId(config) ?? config.name;
-      const includedOutputIds = getIncludedOutputIds(config);
       const readonly = isReadonlyConfiguration(config);
-      const persistenceError = persistScenarioDraft(nextScenario);
+      const persistenceError = persistScenarioDraft(nextConfiguration);
 
       persistConfigMeta({
         activeConfigurationId: configId,
         activeConfigurationReadonly: readonly,
-        baseConfigurationScenario: baseScenario,
-        baseIncludedOutputIds: includedOutputIds,
-        includedOutputIds,
+        baseConfiguration,
       });
 
       set({
-        currentScenario: nextScenario,
-        currentScenarioSource: 'configuration',
+        currentConfiguration: nextConfiguration,
+        currentConfigurationSource: 'configuration',
         activeConfigurationId: configId,
         activeConfigurationReadonly: readonly,
-        baseConfigurationScenario: cloneScenario(baseScenario),
-        baseIncludedOutputIds: includedOutputIds,
+        baseConfiguration: cloneConfiguration(baseConfiguration),
         isConfigurationDirty: false,
-        includedOutputIds,
         persistenceNotice: `Loaded configuration "${config.name}".`,
         persistenceError,
       });
     },
     setIncludedOutputIds: (outputIds) => {
       const state = get();
-      const nextScenario = withIncludedOutputIds(cloneScenario(state.currentScenario), outputIds);
-      const persistenceError = persistScenarioDraft(nextScenario);
-      const dirty = state.baseConfigurationScenario
-        ? !scenariosEqual(nextScenario, state.baseConfigurationScenario) ||
-          !includedOutputIdsEqual(outputIds, state.baseIncludedOutputIds)
-        : false;
-
-      persistActiveConfigurationMeta({
-        activeConfigurationId: state.activeConfigurationId,
-        activeConfigurationReadonly: state.activeConfigurationReadonly,
-        baseConfigurationScenario: state.baseConfigurationScenario,
-        baseIncludedOutputIds: state.baseIncludedOutputIds,
-        includedOutputIds: outputIds,
-      });
-
-      set({
-        currentScenario: nextScenario,
-        currentScenarioSource: 'draft',
-        includedOutputIds: outputIds,
-        isConfigurationDirty: dirty,
-        persistenceNotice: 'Scenario draft autosaves in this browser as you edit it.',
-        persistenceError,
-      });
+      const nextConfiguration = withIncludedOutputIds(
+        cloneConfiguration(state.currentConfiguration),
+        outputIds,
+      );
+      commitConfigurationEdit(nextConfiguration);
     },
   };
 });

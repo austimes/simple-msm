@@ -1,5 +1,6 @@
 import { useMemo, useState, useCallback } from 'react';
 import { usePackageStore } from '../../data/packageStore';
+import { getIncludedOutputIds } from '../../data/configurationLoader';
 import {
   buildStateCatalog,
   getEnabledStateIds,
@@ -12,9 +13,8 @@ function formatSectorName(sector: string): string {
 export default function RightSidebar() {
   const sectorStates = usePackageStore((s) => s.sectorStates);
   const appConfig = usePackageStore((s) => s.appConfig);
-  const currentScenario = usePackageStore((s) => s.currentScenario);
+  const currentConfiguration = usePackageStore((s) => s.currentConfiguration);
   const toggleStateEnabled = usePackageStore((s) => s.toggleStateEnabled);
-  const includedOutputIds = usePackageStore((s) => s.includedOutputIds);
 
   // Track which disabled subsectors the user has expanded to re-select states
   const [expandedDisabled, setExpandedDisabled] = useState<Set<string>>(new Set());
@@ -37,8 +37,11 @@ export default function RightSidebar() {
   );
 
   const scopeSet = useMemo(
-    () => (includedOutputIds ? new Set(includedOutputIds) : null),
-    [includedOutputIds],
+    () => {
+      const includedOutputIds = getIncludedOutputIds(currentConfiguration);
+      return includedOutputIds ? new Set(includedOutputIds) : null;
+    },
+    [currentConfiguration],
   );
 
   return (
@@ -53,7 +56,7 @@ export default function RightSidebar() {
             const outOfScope = scopeSet !== null && !scopeSet.has(sub.outputId);
             const allStateIds = sub.states.map((s) => s.stateId);
             const enabledIds = new Set(
-              getEnabledStateIds(currentScenario, sub.outputId, allStateIds),
+              getEnabledStateIds(currentConfiguration, sub.outputId, allStateIds),
             );
             const allDisabled = enabledIds.size === 0;
             const isCollapsed = allDisabled && !expandedDisabled.has(sub.outputId);

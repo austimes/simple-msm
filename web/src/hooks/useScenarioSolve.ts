@@ -17,8 +17,7 @@ export interface SolveState {
 export function useScenarioSolve(): SolveState {
   const sectorStates = usePackageStore((state) => state.sectorStates);
   const appConfig = usePackageStore((state) => state.appConfig);
-  const currentScenario = usePackageStore((state) => state.currentScenario);
-  const includedOutputIds = usePackageStore((state) => state.includedOutputIds);
+  const currentConfiguration = usePackageStore((state) => state.currentConfiguration);
 
   const [phase, setPhase] = useState<SolvePhase>('idle');
   const [result, setResult] = useState<SolveResult | null>(null);
@@ -32,15 +31,7 @@ export function useScenarioSolve(): SolveState {
 
     let builtRequest: SolveRequest;
     try {
-      builtRequest = buildSolveRequest(
-        {
-          sectorStates,
-          appConfig,
-          defaultScenario: currentScenario,
-        },
-        currentScenario,
-        includedOutputIds ? { includedOutputIds } : {},
-      );
+      builtRequest = buildSolveRequest({ sectorStates, appConfig }, currentConfiguration);
     } catch (err) {
       setPhase('error');
       setError(err instanceof Error ? err.message : 'Failed to build solve request.');
@@ -72,7 +63,7 @@ export function useScenarioSolve(): SolveState {
         setError(err instanceof Error ? err.message : 'Unknown solve failure.');
         setResult(null);
       });
-  }, [sectorStates, appConfig, currentScenario, includedOutputIds]);
+  }, [sectorStates, appConfig, currentConfiguration]);
 
   // Auto-solve whenever the scenario changes
   useEffect(() => {
