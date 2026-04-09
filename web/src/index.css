@@ -1664,6 +1664,10 @@ body {
   background: rgba(255, 255, 255, 0.72);
 }
 
+.workspace-section > .workspace-subsector-group:first-of-type {
+  margin-top: 0;
+}
+
 .workspace-subsector-title {
   font-size: 13px;
   font-weight: 600;

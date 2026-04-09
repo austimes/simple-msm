@@ -46,6 +46,7 @@ interface PackageStore extends PackageData {
   setOutputControlMode: (outputId: string, mode: ConfigurationControlMode) => void;
   setOutputFixedShare: (outputId: string, stateId: string, share: number) => void;
   setDemandPreset: (presetId: string) => void;
+  setRespectMaxShare: (enabled: boolean) => void;
   loadConfiguration: (config: ConfigurationDocument) => void;
   setIncludedOutputIds: (outputIds: string[] | undefined) => void;
 }
@@ -488,6 +489,14 @@ export const usePackageStore = create<PackageStore>((set, get) => {
 
       nextConfiguration.demand_generation.service_growth_rates_pct_per_year = null;
       nextConfiguration.demand_generation.external_commodity_growth_rates_pct_per_year = null;
+      commitConfigurationEdit(nextConfiguration);
+    },
+    setRespectMaxShare: (enabled) => {
+      const nextConfiguration = cloneConfiguration(get().currentConfiguration);
+      nextConfiguration.solver_options = {
+        ...(nextConfiguration.solver_options ?? {}),
+        respect_max_share: enabled,
+      };
       commitConfigurationEdit(nextConfiguration);
     },
     loadConfiguration: (config) => {

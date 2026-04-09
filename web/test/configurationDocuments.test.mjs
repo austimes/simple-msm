@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
 import { existsSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { resolveConfigurationDocument } from '../src/data/demandResolution.ts';
 import { buildSolveRequest } from '../src/solver/buildSolveRequest.ts';
 import { createServer } from 'vite';
@@ -316,7 +318,6 @@ test('editing a loaded user configuration marks the workspace dirty for Save ove
   assert.equal(usePackageStore.getState().activeConfigurationId, userConfiguration.app_metadata.id);
   assert.equal(usePackageStore.getState().activeConfigurationReadonly, false);
 });
-
 test('user configuration API saves files using app_metadata.id', async () => {
   const server = await createServer({
     configFile: fileURLToPath(new URL('../vite.config.ts', import.meta.url)),
@@ -356,4 +357,66 @@ test('user configuration API saves files using app_metadata.id', async () => {
     await server.close();
     rmSync(canonicalPath, { force: true });
   }
+});
+
+test('bundled configurations and reference assets default respect_max_share to true', () => {
+  for (const file of configFiles) {
+    const config = readJson(`../src/configurations/${file}`);
+    assert.equal(
+      config.solver_options?.respect_max_share,
+      true,
+      `${file} should ship with respect_max_share enabled`,
+    );
+  }
+
+  const referenceAssetPaths = [
+    '../src/app_config/reference_configuration.json',
+    '../src/app_config/reference_scenario.json',
+    '../public/app_config/reference_configuration.json',
+    '../public/app_config/reference_scenario.json',
+  ];
+
+  for (const assetPath of referenceAssetPaths) {
+    assert.equal(
+      readJson(assetPath).solver_options?.respect_max_share,
+      true,
+      `${assetPath} should ship with respect_max_share enabled`,
+    );
+  }
+});
+
+test('respect_max_share defaults to true when omitted and can be toggled in the store', async () => {
+  const { usePackageStore } = await loadViteModule('/src/data/packageStore.ts');
+  const configuration = readJson('../src/configurations/buildings-endogenous.json');
+
+  delete configuration.solver_options.respect_max_share;
+  usePackageStore.getState().replaceCurrentConfiguration(configuration);
+
+  assert.equal(
+    buildSolveRequest(pkg, usePackageStore.getState().currentConfiguration).configuration.options.respectMaxShare,
+    true,
+  );
+
+  usePackageStore.getState().setRespectMaxShare(false);
+  assert.equal(usePackageStore.getState().currentConfiguration.solver_options?.respect_max_share, false);
+  assert.equal(usePackageStore.getState().isConfigurationDirty, false);
+
+  usePackageStore.getState().setRespectMaxShare(true);
+  assert.equal(usePackageStore.getState().currentConfiguration.solver_options?.respect_max_share, true);
+});
+
+test('left sidebar renders the options section with respect max-share enabled by default', async () => {
+  const { default: LeftSidebar } = await loadViteModule('/src/components/workspace/LeftSidebar.tsx');
+  const { usePackageStore } = await loadViteModule('/src/data/packageStore.ts');
+  const configuration = readJson('../src/configurations/buildings-endogenous.json');
+
+  delete configuration.solver_options.respect_max_share;
+  usePackageStore.getState().replaceCurrentConfiguration(configuration);
+
+  const html = renderToStaticMarkup(React.createElement(LeftSidebar));
+
+  assert.ok(html.includes('Options'));
+  assert.ok(html.includes('Respect max-share caps'));
+  assert.ok(html.includes('Max-share caps are enforced in the active solve.'));
+  assert.ok(html.includes('workspace-chip workspace-chip--active">On</button>'));
 });

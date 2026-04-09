@@ -86,6 +86,7 @@ export default function LeftSidebar() {
   const setDemandPreset = usePackageStore((s) => s.setDemandPreset);
   const setCommodityPriceLevel = usePackageStore((s) => s.setCommodityPriceLevel);
   const setCarbonPricePreset = usePackageStore((s) => s.setCarbonPricePreset);
+  const setRespectMaxShare = usePackageStore((s) => s.setRespectMaxShare);
   const setOutputControlMode = usePackageStore((s) => s.setOutputControlMode);
   const setOutputFixedShare = usePackageStore((s) => s.setOutputFixedShare);
   const loadConfiguration = usePackageStore((s) => s.loadConfiguration);
@@ -101,6 +102,7 @@ export default function LeftSidebar() {
 
   const activeDemandPreset = getActiveDemandPreset(currentConfiguration, appConfig);
   const activeCarbonPreset = getActiveCarbonPricePreset(currentConfiguration, appConfig);
+  const respectMaxShare = currentConfiguration.solver_options?.respect_max_share ?? true;
   const outputStatuses = useMemo(
     () => deriveOutputRunStatusesForConfiguration(
       { sectorStates, appConfig },
@@ -249,6 +251,37 @@ export default function LeftSidebar() {
 
   return (
     <>
+      <div className="workspace-section">
+        <span className="workspace-section-title">Options</span>
+        <div className="workspace-subsector-group">
+          <div className="workspace-subsector-title">Respect max-share caps</div>
+          <div className="workspace-subsector-detail">
+            Keeps pathway max-share limits active in the solve and in the pathway cap view.
+          </div>
+          <div className="workspace-chip-group workspace-chip-group--inline">
+            <button
+              type="button"
+              className={`workspace-chip${respectMaxShare ? ' workspace-chip--active' : ''}`}
+              onClick={() => setRespectMaxShare(true)}
+            >
+              On
+            </button>
+            <button
+              type="button"
+              className={`workspace-chip${respectMaxShare ? '' : ' workspace-chip--active'}`}
+              onClick={() => setRespectMaxShare(false)}
+            >
+              Off
+            </button>
+          </div>
+          <div className="workspace-subsector-detail">
+            {respectMaxShare
+              ? 'Max-share caps are enforced in the active solve.'
+              : 'Max-share caps are ignored in the active solve.'}
+          </div>
+        </div>
+      </div>
+
       <div className="workspace-section">
         <span className="workspace-section-title">Demand Growth</span>
         <div className="workspace-chip-group">
