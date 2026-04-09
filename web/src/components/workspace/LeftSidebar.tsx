@@ -57,11 +57,6 @@ export default function LeftSidebar() {
   const [userConfigs, setUserConfigs] = useState(() => loadUserConfigurations());
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
 
-  const configs = useMemo(
-    () => [...builtinConfigs, ...userConfigs],
-    [builtinConfigs, userConfigs],
-  );
-
   const refreshUserConfigs = useCallback(async () => {
     const configs = await fetchUserConfigurations();
     setUserConfigs(configs);
@@ -136,6 +131,46 @@ export default function LeftSidebar() {
     }
   }
 
+  function renderConfigurationGroup(title: string, configs: ScenarioDocument[]) {
+    return (
+      <div className="workspace-sector-group">
+        <div className="workspace-sector-title">{title}</div>
+        {configs.length === 0 ? (
+          <div className="workspace-empty-state">None yet.</div>
+        ) : (
+          <div className="workspace-chip-group">
+            {configs.map((config) => {
+              const configId = getConfigurationId(config) ?? config.name;
+              const isActiveBase = activeConfigurationId === configId;
+              const isModified = isActiveBase && isConfigurationDirty;
+              return (
+                <div key={configId} className="workspace-configuration-row">
+                  <button
+                    className={`workspace-chip${isActiveBase ? ' workspace-chip--active' : ''}${isModified ? ' workspace-chip--modified' : ''}`}
+                    onClick={() => loadConfiguration(config)}
+                    title={config.description}
+                  >
+                    {config.name}
+                    {isModified ? ' (modified)' : ''}
+                  </button>
+                  {!isReadonlyConfiguration(config) && (
+                    <button
+                      className="workspace-chip workspace-chip--danger"
+                      onClick={() => handleDelete(configId)}
+                      title="Delete configuration"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="workspace-section">
@@ -203,56 +238,10 @@ export default function LeftSidebar() {
       <div className="workspace-section">
         <span className="workspace-section-title">Configurations</span>
 
-        {saveNotice && (
-          <div
-            style={{
-              fontSize: 12,
-              padding: '4px 8px',
-              borderRadius: 6,
-              marginBottom: 8,
-              background: saveNotice.startsWith('Error') ? '#fef2f2' : 'var(--color-primary-bg)',
-              color: saveNotice.startsWith('Error') ? '#b91c1c' : 'var(--color-primary)',
-            }}
-          >
-            {saveNotice}
-          </div>
-        )}
-
-        {configs.length > 0 && (
-          <div className="workspace-chip-group">
-            {configs.map((config) => {
-              const configId = getConfigurationId(config) ?? config.name;
-              const isActiveBase = activeConfigurationId === configId;
-              const isModified = isActiveBase && isConfigurationDirty;
-              return (
-                <span key={configId} style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
-                  <button
-                    className={`workspace-chip${isActiveBase ? ' workspace-chip--active' : ''}${isModified ? ' workspace-chip--modified' : ''}`}
-                    onClick={() => loadConfiguration(config)}
-                    title={config.description}
-                  >
-                    {config.name}{isModified ? ' (modified)' : ''}
-                  </button>
-                  {!isReadonlyConfiguration(config) && (
-                    <button
-                      className="workspace-chip"
-                      style={{ padding: '2px 6px', fontSize: 11, color: '#b91c1c' }}
-                      onClick={() => handleDelete(configId)}
-                      title="Delete configuration"
-                    >
-                      ×
-                    </button>
-                  )}
-                </span>
-              );
-            })}
-          </div>
-        )}
-
-        <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+        <div className="workspace-configuration-actions">
           <button
             type="button"
-            className="workspace-chip"
+            className="workspace-chip workspace-chip--secondary-action"
             onClick={handleSaveAs}
           >
             Save as…
@@ -267,6 +256,17 @@ export default function LeftSidebar() {
             </button>
           )}
         </div>
+
+        {saveNotice && (
+          <div
+            className={`workspace-status-notice${saveNotice.startsWith('Error') ? ' workspace-status-notice--error' : ''}`}
+          >
+            {saveNotice}
+          </div>
+        )}
+
+        {renderConfigurationGroup('User configurations', userConfigs)}
+        {renderConfigurationGroup('Built-in configurations', builtinConfigs)}
       </div>
     </>
   );
