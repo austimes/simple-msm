@@ -87,24 +87,13 @@ export function getEnabledStateIds(
   if (!control) return allStateIds;
 
   const disabledSet = new Set(control.disabled_state_ids ?? []);
-
-  // Determine mode-specific candidate set, then filter out disabled states
-  let candidates: string[];
+  const availableStateIds = allStateIds.filter((id) => !disabledSet.has(id));
 
   if (control.mode === 'pinned_single' && control.state_id) {
-    candidates = allStateIds.filter((id) => id === control.state_id);
-  } else if (control.mode === 'fixed_shares' && control.fixed_shares) {
-    const fixedIds = new Set(
-      Object.entries(control.fixed_shares)
-        .filter(([, share]) => share > 0)
-        .map(([id]) => id),
-    );
-    candidates = allStateIds.filter((id) => fixedIds.has(id));
-  } else {
-    candidates = allStateIds;
+    return availableStateIds.filter((id) => id === control.state_id);
   }
 
-  return candidates.filter((id) => !disabledSet.has(id));
+  return availableStateIds;
 }
 
 export function getActiveDemandPreset(

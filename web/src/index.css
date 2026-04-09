@@ -1697,6 +1697,78 @@ body {
   margin-bottom: 8px;
 }
 
+.workspace-fixed-share-panel {
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid rgba(43, 108, 176, 0.16);
+  border-radius: 12px;
+  background: rgba(239, 246, 255, 0.7);
+}
+
+.workspace-fixed-share-summary {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.workspace-fixed-share-list {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.workspace-fixed-share-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.workspace-fixed-share-row--disabled {
+  background: rgba(248, 250, 252, 0.9);
+}
+
+.workspace-fixed-share-copy {
+  min-width: 0;
+}
+
+.workspace-fixed-share-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.workspace-fixed-share-note {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.workspace-fixed-share-input {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.workspace-fixed-share-input input {
+  width: 76px;
+  padding: 6px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  text-align: right;
+}
+
 .workspace-state-legend {
   margin-top: 12px;
   padding: 12px;

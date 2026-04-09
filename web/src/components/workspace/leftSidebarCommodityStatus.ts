@@ -23,6 +23,16 @@ export function formatControlModeLabel(mode: ScenarioControlMode): string {
   }
 }
 
+export function formatSharePercent(share: number): string {
+  const percent = share * 100;
+  const rounded = Math.round(percent * 10) / 10;
+  return `${Number.isInteger(rounded) ? rounded.toFixed(0) : rounded.toFixed(1)}%`;
+}
+
+export function sumFixedShares(fixedShares: Record<string, number> | null | undefined): number {
+  return Object.values(fixedShares ?? {}).reduce((total, share) => total + share, 0);
+}
+
 export function getCommodityPriceSelectorPresentation(
   status: DerivedOutputRunStatus | undefined,
   activeLevel: PriceLevel,

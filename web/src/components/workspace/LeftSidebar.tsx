@@ -15,8 +15,19 @@ import {
 } from '../../data/configurationLoader';
 import { PRICE_LEVELS } from '../../data/types';
 import { deriveOutputRunStatusesForConfiguration } from '../../solver/solveScope.ts';
-import type { CommodityPriceSeries, CarbonPricePreset, ConfigurationDocument } from '../../data/types';
-import { getCommodityPriceSelectorPresentation } from './leftSidebarCommodityStatus';
+import type {
+  CarbonPricePreset,
+  CommodityPriceSeries,
+  ConfigurationControlMode,
+  ConfigurationDocument,
+  SectorState,
+} from '../../data/types';
+import {
+  formatControlModeLabel,
+  formatSharePercent,
+  getCommodityPriceSelectorPresentation,
+  sumFixedShares,
+} from './leftSidebarCommodityStatus';
 
 function formatUnit(raw: string): string {
   return raw
@@ -40,6 +51,33 @@ function formatCarbonPriceRange(preset: CarbonPricePreset): string {
   return `${unit.replace('$/', `$${first}–${last}/`)}`;
 }
 
+function formatModeChoiceLabel(mode: ConfigurationControlMode): string {
+  const label = formatControlModeLabel(mode);
+  return label.replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function buildStateOptions(
+  sectorStates: SectorState[],
+  outputId: string,
+) {
+  const seen = new Set<string>();
+  const states: Array<{ stateId: string; stateLabel: string }> = [];
+
+  for (const row of sectorStates) {
+    if (row.service_or_output_name !== outputId || seen.has(row.state_id)) {
+      continue;
+    }
+
+    seen.add(row.state_id);
+    states.push({
+      stateId: row.state_id,
+      stateLabel: row.state_label,
+    });
+  }
+
+  return states;
+}
+
 export default function LeftSidebar() {
   const appConfig = usePackageStore((s) => s.appConfig);
   const sectorStates = usePackageStore((s) => s.sectorStates);
@@ -47,6 +85,8 @@ export default function LeftSidebar() {
   const setDemandPreset = usePackageStore((s) => s.setDemandPreset);
   const setCommodityPriceLevel = usePackageStore((s) => s.setCommodityPriceLevel);
   const setCarbonPricePreset = usePackageStore((s) => s.setCarbonPricePreset);
+  const setOutputControlMode = usePackageStore((s) => s.setOutputControlMode);
+  const setOutputFixedShare = usePackageStore((s) => s.setOutputFixedShare);
   const loadConfiguration = usePackageStore((s) => s.loadConfiguration);
   const activeConfigurationId = usePackageStore((s) => s.activeConfigurationId);
   const activeConfigurationReadonly = usePackageStore((s) => s.activeConfigurationReadonly);
@@ -61,6 +101,28 @@ export default function LeftSidebar() {
       currentConfiguration,
     ),
     [sectorStates, appConfig, currentConfiguration],
+  );
+  const commodityControls = useMemo(
+    () => Object.entries(appConfig.output_roles)
+      .filter(([, metadata]) => (
+        metadata.output_role === 'endogenous_supply_commodity'
+        && metadata.allowed_control_modes.includes('externalized')
+        && metadata.allowed_control_modes.includes('optimize')
+        && metadata.allowed_control_modes.includes('fixed_shares')
+      ))
+      .sort(([, left], [, right]) => (
+        left.display_group_order - right.display_group_order
+        || left.display_order - right.display_order
+        || left.display_label.localeCompare(right.display_label)
+      ))
+      .map(([outputId, metadata]) => ({
+        outputId,
+        label: metadata.display_label,
+        allowedModes: metadata.allowed_control_modes,
+        priceDriver: appConfig.commodity_price_presets[outputId],
+        states: buildStateOptions(sectorStates, outputId),
+      })),
+    [appConfig, sectorStates],
   );
 
   const builtinConfigs = useMemo(() => loadBuiltinConfigurations(), []);
@@ -202,17 +264,23 @@ export default function LeftSidebar() {
       </div>
 
       <div className="workspace-section">
-        <span className="workspace-section-title">Commodity Prices</span>
-        {Object.entries(appConfig.commodity_price_presets).map(([commodityId, driver]) => {
-          const activeLevel = getCommodityPriceLevel(currentConfiguration, commodityId);
+        <span className="workspace-section-title">Commodity Controls</span>
+        {commodityControls.map(({ outputId, label, allowedModes, priceDriver, states }) => {
+          const activeLevel = getCommodityPriceLevel(currentConfiguration, outputId);
           const selectorPresentation = getCommodityPriceSelectorPresentation(
-            outputStatuses[commodityId],
+            outputStatuses[outputId],
             activeLevel,
           );
+          const control = currentConfiguration.service_controls[outputId];
+          const currentMode = outputStatuses[outputId]?.controlMode ?? allowedModes[0];
+          const enabledStateIds = new Set(outputStatuses[outputId]?.enabledStateIds ?? []);
+          const fixedShareTotal = sumFixedShares(control?.fixed_shares);
+          const fixedShareTotalIsValid = Math.abs(fixedShareTotal - 1) < 1e-6;
+
           return (
-            <div key={commodityId} className="workspace-subsector-group">
+            <div key={outputId} className="workspace-subsector-group">
               <div className="workspace-subsector-title">
-                {driver.label}
+                {label}
                 {selectorPresentation.badgeLabel && selectorPresentation.badgeTone && (
                   <span className={`workspace-mode-badge workspace-mode-badge--${selectorPresentation.badgeTone}`}>
                     {selectorPresentation.badgeLabel}
@@ -225,23 +293,110 @@ export default function LeftSidebar() {
                 </div>
               )}
               <div className="workspace-chip-group workspace-chip-group--inline">
-                {PRICE_LEVELS.map((level) => (
+                {allowedModes.map((mode) => (
                   <button
-                    key={level}
+                    key={mode}
                     type="button"
-                    className={`workspace-chip${selectorPresentation.activeLevel === level ? ' workspace-chip--active' : ''}${selectorPresentation.selectorEnabled ? '' : ' workspace-chip--inactive'}`}
-                    onClick={() => setCommodityPriceLevel(commodityId, level)}
-                    title={
-                      selectorPresentation.selectorEnabled
-                        ? level
-                        : `${driver.label} is ${selectorPresentation.controlModeLabel} in the current solve, so the exogenous price selector is inactive.`
-                    }
-                    disabled={!selectorPresentation.selectorEnabled}
+                    className={`workspace-chip${currentMode === mode ? ' workspace-chip--active' : ''}`}
+                    onClick={() => setOutputControlMode(outputId, mode)}
+                    title={`Set ${label} to ${formatControlModeLabel(mode)}`}
                   >
-                    {formatCommodityPrice(driver.levels[level])}
+                    {formatModeChoiceLabel(mode)}
                   </button>
                 ))}
               </div>
+              {currentMode === 'fixed_shares' && (
+                <div className="workspace-fixed-share-panel">
+                  <div className="workspace-fixed-share-summary">
+                    <div className="workspace-subsector-detail">
+                      Fixed shares apply across the enabled pathways for this commodity in the current run.
+                      Disabled pathways are excluded from the denominator.
+                    </div>
+                    <span className={`workspace-mode-badge workspace-mode-badge--${fixedShareTotalIsValid ? 'success' : 'warning'}`}>
+                      Total {formatSharePercent(fixedShareTotal)}
+                    </span>
+                  </div>
+                  <div className="workspace-fixed-share-list">
+                    {states.map((state) => {
+                      const isEnabled = enabledStateIds.has(state.stateId);
+                      const share = (control?.fixed_shares?.[state.stateId] ?? 0) * 100;
+                      return (
+                        <div
+                          key={state.stateId}
+                          className={`workspace-fixed-share-row${isEnabled ? '' : ' workspace-fixed-share-row--disabled'}`}
+                        >
+                          <div className="workspace-fixed-share-copy">
+                            <div className="workspace-fixed-share-label">{state.stateLabel}</div>
+                            <div className="workspace-fixed-share-note">
+                              {isEnabled
+                                ? 'Enabled in the current run denominator.'
+                                : 'Disabled in the current run and excluded from the denominator.'}
+                            </div>
+                          </div>
+                          {isEnabled ? (
+                            <label className="workspace-fixed-share-input">
+                              <input
+                                type="number"
+                                inputMode="decimal"
+                                min="0"
+                                max="100"
+                                step="0.1"
+                                value={Number.isInteger(share) ? share.toFixed(0) : share.toFixed(1)}
+                                onChange={(event) => {
+                                  const percent = Number.parseFloat(event.target.value);
+                                  setOutputFixedShare(
+                                    outputId,
+                                    state.stateId,
+                                    Number.isFinite(percent) ? percent / 100 : 0,
+                                  );
+                                }}
+                              />
+                              <span>%</span>
+                            </label>
+                          ) : (
+                            <span className="workspace-mode-badge workspace-mode-badge--muted">
+                              Disabled
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="workspace-subsector-detail">
+                    {fixedShareTotalIsValid
+                      ? 'Enabled-pathway shares sum to 100%, so the fixed-share mix is solver-ready.'
+                      : `Enabled-pathway shares currently sum to ${formatSharePercent(fixedShareTotal)}. Adjust them to 100% to satisfy solver validation.`}
+                  </div>
+                  <div className="workspace-subsector-detail">
+                    Use the state selector on the right to change which pathways are enabled.
+                  </div>
+                </div>
+              )}
+              {priceDriver && (
+                <>
+                  <div className="workspace-subsector-detail">
+                    Exogenous price path. This only affects runs where the commodity is externalized.
+                  </div>
+                  <div className="workspace-chip-group workspace-chip-group--inline">
+                    {PRICE_LEVELS.map((level) => (
+                      <button
+                        key={level}
+                        type="button"
+                        className={`workspace-chip${selectorPresentation.activeLevel === level ? ' workspace-chip--active' : ''}${selectorPresentation.selectorEnabled ? '' : ' workspace-chip--inactive'}`}
+                        onClick={() => setCommodityPriceLevel(outputId, level)}
+                        title={
+                          selectorPresentation.selectorEnabled
+                            ? level
+                            : `${label} is ${selectorPresentation.controlModeLabel} in the current solve, so the exogenous price selector is inactive.`
+                        }
+                        disabled={!selectorPresentation.selectorEnabled}
+                      >
+                        {formatCommodityPrice(priceDriver.levels[level])}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           );
         })}

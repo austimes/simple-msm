@@ -143,6 +143,34 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
     assert.equal(statuses.electricity.demandParticipation, 'not_applicable');
   });
 
+  test('keeps enabled supply pathways distinct from fixed-share entries', () => {
+    const electricityStateIds = Array.from(
+      new Set(
+        pkg.sectorStates
+          .filter((row) => row.service_or_output_name === 'electricity')
+          .map((row) => row.state_id),
+      ),
+    );
+
+    assert.ok(electricityStateIds.length >= 2, 'expected multiple electricity pathways');
+
+    const scenario = buildScenario(pkg.appConfig, {
+      name: 'Electricity fixed-share status semantics',
+      serviceControls: {
+        electricity: {
+          mode: 'fixed_shares',
+          fixed_shares: { [electricityStateIds[0]]: 1 },
+        },
+      },
+    });
+
+    const statuses = deriveOutputRunStatusesForConfiguration(pkg, scenario);
+
+    assert.equal(statuses.electricity.controlMode, 'fixed_shares');
+    assert.equal(statuses.electricity.isDisabled, false);
+    assert.equal(statuses.electricity.enabledStateCount, electricityStateIds.length);
+  });
+
   test('buildSolveRequest blocks positive required-service demand with no enabled pathways', () => {
     const allPassengerStateIds = Array.from(
       new Set(

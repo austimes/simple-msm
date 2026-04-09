@@ -3,7 +3,9 @@ import { readFileSync } from 'node:fs';
 import { describe, test } from 'node:test';
 import { getCommodityPriceLevel } from '../src/data/scenarioWorkspaceModel.ts';
 import {
+  formatSharePercent,
   getCommodityPriceSelectorPresentation,
+  sumFixedShares,
 } from '../src/components/workspace/leftSidebarCommodityStatus.ts';
 import { deriveOutputRunStatusesForConfiguration } from '../src/solver/solveScope.ts';
 import { buildConfiguration, loadPkg } from './solverTestUtils.mjs';
@@ -90,5 +92,11 @@ describe('getCommodityPriceSelectorPresentation', () => {
     assert.equal(presentation.selectorEnabled, true);
     assert.equal(presentation.activeLevel, activeLevel);
     assert.equal(presentation.detail, null);
+  });
+
+  test('formats fixed-share totals for the inline editor summary', () => {
+    assert.equal(sumFixedShares({ grid_a: 0.25, grid_b: 0.75 }), 1);
+    assert.equal(formatSharePercent(1), '100%');
+    assert.equal(formatSharePercent(0.375), '37.5%');
   });
 });
