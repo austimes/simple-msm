@@ -1,10 +1,9 @@
 import { useMemo, useState, useCallback } from 'react';
 import { usePackageStore } from '../../data/packageStore';
-import { getIncludedOutputIds } from '../../data/configurationLoader';
 import {
   buildStateCatalog,
-  getEnabledStateIds,
 } from '../../data/scenarioWorkspaceModel';
+import { deriveOutputRunStatusesForConfiguration } from '../../solver/solveScope.ts';
 
 function formatSectorName(sector: string): string {
   return sector.replaceAll('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase());
@@ -36,12 +35,12 @@ export default function RightSidebar() {
     [sectorStates, appConfig],
   );
 
-  const scopeSet = useMemo(
-    () => {
-      const includedOutputIds = getIncludedOutputIds(currentConfiguration);
-      return includedOutputIds ? new Set(includedOutputIds) : null;
-    },
-    [currentConfiguration],
+  const outputStatuses = useMemo(
+    () => deriveOutputRunStatusesForConfiguration(
+      { sectorStates, appConfig },
+      currentConfiguration,
+    ),
+    [sectorStates, appConfig, currentConfiguration],
   );
 
   return (
@@ -53,12 +52,10 @@ export default function RightSidebar() {
             {formatSectorName(sectorEntry.sector)}
           </div>
           {sectorEntry.subsectors.map((sub) => {
-            const outOfScope = scopeSet !== null && !scopeSet.has(sub.outputId);
-            const allStateIds = sub.states.map((s) => s.stateId);
-            const enabledIds = new Set(
-              getEnabledStateIds(currentConfiguration, sub.outputId, allStateIds),
-            );
-            const allDisabled = enabledIds.size === 0;
+            const status = outputStatuses[sub.outputId];
+            const enabledIds = new Set(status?.enabledStateIds ?? []);
+            const allDisabled = status?.isDisabled ?? enabledIds.size === 0;
+            const outOfScope = status?.isExcludedFromRun ?? false;
             const isCollapsed = allDisabled && !expandedDisabled.has(sub.outputId);
 
             return (

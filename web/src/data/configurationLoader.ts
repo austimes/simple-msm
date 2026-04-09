@@ -4,7 +4,10 @@
  * 2. User configs persisted to localStorage (editable)
  */
 import { parseScenarioDocument } from './scenarioLoader';
+import { normalizeIncludedOutputIds } from './configurationMetadata';
 import type { ScenarioDocument } from './types';
+
+export { getIncludedOutputIds } from './configurationMetadata';
 
 // --- Built-in configuration loading (Vite eager import) ---
 
@@ -12,18 +15,6 @@ const builtinConfigModules = import.meta.glob<string>(
   '/src/configurations/*.json',
   { eager: true, import: 'default', query: '?raw' },
 );
-
-function normalizeIncludedOutputIds(value: string[] | undefined): string[] | undefined {
-  if (!Array.isArray(value)) {
-    return undefined;
-  }
-
-  const normalized = Array.from(
-    new Set(value.filter((entry) => typeof entry === 'string').map((entry) => entry.trim()).filter(Boolean)),
-  );
-
-  return normalized.length > 0 ? normalized : undefined;
-}
 
 function normalizeConfigurationMetadata(configuration: ScenarioDocument): ScenarioDocument {
   const configurationWithoutMetadata = { ...configuration };
@@ -92,10 +83,6 @@ export function getConfigurationId(configuration: ScenarioDocument): string | nu
 
 export function isReadonlyConfiguration(configuration: ScenarioDocument): boolean {
   return configuration.app_metadata?.readonly === true;
-}
-
-export function getIncludedOutputIds(configuration: ScenarioDocument): string[] | undefined {
-  return normalizeIncludedOutputIds(configuration.app_metadata?.included_output_ids);
 }
 
 export function withIncludedOutputIds(
