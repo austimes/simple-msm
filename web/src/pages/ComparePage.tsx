@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   buildComparisonReport,
-  buildComparisonScenarioPlan,
-  scenarioRoleSummary,
+  buildComparisonConfigurationPlan,
+  configurationRoleSummary,
 } from '../compare/compareAnalysis';
 import { usePackageStore } from '../data/packageStore';
 import { buildSolveRequest } from '../solver/buildSolveRequest';
@@ -20,7 +20,7 @@ const numberFormatter = new Intl.NumberFormat('en-AU', {
 
 type PreparedSolve = {
   key: Parameters<typeof buildComparisonReport>[2][number]['key'];
-  scenario: Parameters<typeof buildComparisonReport>[2][number]['scenario'];
+  configuration: Parameters<typeof buildComparisonReport>[2][number]['configuration'];
   request: SolveRequest;
 };
 
@@ -80,22 +80,22 @@ function formatRole(role: string): string {
   return role.replaceAll('_', ' ');
 }
 
-function countControlsByMode(scenario: Parameters<typeof buildComparisonScenarioPlan>[0]): Record<string, number> {
-  return Object.values(scenario.service_controls).reduce<Record<string, number>>((counts, control) => {
+function countControlsByMode(configuration: Parameters<typeof buildComparisonConfigurationPlan>[0]): Record<string, number> {
+  return Object.values(configuration.service_controls).reduce<Record<string, number>>((counts, control) => {
     counts[control.mode] = (counts[control.mode] ?? 0) + 1;
     return counts;
   }, {});
 }
 
 function countOptimizedRequiredServices(
-  scenario: Parameters<typeof buildComparisonScenarioPlan>[0],
-  roleSummary: ReturnType<typeof scenarioRoleSummary>,
+  configuration: Parameters<typeof buildComparisonConfigurationPlan>[0],
+  roleSummary: ReturnType<typeof configurationRoleSummary>,
 ): number {
   if (!roleSummary.some((entry) => entry.role === 'required_service')) {
     return 0;
   }
 
-  return Object.entries(scenario.service_controls).reduce((count, [, control]) => {
+  return Object.entries(configuration.service_controls).reduce((count, [, control]) => {
     return control.mode === 'optimize' ? count + 1 : count;
   }, 0);
 }
@@ -108,13 +108,13 @@ export default function ComparePage() {
 
   const comparisonBuild = useMemo(() => {
     try {
-      const plan = buildComparisonScenarioPlan(currentConfiguration, appConfig);
+      const plan = buildComparisonConfigurationPlan(currentConfiguration, appConfig);
       const solves: PreparedSolve[] = plan.order.map((key) => {
-        const scenario = plan.scenarios[key];
+        const configuration = plan.configurations[key];
         return {
           key,
-          scenario,
-          request: buildSolveRequest({ sectorStates, appConfig }, scenario),
+          configuration,
+          request: buildSolveRequest({ sectorStates, appConfig }, configuration),
         };
       });
       const planKey = solves.map((solve) => `${solve.key}:${solve.request.requestId}`).join('|');
@@ -190,12 +190,12 @@ export default function ComparePage() {
     return buildComparisonReport(appConfig, sectorStates, activeComparison.solves);
   }, [activeComparison, appConfig, comparisonBuild.error, sectorStates]);
 
-  const baseScenario = comparisonBuild.plan?.scenarios.base ?? currentConfiguration;
-  const compareScenario = comparisonBuild.plan?.scenarios.compare ?? currentConfiguration;
-  const baseRoleSummary = scenarioRoleSummary(baseScenario, appConfig);
-  const compareRoleSummary = scenarioRoleSummary(compareScenario, appConfig);
-  const baseControlModes = countControlsByMode(baseScenario);
-  const compareControlModes = countControlsByMode(compareScenario);
+  const baseConfiguration = comparisonBuild.plan?.configurations.base ?? currentConfiguration;
+  const compareConfiguration = comparisonBuild.plan?.configurations.compare ?? currentConfiguration;
+  const baseRoleSummary = configurationRoleSummary(baseConfiguration, appConfig);
+  const compareRoleSummary = configurationRoleSummary(compareConfiguration, appConfig);
+  const baseControlModes = countControlsByMode(baseConfiguration);
+  const compareControlModes = countControlsByMode(compareConfiguration);
 
   return (
     <div className="page page--compare">
@@ -213,7 +213,7 @@ export default function ComparePage() {
             {comparisonBuild.error
               ? 'error'
               : report
-                ? `${report.baseScenarioName} vs ${report.compareScenarioName}`
+                ? `${report.baseConfigurationName} vs ${report.compareConfigurationName}`
                 : isLoading
                   ? 'loading'
                   : 'booting'}
@@ -237,8 +237,8 @@ export default function ComparePage() {
             <div>
               <dt>Reference status</dt>
               <dd>
-                {report?.scenarioStatuses.find((entry) => entry.key === 'base')
-                  ? formatSolveStatus(report.scenarioStatuses.find((entry) => entry.key === 'base')!.status)
+                {report?.configurationStatuses.find((entry) => entry.key === 'base')
+                  ? formatSolveStatus(report.configurationStatuses.find((entry) => entry.key === 'base')!.status)
                   : isLoading
                     ? 'loading'
                     : '—'}
@@ -247,8 +247,8 @@ export default function ComparePage() {
             <div>
               <dt>Compare status</dt>
               <dd>
-                {report?.scenarioStatuses.find((entry) => entry.key === 'compare')
-                  ? formatSolveStatus(report.scenarioStatuses.find((entry) => entry.key === 'compare')!.status)
+                {report?.configurationStatuses.find((entry) => entry.key === 'compare')
+                  ? formatSolveStatus(report.configurationStatuses.find((entry) => entry.key === 'compare')!.status)
                   : isLoading
                     ? 'loading'
                     : '—'}
@@ -256,8 +256,8 @@ export default function ComparePage() {
             </div>
           </dl>
 
-          {report?.compareScenarioDescription ? (
-            <p className="configuration-provenance-note">{report.compareScenarioDescription}</p>
+          {report?.compareConfigurationDescription ? (
+            <p className="configuration-provenance-note">{report.compareConfigurationDescription}</p>
           ) : null}
 
           {activeComparison?.status === 'error' ? (
@@ -270,7 +270,7 @@ export default function ComparePage() {
           <dl className="configuration-key-value-list">
             <div>
               <dt>Name</dt>
-              <dd>{baseScenario.name}</dd>
+              <dd>{baseConfiguration.name}</dd>
             </div>
             <div>
               <dt>Commodity pricing</dt>
@@ -278,11 +278,11 @@ export default function ComparePage() {
             </div>
             <div>
               <dt>2050 carbon price</dt>
-              <dd>{formatDetailValue(baseScenario.carbon_price['2050'] ?? 0)}</dd>
+              <dd>{formatDetailValue(baseConfiguration.carbon_price['2050'] ?? 0)}</dd>
             </div>
             <div>
               <dt>Electricity control</dt>
-              <dd>{formatRole(baseScenario.service_controls.electricity?.mode ?? 'n/a')}</dd>
+              <dd>{formatRole(baseConfiguration.service_controls.electricity?.mode ?? 'n/a')}</dd>
             </div>
             <div>
               <dt>Optimize controls</dt>
@@ -303,7 +303,7 @@ export default function ComparePage() {
           <dl className="configuration-key-value-list">
             <div>
               <dt>Name</dt>
-              <dd>{compareScenario.name}</dd>
+              <dd>{compareConfiguration.name}</dd>
             </div>
             <div>
               <dt>Commodity pricing</dt>
@@ -311,15 +311,15 @@ export default function ComparePage() {
             </div>
             <div>
               <dt>2050 carbon price</dt>
-              <dd>{formatDetailValue(compareScenario.carbon_price['2050'] ?? 0)}</dd>
+              <dd>{formatDetailValue(compareConfiguration.carbon_price['2050'] ?? 0)}</dd>
             </div>
             <div>
               <dt>Electricity control</dt>
-              <dd>{formatRole(compareScenario.service_controls.electricity?.mode ?? 'n/a')}</dd>
+              <dd>{formatRole(compareConfiguration.service_controls.electricity?.mode ?? 'n/a')}</dd>
             </div>
             <div>
               <dt>Optimize controls</dt>
-              <dd>{countOptimizedRequiredServices(compareScenario, compareRoleSummary)}</dd>
+              <dd>{countOptimizedRequiredServices(compareConfiguration, compareRoleSummary)}</dd>
             </div>
           </dl>
           <div className="compare-chip-row">

@@ -9,10 +9,10 @@ import type {
 } from '../data/types.ts';
 import type {
   NormalizedSolverRow,
-  ResolvedScenarioForSolve,
+  ResolvedConfigurationForSolve,
   ResolvedSolveControl,
 } from './contract.ts';
-import { normalizeSolverRows, resolveScenarioForSolve, yearKey } from './solveRequestModel.ts';
+import { normalizeSolverRows, resolveConfigurationForSolve, yearKey } from './solveRequestModel.ts';
 
 export type OutputRunParticipation =
   | 'full_model'
@@ -110,7 +110,7 @@ export function rowMayBeActive(
 
 export function expandIncludedOutputsForDependencies(
   rows: NormalizedSolverRow[],
-  scenario: ResolvedScenarioForSolve,
+  configuration: ResolvedConfigurationForSolve,
   appConfig: AppConfigRegistry,
   seedOutputIds: Set<string>,
 ): Set<string> {
@@ -125,12 +125,12 @@ export function expandIncludedOutputsForDependencies(
         continue;
       }
 
-      for (const year of scenario.years) {
+      for (const year of configuration.years) {
         if (row.year !== year) {
           continue;
         }
 
-        const control = scenario.controlsByOutput[row.outputId]?.[yearKey(year)];
+        const control = configuration.controlsByOutput[row.outputId]?.[yearKey(year)];
         if (!rowMayBeActive(row, control)) {
           continue;
         }
@@ -156,7 +156,7 @@ export function expandIncludedOutputsForDependencies(
 export function deriveOutputRunStatuses(
   rows: NormalizedSolverRow[],
   scenario: ScenarioDocument,
-  resolvedScenario: ResolvedScenarioForSolve,
+  resolvedConfiguration: ResolvedConfigurationForSolve,
   appConfig: AppConfigRegistry,
   seedOutputIdsFromMetadata: string[] | undefined,
 ): Record<string, DerivedOutputRunStatus> {
@@ -166,7 +166,7 @@ export function deriveOutputRunStatuses(
   // Seed scope comes directly from configuration metadata. The effective run
   // may be larger after endogenous supply dependencies are auto-included.
   const expandedOutputIds = hasScopedRun
-    ? expandIncludedOutputsForDependencies(rows, resolvedScenario, appConfig, seedOutputIds)
+    ? expandIncludedOutputsForDependencies(rows, resolvedConfiguration, appConfig, seedOutputIds)
     : null;
 
   return Array.from(stateIdsByOutput.entries()).reduce<Record<string, DerivedOutputRunStatus>>(
@@ -182,7 +182,8 @@ export function deriveOutputRunStatuses(
       const inRun = isFullModel || isSeedScoped || isAutoIncludedDependency;
       const hasPositiveDemandInRun = outputMetadata.demand_required
         && inRun
-        && Object.values(resolvedScenario.serviceDemandByOutput[outputId] ?? {}).some((value) => value > 0);
+        && Object.values(resolvedConfiguration.serviceDemandByOutput[outputId] ?? {})
+          .some((value) => value > 0);
       const hasDemandValidationError = outputMetadata.demand_required
         && hasPositiveDemandInRun
         && enabledStateCount === 0;
@@ -233,11 +234,11 @@ export function deriveOutputRunStatusesForConfiguration(
   scenario: ScenarioDocument,
 ): Record<string, DerivedOutputRunStatus> {
   const rows = normalizeSolverRows(pkg);
-  const resolvedScenario = resolveScenarioForSolve(scenario, pkg.appConfig);
+  const resolvedConfiguration = resolveConfigurationForSolve(scenario, pkg.appConfig);
   return deriveOutputRunStatuses(
     rows,
     scenario,
-    resolvedScenario,
+    resolvedConfiguration,
     pkg.appConfig,
     getSeedOutputIds(scenario),
   );

@@ -11,9 +11,9 @@ export type SolveDiagnosticReason =
   | 'activity_exhaustion'
   | 'disabled_states'
   | 'electricity_balance_conflict';
-// `scenario_lp` is an internal artifact label, so it can move with the solver
+// `configuration_lp` is an internal artifact label, so it can move with the solver
 // contract when the broader terminology cleanup reaches this boundary.
-export type RawSolveArtifactKind = 'engine_probe' | 'scenario_lp';
+export type RawSolveArtifactKind = 'engine_probe' | 'configuration_lp';
 export type RawSolveSolutionStatus =
   | 'optimal'
   | 'infeasible'
@@ -68,7 +68,7 @@ export interface ResolvedCommodityPriceSeries {
   valuesByYear: Record<string, number>;
 }
 
-export interface ResolvedScenarioForSolve {
+export interface ResolvedConfigurationForSolve {
   name: string;
   description: string | null;
   years: number[];
@@ -93,7 +93,7 @@ export interface SolveRequest {
   contractVersion: SolverContractVersion;
   requestId: string;
   rows: NormalizedSolverRow[];
-  scenario: ResolvedScenarioForSolve;
+  configuration: ResolvedConfigurationForSolve;
 }
 
 export interface SolveDiagnostic {

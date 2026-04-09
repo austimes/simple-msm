@@ -17,8 +17,8 @@ import type {
   SolveSoftConstraintViolationSummary,
 } from './contract.ts';
 
-const SCENARIO_OBJECTIVE_KEY = 'total_cost';
-const SCENARIO_DIRECTION = 'minimize' as const;
+const CONFIGURATION_OBJECTIVE_KEY = 'total_cost';
+const CONFIGURATION_DIRECTION = 'minimize' as const;
 const SHARE_TOLERANCE = 1e-6;
 const BINDING_TOLERANCE = 1e-6;
 const SOFT_CONSTRAINT_MIN_PENALTY = 1_000_000;
@@ -81,7 +81,7 @@ interface RowShareProfile {
   commodityCoefficient: number;
 }
 
-interface ScenarioLpBuild {
+interface ConfigurationLpBuild {
   request: SolveRequest;
   model: Model<string, string>;
   activityScale: number;
@@ -132,10 +132,10 @@ function countDistinctOutputs(request: SolveRequest): number {
 function summarizeRequest(request: SolveRequest): SolveRequestSummary {
   return {
     rowCount: request.rows.length,
-    yearCount: request.scenario.years.length,
+    yearCount: request.configuration.years.length,
     outputCount: countDistinctOutputs(request),
-    serviceDemandOutputCount: Object.keys(request.scenario.serviceDemandByOutput).length,
-    externalCommodityCount: Object.keys(request.scenario.externalCommodityDemandByCommodity).length,
+    serviceDemandOutputCount: Object.keys(request.configuration.serviceDemandByOutput).length,
+    externalCommodityCount: Object.keys(request.configuration.externalCommodityDemandByCommodity).length,
   };
 }
 
@@ -166,7 +166,7 @@ function sumInputCoefficient(row: NormalizedSolverRow, commodityId: string): num
 }
 
 function resolveCommodityPrice(request: SolveRequest, commodityId: string, year: number): number {
-  return request.scenario.commodityPriceByCommodity[commodityId]?.valuesByYear[yearKey(year)] ?? 0;
+  return request.configuration.commodityPriceByCommodity[commodityId]?.valuesByYear[yearKey(year)] ?? 0;
 }
 
 function resolveRowObjectiveCost(
@@ -182,7 +182,7 @@ function resolveRowObjectiveCost(
 
     return total + input.coefficient * resolveCommodityPrice(request, input.commodityId, row.year);
   }, 0);
-  const carbonCost = sumDirectEmissionsPerUnit(row) * (request.scenario.carbonPriceByYear[yearKey(row.year)] ?? 0);
+  const carbonCost = sumDirectEmissionsPerUnit(row) * (request.configuration.carbonPriceByYear[yearKey(row.year)] ?? 0);
 
   return conversionCost + commodityCost + carbonCost;
 }
@@ -190,13 +190,13 @@ function resolveRowObjectiveCost(
 function resolveActivityScale(request: SolveRequest): number {
   let maxMagnitude = 0;
 
-  for (const table of Object.values(request.scenario.serviceDemandByOutput)) {
+  for (const table of Object.values(request.configuration.serviceDemandByOutput)) {
     for (const value of Object.values(table)) {
       maxMagnitude = Math.max(maxMagnitude, Math.abs(value));
     }
   }
 
-  for (const table of Object.values(request.scenario.externalCommodityDemandByCommodity)) {
+  for (const table of Object.values(request.configuration.externalCommodityDemandByCommodity)) {
     for (const value of Object.values(table)) {
       maxMagnitude = Math.max(maxMagnitude, Math.abs(value));
     }
@@ -312,7 +312,7 @@ function resolveSoftConstraintPenalty(
 ): number {
   const maxObjectiveMagnitude = Math.max(
     0,
-    ...Object.values(variables).map((coefficients) => Math.abs(coefficients[SCENARIO_OBJECTIVE_KEY] ?? 0)),
+    ...Object.values(variables).map((coefficients) => Math.abs(coefficients[CONFIGURATION_OBJECTIVE_KEY] ?? 0)),
   );
 
   return Math.max(
@@ -344,7 +344,7 @@ function softenTrackedConstraint(
 
   const variableId = softConstraintVariableId(constraintId);
   variables[variableId] = {
-    [SCENARIO_OBJECTIVE_KEY]: penaltyPerUnit,
+    [CONFIGURATION_OBJECTIVE_KEY]: penaltyPerUnit,
     [constraintId]: -1,
   };
   softConstraintVariableIds.add(variableId);
@@ -362,8 +362,8 @@ function collectRequiredServiceGroups(request: SolveRequest): RequiredServiceGro
       continue;
     }
 
-    const demand = request.scenario.serviceDemandByOutput[row.outputId]?.[yearKey(row.year)] ?? 0;
-    const control = request.scenario.controlsByOutput[row.outputId]?.[yearKey(row.year)];
+    const demand = request.configuration.serviceDemandByOutput[row.outputId]?.[yearKey(row.year)] ?? 0;
+    const control = request.configuration.controlsByOutput[row.outputId]?.[yearKey(row.year)];
 
     if (!control) {
       throw new Error(
@@ -406,7 +406,7 @@ function collectSupplyCommodityGroups(request: SolveRequest): SupplyCommodityGro
       continue;
     }
 
-    const control = request.scenario.controlsByOutput[row.outputId]?.[yearKey(row.year)];
+    const control = request.configuration.controlsByOutput[row.outputId]?.[yearKey(row.year)];
 
     if (!control) {
       throw new Error(
@@ -427,7 +427,7 @@ function collectSupplyCommodityGroups(request: SolveRequest): SupplyCommodityGro
       commodityLabel: row.outputLabel,
       year: row.year,
       control,
-      externalDemand: request.scenario.externalCommodityDemandByCommodity[row.outputId]?.[yearKey(row.year)] ?? 0,
+      externalDemand: request.configuration.externalCommodityDemandByCommodity[row.outputId]?.[yearKey(row.year)] ?? 0,
       rows: [row],
     });
   }
@@ -661,8 +661,8 @@ function buildRowShareProfiles(
     .sort((left, right) => left.stateLabel.localeCompare(right.stateLabel))
     .map((row) => {
       const disabled = disabledStateIds.has(row.stateId);
-      const maxShareLimit = request.scenario.options.respectMaxShare ? row.bounds.maxShare : null;
-      const maxActivityLimit = request.scenario.options.respectMaxActivity ? row.bounds.maxActivity : null;
+      const maxShareLimit = request.configuration.options.respectMaxShare ? row.bounds.maxShare : null;
+      const maxActivityLimit = request.configuration.options.respectMaxActivity ? row.bounds.maxActivity : null;
       const upperShareIgnoringActivity = disabled
         ? 0
         : maxShareLimit == null
@@ -759,7 +759,7 @@ function estimateMinimumCommodityDemandForGroup(
 }
 
 function estimateMinimumCommodityDemand(
-  build: ScenarioLpBuild,
+  build: ConfigurationLpBuild,
   commodityId: string,
   year: number,
 ): number | null {
@@ -816,7 +816,7 @@ function estimateMaximumSupplyActivity(
       }
 
       hasPositiveShare = true;
-      if (request.scenario.options.respectMaxActivity && row.bounds.maxActivity != null) {
+      if (request.configuration.options.respectMaxActivity && row.bounds.maxActivity != null) {
         maximumActivity = Math.min(maximumActivity, row.bounds.maxActivity / share);
       }
     }
@@ -824,7 +824,7 @@ function estimateMaximumSupplyActivity(
     return hasPositiveShare ? maximumActivity : 0;
   }
 
-  if (!request.scenario.options.respectMaxActivity) {
+  if (!request.configuration.options.respectMaxActivity) {
     return Number.POSITIVE_INFINITY;
   }
 
@@ -835,7 +835,7 @@ function estimateMaximumSupplyActivity(
   return rows.reduce((total, row) => total + (row.bounds.maxActivity ?? 0), 0);
 }
 
-function buildRequiredServiceInfeasibilityDiagnostics(build: ScenarioLpBuild): SolveDiagnostic[] {
+function buildRequiredServiceInfeasibilityDiagnostics(build: ConfigurationLpBuild): SolveDiagnostic[] {
   const diagnostics: SolveDiagnostic[] = [];
 
   for (const group of build.requiredServiceGroups) {
@@ -981,7 +981,7 @@ function buildRequiredServiceInfeasibilityDiagnostics(build: ScenarioLpBuild): S
   return diagnostics;
 }
 
-function buildSupplyCommodityInfeasibilityDiagnostics(build: ScenarioLpBuild): SolveDiagnostic[] {
+function buildSupplyCommodityInfeasibilityDiagnostics(build: ConfigurationLpBuild): SolveDiagnostic[] {
   const diagnostics: SolveDiagnostic[] = [];
 
   for (const group of build.supplyGroups) {
@@ -1163,7 +1163,7 @@ function dedupeAndSortDiagnostics(diagnostics: SolveDiagnostic[]): SolveDiagnost
   return Array.from(uniqueDiagnostics.values()).sort(compareDiagnostics);
 }
 
-function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
+function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild {
   const constraints: Record<string, ConstraintBounds> = {};
   const trackedConstraints: Record<string, TrackedConstraint> = {};
   const softConstraintVariableIds = new Set<string>();
@@ -1188,10 +1188,10 @@ function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
 
   const ignoredRows = request.rows.filter((row) => row.outputRole === 'optional_removals');
   const activeIgnoredRows = ignoredRows.filter((row) => {
-    const control = request.scenario.controlsByOutput[row.outputId]?.[yearKey(row.year)];
+    const control = request.configuration.controlsByOutput[row.outputId]?.[yearKey(row.year)];
     return !control || !control.disabledStateIds.includes(row.stateId);
   });
-  const hasUnmodeledFeatures = activeIgnoredRows.length > 0 || request.scenario.options.shareSmoothing.enabled;
+  const hasUnmodeledFeatures = activeIgnoredRows.length > 0 || request.configuration.options.shareSmoothing.enabled;
 
   if (ignoredRows.length > 0) {
     const ignoredOutputCount = new Set(ignoredRows.map((row) => row.outputId)).size;
@@ -1202,11 +1202,11 @@ function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
     });
   }
 
-  if (request.scenario.options.shareSmoothing.enabled) {
+  if (request.configuration.options.shareSmoothing.enabled) {
     diagnostics.push({
       code: 'share_smoothing_pending',
       severity: 'warning',
-      message: 'Share smoothing is enabled in the scenario, but the rollout proxy is not yet enforced in the LP core.',
+      message: 'Share smoothing is enabled in the configuration, but the rollout proxy is not yet enforced in the LP core.',
     });
   }
 
@@ -1220,11 +1220,11 @@ function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
 
   for (const row of activeRows) {
     variables[activityVariableId(row)] = {
-      [SCENARIO_OBJECTIVE_KEY]: resolveRowObjectiveCost(request, row, balancedCommodityKeys),
+      [CONFIGURATION_OBJECTIVE_KEY]: resolveRowObjectiveCost(request, row, balancedCommodityKeys),
     };
   }
 
-  const softConstraintPenaltyPerUnit = request.scenario.options.softConstraints
+  const softConstraintPenaltyPerUnit = request.configuration.options.softConstraints
     ? resolveSoftConstraintPenalty(variables)
     : null;
 
@@ -1233,8 +1233,8 @@ function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
     return {
       request,
       model: {
-        direction: SCENARIO_DIRECTION,
-        objective: SCENARIO_OBJECTIVE_KEY,
+        direction: CONFIGURATION_DIRECTION,
+        objective: CONFIGURATION_OBJECTIVE_KEY,
         constraints: {},
         variables: {},
       },
@@ -1363,7 +1363,7 @@ function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
         );
       }
 
-      if (request.scenario.options.respectMaxShare && row.bounds.maxShare != null) {
+      if (request.configuration.options.respectMaxShare && row.bounds.maxShare != null) {
         const constraintId = stateConstraintId('max_share', row);
         addConstraint(
           constraints,
@@ -1396,7 +1396,7 @@ function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
         }
       }
 
-      if (request.scenario.options.respectMaxActivity && row.bounds.maxActivity != null) {
+      if (request.configuration.options.respectMaxActivity && row.bounds.maxActivity != null) {
         const constraintId = stateConstraintId('max_activity', row);
         addConstraint(
           constraints,
@@ -1569,7 +1569,7 @@ function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
         );
       }
 
-      if (request.scenario.options.respectMaxShare && row.bounds.maxShare != null) {
+      if (request.configuration.options.respectMaxShare && row.bounds.maxShare != null) {
         const constraintId = stateConstraintId('max_share', row);
         addShareConstraint(
           constraints,
@@ -1605,7 +1605,7 @@ function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
         }
       }
 
-      if (request.scenario.options.respectMaxActivity && row.bounds.maxActivity != null) {
+      if (request.configuration.options.respectMaxActivity && row.bounds.maxActivity != null) {
         const constraintId = stateConstraintId('max_activity', row);
         addConstraint(
           constraints,
@@ -1650,7 +1650,7 @@ function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
     `Built a generic LP over ${requiredServiceGroups.length} required-service groups, ${endogenousSupplyGroupCount} endogenous-supply groups, ${activeRows.length} activity variables, and ${softConstraintCount} soft-slack variables.`,
   );
   notes.push(
-    'Objective coefficients combine row conversion cost, exogenously priced non-balanced commodity inputs, and direct-emissions carbon cost using the resolved scenario tables.',
+    'Objective coefficients combine row conversion cost, exogenously priced non-balanced commodity inputs, and direct-emissions carbon cost using the resolved configuration tables.',
   );
   notes.push(
     `Electricity-style supply commodities enforce balance when they stay in-model; ${externalizedSupplyGroupCount} supply-year groups are externalized and fixed to zero activity.`,
@@ -1669,8 +1669,8 @@ function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
   return {
     request,
     model: {
-      direction: SCENARIO_DIRECTION,
-      objective: SCENARIO_OBJECTIVE_KEY,
+      direction: CONFIGURATION_DIRECTION,
+      objective: CONFIGURATION_OBJECTIVE_KEY,
       constraints,
       variables,
     },
@@ -1688,7 +1688,7 @@ function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
   };
 }
 
-function buildInfeasibilityDiagnostics(build: ScenarioLpBuild): SolveDiagnostic[] {
+function buildInfeasibilityDiagnostics(build: ConfigurationLpBuild): SolveDiagnostic[] {
   return dedupeAndSortDiagnostics([
     ...buildRequiredServiceInfeasibilityDiagnostics(build),
     ...buildSupplyCommodityInfeasibilityDiagnostics(build),
@@ -1697,7 +1697,7 @@ function buildInfeasibilityDiagnostics(build: ScenarioLpBuild): SolveDiagnostic[
 
 function buildDiagnostics(
   solution: Solution<string> | null,
-  build: ScenarioLpBuild,
+  build: ConfigurationLpBuild,
 ): SolveDiagnostic[] {
   const diagnostics = [...build.diagnostics];
 
@@ -1741,9 +1741,9 @@ function buildDiagnostics(
 
 function buildSoftConstraintDiagnostics(
   solution: Solution<string>,
-  build: ScenarioLpBuild,
+  build: ConfigurationLpBuild,
 ): SolveDiagnostic[] {
-  if (!build.request.scenario.options.softConstraints) {
+  if (!build.request.configuration.options.softConstraints) {
     return [];
   }
 
@@ -1840,7 +1840,7 @@ function buildStateShareSummary(
 
 function buildCommodityBalanceSummary(
   request: SolveRequest,
-  build: ScenarioLpBuild,
+  build: ConfigurationLpBuild,
   variableValues: Map<string, number>,
 ): SolveCommodityBalanceSummary[] {
   return build.supplyGroups.map((group) => {
@@ -1918,7 +1918,7 @@ function computeConstraintActualValue(
 
 function buildBindingConstraintSummary(
   solution: Solution<string>,
-  build: ScenarioLpBuild,
+  build: ConfigurationLpBuild,
 ): SolveBindingConstraintSummary[] {
   const variableValues = buildScaledVariableValueMap(solution);
 
@@ -1967,7 +1967,7 @@ function buildBindingConstraintSummary(
 
 function buildSoftConstraintViolationSummary(
   solution: Solution<string>,
-  build: ScenarioLpBuild,
+  build: ConfigurationLpBuild,
 ): SolveSoftConstraintViolationSummary[] {
   const variableValues = buildScaledVariableValueMap(solution);
 
@@ -2018,7 +2018,7 @@ function buildSoftConstraintViolationSummary(
 function buildReportingSummary(
   request: SolveRequest,
   solution: Solution<string>,
-  build: ScenarioLpBuild,
+  build: ConfigurationLpBuild,
 ): SolveReportingSummary {
   const variableValues = buildVariableValueMap(solution, build.activityScale);
 
@@ -2051,8 +2051,8 @@ function buildAdapterErrorResult(
   };
 }
 
-export function inspectScenarioLpBuild(request: SolveRequest) {
-  const build = buildScenarioLpModel(request);
+export function inspectConfigurationLpBuild(request: SolveRequest) {
+  const build = buildConfigurationLpModel(request);
 
   return {
     diagnostics: build.diagnostics,
@@ -2093,7 +2093,7 @@ export function solveWithLpAdapter(request: SolveRequest): SolveResult {
     ]);
   }
 
-  const build = buildScenarioLpModel(request);
+  const build = buildConfigurationLpModel(request);
   const validationErrors = build.diagnostics.filter((diagnostic) => diagnostic.severity === 'error');
 
   if (validationErrors.length > 0) {
@@ -2121,9 +2121,9 @@ export function solveWithLpAdapter(request: SolveRequest): SolveResult {
       ? buildReportingSummary(request, solution, build)
       : emptyReporting(),
     raw: {
-      kind: 'scenario_lp',
-      objectiveDirection: SCENARIO_DIRECTION,
-      objectiveKey: SCENARIO_OBJECTIVE_KEY,
+      kind: 'configuration_lp',
+      objectiveDirection: CONFIGURATION_DIRECTION,
+      objectiveKey: CONFIGURATION_OBJECTIVE_KEY,
       variableCount: Object.keys(build.model.variables).length,
       constraintCount: Object.keys(build.model.constraints).length,
       notes: build.notes,

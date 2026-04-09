@@ -33,7 +33,7 @@ type ComparisonSolveKey =
   | 'noRemovalsDelta'
   | 'relaxedConstraints';
 
-interface ScenarioMetrics {
+interface ConfigurationMetrics {
   totalCost: number | null;
   totalEmissions: number;
   energyEmissions: number;
@@ -61,18 +61,18 @@ interface ScenarioMetrics {
   bindingConstraints: SolveBindingConstraintSummary[];
 }
 
-export interface ComparisonScenarioPlan {
+export interface ComparisonConfigurationPlan {
   order: ComparisonSolveKey[];
-  scenarios: Record<ComparisonSolveKey, ScenarioDocument>;
+  configurations: Record<ComparisonSolveKey, ScenarioDocument>;
 }
 
-export interface ComparisonScenarioSolve {
+export interface ComparisonConfigurationSolve {
   key: ComparisonSolveKey;
   label: string;
-  scenario: ScenarioDocument;
+  configuration: ScenarioDocument;
   request: SolveRequest;
   result: SolveResult;
-  metrics: ScenarioMetrics;
+  metrics: ConfigurationMetrics;
 }
 
 export interface ComparisonMetricCard {
@@ -148,10 +148,10 @@ export interface ComparisonNarrative {
 
 export interface ComparisonReport {
   heuristicNote: string;
-  baseScenarioName: string;
-  compareScenarioName: string;
-  compareScenarioDescription: string | null;
-  scenarioStatuses: Array<{ key: ComparisonSolveKey; label: string; status: SolveResult['status'] }>;
+  baseConfigurationName: string;
+  compareConfigurationName: string;
+  compareConfigurationDescription: string | null;
+  configurationStatuses: Array<{ key: ComparisonSolveKey; label: string; status: SolveResult['status'] }>;
   metrics: ComparisonMetricCard[];
   decomposition: ComparisonEffectCard[];
   sectorEmissionDeltas: SectorEmissionDelta[];
@@ -247,11 +247,11 @@ function sumDirectEmissions(row: NormalizedSolverRow, source?: 'energy' | 'proce
 }
 
 function resolveCommodityPrice(request: SolveRequest, commodityId: string, year: number): number {
-  return request.scenario.commodityPriceByCommodity[commodityId]?.valuesByYear[String(year)] ?? 0;
+  return request.configuration.commodityPriceByCommodity[commodityId]?.valuesByYear[String(year)] ?? 0;
 }
 
 function resolveCarbonPrice(request: SolveRequest, year: number): number {
-  return request.scenario.carbonPriceByYear[String(year)] ?? 0;
+  return request.configuration.carbonPriceByYear[String(year)] ?? 0;
 }
 
 function buildBalancedCommodityKeys(request: SolveRequest): Set<string> {
@@ -262,7 +262,7 @@ function buildBalancedCommodityKeys(request: SolveRequest): Set<string> {
       continue;
     }
 
-    const control = request.scenario.controlsByOutput[row.outputId]?.[String(row.year)];
+    const control = request.configuration.controlsByOutput[row.outputId]?.[String(row.year)];
     if (control?.mode === 'externalized') {
       continue;
     }
@@ -407,10 +407,10 @@ function applyOptionalRemovalsControls(
 }
 
 export function buildTransitionCounterfactual(
-  baseScenario: ScenarioDocument,
+  baseConfiguration: ScenarioDocument,
   appConfig: AppConfigRegistry,
 ): ScenarioDocument {
-  const draft = structuredClone(baseScenario);
+  const draft = structuredClone(baseConfiguration);
   draft.name = 'Transition counterfactual';
   draft.description = 'Built-in compare run with stronger demand growth, cleaner input prices, non-zero carbon prices, optimized state choices, electricity optimization, and removals switched on for transparent heuristic attribution.';
   draft.demand_generation = {
@@ -420,7 +420,7 @@ export function buildTransitionCounterfactual(
   };
   draft.commodity_pricing = {
     selections_by_commodity: Object.fromEntries(
-      Object.keys(baseScenario.commodity_pricing.selections_by_commodity ?? {}).map(
+      Object.keys(baseConfiguration.commodity_pricing.selections_by_commodity ?? {}).map(
         (id) => [id, 'low' as const],
       ),
     ),
@@ -477,15 +477,15 @@ export function buildTransitionCounterfactual(
   );
 }
 
-export function buildComparisonScenarioPlan(
-  baseScenario: ScenarioDocument,
+export function buildComparisonConfigurationPlan(
+  baseConfiguration: ScenarioDocument,
   appConfig: AppConfigRegistry,
-): ComparisonScenarioPlan {
+): ComparisonConfigurationPlan {
   const base = makeManualScenario(
-    baseScenario,
+    baseConfiguration,
     'Compare mode locks the reference configuration into explicit milestone-year tables and relaxes caps in the primary baseline so state-choice deltas remain solvable.',
-    `${baseScenario.name} (compare baseline)`,
-    `${baseScenario.description ?? 'Reference configuration.'} Compare mode relaxes max-share and max-activity caps in the primary baseline, then re-imposes them in a shadow run when it explains constraint effects.`,
+    `${baseConfiguration.name} (compare baseline)`,
+    `${baseConfiguration.description ?? 'Reference configuration.'} Compare mode relaxes max-share and max-activity caps in the primary baseline, then re-imposes them in a shadow run when it explains constraint effects.`,
   );
   base.solver_options = {
     ...base.solver_options,
@@ -495,7 +495,7 @@ export function buildComparisonScenarioPlan(
   base.service_controls.electricity = {
     mode: 'externalized',
   };
-  const compare = buildTransitionCounterfactual(baseScenario, appConfig);
+  const compare = buildTransitionCounterfactual(baseConfiguration, appConfig);
 
   const noDemandDelta = cloneScenarioWithLabel(
     compare,
@@ -563,7 +563,7 @@ export function buildComparisonScenarioPlan(
       'noRemovalsDelta',
       'relaxedConstraints',
     ],
-    scenarios: {
+    configurations: {
       base,
       compare,
       noDemandDelta,
@@ -576,16 +576,16 @@ export function buildComparisonScenarioPlan(
   };
 }
 
-function calculateScenarioMetrics(
+function calculateConfigurationMetrics(
   request: SolveRequest,
   result: SolveResult,
   sectorStateByRowId: Map<string, SectorState>,
-): ScenarioMetrics {
+): ConfigurationMetrics {
   const balancedCommodityKeys = buildBalancedCommodityKeys(request);
   const variableValues = new Map(
     result.raw?.variables.map((entry) => [entry.id, entry.value]) ?? [],
   );
-  const metrics: ScenarioMetrics = {
+  const metrics: ConfigurationMetrics = {
     totalCost: result.raw?.objectiveValue ?? null,
     totalEmissions: 0,
     energyEmissions: 0,
@@ -653,7 +653,7 @@ function calculateScenarioMetrics(
   }
 
   for (const [commodityId, valuesByYear] of Object.entries(
-    request.scenario.externalCommodityDemandByCommodity,
+    request.configuration.externalCommodityDemandByCommodity,
   )) {
     for (const [year, value] of Object.entries(valuesByYear)) {
       if (Math.abs(value) <= FLOW_DELTA_THRESHOLD) {
@@ -824,9 +824,9 @@ function buildStateSignals(fromState: SectorState | undefined, toState: SectorSt
 }
 
 function buildStateShareDeltas(
-  base: ComparisonScenarioSolve,
-  compare: ComparisonScenarioSolve,
-  constraintSource: ComparisonScenarioSolve,
+  base: ComparisonConfigurationSolve,
+  compare: ComparisonConfigurationSolve,
+  constraintSource: ComparisonConfigurationSolve,
   appConfig: AppConfigRegistry,
   sectorStateByRowId: Map<string, SectorState>,
 ): StateShareDelta[] {
@@ -940,8 +940,8 @@ function extractYearsFromMap(map: Map<string, number>): number[] {
 }
 
 function buildSectorEmissionDeltas(
-  base: ScenarioMetrics,
-  compare: ScenarioMetrics,
+  base: ConfigurationMetrics,
+  compare: ConfigurationMetrics,
 ): SectorEmissionDelta[] {
   const sectors = new Set<string>([
     ...Array.from(base.sectorYearEmissions.keys()).map((key) => key.split('::')[0]),
@@ -970,8 +970,8 @@ function buildSectorEmissionDeltas(
 }
 
 function buildCommodityDemandDeltas(
-  base: ScenarioMetrics,
-  compare: ScenarioMetrics,
+  base: ConfigurationMetrics,
+  compare: ConfigurationMetrics,
 ): CommodityDemandDelta[] {
   const commodityIds = new Set<string>([
     ...Array.from(base.commodityYearDemand.keys()).map((key) => key.split('::')[0]),
@@ -1001,8 +1001,8 @@ function buildCommodityDemandDeltas(
 }
 
 function buildElectricityDeltas(
-  base: ScenarioMetrics,
-  compare: ScenarioMetrics,
+  base: ConfigurationMetrics,
+  compare: ConfigurationMetrics,
 ): ElectricityDelta[] {
   const years = Array.from(new Set([
     ...base.electricityBalances.keys(),
@@ -1030,8 +1030,8 @@ function buildElectricityDeltas(
 }
 
 function buildConfidenceDeltas(
-  base: ScenarioMetrics,
-  compare: ScenarioMetrics,
+  base: ConfigurationMetrics,
+  compare: ConfigurationMetrics,
 ): ConfidenceDelta[] {
   const ratings = new Set<string>([
     ...base.confidenceActivity.keys(),
@@ -1072,8 +1072,8 @@ function topItems<T>(items: T[], selector: (item: T) => number, count: number): 
 function buildEffectCard(
   id: string,
   title: string,
-  compareScenario: ComparisonScenarioSolve,
-  withheldScenario: ComparisonScenarioSolve,
+  compareConfiguration: ComparisonConfigurationSolve,
+  withheldConfiguration: ComparisonConfigurationSolve,
   summary: string,
   note?: string,
 ): ComparisonEffectCard {
@@ -1081,17 +1081,17 @@ function buildEffectCard(
     id,
     title,
     summary,
-    costDelta: diff(compareScenario.metrics.totalCost, withheldScenario.metrics.totalCost),
-    emissionsDelta: compareScenario.metrics.totalEmissions - withheldScenario.metrics.totalEmissions,
+    costDelta: diff(compareConfiguration.metrics.totalCost, withheldConfiguration.metrics.totalCost),
+    emissionsDelta: compareConfiguration.metrics.totalEmissions - withheldConfiguration.metrics.totalEmissions,
     electricityDemandDelta:
-      compareScenario.metrics.totalElectricityDemand - withheldScenario.metrics.totalElectricityDemand,
+      compareConfiguration.metrics.totalElectricityDemand - withheldConfiguration.metrics.totalElectricityDemand,
     note,
   };
 }
 
 function outputDemandDelta(
-  base: ScenarioMetrics,
-  compare: ScenarioMetrics,
+  base: ConfigurationMetrics,
+  compare: ConfigurationMetrics,
   outputId: string,
   commodityId: string,
 ): number {
@@ -1100,8 +1100,8 @@ function outputDemandDelta(
 }
 
 function buildElectrificationDrivers(
-  base: ScenarioMetrics,
-  compare: ScenarioMetrics,
+  base: ConfigurationMetrics,
+  compare: ConfigurationMetrics,
   appConfig: AppConfigRegistry,
 ): Array<{ outputId: string; outputLabel: string; electricityDelta: number; fossilDelta: number }> {
   const outputIds = new Set<string>([
@@ -1127,19 +1127,19 @@ function buildElectrificationDrivers(
 }
 
 function buildNarratives(
-  scenarios: Record<ComparisonSolveKey, ComparisonScenarioSolve>,
+  configurations: Record<ComparisonSolveKey, ComparisonConfigurationSolve>,
   sectorEmissionDeltas: SectorEmissionDelta[],
   commodityDemandDeltas: CommodityDemandDelta[],
   stateShareDeltas: StateShareDelta[],
   appConfig: AppConfigRegistry,
 ): ComparisonNarrative[] {
-  const base = scenarios.base;
-  const compare = scenarios.compare;
-  const noDemand = scenarios.noDemandDelta;
-  const noPrice = scenarios.noPriceDelta;
-  const noElectricity = scenarios.noElectricityModeDelta;
-  const noRemovals = scenarios.noRemovalsDelta;
-  const constrainedShadow = scenarios.relaxedConstraints;
+  const base = configurations.base;
+  const compare = configurations.compare;
+  const noDemand = configurations.noDemandDelta;
+  const noPrice = configurations.noPriceDelta;
+  const noElectricity = configurations.noElectricityModeDelta;
+  const noRemovals = configurations.noRemovalsDelta;
+  const constrainedShadow = configurations.relaxedConstraints;
 
   const topEmissionReducers = sectorEmissionDeltas.filter((entry) => entry.totalDelta < 0).slice(0, 2);
   const topFuelMoves = topItems(commodityDemandDeltas, (entry) => entry.totalDelta, 4);
@@ -1158,16 +1158,16 @@ function buildNarratives(
     .sort((left, right) => left.delta - right.delta)
     .slice(0, 3);
   const dominantShifts = stateShareDeltas.slice(0, 3);
-  const electricityControlBase = base.scenario.service_controls.electricity?.mode ?? 'fixed_shares';
-  const electricityControlCompare = compare.scenario.service_controls.electricity?.mode ?? electricityControlBase;
+  const electricityControlBase = base.configuration.service_controls.electricity?.mode ?? 'fixed_shares';
+  const electricityControlCompare = compare.configuration.service_controls.electricity?.mode ?? electricityControlBase;
   const constrainedBindings = constrainedShadow.metrics.bindingConstraints;
   const highlightedBindings = Array.from(new Set(constrainedBindings.slice(0, 3).map((constraint) => {
     const label = appConfig.output_roles[constraint.outputId]?.display_label ?? constraint.outputLabel;
     return `${formatTitle(constraint.kind)} on ${label} ${constraint.year}`;
   })));
   const removalsChanged = ['land_sequestration', 'engineered_removals'].some((outputId) => {
-    return JSON.stringify(compare.scenario.service_controls[outputId])
-      !== JSON.stringify(base.scenario.service_controls[outputId]);
+    return JSON.stringify(compare.configuration.service_controls[outputId])
+      !== JSON.stringify(base.configuration.service_controls[outputId]);
   });
   const removalsNote = compare.result.diagnostics.some((diagnostic) => diagnostic.code === 'optional_rows_pending');
 
@@ -1218,7 +1218,7 @@ function buildNarratives(
       id: 'price',
       title: 'Price Effect',
       summary: `Changing the commodity-price preset and carbon-price path ${describeSigned(compare.metrics.totalEmissions - noPrice.metrics.totalEmissions, 'pushes emissions up', 'pulls emissions down')} while ${describeSigned(diff(compare.metrics.totalCost, noPrice.metrics.totalCost) ?? 0, 'raising modeled cost', 'lowering modeled cost')}. The explanation stays heuristic because price shifts also alter which states become attractive.`,
-      evidence: `Reference and compare configurations use per-commodity price selections with carbon moving from ${base.scenario.carbon_price['2050'] ?? 0} to ${compare.scenario.carbon_price['2050'] ?? 0} by 2050.`,
+      evidence: `Reference and compare configurations use per-commodity price selections with carbon moving from ${base.configuration.carbon_price['2050'] ?? 0} to ${compare.configuration.carbon_price['2050'] ?? 0} by 2050.`,
     },
     {
       id: 'state-choice',
@@ -1270,27 +1270,27 @@ function buildNarratives(
 export function buildComparisonReport(
   appConfig: AppConfigRegistry,
   sectorStates: SectorState[],
-  solves: Array<{ key: ComparisonSolveKey; scenario: ScenarioDocument; request: SolveRequest; result: SolveResult }>,
+  solves: Array<{ key: ComparisonSolveKey; configuration: ScenarioDocument; request: SolveRequest; result: SolveResult }>,
 ): ComparisonReport {
   const sectorStateByRowId = new Map(sectorStates.map((row) => [`${row.state_id}::${row.year}`, row]));
-  const scenarios = solves.reduce<Record<ComparisonSolveKey, ComparisonScenarioSolve>>((accumulator, solve) => {
+  const configurations = solves.reduce<Record<ComparisonSolveKey, ComparisonConfigurationSolve>>((accumulator, solve) => {
     accumulator[solve.key] = {
       key: solve.key,
       label: controlLabelForKey(solve.key),
-      scenario: solve.scenario,
+      configuration: solve.configuration,
       request: solve.request,
       result: solve.result,
-      metrics: calculateScenarioMetrics(solve.request, solve.result, sectorStateByRowId),
+      metrics: calculateConfigurationMetrics(solve.request, solve.result, sectorStateByRowId),
     };
     return accumulator;
-  }, {} as Record<ComparisonSolveKey, ComparisonScenarioSolve>);
+  }, {} as Record<ComparisonSolveKey, ComparisonConfigurationSolve>);
 
-  const base = scenarios.base;
-  const compare = scenarios.compare;
+  const base = configurations.base;
+  const compare = configurations.compare;
   const stateShareDeltas = buildStateShareDeltas(
     base,
     compare,
-    scenarios.relaxedConstraints,
+    configurations.relaxedConstraints,
     appConfig,
     sectorStateByRowId,
   );
@@ -1300,36 +1300,42 @@ export function buildComparisonReport(
   const confidenceDeltas = buildConfidenceDeltas(base.metrics, compare.metrics);
   const overallInteractionResidual = {
     costDelta: (diff(compare.metrics.totalCost, base.metrics.totalCost) ?? 0)
-      - (diff(compare.metrics.totalCost, scenarios.noDemandDelta.metrics.totalCost) ?? 0)
-      - (diff(compare.metrics.totalCost, scenarios.noPriceDelta.metrics.totalCost) ?? 0)
-      - (diff(compare.metrics.totalCost, scenarios.noElectricityModeDelta.metrics.totalCost) ?? 0)
-      - (diff(compare.metrics.totalCost, scenarios.noStateChoiceDelta.metrics.totalCost) ?? 0)
-      - (diff(compare.metrics.totalCost, scenarios.noRemovalsDelta.metrics.totalCost) ?? 0),
+      - (diff(compare.metrics.totalCost, configurations.noDemandDelta.metrics.totalCost) ?? 0)
+      - (diff(compare.metrics.totalCost, configurations.noPriceDelta.metrics.totalCost) ?? 0)
+      - (diff(compare.metrics.totalCost, configurations.noElectricityModeDelta.metrics.totalCost) ?? 0)
+      - (diff(compare.metrics.totalCost, configurations.noStateChoiceDelta.metrics.totalCost) ?? 0)
+      - (diff(compare.metrics.totalCost, configurations.noRemovalsDelta.metrics.totalCost) ?? 0),
     emissionsDelta: (compare.metrics.totalEmissions - base.metrics.totalEmissions)
-      - (compare.metrics.totalEmissions - scenarios.noDemandDelta.metrics.totalEmissions)
-      - (compare.metrics.totalEmissions - scenarios.noPriceDelta.metrics.totalEmissions)
-      - (compare.metrics.totalEmissions - scenarios.noElectricityModeDelta.metrics.totalEmissions)
-      - (compare.metrics.totalEmissions - scenarios.noStateChoiceDelta.metrics.totalEmissions)
-      - (compare.metrics.totalEmissions - scenarios.noRemovalsDelta.metrics.totalEmissions),
+      - (compare.metrics.totalEmissions - configurations.noDemandDelta.metrics.totalEmissions)
+      - (compare.metrics.totalEmissions - configurations.noPriceDelta.metrics.totalEmissions)
+      - (compare.metrics.totalEmissions - configurations.noElectricityModeDelta.metrics.totalEmissions)
+      - (compare.metrics.totalEmissions - configurations.noStateChoiceDelta.metrics.totalEmissions)
+      - (compare.metrics.totalEmissions - configurations.noRemovalsDelta.metrics.totalEmissions),
     electricityDemandDelta: (compare.metrics.totalElectricityDemand - base.metrics.totalElectricityDemand)
-      - (compare.metrics.totalElectricityDemand - scenarios.noDemandDelta.metrics.totalElectricityDemand)
-      - (compare.metrics.totalElectricityDemand - scenarios.noPriceDelta.metrics.totalElectricityDemand)
-      - (compare.metrics.totalElectricityDemand - scenarios.noElectricityModeDelta.metrics.totalElectricityDemand)
-      - (compare.metrics.totalElectricityDemand - scenarios.noStateChoiceDelta.metrics.totalElectricityDemand)
-      - (compare.metrics.totalElectricityDemand - scenarios.noRemovalsDelta.metrics.totalElectricityDemand),
+      - (compare.metrics.totalElectricityDemand - configurations.noDemandDelta.metrics.totalElectricityDemand)
+      - (compare.metrics.totalElectricityDemand - configurations.noPriceDelta.metrics.totalElectricityDemand)
+      - (compare.metrics.totalElectricityDemand - configurations.noElectricityModeDelta.metrics.totalElectricityDemand)
+      - (compare.metrics.totalElectricityDemand - configurations.noStateChoiceDelta.metrics.totalElectricityDemand)
+      - (compare.metrics.totalElectricityDemand - configurations.noRemovalsDelta.metrics.totalElectricityDemand),
   };
 
-  const narratives = buildNarratives(scenarios, sectorEmissionDeltas, commodityDemandDeltas, stateShareDeltas, appConfig);
+  const narratives = buildNarratives(
+    configurations,
+    sectorEmissionDeltas,
+    commodityDemandDeltas,
+    stateShareDeltas,
+    appConfig,
+  );
 
   return {
     heuristicNote: 'This compare page uses one built-in transition counterfactual plus several one-change counterfactual solves. The attribution is intentionally heuristic and transparent rather than a perfect causal decomposition.',
-    baseScenarioName: base.scenario.name,
-    compareScenarioName: compare.scenario.name,
-    compareScenarioDescription: compare.scenario.description ?? null,
-    scenarioStatuses: Object.values(scenarios).map((scenario) => ({
-      key: scenario.key,
-      label: scenario.label,
-      status: scenario.result.status,
+    baseConfigurationName: base.configuration.name,
+    compareConfigurationName: compare.configuration.name,
+    compareConfigurationDescription: compare.configuration.description ?? null,
+    configurationStatuses: Object.values(configurations).map((configuration) => ({
+      key: configuration.key,
+      label: configuration.label,
+      status: configuration.result.status,
     })),
     metrics: [
       {
@@ -1377,12 +1383,12 @@ export function buildComparisonReport(
         label: 'Constraint shadow binds',
         unit: 'constraints',
         base: 0,
-        compare: scenarios.relaxedConstraints.result.status === 'error'
+        compare: configurations.relaxedConstraints.result.status === 'error'
           ? null
-          : scenarios.relaxedConstraints.metrics.bindingConstraints.length,
-        delta: scenarios.relaxedConstraints.result.status === 'error'
+          : configurations.relaxedConstraints.metrics.bindingConstraints.length,
+        delta: configurations.relaxedConstraints.result.status === 'error'
           ? null
-          : scenarios.relaxedConstraints.metrics.bindingConstraints.length,
+          : configurations.relaxedConstraints.metrics.bindingConstraints.length,
       },
     ],
     decomposition: [
@@ -1390,35 +1396,35 @@ export function buildComparisonReport(
         'demand',
         'Demand effect',
         compare,
-        scenarios.noDemandDelta,
+        configurations.noDemandDelta,
         'Keeps the transition controls and prices in place but restores the reference demand tables to show how much of the delta comes from higher service requirements.',
       ),
       buildEffectCard(
         'price',
         'Price effect',
         compare,
-        scenarios.noPriceDelta,
+        configurations.noPriceDelta,
         'Restores the reference commodity-price preset and carbon path to isolate how relative prices reshape the modeled result.',
       ),
       buildEffectCard(
         'electricity-mode',
         'Electricity-mode effect',
         compare,
-        scenarios.noElectricityModeDelta,
+        configurations.noElectricityModeDelta,
         'Restores the reference electricity control so the page can separate load growth from electricity-control changes.',
       ),
       buildEffectCard(
         'state-choice',
         'State-choice effect',
         compare,
-        scenarios.noStateChoiceDelta,
+        configurations.noStateChoiceDelta,
         'Restores reference required-service controls while keeping the rest of the transition package, so the residual reflects changed state selection.',
       ),
       buildEffectCard(
         'removals',
         'Removals activation',
         compare,
-        scenarios.noRemovalsDelta,
+        configurations.noRemovalsDelta,
         'Restores reference removals controls. Because optional removals are still outside the LP core, this effect is expected to be small and heavily caveated.',
         compare.result.diagnostics.some((diagnostic) => diagnostic.code === 'optional_rows_pending')
           ? 'Optional-removal rows remain outside the active LP core, so this row is a configuration-activation signal more than a modeled delta.'
@@ -1435,19 +1441,19 @@ export function buildComparisonReport(
       {
         id: 'constraints',
         title: 'Constraint shadow',
-        summary: scenarios.relaxedConstraints.result.status === 'error'
+        summary: configurations.relaxedConstraints.result.status === 'error'
           ? 'Re-imposing the modeled caps makes the transition shadow run infeasible, so compare mode exposes that failure directly instead of inventing a numeric cap delta.'
           : 'Re-imposes max-share and max-activity caps inside the transition counterfactual so the page can show what the cap shadow would block relative to the primary relaxed compare pair.',
-        costDelta: scenarios.relaxedConstraints.result.status === 'error'
+        costDelta: configurations.relaxedConstraints.result.status === 'error'
           ? null
-          : diff(scenarios.relaxedConstraints.metrics.totalCost, compare.metrics.totalCost),
-        emissionsDelta: scenarios.relaxedConstraints.result.status === 'error'
+          : diff(configurations.relaxedConstraints.metrics.totalCost, compare.metrics.totalCost),
+        emissionsDelta: configurations.relaxedConstraints.result.status === 'error'
           ? null
-          : scenarios.relaxedConstraints.metrics.totalEmissions - compare.metrics.totalEmissions,
-        electricityDemandDelta: scenarios.relaxedConstraints.result.status === 'error'
+          : configurations.relaxedConstraints.metrics.totalEmissions - compare.metrics.totalEmissions,
+        electricityDemandDelta: configurations.relaxedConstraints.result.status === 'error'
           ? null
-          : scenarios.relaxedConstraints.metrics.totalElectricityDemand - compare.metrics.totalElectricityDemand,
-        note: scenarios.relaxedConstraints.result.status === 'error'
+          : configurations.relaxedConstraints.metrics.totalElectricityDemand - compare.metrics.totalElectricityDemand,
+        note: configurations.relaxedConstraints.result.status === 'error'
           ? 'The constrained shadow run is infeasible under the current caps, so this card reports a qualitative constraint effect rather than a solved delta.'
           : undefined,
       },
@@ -1461,7 +1467,7 @@ export function buildComparisonReport(
   };
 }
 
-export function scenarioRoleSummary(
+export function configurationRoleSummary(
   scenario: ScenarioDocument,
   appConfig: AppConfigRegistry,
 ): Array<{ role: OutputRole; count: number }> {

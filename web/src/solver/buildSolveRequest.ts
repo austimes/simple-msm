@@ -3,7 +3,7 @@ import type { PackageData, ScenarioDocument } from '../data/types.ts';
 import {
   SOLVER_CONTRACT_VERSION,
   type NormalizedSolverRow,
-  type ResolvedScenarioForSolve,
+  type ResolvedConfigurationForSolve,
   type ResolvedSolveControl,
   type SolveRequest,
 } from './contract.ts';
@@ -13,10 +13,10 @@ import {
 } from './solveScope.ts';
 import {
   normalizeSolverRows,
-  resolveScenarioForSolve,
+  resolveConfigurationForSolve,
 } from './solveRequestModel.ts';
 
-export { normalizeSolverRows, resolveScenarioForSolve } from './solveRequestModel.ts';
+export { normalizeSolverRows, resolveConfigurationForSolve } from './solveRequestModel.ts';
 
 function createRequestId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -35,12 +35,12 @@ export interface BuildSolveRequestOptions {
 }
 
 function buildDemandValidationMessage(
-  scenario: ResolvedScenarioForSolve,
+  configuration: ResolvedConfigurationForSolve,
   invalidStatuses: ReturnType<typeof deriveOutputRunStatuses>,
 ): string {
   const details = Object.values(invalidStatuses).map((status) => {
-    const activeYears = scenario.years.filter(
-      (year) => (scenario.serviceDemandByOutput[status.outputId]?.[String(year)] ?? 0) > 0,
+    const activeYears = configuration.years.filter(
+      (year) => (configuration.serviceDemandByOutput[status.outputId]?.[String(year)] ?? 0) > 0,
     );
     const yearsLabel = activeYears.length > 0 ? ` (${activeYears.join(', ')})` : '';
     return `${status.outputId}${yearsLabel}`;
@@ -52,13 +52,13 @@ function buildDemandValidationMessage(
 function validateRequiredServiceCoverage(
   rows: NormalizedSolverRow[],
   configuration: ScenarioDocument,
-  scenario: ResolvedScenarioForSolve,
+  resolvedConfiguration: ResolvedConfigurationForSolve,
   appConfig: PackageData['appConfig'],
   seedOutputIds: string[] | undefined,
 ): void {
   const invalidStatuses = Object.fromEntries(
     Object.entries(
-      deriveOutputRunStatuses(rows, configuration, scenario, appConfig, seedOutputIds),
+      deriveOutputRunStatuses(rows, configuration, resolvedConfiguration, appConfig, seedOutputIds),
     ).filter(([, status]) => status.hasDemandValidationError),
   );
 
@@ -66,42 +66,43 @@ function validateRequiredServiceCoverage(
     return;
   }
 
-  throw new Error(buildDemandValidationMessage(scenario, invalidStatuses));
+  throw new Error(buildDemandValidationMessage(resolvedConfiguration, invalidStatuses));
 }
 
 function filterSolveRequestForOutputs(
   rows: NormalizedSolverRow[],
-  scenario: ResolvedScenarioForSolve,
+  configuration: ResolvedConfigurationForSolve,
   effectiveOutputIds: Set<string>,
   seedOutputIds: Set<string>,
-): { rows: NormalizedSolverRow[]; scenario: ResolvedScenarioForSolve } {
+): { rows: NormalizedSolverRow[]; configuration: ResolvedConfigurationForSolve } {
   const filteredRows = rows.filter((row) => effectiveOutputIds.has(row.outputId));
 
   const filteredControlsByOutput: Record<string, Record<string, ResolvedSolveControl>> = {};
   for (const outputId of effectiveOutputIds) {
-    if (scenario.controlsByOutput[outputId]) {
-      filteredControlsByOutput[outputId] = scenario.controlsByOutput[outputId];
+    if (configuration.controlsByOutput[outputId]) {
+      filteredControlsByOutput[outputId] = configuration.controlsByOutput[outputId];
     }
   }
 
   const filteredServiceDemandByOutput: Record<string, Record<string, number>> = {};
   for (const outputId of effectiveOutputIds) {
-    if (scenario.serviceDemandByOutput[outputId]) {
-      filteredServiceDemandByOutput[outputId] = scenario.serviceDemandByOutput[outputId];
+    if (configuration.serviceDemandByOutput[outputId]) {
+      filteredServiceDemandByOutput[outputId] = configuration.serviceDemandByOutput[outputId];
     }
   }
 
   const filteredExternalCommodityDemandByCommodity: Record<string, Record<string, number>> = {};
   for (const outputId of seedOutputIds) {
-    if (scenario.externalCommodityDemandByCommodity[outputId]) {
-      filteredExternalCommodityDemandByCommodity[outputId] = scenario.externalCommodityDemandByCommodity[outputId];
+    if (configuration.externalCommodityDemandByCommodity[outputId]) {
+      filteredExternalCommodityDemandByCommodity[outputId]
+        = configuration.externalCommodityDemandByCommodity[outputId];
     }
   }
 
   return {
     rows: filteredRows,
-    scenario: {
-      ...scenario,
+    configuration: {
+      ...configuration,
       controlsByOutput: filteredControlsByOutput,
       serviceDemandByOutput: filteredServiceDemandByOutput,
       externalCommodityDemandByCommodity: filteredExternalCommodityDemandByCommodity,
@@ -148,14 +149,14 @@ export function buildSolveRequest(
   options: BuildSolveRequestOptions = {},
 ): SolveRequest {
   const allRows = normalizeSolverRows(pkg);
-  const resolvedScenario = resolveScenarioForSolve(configuration, pkg.appConfig);
+  const resolvedConfiguration = resolveConfigurationForSolve(configuration, pkg.appConfig);
   const seedOutputIds = options.seedOutputIds
     ?? options.includedOutputIds
     ?? getSeedOutputIds(configuration);
   validateRequiredServiceCoverage(
     allRows,
     configuration,
-    resolvedScenario,
+    resolvedConfiguration,
     pkg.appConfig,
     seedOutputIds,
   );
@@ -165,20 +166,20 @@ export function buildSolveRequest(
       contractVersion: SOLVER_CONTRACT_VERSION,
       requestId: createRequestId(),
       rows: allRows,
-      scenario: resolvedScenario,
+      configuration: resolvedConfiguration,
     };
   }
 
   const seedOutputIdSet = new Set(seedOutputIds);
   const expandedOutputIds = expandIncludedOutputsForDependencies(
     allRows,
-    resolvedScenario,
+    resolvedConfiguration,
     pkg.appConfig,
     seedOutputIdSet,
   );
   const filtered = filterSolveRequestForOutputs(
     allRows,
-    resolvedScenario,
+    resolvedConfiguration,
     expandedOutputIds,
     seedOutputIdSet,
   );
@@ -187,6 +188,6 @@ export function buildSolveRequest(
     contractVersion: SOLVER_CONTRACT_VERSION,
     requestId: createRequestId(),
     rows: filtered.rows,
-    scenario: filtered.scenario,
+    configuration: filtered.configuration,
   };
 }
