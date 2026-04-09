@@ -243,7 +243,6 @@ test('configuration loader prefers the canonical filename when duplicate config 
 
   duplicateConfig.service_controls.residential_building_services = {
     mode: 'optimize',
-    state_id: null,
     disabled_state_ids: ['buildings__residential__deep_electric'],
   };
 

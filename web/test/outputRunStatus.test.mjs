@@ -179,7 +179,7 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
     );
   });
 
-  test('keeps non-disabled pathways enabled in status output for pinned-single controls', () => {
+  test('keeps non-disabled pathways available in status output for one-hot exact-share controls', () => {
     const residentialStateIds = Array.from(
       new Set(
         pkg.sectorStates
@@ -192,11 +192,11 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
 
     const [selectedStateId, disabledStateId] = residentialStateIds;
     const configuration = buildConfiguration(pkg.appConfig, {
-      name: 'Residential pinned-single status semantics',
+      name: 'Residential one-hot exact-share status semantics',
       serviceControls: {
         residential_building_services: {
-          mode: 'pinned_single',
-          state_id: selectedStateId,
+          mode: 'fixed_shares',
+          fixed_shares: { [selectedStateId]: 1 },
           disabled_state_ids: [disabledStateId],
         },
       },
@@ -204,7 +204,7 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
 
     const statuses = deriveOutputRunStatusesForConfiguration(pkg, configuration);
 
-    assert.equal(statuses.residential_building_services.controlMode, 'pinned_single');
+    assert.equal(statuses.residential_building_services.controlMode, 'fixed_shares');
     assert.equal(statuses.residential_building_services.isDisabled, false);
     assert.deepEqual(
       statuses.residential_building_services.activeStateIds,

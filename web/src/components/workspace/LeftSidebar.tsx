@@ -346,7 +346,7 @@ export default function LeftSidebar() {
                 <div className="workspace-fixed-share-panel">
                   <div className="workspace-fixed-share-summary">
                     <div className="workspace-subsector-detail">
-                      Fixed shares apply across the active pathways for this commodity in the current run.
+                      Exact shares apply across the active pathways for this commodity in the current run.
                       Non-disabled pathways remain in the cap denominator for context.
                     </div>
                     <span className={`workspace-mode-badge workspace-mode-badge--${fixedShareTotalIsValid ? 'success' : 'warning'}`}>
@@ -401,11 +401,11 @@ export default function LeftSidebar() {
                   </div>
                   <div className="workspace-subsector-detail">
                     {fixedShareTotalIsValid
-                      ? 'Enabled-pathway shares sum to 100%, so the fixed-share mix is solver-ready.'
-                      : `Enabled-pathway shares currently sum to ${formatSharePercent(fixedShareTotal)}. Adjust them to 100% to satisfy solver validation.`}
+                      ? 'Active-pathway shares sum to 100%, so the exact-share mix is solver-ready.'
+                      : `Active-pathway shares currently sum to ${formatSharePercent(fixedShareTotal)}. Adjust them to 100% to satisfy solver validation.`}
                   </div>
                   <div className="workspace-subsector-detail">
-                    Use the state selector on the right to change which pathways are enabled.
+                    Use the state selector on the right to change which pathways stay available.
                   </div>
                 </div>
               )}

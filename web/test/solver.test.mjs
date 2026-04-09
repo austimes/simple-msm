@@ -253,18 +253,18 @@ function main() {
   };
   const case2 = logCase('Case 2: Electricity in optimize mode', optimizeElectricity, pkg);
 
-  // Case 3: Stale pinned_single (simulating localStorage bug)
+  // Case 3: Stale exact-share control with no shares (simulating localStorage bug)
   if (electricityStates.length > 0) {
     const stalePinned = structuredClone(referenceConfiguration);
-    stalePinned.name += ' [stale electricity pinned_single]';
+    stalePinned.name += ' [stale electricity exact shares]';
     stalePinned.service_controls = {
       ...stalePinned.service_controls,
       electricity: {
-        mode: 'pinned_single',
-        state_id: electricityStates[0],
+        mode: 'fixed_shares',
+        fixed_shares: null,
       },
     };
-    logCase('Case 3: Stale pinned_single electricity', stalePinned, pkg);
+    logCase('Case 3: Stale exact-share electricity', stalePinned, pkg);
   }
 
   // Case 4: Electricity fixed_shares with single state at 100%

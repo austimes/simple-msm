@@ -32,7 +32,6 @@ function resolveControlForYear(
 
   return {
     mode: override?.mode ?? control?.mode ?? defaultMode,
-    stateId: override?.state_id ?? control?.state_id ?? null,
     fixedShares: override?.fixed_shares ?? control?.fixed_shares ?? null,
     disabledStateIds: control?.disabled_state_ids ?? [],
     targetValue: override?.target_value ?? control?.target_value ?? null,

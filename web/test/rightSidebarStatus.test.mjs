@@ -110,7 +110,7 @@ describe('getRightSidebarStatusPresentation', () => {
     assert.match(electricity.detail, /commodity price selection is used instead/i);
   });
 
-  test('explains that pinned-single controls still keep other non-disabled pathways enabled', () => {
+  test('explains that one-hot exact-share controls still keep other non-disabled pathways available', () => {
     const scenario = readJson('../src/configurations/industrial-heat-fossil.json');
     const statuses = deriveOutputRunStatusesForConfiguration(pkg, scenario);
     const lowTemperatureHeat = getRightSidebarStatusPresentation(statuses.low_temperature_heat);

@@ -120,7 +120,7 @@ function buildBaselineConfiguration(appConfig, electricityControl = { mode: 'ext
 
   const serviceControls = {};
   for (const [outputId, stateId] of Object.entries(INCUMBENT_STATE_IDS)) {
-    serviceControls[outputId] = { mode: 'pinned_single', state_id: stateId };
+    serviceControls[outputId] = { mode: 'fixed_shares', fixed_shares: { [stateId]: 1 } };
   }
   serviceControls.electricity = electricityControl;
   serviceControls.land_sequestration = { mode: 'optimize', disabled_state_ids: ['removals_negative_emissions__land_sequestration__biological_sink'] };
@@ -129,7 +129,7 @@ function buildBaselineConfiguration(appConfig, electricityControl = { mode: 'ext
   const configuration = {
     ...referenceConfiguration,
     name: 'Baseline — all incumbents, externalized electricity',
-    description: 'Every subsector pinned to its least-ambitious state. Electricity externalized, removals off.',
+    description: 'Every subsector held at 100% on its least-ambitious state. Electricity externalized, removals off.',
     service_controls: serviceControls,
     solver_options: {
       respect_max_share: false,

@@ -141,20 +141,9 @@ function reconcileControlForAvailableStates(
       : control;
   }
 
-  if (control.mode === 'pinned_single' && allowedModes.includes('pinned_single')) {
-    return {
-      ...control,
-      state_id: availableStateIds.includes(control.state_id ?? '')
-        ? control.state_id
-        : availableStateIds[0],
-      fixed_shares: null,
-    };
-  }
-
   if (control.mode === 'fixed_shares' && allowedModes.includes('fixed_shares')) {
     return {
       ...control,
-      state_id: null,
       fixed_shares: normalizeFixedShares(availableStateIds, control.fixed_shares),
     };
   }
@@ -162,17 +151,7 @@ function reconcileControlForAvailableStates(
   if (control.mode !== 'off' && allowedModes.includes(control.mode)) {
     return {
       ...control,
-      state_id: control.mode === 'pinned_single' ? control.state_id : null,
       fixed_shares: control.mode === 'fixed_shares' ? control.fixed_shares : null,
-    };
-  }
-
-  if (availableStateIds.length === 1 && allowedModes.includes('pinned_single')) {
-    return {
-      ...control,
-      mode: 'pinned_single',
-      state_id: availableStateIds[0],
-      fixed_shares: null,
     };
   }
 
@@ -180,7 +159,6 @@ function reconcileControlForAvailableStates(
     return {
       ...control,
       mode: 'fixed_shares',
-      state_id: null,
       fixed_shares: normalizeFixedShares(availableStateIds, control.fixed_shares),
     };
   }
@@ -190,7 +168,6 @@ function reconcileControlForAvailableStates(
     mode: allowedModes.includes('optimize')
       ? 'optimize'
       : (defaultMode && defaultMode !== 'off' ? defaultMode : 'optimize'),
-    state_id: null,
     fixed_shares: null,
   };
 }
@@ -412,24 +389,13 @@ export const usePackageStore = create<PackageStore>((set, get) => {
         ? {
             ...control,
             mode,
-            state_id: null,
             fixed_shares: normalizeFixedShares(availableStateIds, control.fixed_shares),
           }
-        : mode === 'pinned_single'
-          ? {
-              ...control,
-              mode,
-              state_id: availableStateIds.includes(control.state_id ?? '')
-                ? control.state_id
-                : (availableStateIds[0] ?? null),
-              fixed_shares: null,
-            }
-          : {
-              ...control,
-              mode,
-              state_id: null,
-              fixed_shares: null,
-            };
+        : {
+            ...control,
+            mode,
+            fixed_shares: null,
+          };
       commitConfigurationEdit(nextConfiguration);
     },
     setOutputFixedShare: (outputId, stateId, share) => {
@@ -465,7 +431,6 @@ export const usePackageStore = create<PackageStore>((set, get) => {
       nextConfiguration.service_controls[outputId] = {
         ...existing,
         mode: 'fixed_shares',
-        state_id: null,
         fixed_shares: Object.keys(nextFixedShares).length > 0
           ? Object.fromEntries(
               Object.entries(nextFixedShares)

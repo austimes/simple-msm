@@ -36,7 +36,7 @@ describe('getAvailableStateIds', () => {
     assert.equal(availableStateIds.length, electricityStateIds.length - 1);
   });
 
-  test('pinned-single controls still expose all non-disabled pathways as available candidates', () => {
+  test('single-path exact-share controls still expose all non-disabled pathways as available candidates', () => {
     const residentialStateIds = Array.from(
       new Set(
         pkg.sectorStates
@@ -49,11 +49,11 @@ describe('getAvailableStateIds', () => {
 
     const [selectedStateId, disabledStateId] = residentialStateIds;
     const configuration = buildConfiguration(pkg.appConfig, {
-      name: 'Residential pinned-single availability semantics',
+      name: 'Residential single-path exact-share availability semantics',
       serviceControls: {
         residential_building_services: {
-          mode: 'pinned_single',
-          state_id: selectedStateId,
+          mode: 'fixed_shares',
+          fixed_shares: { [selectedStateId]: 1 },
           disabled_state_ids: [disabledStateId],
         },
       },

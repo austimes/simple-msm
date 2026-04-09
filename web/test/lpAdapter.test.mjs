@@ -65,7 +65,7 @@ function findStateShare(result, outputId, year, stateId) {
   });
 }
 
-test('required-service LP solves pinned, fixed-share, and optimize controls generically', () => {
+test('required-service LP solves exact-share and optimize controls generically', () => {
   const request = {
     contractVersion: SOLVER_CONTRACT_VERSION,
     requestId: 'lp-adapter-regression',
@@ -179,15 +179,13 @@ test('required-service LP solves pinned, fixed-share, and optimize controls gene
       controlsByOutput: {
         heat: {
           2025: {
-            mode: 'pinned_single',
-            stateId: 'heat_fossil',
-            fixedShares: null,
+            mode: 'fixed_shares',
+            fixedShares: { 'heat_fossil': 1 },
             disabledStateIds: ['heat_electric'],
             targetValue: null,
           },
           2030: {
             mode: 'fixed_shares',
-            stateId: null,
             fixedShares: {
               heat_fossil: 0.25,
               heat_electric: 0.75,
@@ -198,31 +196,27 @@ test('required-service LP solves pinned, fixed-share, and optimize controls gene
         },
         transport: {
           2025: {
-            mode: 'pinned_single',
-            stateId: 'transport_diesel',
-            fixedShares: null,
+            mode: 'fixed_shares',
+            fixedShares: { 'transport_diesel': 1 },
             disabledStateIds: ['transport_ev'],
             targetValue: null,
           },
           2030: {
-            mode: 'pinned_single',
-            stateId: 'transport_ev',
-            fixedShares: null,
+            mode: 'fixed_shares',
+            fixedShares: { 'transport_ev': 1 },
             disabledStateIds: ['transport_diesel'],
             targetValue: null,
           },
         },
         process: {
           2025: {
-            mode: 'pinned_single',
-            stateId: 'process_transition',
-            fixedShares: null,
+            mode: 'fixed_shares',
+            fixedShares: { 'process_transition': 1 },
             disabledStateIds: ['process_incumbent', 'process_hydrogen'],
             targetValue: null,
           },
           2030: {
             mode: 'optimize',
-            stateId: null,
             fixedShares: null,
             disabledStateIds: ['process_hydrogen'],
             targetValue: null,
@@ -258,18 +252,18 @@ test('required-service LP solves pinned, fixed-share, and optimize controls gene
   assert.equal(result.raw.solutionStatus, 'optimal');
   assert.ok(result.diagnostics.every((diagnostic) => diagnostic.severity !== 'error'));
 
-  assertClose(variables.get('activity:heat_fossil::2025'), 60, '2025 heat pinned row');
-  assertClose(variables.get('activity:heat_electric::2025'), 0, '2025 heat non-pinned row');
-  assertClose(variables.get('activity:transport_diesel::2025'), 40, '2025 transport pinned row');
-  assertClose(variables.get('activity:transport_ev::2025'), 0, '2025 transport non-pinned row');
-  assertClose(variables.get('activity:process_transition::2025'), 30, '2025 process pinned row');
-  assertClose(variables.get('activity:process_incumbent::2025'), 0, '2025 process non-pinned row');
+  assertClose(variables.get('activity:heat_fossil::2025'), 60, '2025 heat exact-share row');
+  assertClose(variables.get('activity:heat_electric::2025'), 0, '2025 heat inactive row');
+  assertClose(variables.get('activity:transport_diesel::2025'), 40, '2025 transport exact-share row');
+  assertClose(variables.get('activity:transport_ev::2025'), 0, '2025 transport inactive row');
+  assertClose(variables.get('activity:process_transition::2025'), 30, '2025 process exact-share row');
+  assertClose(variables.get('activity:process_incumbent::2025'), 0, '2025 process inactive row');
   assertClose(variables.get('activity:process_hydrogen::2025'), 0, '2025 process extra row');
 
   assertClose(variables.get('activity:heat_fossil::2030'), 20, '2030 heat fixed-share fossil row');
   assertClose(variables.get('activity:heat_electric::2030'), 60, '2030 heat fixed-share electric row');
-  assertClose(variables.get('activity:transport_diesel::2030'), 0, '2030 transport non-pinned row');
-  assertClose(variables.get('activity:transport_ev::2030'), 50, '2030 transport pinned row');
+  assertClose(variables.get('activity:transport_diesel::2030'), 0, '2030 transport inactive row');
+  assertClose(variables.get('activity:transport_ev::2030'), 50, '2030 transport exact-share row');
   assertClose(variables.get('activity:process_incumbent::2030'), 37.5, '2030 process optimize low-cost capped row');
   assertClose(variables.get('activity:process_transition::2030'), 62.5, '2030 process optimize residual row');
   assertClose(variables.get('activity:process_hydrogen::2030'), 0, '2030 process disabled row');
@@ -285,7 +279,7 @@ test('required-service LP solves pinned, fixed-share, and optimize controls gene
     result.reporting.bindingConstraints.map((constraint) => constraint.constraintId),
   );
 
-  assert.ok(bindingConstraintIds.has('pinned:heat_fossil::2025'));
+  assert.ok(bindingConstraintIds.has('fixed_share:heat_fossil::2025'));
   assert.ok(bindingConstraintIds.has('fixed_share:heat_electric::2030'));
   assert.ok(bindingConstraintIds.has('max_share:process_incumbent::2030'));
   assert.ok(bindingConstraintIds.has('disabled:process_hydrogen::2030'));
@@ -346,7 +340,6 @@ test('endogenous electricity enforces balance and removes exogenous electricity 
         process: {
           2030: {
             mode: 'optimize',
-            stateId: null,
             fixedShares: null,
             disabledStateIds: [],
             targetValue: null,
@@ -355,7 +348,6 @@ test('endogenous electricity enforces balance and removes exogenous electricity 
         electricity: {
           2030: {
             mode: 'fixed_shares',
-            stateId: null,
             fixedShares: {
               grid_clean: 0.25,
               grid_firmed: 0.75,
@@ -466,7 +458,6 @@ test('externalized electricity bypasses supply states and prices electricity exo
         process: {
           2030: {
             mode: 'optimize',
-            stateId: null,
             fixedShares: null,
             disabledStateIds: [],
             targetValue: null,
@@ -475,7 +466,6 @@ test('externalized electricity bypasses supply states and prices electricity exo
         electricity: {
           2030: {
             mode: 'externalized',
-            stateId: null,
             fixedShares: null,
             disabledStateIds: [],
             targetValue: null,
@@ -630,9 +620,8 @@ test('infeasible runs report deterministic service-year and electricity diagnost
       controlsByOutput: {
         pin_service: {
           2030: {
-            mode: 'pinned_single',
-            stateId: 'pin_locked',
-            fixedShares: null,
+            mode: 'fixed_shares',
+            fixedShares: { 'pin_locked': 1 },
             disabledStateIds: [],
             targetValue: null,
           },
@@ -640,7 +629,6 @@ test('infeasible runs report deterministic service-year and electricity diagnost
         share_service: {
           2030: {
             mode: 'optimize',
-            stateId: null,
             fixedShares: null,
             disabledStateIds: [],
             targetValue: null,
@@ -649,7 +637,6 @@ test('infeasible runs report deterministic service-year and electricity diagnost
         activity_service: {
           2030: {
             mode: 'optimize',
-            stateId: null,
             fixedShares: null,
             disabledStateIds: [],
             targetValue: null,
@@ -658,7 +645,6 @@ test('infeasible runs report deterministic service-year and electricity diagnost
         disabled_service: {
           2030: {
             mode: 'optimize',
-            stateId: null,
             fixedShares: null,
             disabledStateIds: ['disabled_a', 'disabled_b'],
             targetValue: null,
@@ -667,7 +653,6 @@ test('infeasible runs report deterministic service-year and electricity diagnost
         process_service: {
           2030: {
             mode: 'optimize',
-            stateId: null,
             fixedShares: null,
             disabledStateIds: [],
             targetValue: null,
@@ -676,7 +661,6 @@ test('infeasible runs report deterministic service-year and electricity diagnost
         electricity: {
           2030: {
             mode: 'optimize',
-            stateId: null,
             fixedShares: null,
             disabledStateIds: [],
             targetValue: null,
@@ -722,7 +706,7 @@ test('infeasible runs report deterministic service-year and electricity diagnost
 
   assert.equal(
     findDiagnostic(result, 'exact_control_share_conflict', 'pin_service')?.reason,
-    'pinned_fixed_share_conflict',
+    'exact_share_conflict',
   );
   assert.equal(findDiagnostic(result, 'exact_control_share_conflict', 'pin_service')?.year, 2030);
   assert.equal(
@@ -817,7 +801,6 @@ test('soft-constraint mode restores feasibility and reports slack penalties', ()
         share_service: {
           2030: {
             mode: 'fixed_shares',
-            stateId: null,
             fixedShares: {
               share_a: 1,
               share_b: 0,
@@ -829,7 +812,6 @@ test('soft-constraint mode restores feasibility and reports slack penalties', ()
         activity_service: {
           2030: {
             mode: 'optimize',
-            stateId: null,
             fixedShares: null,
             disabledStateIds: [],
             targetValue: null,
@@ -838,7 +820,6 @@ test('soft-constraint mode restores feasibility and reports slack penalties', ()
         process_service: {
           2030: {
             mode: 'optimize',
-            stateId: null,
             fixedShares: null,
             disabledStateIds: [],
             targetValue: null,
@@ -847,7 +828,6 @@ test('soft-constraint mode restores feasibility and reports slack penalties', ()
         electricity: {
           2030: {
             mode: 'optimize',
-            stateId: null,
             fixedShares: null,
             disabledStateIds: [],
             targetValue: null,
@@ -953,7 +933,6 @@ test('max-share normalization keeps subset runs feasible and reports raw versus 
         subset_service: {
           2030: {
             mode: 'optimize',
-            stateId: null,
             fixedShares: null,
             disabledStateIds: ['subset_disabled'],
             targetValue: null,
@@ -1027,7 +1006,6 @@ test('zero raw max shares fall back to equal effective shares across enabled pat
         equal_service: {
           2030: {
             mode: 'fixed_shares',
-            stateId: null,
             fixedShares: {
               equal_a: 0.5,
               equal_b: 0.5,
@@ -1068,44 +1046,43 @@ test('zero raw max shares fall back to equal effective shares across enabled pat
   assertClose(shareB?.effectiveMaxShare, 0.5, 'equal_b effective max share falls back to 50%');
 });
 
-test('pinned-single controls do not narrow the cap-normalization denominator', () => {
+test('one-hot exact-share controls do not narrow the cap-normalization denominator', () => {
   const request = {
     contractVersion: SOLVER_CONTRACT_VERSION,
-    requestId: 'lp-adapter-pinned-cap-denominator',
+    requestId: 'lp-adapter-exact-share-cap-denominator',
     rows: [
       createRow({
-        rowId: 'pinned_a::2030',
-        outputId: 'pinned_service',
+        rowId: 'selected_a::2030',
+        outputId: 'exact_share_service',
         year: 2030,
-        stateId: 'pinned_a',
+        stateId: 'selected_a',
         cost: 1,
         maxShare: 0.2,
       }),
       createRow({
-        rowId: 'pinned_b::2030',
-        outputId: 'pinned_service',
+        rowId: 'available_b::2030',
+        outputId: 'exact_share_service',
         year: 2030,
-        stateId: 'pinned_b',
+        stateId: 'available_b',
         cost: 3,
       }),
     ],
     configuration: {
-      name: 'Pinned denominator regression',
+      name: 'Exact-share denominator regression',
       description: null,
       years: [2030],
       controlsByOutput: {
-        pinned_service: {
+        exact_share_service: {
           2030: {
-            mode: 'pinned_single',
-            stateId: 'pinned_a',
-            fixedShares: null,
+            mode: 'fixed_shares',
+            fixedShares: { 'selected_a': 1 },
             disabledStateIds: [],
             targetValue: null,
           },
         },
       },
       serviceDemandByOutput: {
-        pinned_service: { 2030: 100 },
+        exact_share_service: { 2030: 100 },
       },
       externalCommodityDemandByCommodity: {},
       commodityPriceByCommodity: {},
@@ -1125,12 +1102,12 @@ test('pinned-single controls do not narrow the cap-normalization denominator', (
 
   const result = solveWithLpAdapter(request);
   const variables = getVariableMap(result);
-  const pinnedShare = findStateShare(result, 'pinned_service', 2030, 'pinned_a');
-  const availableShare = findStateShare(result, 'pinned_service', 2030, 'pinned_b');
+  const selectedShare = findStateShare(result, 'exact_share_service', 2030, 'selected_a');
+  const availableShare = findStateShare(result, 'exact_share_service', 2030, 'available_b');
 
   assert.equal(result.status, 'solved');
-  assertClose(variables.get('activity:pinned_a::2030'), 100, 'pinned state carries the full demand');
-  assertClose(variables.get('activity:pinned_b::2030'), 0, 'non-pinned state stays inactive');
-  assertClose(pinnedShare?.effectiveMaxShare, 0.16666666666666669, 'pinned state cap stays normalized against all available pathways');
-  assertClose(availableShare?.effectiveMaxShare, 0.8333333333333334, 'non-pinned available pathways remain in the cap denominator');
+  assertClose(variables.get('activity:selected_a::2030'), 100, 'selected exact-share state carries the full demand');
+  assertClose(variables.get('activity:available_b::2030'), 0, 'other available state stays inactive');
+  assertClose(selectedShare?.effectiveMaxShare, 0.16666666666666669, 'selected exact-share state cap stays normalized against all available pathways');
+  assertClose(availableShare?.effectiveMaxShare, 0.8333333333333334, 'other available pathways remain in the cap denominator');
 });
