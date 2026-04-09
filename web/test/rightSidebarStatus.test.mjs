@@ -91,6 +91,25 @@ describe('getRightSidebarStatusPresentation', () => {
     );
   });
 
+  test('greys out pathway status for externalized supply dependencies', () => {
+    const scenario = readJson('../src/configurations/buildings-externalized.json');
+    const statuses = deriveOutputRunStatusesForConfiguration(pkg, scenario);
+    const electricity = getRightSidebarStatusPresentation(statuses.electricity);
+
+    assert.ok(
+      electricity.badges.some((badge) => badge.label === 'Externalized supply in this run'),
+    );
+    assert.ok(
+      electricity.badges.some((badge) => badge.label === 'Auto-included dependency'),
+    );
+    assert.ok(
+      electricity.badges.every((badge) => !/enabled pathway/i.test(badge.label)),
+    );
+    assert.equal(electricity.isDisabled, false);
+    assert.equal(electricity.arePathwaysInactive, true);
+    assert.match(electricity.detail, /commodity price selection is used instead/i);
+  });
+
   test('documents the legend statuses shown in the sidebar', () => {
     assert.deepEqual(
       RIGHT_SIDEBAR_STATUS_LEGEND.map((item) => item.label),

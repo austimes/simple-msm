@@ -26,6 +26,7 @@ export interface RightSidebarStatusPresentation {
   detail: string;
   isDimmed: boolean;
   isDisabled: boolean;
+  arePathwaysInactive: boolean;
 }
 
 export const RIGHT_SIDEBAR_STATUS_LEGEND: RightSidebarLegendItem[] = [
@@ -73,7 +74,11 @@ export const RIGHT_SIDEBAR_STATUS_LEGEND: RightSidebarLegendItem[] = [
   },
 ];
 
-function buildPathwayBadge(status: DerivedOutputRunStatus): RightSidebarBadge {
+function buildPathwayBadge(status: DerivedOutputRunStatus): RightSidebarBadge | null {
+  if (status.supplyParticipation === 'externalized_in_run') {
+    return null;
+  }
+
   if (status.enabledStateCount === 0) {
     return {
       key: 'no-pathways',
@@ -181,6 +186,10 @@ function buildDetail(status: DerivedOutputRunStatus): string {
     return `${detail} Demand is still active, but no pathways are enabled.`;
   }
 
+  if (status.supplyParticipation === 'externalized_in_run') {
+    return `${detail} Supply is externalized, so the pathway list is inactive and the commodity price selection is used instead.`;
+  }
+
   if (status.isDisabled) {
     return `${detail} No pathways are currently enabled.`;
   }
@@ -197,6 +206,7 @@ export function getRightSidebarStatusPresentation(
       detail: 'Run status unavailable.',
       isDimmed: false,
       isDisabled: false,
+      arePathwaysInactive: false,
     };
   }
 
@@ -212,5 +222,6 @@ export function getRightSidebarStatusPresentation(
     detail: buildDetail(status),
     isDimmed: status.isExcludedFromRun,
     isDisabled: status.isDisabled,
+    arePathwaysInactive: status.supplyParticipation === 'externalized_in_run',
   };
 }
