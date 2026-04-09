@@ -4,6 +4,10 @@ import {
   buildStateCatalog,
 } from '../../data/scenarioWorkspaceModel';
 import { deriveOutputRunStatusesForConfiguration } from '../../solver/solveScope.ts';
+import {
+  getRightSidebarStatusPresentation,
+  RIGHT_SIDEBAR_STATUS_LEGEND,
+} from './rightSidebarStatus';
 
 function formatSectorName(sector: string): string {
   return sector.replaceAll('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase());
@@ -46,6 +50,22 @@ export default function RightSidebar() {
   return (
     <>
       <h2>State Selector</h2>
+      <div className="workspace-state-legend" role="note" aria-label="State selector status legend">
+        <p className="workspace-state-legend-copy">
+          Run scope badges are separate from state enablement. An output is only disabled when
+          every state is turned off.
+        </p>
+        <div className="workspace-state-legend-items">
+          {RIGHT_SIDEBAR_STATUS_LEGEND.map((item) => (
+            <div key={item.key} className="workspace-state-legend-item">
+              <span className={`workspace-mode-badge workspace-mode-badge--${item.tone}`}>
+                {item.label}
+              </span>
+              <span className="workspace-state-legend-text">{item.description}</span>
+            </div>
+          ))}
+        </div>
+      </div>
       {catalog.map((sectorEntry) => (
         <div key={sectorEntry.sector} className="workspace-sector-group">
           <div className="workspace-sector-title">
@@ -53,27 +73,33 @@ export default function RightSidebar() {
           </div>
           {sectorEntry.subsectors.map((sub) => {
             const status = outputStatuses[sub.outputId];
+            const presentation = getRightSidebarStatusPresentation(status);
             const enabledIds = new Set(status?.enabledStateIds ?? []);
-            const allDisabled = status?.isDisabled ?? enabledIds.size === 0;
-            const outOfScope = status?.isExcludedFromRun ?? false;
-            const isCollapsed = allDisabled && !expandedDisabled.has(sub.outputId);
+            const isCollapsed = presentation.isDisabled && !expandedDisabled.has(sub.outputId);
+            const titleClassName = `workspace-subsector-title${presentation.isDisabled ? ' workspace-subsector-title--clickable' : ''}`;
+            const groupClassName = [
+              'workspace-subsector-group',
+              ...presentation.groupClassNames,
+            ].join(' ');
 
             return (
-              <div
-                key={sub.outputId}
-                className={`workspace-subsector-group${outOfScope || allDisabled ? ' workspace-subsector-group--dimmed' : ''}`}
-              >
+              <div key={sub.outputId} className={groupClassName}>
                 <div
-                  className={`workspace-subsector-title${allDisabled ? ' workspace-subsector-title--clickable' : ''}`}
-                  onClick={allDisabled ? () => toggleExpanded(sub.outputId) : undefined}
+                  className={titleClassName}
+                  onClick={presentation.isDisabled ? () => toggleExpanded(sub.outputId) : undefined}
                 >
                   {sub.outputLabel}
-                  {allDisabled && (
-                    <span className="workspace-mode-badge workspace-mode-badge--disabled">
-                      disabled {isCollapsed ? '▸' : '▾'}
+                  {presentation.badges.map((badge) => (
+                    <span
+                      key={badge.key}
+                      className={`workspace-mode-badge workspace-mode-badge--${badge.tone}`}
+                    >
+                      {badge.label}
+                      {badge.key === 'disabled' ? ` ${isCollapsed ? '▸' : '▾'}` : ''}
                     </span>
-                  )}
+                  ))}
                 </div>
+                <div className="workspace-subsector-detail">{presentation.detail}</div>
                 {!isCollapsed && (
                   <div className="workspace-state-chips">
                     {sub.states.map((state) => {
@@ -82,7 +108,7 @@ export default function RightSidebar() {
                         <button
                           key={state.stateId}
                           type="button"
-                          className={`workspace-state-chip ${isOn ? 'workspace-state-chip--on' : 'workspace-state-chip--off'}${outOfScope ? ' workspace-state-chip--dimmed' : ''}`}
+                          className={`workspace-state-chip ${isOn ? 'workspace-state-chip--on' : 'workspace-state-chip--off'}`}
                           onClick={() =>
                             toggleStateEnabled(sub.outputId, state.stateId)
                           }
