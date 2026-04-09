@@ -1,6 +1,6 @@
 import { useMemo, useState, useCallback } from 'react';
 import { usePackageStore } from '../../data/packageStore';
-import { getActiveDemandPreset, getCommodityPriceLevel, getActiveCarbonPricePreset } from '../../data/scenarioWorkspaceModel';
+import { getActiveDemandPreset, getCommodityPriceLevel, getActiveCarbonPricePreset } from '../../data/configurationWorkspaceModel';
 import {
   getConfigurationId,
   getSeedOutputIds,
@@ -10,12 +10,12 @@ import {
   fetchUserConfigurations,
   saveUserConfiguration,
   deleteUserConfiguration,
-  createConfigurationFromScenario,
+  createConfigurationFromDocument,
   slugifyConfigurationName,
 } from '../../data/configurationLoader';
 import { PRICE_LEVELS } from '../../data/types';
 import { deriveOutputRunStatusesForConfiguration } from '../../solver/solveScope.ts';
-import type { CommodityPriceSeries, CarbonPricePreset, ScenarioDocument } from '../../data/types';
+import type { CommodityPriceSeries, CarbonPricePreset, ConfigurationDocument } from '../../data/types';
 import { getCommodityPriceSelectorPresentation } from './leftSidebarCommodityStatus';
 
 function formatUnit(raw: string): string {
@@ -77,8 +77,8 @@ export default function LeftSidebar() {
       ? userConfigs.find((config) => getConfigurationId(config) === activeConfigurationId) ?? null
       : null;
 
-  function buildUserConfiguration(name: string, configurationId: string): ScenarioDocument {
-    const configuration = createConfigurationFromScenario(currentConfiguration, seedOutputIds);
+  function buildUserConfiguration(name: string, configurationId: string): ConfigurationDocument {
+    const configuration = createConfigurationFromDocument(currentConfiguration, seedOutputIds);
     configuration.name = name;
     configuration.app_metadata = {
       ...(configuration.app_metadata ?? {}),
@@ -117,7 +117,7 @@ export default function LeftSidebar() {
     }
   }
 
-  async function handleOverwrite(existing: ScenarioDocument) {
+  async function handleOverwrite(existing: ConfigurationDocument) {
     const existingId = getConfigurationId(existing) ?? slugifyConfigurationName(existing.name);
     const config = buildUserConfiguration(existing.name, existingId);
 
@@ -141,7 +141,7 @@ export default function LeftSidebar() {
     }
   }
 
-  function renderConfigurationGroup(title: string, configs: ScenarioDocument[]) {
+  function renderConfigurationGroup(title: string, configs: ConfigurationDocument[]) {
     return (
       <div className="workspace-sector-group">
         <div className="workspace-sector-title">{title}</div>

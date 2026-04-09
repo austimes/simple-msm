@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import AppLayout from './layouts/AppLayout';
-import ScenarioWorkspacePage from './pages/ScenarioWorkspacePage';
+import ConfigurationWorkspacePage from './pages/ConfigurationWorkspacePage';
 import ComparePage from './pages/ComparePage';
 import LibraryPage from './pages/LibraryPage';
 import MethodsPage from './pages/MethodsPage';
@@ -9,7 +9,7 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route element={<AppLayout />}>
-          <Route index element={<ScenarioWorkspacePage />} />
+          <Route index element={<ConfigurationWorkspacePage />} />
           <Route path="configurations" element={<Navigate to="/" replace />} />
           <Route path="compare" element={<ComparePage />} />
           <Route path="library" element={<LibraryPage />} />

@@ -206,9 +206,9 @@ export default function ComparePage() {
         plain-language explanations without pretending the attribution is exact.
       </p>
 
-      <section className="scenario-overview-grid">
-        <article className="scenario-panel scenario-panel--hero">
-          <span className="scenario-badge">Heuristic compare</span>
+      <section className="configuration-overview-grid">
+        <article className="configuration-panel configuration-panel--hero">
+          <span className="configuration-badge">Heuristic compare</span>
           <h2>
             {comparisonBuild.error
               ? 'error'
@@ -225,7 +225,7 @@ export default function ComparePage() {
                 ?? 'Preparing the reference, transition, and withheld-delta solves for compare mode.'}
           </p>
 
-          <dl className="scenario-key-value-list">
+          <dl className="configuration-key-value-list">
             <div>
               <dt>Configuration solves</dt>
               <dd>{comparisonBuild.solves?.length ?? 0}</dd>
@@ -257,7 +257,7 @@ export default function ComparePage() {
           </dl>
 
           {report?.compareScenarioDescription ? (
-            <p className="scenario-provenance-note">{report.compareScenarioDescription}</p>
+            <p className="configuration-provenance-note">{report.compareScenarioDescription}</p>
           ) : null}
 
           {activeComparison?.status === 'error' ? (
@@ -265,9 +265,9 @@ export default function ComparePage() {
           ) : null}
         </article>
 
-        <article className="scenario-panel">
+        <article className="configuration-panel">
           <h2>Reference Configuration</h2>
-          <dl className="scenario-key-value-list">
+          <dl className="configuration-key-value-list">
             <div>
               <dt>Name</dt>
               <dd>{baseScenario.name}</dd>
@@ -298,9 +298,9 @@ export default function ComparePage() {
           </div>
         </article>
 
-        <article className="scenario-panel">
+        <article className="configuration-panel">
           <h2>Transition Configuration</h2>
-          <dl className="scenario-key-value-list">
+          <dl className="configuration-key-value-list">
             <div>
               <dt>Name</dt>
               <dd>{compareScenario.name}</dd>
@@ -332,7 +332,7 @@ export default function ComparePage() {
         </article>
       </section>
 
-      <section className="scenario-panel">
+      <section className="configuration-panel">
         <h2>KPI Delta Summary</h2>
         <div className="results-raw-grid">
           {(report?.metrics ?? []).map((metric) => (
@@ -349,7 +349,7 @@ export default function ComparePage() {
         </div>
       </section>
 
-      <section className="scenario-panel">
+      <section className="configuration-panel">
         <h2>Heuristic Delta Decomposition</h2>
         <p>
           Each card compares the full transition counterfactual against a withheld version of
@@ -362,7 +362,7 @@ export default function ComparePage() {
               <span className="results-card-label">Heuristic isolate</span>
               <strong>{effect.title}</strong>
               <p>{effect.summary}</p>
-              <dl className="scenario-key-value-list compare-tight-list">
+              <dl className="configuration-key-value-list compare-tight-list">
                 <div>
                   <dt>Cost delta</dt>
                   <dd>{formatDelta(effect.costDelta)}</dd>
@@ -382,7 +382,7 @@ export default function ComparePage() {
         </div>
       </section>
 
-      <section className="scenario-panel">
+      <section className="configuration-panel">
         <h2>Plain-Language Narratives</h2>
         <div className="compare-detail-grid">
           {(report?.narratives ?? []).map((narrative) => (
@@ -397,7 +397,7 @@ export default function ComparePage() {
       </section>
 
       <section className="compare-detail-grid compare-detail-grid--panels">
-        <article className="scenario-panel compare-detail-panel">
+        <article className="configuration-panel compare-detail-panel">
           <h2>Sector Emissions Delta</h2>
           <div className="compare-list">
             {(report?.sectorEmissionDeltas ?? []).slice(0, 8).map((entry) => (
@@ -418,7 +418,7 @@ export default function ComparePage() {
           </div>
         </article>
 
-        <article className="scenario-panel compare-detail-panel">
+        <article className="configuration-panel compare-detail-panel">
           <h2>Commodity Demand Delta</h2>
           <div className="compare-list">
             {(report?.commodityDemandDeltas ?? []).slice(0, 8).map((entry) => (
@@ -441,7 +441,7 @@ export default function ComparePage() {
       </section>
 
       <section className="compare-detail-grid compare-detail-grid--panels">
-        <article className="scenario-panel compare-detail-panel">
+        <article className="configuration-panel compare-detail-panel">
           <h2>Electricity Delta By Year</h2>
           <div className="compare-list">
             {(report?.electricityDeltas ?? []).map((entry) => (
@@ -450,7 +450,7 @@ export default function ComparePage() {
                   <strong>{entry.year}</strong>
                   <span>{entry.baseMode} → {entry.compareMode}</span>
                 </div>
-                <dl className="scenario-key-value-list compare-tight-list">
+                <dl className="configuration-key-value-list compare-tight-list">
                   <div>
                     <dt>Supply</dt>
                     <dd>{formatDelta(entry.supplyDelta)}</dd>
@@ -477,7 +477,7 @@ export default function ComparePage() {
           </div>
         </article>
 
-        <article className="scenario-panel compare-detail-panel">
+        <article className="configuration-panel compare-detail-panel">
           <h2>Confidence Exposure Delta</h2>
           <div className="compare-list">
             {(report?.confidenceDeltas ?? []).map((entry) => (
@@ -486,7 +486,7 @@ export default function ComparePage() {
                   <strong>{entry.rating}</strong>
                   <span>{formatDelta(entry.activityDelta)}</span>
                 </div>
-                <dl className="scenario-key-value-list compare-tight-list">
+                <dl className="configuration-key-value-list compare-tight-list">
                   <div>
                     <dt>Activity</dt>
                     <dd>{formatDelta(entry.activityDelta)}</dd>
@@ -506,7 +506,7 @@ export default function ComparePage() {
         </article>
       </section>
 
-      <section className="scenario-panel">
+      <section className="configuration-panel">
         <h2>State-Choice Attribution</h2>
         <p>
           These cards highlight where the dominant state changed or where share movement was
@@ -519,7 +519,7 @@ export default function ComparePage() {
               <span className="results-card-label">{entry.year}</span>
               <strong>{entry.outputLabel}</strong>
               <p>{entry.narrative}</p>
-              <dl className="scenario-key-value-list compare-tight-list">
+              <dl className="configuration-key-value-list compare-tight-list">
                 <div>
                   <dt>Reference leader</dt>
                   <dd>{entry.fromStateLabel}</dd>

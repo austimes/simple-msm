@@ -1,6 +1,6 @@
 import { useRef, useState, type ChangeEvent } from 'react';
 import { usePackageStore } from '../../data/packageStore';
-import { parseScenarioDocument } from '../../data/scenarioLoader';
+import { parseConfigurationDocument } from '../../data/configurationDocumentLoader';
 
 const numberFormatter = new Intl.NumberFormat('en-AU', {
   maximumFractionDigits: 2,
@@ -87,7 +87,7 @@ export default function ConfigurationDocumentPanel() {
     }
 
     try {
-      const importedConfiguration = parseScenarioDocument(await file.text(), appConfig, file.name);
+      const importedConfiguration = parseConfigurationDocument(await file.text(), appConfig, file.name);
 
       replaceCurrentConfiguration(
         importedConfiguration,
@@ -106,16 +106,16 @@ export default function ConfigurationDocumentPanel() {
 
   return (
     <>
-      <section className="scenario-overview-grid">
-        <article className="scenario-panel scenario-panel--hero">
-          <span className="scenario-badge">Working document</span>
+      <section className="configuration-overview-grid">
+        <article className="configuration-panel configuration-panel--hero">
+          <span className="configuration-badge">Working document</span>
           <h2>{currentConfiguration.name || 'Untitled configuration'}</h2>
           <p>
             {currentConfiguration.description
               ?? 'No description yet. Imported or edited configurations autosave in this browser.'}
           </p>
 
-          <dl className="scenario-key-value-list">
+          <dl className="configuration-key-value-list">
             <div>
               <dt>Document source</dt>
               <dd>{formatConfigurationSource(currentConfigurationSource)}</dd>
@@ -139,36 +139,36 @@ export default function ConfigurationDocumentPanel() {
           </dl>
 
           {demandPreset ? (
-            <p className="scenario-provenance-note">{demandPreset.provenance_note}</p>
+            <p className="configuration-provenance-note">{demandPreset.provenance_note}</p>
           ) : null}
         </article>
 
-        <article className="scenario-panel">
+        <article className="configuration-panel">
           <h2>Import, Export, Restore</h2>
           {persistenceNotice ? (
-            <p className="scenario-status scenario-status--info">{persistenceNotice}</p>
+            <p className="configuration-status configuration-status--info">{persistenceNotice}</p>
           ) : null}
           {persistenceError ? (
-            <p className="scenario-status scenario-status--error">{persistenceError}</p>
+            <p className="configuration-status configuration-status--error">{persistenceError}</p>
           ) : null}
           {importError ? (
-            <p className="scenario-status scenario-status--error">{importError}</p>
+            <p className="configuration-status configuration-status--error">{importError}</p>
           ) : null}
 
-          <div className="scenario-action-row">
-            <button type="button" className="scenario-button" onClick={handleExport}>
+          <div className="configuration-action-row">
+            <button type="button" className="configuration-button" onClick={handleExport}>
               Export JSON
             </button>
             <button
               type="button"
-              className="scenario-button scenario-button--secondary"
+              className="configuration-button configuration-button--secondary"
               onClick={() => fileInputRef.current?.click()}
             >
               Import JSON
             </button>
             <button
               type="button"
-              className="scenario-button scenario-button--ghost"
+              className="configuration-button configuration-button--ghost"
               onClick={resetCurrentConfiguration}
             >
               Reset to Reference
@@ -177,30 +177,30 @@ export default function ConfigurationDocumentPanel() {
 
           <input
             ref={fileInputRef}
-            className="scenario-file-input"
+            className="configuration-file-input"
             type="file"
             accept="application/json,.json"
             onChange={handleImport}
           />
         </article>
 
-        <article className="scenario-panel">
+        <article className="configuration-panel">
           <h2>Document Metadata</h2>
-          <div className="scenario-form-grid">
-            <label className="scenario-field">
+          <div className="configuration-form-grid">
+            <label className="configuration-field">
               <span>Name</span>
               <input
-                className="scenario-input"
+                className="configuration-input"
                 type="text"
                 value={currentConfiguration.name}
                 onChange={(event) => updateConfigurationMetadata({ name: event.target.value })}
               />
             </label>
 
-            <label className="scenario-field scenario-field--full">
+            <label className="configuration-field configuration-field--full">
               <span>Description</span>
               <textarea
-                className="scenario-input scenario-textarea"
+                className="configuration-input configuration-textarea"
                 value={currentConfiguration.description ?? ''}
                 rows={4}
                 onChange={(event) => updateConfigurationMetadata({ description: event.target.value })}
@@ -208,17 +208,17 @@ export default function ConfigurationDocumentPanel() {
             </label>
           </div>
 
-          <p className="scenario-inline-note">
+          <p className="configuration-inline-note">
             Name and description edits autosave immediately, while the resolved demand and control
             tables remain the same unless you import a new configuration document.
           </p>
         </article>
 
-        <article className="scenario-panel">
+        <article className="configuration-panel">
           <h2>Control Modes</h2>
-          <div className="scenario-stat-grid">
+          <div className="configuration-stat-grid">
             {Object.entries(controlsByMode).map(([mode, count]) => (
-              <div key={mode} className="scenario-stat-card">
+              <div key={mode} className="configuration-stat-card">
                 <span>{formatModeLabel(mode)}</span>
                 <strong>{count}</strong>
               </div>
@@ -226,18 +226,18 @@ export default function ConfigurationDocumentPanel() {
           </div>
         </article>
 
-        <article className="scenario-panel">
+        <article className="configuration-panel">
           <h2>Resolved Demand Inputs</h2>
-          <div className="scenario-stat-grid">
-            <div className="scenario-stat-card">
+          <div className="configuration-stat-grid">
+            <div className="configuration-stat-card">
               <span>Services with explicit demand</span>
               <strong>{serviceDemandEntries.length}</strong>
             </div>
-            <div className="scenario-stat-card">
+            <div className="configuration-stat-card">
               <span>External commodity demand tables</span>
               <strong>{externalCommodityEntries.length}</strong>
             </div>
-            <div className="scenario-stat-card">
+            <div className="configuration-stat-card">
               <span>Carbon price years</span>
               <strong>{Object.keys(currentConfiguration.carbon_price).length}</strong>
             </div>
@@ -245,11 +245,11 @@ export default function ConfigurationDocumentPanel() {
         </article>
       </section>
 
-      <section className="scenario-panel">
+      <section className="configuration-panel">
         <h2>Service Demand Sample</h2>
-        <div className="scenario-demand-grid">
+        <div className="configuration-demand-grid">
           {serviceDemandEntries.slice(0, 6).map(([service, demandByYear]) => (
-            <article key={service} className="scenario-demand-card">
+            <article key={service} className="configuration-demand-card">
               <h3>{service}</h3>
               <dl>
                 {currentConfiguration.years.map((year) => {

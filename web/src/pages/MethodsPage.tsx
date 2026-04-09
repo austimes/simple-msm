@@ -350,9 +350,9 @@ export default function MethodsPage() {
         ledgers, schema files, and explanatory docs that happen to be present.
       </p>
 
-      <section className="scenario-overview-grid">
-        <article className="scenario-panel scenario-panel--hero">
-          <span className="scenario-badge">Package guidance</span>
+      <section className="configuration-overview-grid">
+        <article className="configuration-panel configuration-panel--hero">
+          <span className="configuration-badge">Package guidance</span>
           <h2>Why this library exists</h2>
           {introParagraphs.length > 0 ? (
             introParagraphs.map((paragraph) => (
@@ -367,33 +367,33 @@ export default function MethodsPage() {
             </p>
           )}
           {enrichment.warnings.length > 0 ? (
-            <div className="scenario-provenance-note">
+            <div className="configuration-provenance-note">
               <strong>Some optional companions were skipped.</strong>
               <p>{enrichment.warnings.join(' ')}</p>
             </div>
           ) : null}
         </article>
 
-        <article className="scenario-panel">
+        <article className="configuration-panel">
           <h2>Coverage at a glance</h2>
-          <div className="scenario-stat-grid">
-            <div className="scenario-stat-card">
+          <div className="configuration-stat-grid">
+            <div className="configuration-stat-card">
               <span>State-year rows</span>
               <strong>{sectorStates.length}</strong>
             </div>
-            <div className="scenario-stat-card">
+            <div className="configuration-stat-card">
               <span>State families</span>
               <strong>{families.length}</strong>
             </div>
-            <div className="scenario-stat-card">
+            <div className="configuration-stat-card">
               <span>Sector groups</span>
               <strong>{new Set(sectorStates.map((row) => row.sector)).size}</strong>
             </div>
-            <div className="scenario-stat-card">
+            <div className="configuration-stat-card">
               <span>Confidence classes</span>
               <strong>{Object.keys(confidenceCounts).length}</strong>
             </div>
-            <div className="scenario-stat-card">
+            <div className="configuration-stat-card">
               <span>Optional companions</span>
               <strong>{optionalCompanionCount}</strong>
             </div>
@@ -401,7 +401,7 @@ export default function MethodsPage() {
         </article>
       </section>
 
-      <section className="scenario-panel methods-tab-panel">
+      <section className="configuration-panel methods-tab-panel">
         <div className="methods-tab-list" role="tablist" aria-label="Methods sections">
           {(Object.keys(tabLabels) as MethodsTab[]).map((tab) => (
             <button
@@ -523,12 +523,12 @@ export default function MethodsPage() {
               <section className="methods-content-card">
                 <h2>Row schema guidance</h2>
                 <p>{enrichment.sectorStatesSchema.description}</p>
-                <div className="scenario-stat-grid">
-                  <div className="scenario-stat-card">
+                <div className="configuration-stat-grid">
+                  <div className="configuration-stat-card">
                     <span>Schema fields</span>
                     <strong>{enrichment.sectorStatesSchema.propertyCount}</strong>
                   </div>
-                  <div className="scenario-stat-card">
+                  <div className="configuration-stat-card">
                     <span>Required fields</span>
                     <strong>{enrichment.sectorStatesSchema.requiredFields.length}</strong>
                   </div>
@@ -558,9 +558,9 @@ export default function MethodsPage() {
           <div className="methods-section-stack">
             <section className="methods-content-card">
               <h2>Confidence distribution</h2>
-              <div className="scenario-stat-grid">
+              <div className="configuration-stat-grid">
                 {Object.entries(confidenceCounts).map(([rating, count]) => (
-                  <div key={rating} className="scenario-stat-card">
+                  <div key={rating} className="configuration-stat-card">
                     <span>{rating}</span>
                     <strong>{count}</strong>
                   </div>
@@ -714,7 +714,7 @@ export default function MethodsPage() {
                 return (
                   <article key={family.stateId} className="methods-evidence-card">
                   <div className="library-badge-row">
-                    <span className="scenario-badge">{family.sector}</span>
+                    <span className="configuration-badge">{family.sector}</span>
                     {family.confidenceRatings.map((rating) => (
                       <span key={rating} className={`library-confidence-pill library-confidence-pill--${rating.toLowerCase()}`}>
                         {rating}
@@ -762,7 +762,7 @@ export default function MethodsPage() {
                     </div>
                   </div>
                   {derivationExcerpt ? (
-                    <div className="scenario-provenance-note">
+                    <div className="configuration-provenance-note">
                       <strong>{sectorDerivation?.title ?? 'Sector derivation note'}</strong>
                       <p>{derivationExcerpt}</p>
                     </div>

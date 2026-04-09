@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useScenarioSolve } from '../hooks/useScenarioSolve';
+import { useConfigurationSolve } from '../hooks/useConfigurationSolve';
 import LeftSidebar from '../components/workspace/LeftSidebar';
 import RightSidebar from '../components/workspace/RightSidebar';
 import StackedAreaChart from '../components/charts/StackedAreaChart';
@@ -11,8 +11,8 @@ import {
   buildCostByComponentChart,
 } from '../results/chartData';
 
-export default function ScenarioWorkspacePage() {
-  const { phase, result, request, error } = useScenarioSolve();
+export default function ConfigurationWorkspacePage() {
+  const { phase, result, request, error } = useConfigurationSolve();
 
   const demandBySectorChart = useMemo(
     () => (request ? buildDemandBySectorChart(request) : null),
@@ -39,7 +39,7 @@ export default function ScenarioWorkspacePage() {
 
       <section className="workspace-center">
         {phase === 'error' && error && (
-          <p className="scenario-status scenario-status--error">{error}</p>
+          <p className="configuration-status configuration-status--error">{error}</p>
         )}
         {phase === 'solved' && result && request && (
           <div className="workspace-chart-grid">

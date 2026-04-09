@@ -424,7 +424,7 @@ export default function LibraryPage() {
 
       <div className="library-sidebar-layout">
         <aside className="library-sidebar">
-          <section className="scenario-panel library-filter-strip">
+          <section className="configuration-panel library-filter-strip">
             <div className="library-panel-heading">
               <div>
                 <h2>Scope</h2>
@@ -550,7 +550,7 @@ export default function LibraryPage() {
         <div className="library-main-content">
       {visibleTrajectories.length > 0 ? (
         <>
-          <section className="scenario-panel library-state-selector-panel">
+          <section className="configuration-panel library-state-selector-panel">
             <div className="library-panel-heading">
               <div>
                 <h2>State highlight</h2>
@@ -579,7 +579,7 @@ export default function LibraryPage() {
           </section>
 
           <section className="library-trajectory-grid">
-            <article className="scenario-panel library-chart-card">
+            <article className="configuration-panel library-chart-card">
               <div className="library-panel-heading">
                 <div>
                   <h2>Cost trajectory</h2>
@@ -598,7 +598,7 @@ export default function LibraryPage() {
               />
             </article>
 
-            <article className="scenario-panel library-chart-card">
+            <article className="configuration-panel library-chart-card">
               <div className="library-panel-heading">
                 <div>
                   <h2>Energy and process emissions</h2>
@@ -617,7 +617,7 @@ export default function LibraryPage() {
               />
             </article>
 
-            <article className="scenario-panel library-chart-card">
+            <article className="configuration-panel library-chart-card">
               <div className="library-panel-heading">
                 <div>
                   <h2>Max share</h2>
@@ -636,7 +636,7 @@ export default function LibraryPage() {
               />
             </article>
 
-            <article className="scenario-panel library-chart-card">
+            <article className="configuration-panel library-chart-card">
               <div className="library-panel-heading">
                 <div>
                   <h2>Max activity</h2>
@@ -656,7 +656,7 @@ export default function LibraryPage() {
             </article>
           </section>
 
-          <article className="scenario-panel library-chart-card library-coefficient-panel">
+          <article className="configuration-panel library-chart-card library-coefficient-panel">
             <div className="library-panel-heading">
               <div>
                 <h2>Input coefficient trajectories</h2>
@@ -715,7 +715,7 @@ export default function LibraryPage() {
             )}
           </article>
 
-          <article className="scenario-panel library-list-panel">
+          <article className="configuration-panel library-list-panel">
             <div className="library-panel-heading">
               <div>
                 <h2>Trajectory comparison matrix</h2>
@@ -767,13 +767,13 @@ export default function LibraryPage() {
             </div>
           </article>
 
-          <article className="scenario-panel library-detail-panel">
+          <article className="configuration-panel library-detail-panel">
             {selectedTrajectory ? (
               <>
                 <div className="library-detail-hero">
                   <div>
                     <div className="library-badge-row">
-                      <span className="scenario-badge">Selected trajectory</span>
+                      <span className="configuration-badge">Selected trajectory</span>
                       {selectedTrajectory.confidenceRatings.map((rating) => (
                         <span key={rating} className={`library-confidence-pill library-confidence-pill--${rating.toLowerCase()}`}>
                           {rating}
@@ -843,11 +843,11 @@ export default function LibraryPage() {
                       <TrajectoryNarrative label="TIMES/VedaLang mapping notes" rows={selectedTrajectory.rows} pick={(row) => row.times_or_vedalang_mapping_notes} />
                     </dl>
                     <div className="library-boolean-grid">
-                      <div className="scenario-stat-card">
+                      <div className="configuration-stat-card">
                         <span>Expand to explicit capacity</span>
                         <strong>{selectedTrajectory.rows.some((row) => row.would_expand_to_explicit_capacity) ? 'Yes' : 'No'}</strong>
                       </div>
-                      <div className="scenario-stat-card">
+                      <div className="configuration-stat-card">
                         <span>Expand to process chain</span>
                         <strong>{selectedTrajectory.rows.some((row) => row.would_expand_to_process_chain) ? 'Yes' : 'No'}</strong>
                       </div>
@@ -970,7 +970,7 @@ export default function LibraryPage() {
           </article>
         </>
       ) : (
-        <section className="scenario-panel library-empty-state">
+        <section className="configuration-panel library-empty-state">
           <h2>No trajectories match the current filters.</h2>
           <p>Clear one or two advanced filters or switch subsectors to restore the comparison views.</p>
         </section>

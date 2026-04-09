@@ -14,7 +14,7 @@ export interface SolveState {
   solve: () => void;
 }
 
-export function useScenarioSolve(): SolveState {
+export function useConfigurationSolve(): SolveState {
   const sectorStates = usePackageStore((state) => state.sectorStates);
   const appConfig = usePackageStore((state) => state.appConfig);
   const currentConfiguration = usePackageStore((state) => state.currentConfiguration);
@@ -65,7 +65,7 @@ export function useScenarioSolve(): SolveState {
       });
   }, [sectorStates, appConfig, currentConfiguration]);
 
-  // Auto-solve whenever the scenario changes
+  // Auto-solve whenever the active configuration changes.
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
       solve();

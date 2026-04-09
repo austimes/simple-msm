@@ -2,7 +2,7 @@ import { useMemo, useState, useCallback } from 'react';
 import { usePackageStore } from '../../data/packageStore';
 import {
   buildStateCatalog,
-} from '../../data/scenarioWorkspaceModel';
+} from '../../data/configurationWorkspaceModel';
 import { deriveOutputRunStatusesForConfiguration } from '../../solver/solveScope.ts';
 import {
   getRightSidebarStatusPresentation,
