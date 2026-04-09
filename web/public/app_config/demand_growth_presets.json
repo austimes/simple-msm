@@ -22,7 +22,7 @@
   },
   "simple_sector_growth_low": {
     "label": "Simple sector growth - low",
-    "description": "A conservative growth preset for quick scenario setup.",
+    "description": "A conservative growth preset for quick configuration setup.",
     "annual_growth_rates_pct_per_year": {
       "residential_building_services": 0.2,
       "commercial_building_services": 0.4,
