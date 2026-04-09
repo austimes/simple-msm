@@ -28,6 +28,7 @@ import {
   getCommodityPriceSelectorPresentation,
   sumFixedShares,
 } from './leftSidebarCommodityStatus';
+import { getConfigurationSaveActionState } from './leftSidebarSaveActions';
 
 function formatUnit(raw: string): string {
   return raw
@@ -92,6 +93,11 @@ export default function LeftSidebar() {
   const activeConfigurationReadonly = usePackageStore((s) => s.activeConfigurationReadonly);
   const isConfigurationDirty = usePackageStore((s) => s.isConfigurationDirty);
   const seedOutputIds = getSeedOutputIds(currentConfiguration);
+  const saveActionState = getConfigurationSaveActionState({
+    activeConfigurationId,
+    activeConfigurationReadonly,
+    isConfigurationDirty,
+  });
 
   const activeDemandPreset = getActiveDemandPreset(currentConfiguration, appConfig);
   const activeCarbonPreset = getActiveCarbonPricePreset(currentConfiguration, appConfig);
@@ -134,11 +140,6 @@ export default function LeftSidebar() {
     setUserConfigs(configs);
   }, []);
 
-  const activeUserConfig =
-    activeConfigurationId && !activeConfigurationReadonly
-      ? userConfigs.find((config) => getConfigurationId(config) === activeConfigurationId) ?? null
-      : null;
-
   function buildUserConfiguration(name: string, configurationId: string): ConfigurationDocument {
     const configuration = createConfigurationFromDocument(currentConfiguration, seedOutputIds);
     configuration.name = name;
@@ -179,9 +180,12 @@ export default function LeftSidebar() {
     }
   }
 
-  async function handleOverwrite(existing: ConfigurationDocument) {
-    const existingId = getConfigurationId(existing) ?? slugifyConfigurationName(existing.name);
-    const config = buildUserConfiguration(existing.name, existingId);
+  async function handleOverwrite() {
+    if (!activeConfigurationId) {
+      return;
+    }
+
+    const config = buildUserConfiguration(currentConfiguration.name, activeConfigurationId);
 
     const error = await saveUserConfiguration(config);
     if (error) {
@@ -427,20 +431,20 @@ export default function LeftSidebar() {
         <div className="workspace-configuration-actions">
           <button
             type="button"
+            className="workspace-chip"
+            onClick={() => void handleOverwrite()}
+            disabled={!saveActionState.canSave}
+            title={saveActionState.disabledReason ?? 'Save this user configuration.'}
+          >
+            Save
+          </button>
+          <button
+            type="button"
             className="workspace-chip workspace-chip--secondary-action"
             onClick={handleSaveAs}
           >
-            Save as…
+            Save As…
           </button>
-          {activeUserConfig && isConfigurationDirty && (
-            <button
-              type="button"
-              className="workspace-chip"
-              onClick={() => handleOverwrite(activeUserConfig)}
-            >
-              Save "{activeUserConfig.name}"
-            </button>
-          )}
         </div>
 
         {saveNotice && (
