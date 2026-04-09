@@ -2,6 +2,7 @@ import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import fs from 'fs';
+import { getConfigurationDocumentId } from './src/data/configurationMetadata.ts';
 
 function userConfigApi(): Plugin {
   const configDir = path.resolve(__dirname, 'src/configurations/user');
@@ -27,7 +28,14 @@ function userConfigApi(): Plugin {
           req.on('end', () => {
             try {
               const config = JSON.parse(body);
-              const filename = `${config.id}.json`;
+              const configId = getConfigurationDocumentId(config);
+              if (!configId) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Configuration must include app_metadata.id.' }));
+                return;
+              }
+
+              const filename = `${configId}.json`;
               fs.mkdirSync(configDir, { recursive: true });
               fs.writeFileSync(
                 path.join(configDir, filename),

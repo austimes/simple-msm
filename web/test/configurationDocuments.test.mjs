@@ -211,6 +211,20 @@ test('configuration loader accepts legacy included_output_ids and canonicalizes 
   assert.ok(!('included_output_ids' in (parsed.app_metadata ?? {})));
 });
 
+test('configuration id helper prefers app metadata ids and falls back to legacy top-level ids', async () => {
+  const { getConfigurationDocumentId } = await loadViteModule('/src/data/configurationMetadata.ts');
+
+  assert.equal(
+    getConfigurationDocumentId({
+      id: 'legacy-id',
+      app_metadata: { id: ' user-config-id ' },
+    }),
+    'user-config-id',
+  );
+  assert.equal(getConfigurationDocumentId({ id: ' legacy-id ' }), 'legacy-id');
+  assert.equal(getConfigurationDocumentId({ app_metadata: {} }), null);
+});
+
 test('configuration loader rejects partial overlay documents instead of merging them with a reference config', async () => {
   const { parseConfigurationCollection } = await loadViteModule('/src/data/configurationLoader.ts');
   const warnings = [];

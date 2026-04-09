@@ -4,7 +4,10 @@
  * 2. User configs persisted to localStorage (editable)
  */
 import { parseConfigurationDocument } from './scenarioLoader.ts';
-import { normalizeSeedOutputIds } from './configurationMetadata.ts';
+import {
+  getConfigurationDocumentId,
+  normalizeSeedOutputIds,
+} from './configurationMetadata.ts';
 import type { ConfigurationDocument } from './types.ts';
 
 export { getIncludedOutputIds, getSeedOutputIds } from './configurationMetadata.ts';
@@ -81,7 +84,7 @@ export function cloneConfigurationDocument(configuration: ConfigurationDocument)
 }
 
 export function getConfigurationId(configuration: ConfigurationDocument): string | null {
-  return configuration.app_metadata?.id ?? null;
+  return getConfigurationDocumentId(configuration);
 }
 
 export function isReadonlyConfiguration(configuration: ConfigurationDocument): boolean {
