@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { getIncludedOutputIds } from '../data/configurationLoader';
 import { usePackageStore } from '../data/packageStore';
 import { buildSolveRequest } from '../solver/buildSolveRequest';
 import type { SolveRequest, SolveResult } from '../solver/contract';
@@ -17,8 +18,8 @@ export interface SolveState {
 export function useScenarioSolve(): SolveState {
   const sectorStates = usePackageStore((state) => state.sectorStates);
   const appConfig = usePackageStore((state) => state.appConfig);
-  const currentScenario = usePackageStore((state) => state.currentScenario);
-  const includedOutputIds = usePackageStore((state) => state.includedOutputIds);
+  const currentConfiguration = usePackageStore((state) => state.currentConfiguration);
+  const includedOutputIds = getIncludedOutputIds(currentConfiguration);
 
   const [phase, setPhase] = useState<SolvePhase>('idle');
   const [result, setResult] = useState<SolveResult | null>(null);
@@ -36,9 +37,9 @@ export function useScenarioSolve(): SolveState {
         {
           sectorStates,
           appConfig,
-          defaultScenario: currentScenario,
+          defaultConfiguration: currentConfiguration,
         },
-        currentScenario,
+        currentConfiguration,
         includedOutputIds ? { includedOutputIds } : {},
       );
     } catch (err) {
@@ -72,11 +73,17 @@ export function useScenarioSolve(): SolveState {
         setError(err instanceof Error ? err.message : 'Unknown solve failure.');
         setResult(null);
       });
-  }, [sectorStates, appConfig, currentScenario, includedOutputIds]);
+  }, [sectorStates, appConfig, currentConfiguration, includedOutputIds]);
 
   // Auto-solve whenever the scenario changes
   useEffect(() => {
-    solve();
+    const timer = setTimeout(() => {
+      solve();
+    }, 0)
+
+    return () => {
+      clearTimeout(timer)
+    }
   }, [solve]);
 
   return {

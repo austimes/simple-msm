@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
-import { resolveScenarioDocument } from '../src/data/demandResolution.ts';
+import { resolveConfigurationDocument } from '../src/data/demandResolution.ts';
 
 function readJson(relativePath) {
   const url = new URL(relativePath, import.meta.url);
@@ -22,7 +22,7 @@ const appConfig = loadAppConfig();
 const referenceScenario = readJson('../public/app_config/reference_scenario.json');
 
 test('reference scenario demand metadata reproduces the stored demand tables', () => {
-  const resolved = resolveScenarioDocument(referenceScenario, appConfig, 'reference_scenario.json');
+  const resolved = resolveConfigurationDocument(referenceScenario, appConfig, 'reference_scenario.json');
 
   assert.deepEqual(resolved.service_demands, referenceScenario.service_demands);
   assert.deepEqual(
@@ -58,7 +58,7 @@ test('manual-table scenarios normalize every milestone year the solver consumes'
     },
   };
 
-  const resolved = resolveScenarioDocument(manualScenario, appConfig, 'manual scenario');
+  const resolved = resolveConfigurationDocument(manualScenario, appConfig, 'manual scenario');
 
   assert.deepEqual(resolved.service_demands.residential_building_services, {
     2025: 10,
@@ -104,7 +104,7 @@ test('anchor-plus-preset-with-overrides merges baseline anchors, overrides, and 
     },
   };
 
-  const resolved = resolveScenarioDocument(overrideScenario, appConfig, 'override scenario');
+  const resolved = resolveConfigurationDocument(overrideScenario, appConfig, 'override scenario');
 
   assert.deepEqual(resolved.service_demands.residential_building_services, {
     2025: 100,

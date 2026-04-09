@@ -1,7 +1,7 @@
 import { loadAppConfig } from './appConfigLoader';
 import { buildPackageEnrichment, normalizePackageTextFiles } from './packageCompanions';
 import { parseCsv } from './parseCsv';
-import { loadDefaultScenario } from './scenarioLoader';
+import { loadDefaultConfiguration } from './configurationLoader';
 import type { EmissionEntry, PackageData, SectorState } from './types';
 
 const packageTextFiles = normalizePackageTextFiles(
@@ -102,6 +102,6 @@ export function loadPackage(): PackageData {
     phase2Memo: enrichment.phase2Memo,
     enrichment,
     appConfig,
-    defaultScenario: loadDefaultScenario(appConfig),
+    defaultConfiguration: loadDefaultConfiguration(appConfig),
   };
 }

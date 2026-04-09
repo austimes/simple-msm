@@ -1,9 +1,10 @@
 import { useMemo, useState, useCallback } from 'react';
+import { getIncludedOutputIds } from '../../data/configurationLoader';
 import { usePackageStore } from '../../data/packageStore';
 import {
   buildStateCatalog,
   getEnabledStateIds,
-} from '../../data/scenarioWorkspaceModel';
+} from '../../data/configurationWorkspaceModel';
 
 function formatSectorName(sector: string): string {
   return sector.replaceAll('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase());
@@ -12,9 +13,9 @@ function formatSectorName(sector: string): string {
 export default function RightSidebar() {
   const sectorStates = usePackageStore((s) => s.sectorStates);
   const appConfig = usePackageStore((s) => s.appConfig);
-  const currentScenario = usePackageStore((s) => s.currentScenario);
+  const currentConfiguration = usePackageStore((s) => s.currentConfiguration);
   const toggleStateEnabled = usePackageStore((s) => s.toggleStateEnabled);
-  const includedOutputIds = usePackageStore((s) => s.includedOutputIds);
+  const includedOutputIds = getIncludedOutputIds(currentConfiguration);
 
   // Track which disabled subsectors the user has expanded to re-select states
   const [expandedDisabled, setExpandedDisabled] = useState<Set<string>>(new Set());
@@ -51,11 +52,11 @@ export default function RightSidebar() {
           </div>
           {sectorEntry.subsectors.map((sub) => {
             const outOfScope = scopeSet !== null && !scopeSet.has(sub.outputId);
-            const controlMode = currentScenario.service_controls[sub.outputId]?.mode;
+            const controlMode = currentConfiguration.service_controls[sub.outputId]?.mode;
             const isOff = controlMode === 'off';
             const allStateIds = sub.states.map((s) => s.stateId);
             const enabledIds = new Set(
-              getEnabledStateIds(currentScenario, sub.outputId, allStateIds),
+              getEnabledStateIds(currentConfiguration, sub.outputId, allStateIds),
             );
             const allDisabled = enabledIds.size === 0;
             const isCollapsed = allDisabled && !expandedDisabled.has(sub.outputId);

@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { parseCsv } from '../src/data/parseCsv.ts';
-import { resolveScenarioDocument } from '../src/data/demandResolution.ts';
+import { resolveConfigurationDocument } from '../src/data/demandResolution.ts';
 import { buildSolveRequest } from '../src/solver/buildSolveRequest.ts';
 import { solveWithLpAdapter } from '../src/solver/lpAdapter.ts';
 
@@ -139,7 +139,7 @@ function buildBaselineScenario(appConfig) {
     },
   };
 
-  return resolveScenarioDocument(scenario, appConfig, 'baseline test scenario');
+  return resolveConfigurationDocument(scenario, appConfig, 'baseline test scenario');
 }
 
 // --- Tests ---
@@ -151,7 +151,7 @@ test('baseline incumbent scenario solves optimally', () => {
   const request = buildSolveRequest({
     sectorStates: pkg.sectorStates,
     appConfig: pkg.appConfig,
-    defaultScenario: scenario,
+    defaultConfiguration: scenario,
   });
 
   const result = solveWithLpAdapter(request);
@@ -165,7 +165,7 @@ test('every required-service output has exactly one active state per year', () =
   const request = buildSolveRequest({
     sectorStates: pkg.sectorStates,
     appConfig: pkg.appConfig,
-    defaultScenario: scenario,
+    defaultConfiguration: scenario,
   });
 
   const result = solveWithLpAdapter(request);
@@ -195,7 +195,7 @@ test('electricity is externalized with zero supply', () => {
   const request = buildSolveRequest({
     sectorStates: pkg.sectorStates,
     appConfig: pkg.appConfig,
-    defaultScenario: scenario,
+    defaultConfiguration: scenario,
   });
 
   const result = solveWithLpAdapter(request);
@@ -211,7 +211,7 @@ test('demand is met for all service outputs in every year', () => {
   const request = buildSolveRequest({
     sectorStates: pkg.sectorStates,
     appConfig: pkg.appConfig,
-    defaultScenario: scenario,
+    defaultConfiguration: scenario,
   });
 
   const result = solveWithLpAdapter(request);
@@ -219,7 +219,7 @@ test('demand is met for all service outputs in every year', () => {
 
   for (const [outputId] of Object.entries(INCUMBENT_STATE_IDS)) {
     for (const year of scenario.years) {
-      const demand = request.scenario.serviceDemandByOutput[outputId]?.[String(year)];
+      const demand = request.configuration.serviceDemandByOutput[outputId]?.[String(year)];
       if (demand == null || demand === 0) continue;
 
       const totalActivity = activeShares

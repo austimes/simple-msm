@@ -73,7 +73,7 @@ export function buildEmissionsBySectorChart(
   request: SolveRequest,
   result: SolveResult,
 ): StackedChartData {
-  const years = request.scenario.years;
+  const years = request.configuration.years;
   const lookup = buildShareLookup(result.reporting.stateShares);
   const grouped = new Map<string, Map<number, number>>();
 
@@ -106,7 +106,7 @@ export function buildCommodityConsumptionChart(
   request: SolveRequest,
   result: SolveResult,
 ): StackedChartData {
-  const years = request.scenario.years;
+  const years = request.configuration.years;
   const lookup = buildShareLookup(result.reporting.stateShares);
   const grouped = new Map<string, Map<number, number>>();
 
@@ -136,8 +136,8 @@ export function buildCommodityConsumptionChart(
 }
 
 export function buildDemandOverTimeChart(request: SolveRequest): StackedChartData {
-  const years = request.scenario.years;
-  const demandByOutput = request.scenario.serviceDemandByOutput;
+  const years = request.configuration.years;
+  const demandByOutput = request.configuration.serviceDemandByOutput;
   const grouped = new Map<string, Map<number, number>>();
 
   for (const [outputId, yearTable] of Object.entries(demandByOutput)) {
@@ -172,8 +172,8 @@ function resolveOutputSubsector(
 }
 
 export function buildDemandBySubsectorChart(request: SolveRequest): StackedChartData {
-  const years = request.scenario.years;
-  const demandByOutput = request.scenario.serviceDemandByOutput;
+  const years = request.configuration.years;
+  const demandByOutput = request.configuration.serviceDemandByOutput;
 
   // Map each outputId to its subsector
   const outputToSubsector = new Map<string, string>();
@@ -207,7 +207,7 @@ export function buildEmissionsBySubsectorChart(
   request: SolveRequest,
   result: SolveResult,
 ): StackedChartData {
-  const years = request.scenario.years;
+  const years = request.configuration.years;
   const lookup = buildShareLookup(result.reporting.stateShares);
   const grouped = new Map<string, Map<number, number>>();
 
@@ -240,7 +240,7 @@ export function buildConversionCostBySubsectorChart(
   request: SolveRequest,
   result: SolveResult,
 ): StackedChartData {
-  const years = request.scenario.years;
+  const years = request.configuration.years;
   const lookup = buildShareLookup(result.reporting.stateShares);
   const grouped = new Map<string, Map<number, number>>();
 

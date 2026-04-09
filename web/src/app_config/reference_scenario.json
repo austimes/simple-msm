@@ -235,5 +235,9 @@
       "max_delta_pp": 20,
       "notes": "Generic rollout proxy. Because the current sector_states.csv does not contain numeric uptake-rate fields, max share change per milestone period is the simple app-level uptake limiter."
     }
+  },
+  "app_metadata": {
+    "id": "reference",
+    "readonly": true
   }
 }
