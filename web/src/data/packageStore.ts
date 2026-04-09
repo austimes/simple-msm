@@ -11,7 +11,7 @@ import {
   getConfigurationId,
   isReadonlyConfiguration,
   loadBuiltinConfigurations,
-  withIncludedOutputIds,
+  withSeedOutputIds,
 } from './configurationLoader';
 import { getEnabledStateIds } from './scenarioWorkspaceModel';
 
@@ -355,7 +355,7 @@ export const usePackageStore = create<PackageStore>((set, get) => {
     },
     setIncludedOutputIds: (outputIds) => {
       const state = get();
-      const nextConfiguration = withIncludedOutputIds(
+      const nextConfiguration = withSeedOutputIds(
         cloneConfiguration(state.currentConfiguration),
         outputIds,
       );

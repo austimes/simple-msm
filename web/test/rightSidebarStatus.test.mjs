@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { describe, test } from 'node:test';
-import { getRightSidebarStatusPresentation, RIGHT_SIDEBAR_STATUS_LEGEND } from '../src/components/workspace/rightSidebarStatus.ts';
+import {
+  getRightSidebarStatusPresentation,
+  RIGHT_SIDEBAR_STATUS_LEGEND,
+} from '../src/components/workspace/rightSidebarStatus.ts';
 import { deriveOutputRunStatusesForConfiguration } from '../src/solver/solveScope.ts';
 import { buildScenario, loadPkg } from './solverTestUtils.mjs';
 
@@ -13,7 +16,7 @@ function readJson(relativePath) {
 }
 
 describe('getRightSidebarStatusPresentation', () => {
-  test('distinguishes in-scope, dependency, and excluded outputs in buildings-only runs', () => {
+  test('distinguishes seed scope, dependency inclusion, and excluded outputs in buildings-only runs', () => {
     const scenario = readJson('../src/configurations/buildings-endogenous.json');
     const statuses = deriveOutputRunStatusesForConfiguration(pkg, scenario);
 
@@ -25,23 +28,31 @@ describe('getRightSidebarStatusPresentation', () => {
       statuses.passenger_road_transport,
     );
 
-    assert.deepEqual(
-      residential.badges.map((badge) => badge.label),
-      ['in scope'],
+    assert.ok(
+      residential.badges.some((badge) => badge.label === 'Demand active in this run'),
     );
-    assert.deepEqual(
-      electricity.badges.map((badge) => badge.label),
-      ['dependency'],
+    assert.ok(
+      residential.badges.some((badge) => badge.label === 'Seed scope'),
     );
-    assert.deepEqual(
-      passengerRoad.badges.map((badge) => badge.label),
-      ['excluded'],
+    assert.ok(
+      electricity.badges.some((badge) => badge.label === 'Endogenous supply in this run'),
     );
+    assert.ok(
+      electricity.badges.some((badge) => badge.label === 'Auto-included dependency'),
+    );
+    assert.ok(
+      passengerRoad.badges.some((badge) => badge.label === 'Demand excluded from this run'),
+    );
+    assert.ok(
+      !passengerRoad.badges.some((badge) => badge.label === 'No enabled pathways'),
+    );
+    assert.equal(passengerRoad.isDisabled, false);
+    assert.equal(passengerRoad.isDimmed, true);
     assert.match(electricity.detail, /depends on it/i);
-    assert.match(passengerRoad.detail, /outside the current scoped run/i);
+    assert.match(passengerRoad.detail, /outside the effective run/i);
   });
 
-  test('adds the disabled badge only when no states are enabled', () => {
+  test('shows blocked demand separately from disabled pathways', () => {
     const allPassengerStateIds = Array.from(
       new Set(
         pkg.sectorStates
@@ -66,23 +77,32 @@ describe('getRightSidebarStatusPresentation', () => {
     );
     const electricity = getRightSidebarStatusPresentation(statuses.electricity);
 
-    assert.deepEqual(
-      passengerRoad.badges.map((badge) => badge.label),
-      ['full model', 'disabled'],
+    assert.ok(
+      passengerRoad.badges.some((badge) => badge.label === 'Demand active but no enabled pathways'),
     );
     assert.ok(
-      passengerRoad.groupClassNames.includes('workspace-subsector-group--disabled'),
+      passengerRoad.badges.some((badge) => badge.label === 'No enabled pathways'),
     );
-    assert.deepEqual(
-      electricity.badges.map((badge) => badge.label),
-      ['full model'],
+    assert.equal(passengerRoad.isDisabled, true);
+    assert.equal(passengerRoad.isDimmed, false);
+    assert.match(passengerRoad.detail, /demand is still active/i);
+    assert.ok(
+      electricity.badges.every((badge) => badge.label !== 'No enabled pathways'),
     );
   });
 
   test('documents the legend statuses shown in the sidebar', () => {
     assert.deepEqual(
       RIGHT_SIDEBAR_STATUS_LEGEND.map((item) => item.label),
-      ['in scope', 'dependency', 'excluded', 'disabled'],
+      [
+        'Demand active in this run',
+        'Seed scope',
+        'Auto-included dependency',
+        'Excluded from this run',
+        'Externalized supply in this run',
+        'No enabled pathways',
+        'Demand active but no enabled pathways',
+      ],
     );
   });
 });

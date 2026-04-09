@@ -27,7 +27,7 @@ function outputSetFromRequest(request) {
 }
 
 describe('deriveOutputRunStatusesForConfiguration', () => {
-  test('matches the buildings-endogenous scoped solve semantics', () => {
+  test('matches the buildings-endogenous seed-scope and effective-run semantics', () => {
     const scenario = readJson('../src/configurations/buildings-endogenous.json');
     const statuses = deriveOutputRunStatusesForConfiguration(pkg, scenario);
     const request = buildSolveRequest(pkg, scenario);
@@ -60,6 +60,38 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
     assert.deepEqual(
       outputSetFromStatuses(statuses),
       outputSetFromRequest(request),
+    );
+  });
+
+  test('accepts legacy included_output_ids as an alias for seed_output_ids', () => {
+    const scenario = readJson('../src/configurations/buildings-endogenous.json');
+    const legacyScenario = structuredClone(scenario);
+    legacyScenario.app_metadata = {
+      ...legacyScenario.app_metadata,
+      included_output_ids: legacyScenario.app_metadata.seed_output_ids,
+    };
+    delete legacyScenario.app_metadata.seed_output_ids;
+
+    const canonicalStatuses = deriveOutputRunStatusesForConfiguration(pkg, scenario);
+    const legacyStatuses = deriveOutputRunStatusesForConfiguration(pkg, legacyScenario);
+    const canonicalRequest = buildSolveRequest(pkg, scenario);
+    const legacyRequest = buildSolveRequest(pkg, legacyScenario);
+
+    assert.equal(
+      legacyStatuses.residential_building_services.runParticipation,
+      'seed_scope',
+    );
+    assert.equal(
+      legacyStatuses.electricity.runParticipation,
+      'auto_included_dependency',
+    );
+    assert.deepEqual(
+      outputSetFromStatuses(legacyStatuses),
+      outputSetFromStatuses(canonicalStatuses),
+    );
+    assert.deepEqual(
+      outputSetFromRequest(legacyRequest),
+      outputSetFromRequest(canonicalRequest),
     );
   });
 

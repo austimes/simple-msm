@@ -4,10 +4,10 @@
  * 2. User configs persisted to localStorage (editable)
  */
 import { parseScenarioDocument } from './scenarioLoader';
-import { normalizeIncludedOutputIds } from './configurationMetadata';
+import { normalizeSeedOutputIds } from './configurationMetadata';
 import type { ScenarioDocument } from './types';
 
-export { getIncludedOutputIds } from './configurationMetadata';
+export { getIncludedOutputIds, getSeedOutputIds } from './configurationMetadata';
 
 // --- Built-in configuration loading (Vite eager import) ---
 
@@ -20,15 +20,18 @@ function normalizeConfigurationMetadata(configuration: ScenarioDocument): Scenar
   const configurationWithoutMetadata = { ...configuration };
   delete configurationWithoutMetadata.app_metadata;
 
-  const includedOutputIds = normalizeIncludedOutputIds(configuration.app_metadata?.included_output_ids);
+  const seedOutputIds = normalizeSeedOutputIds(
+    configuration.app_metadata?.seed_output_ids
+    ?? configuration.app_metadata?.included_output_ids,
+  );
   const id = configuration.app_metadata?.id?.trim() || undefined;
   const readonly = configuration.app_metadata?.readonly === true;
 
-  const appMetadata = [id, readonly, includedOutputIds?.length].some(Boolean)
+  const appMetadata = [id, readonly, seedOutputIds?.length].some(Boolean)
     ? {
         ...(id ? { id } : {}),
         ...(readonly ? { readonly: true } : {}),
-        ...(includedOutputIds ? { included_output_ids: includedOutputIds } : {}),
+        ...(seedOutputIds ? { seed_output_ids: seedOutputIds } : {}),
       }
     : undefined;
 
@@ -89,7 +92,14 @@ export function withIncludedOutputIds(
   configuration: ScenarioDocument,
   includedOutputIds: string[] | undefined,
 ): ScenarioDocument {
-  return withConfigurationMetadata(configuration, { included_output_ids: includedOutputIds });
+  return withSeedOutputIds(configuration, includedOutputIds);
+}
+
+export function withSeedOutputIds(
+  configuration: ScenarioDocument,
+  seedOutputIds: string[] | undefined,
+): ScenarioDocument {
+  return withConfigurationMetadata(configuration, { seed_output_ids: seedOutputIds });
 }
 
 export function loadBuiltinConfigurations(): ScenarioDocument[] {
@@ -170,12 +180,12 @@ export function findConfiguration(id: string): ScenarioDocument | null {
 
 export function createConfigurationFromScenario(
   scenario: ScenarioDocument,
-  includedOutputIds: string[] | undefined,
+  seedOutputIds: string[] | undefined,
 ): ScenarioDocument {
   return withConfigurationMetadata(structuredClone(scenario), {
     id: slugifyConfigurationName(scenario.name),
     readonly: false,
-    included_output_ids: includedOutputIds,
+    seed_output_ids: seedOutputIds,
   });
 }
 

@@ -312,7 +312,15 @@
         "readonly": {
           "type": "boolean"
         },
+        "seed_output_ids": {
+          "description": "Explicitly selected outputs that seed a scoped solve. The effective run may auto-include dependent outputs.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "included_output_ids": {
+          "description": "Backward-compatible alias for seed_output_ids.",
           "type": "array",
           "items": {
             "type": "string"
