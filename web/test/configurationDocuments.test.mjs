@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { resolveConfigurationDocument } from '../src/data/demandResolution.ts';
 import { buildSolveRequest } from '../src/solver/buildSolveRequest.ts';
@@ -225,6 +225,42 @@ test('configuration id helper prefers app metadata ids and falls back to legacy 
   assert.equal(getConfigurationDocumentId({ app_metadata: {} }), null);
 });
 
+test('configuration loader prefers the canonical filename when duplicate config ids exist', async () => {
+  const { parseConfigurationCollection } = await loadViteModule('/src/data/configurationLoader.ts');
+  const canonicalConfig = structuredClone(readJson('../src/configurations/buildings-endogenous.json'));
+  const duplicateConfig = structuredClone(canonicalConfig);
+
+  canonicalConfig.app_metadata = {
+    ...(canonicalConfig.app_metadata ?? {}),
+    id: 'buildings-dlg',
+    readonly: false,
+  };
+  duplicateConfig.app_metadata = {
+    ...(canonicalConfig.app_metadata ?? {}),
+  };
+
+  duplicateConfig.service_controls.residential_building_services = {
+    mode: 'optimize',
+    state_id: null,
+    disabled_state_ids: ['buildings__residential__deep_electric'],
+  };
+
+  const parsed = parseConfigurationCollection(
+    {
+      '/src/configurations/user/undefined.json': JSON.stringify(duplicateConfig),
+      '/src/configurations/user/buildings-dlg.json': JSON.stringify(canonicalConfig),
+    },
+    false,
+  );
+
+  assert.equal(parsed.length, 1);
+  assert.equal(parsed[0].app_metadata?.id, 'buildings-dlg');
+  assert.equal(
+    parsed[0].service_controls.residential_building_services.disabled_state_ids,
+    undefined,
+  );
+});
+
 test('configuration loader rejects partial overlay documents instead of merging them with a reference config', async () => {
   const { parseConfigurationCollection } = await loadViteModule('/src/data/configurationLoader.ts');
   const warnings = [];
@@ -279,4 +315,45 @@ test('editing a loaded user configuration marks the workspace dirty for Save ove
   assert.equal(usePackageStore.getState().isConfigurationDirty, true);
   assert.equal(usePackageStore.getState().activeConfigurationId, userConfiguration.app_metadata.id);
   assert.equal(usePackageStore.getState().activeConfigurationReadonly, false);
+});
+
+test('user configuration API saves files using app_metadata.id', async () => {
+  const server = await createServer({
+    configFile: fileURLToPath(new URL('../vite.config.ts', import.meta.url)),
+    logLevel: 'error',
+  });
+  const config = structuredClone(readJson('../src/configurations/buildings-endogenous.json'));
+  const configId = 'user-config-api-save-test';
+  const canonicalPath = fileURLToPath(new URL(`../src/configurations/user/${configId}.json`, import.meta.url));
+
+  config.name = 'User config API save test';
+  config.app_metadata = {
+    ...(config.app_metadata ?? {}),
+    id: configId,
+    readonly: false,
+  };
+
+  rmSync(canonicalPath, { force: true });
+
+  try {
+    await server.listen();
+    const url = server.resolvedUrls?.local[0];
+
+    assert.ok(url, 'expected Vite dev server to expose a local URL');
+
+    const saveResponse = await fetch(`${url}api/user-configurations`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config),
+    });
+
+    assert.equal(saveResponse.status, 200);
+    assert.ok(existsSync(canonicalPath), 'expected canonical user config file to be created');
+
+    const saved = JSON.parse(readFileSync(canonicalPath, 'utf8'));
+    assert.equal(saved.app_metadata?.id, configId);
+  } finally {
+    await server.close();
+    rmSync(canonicalPath, { force: true });
+  }
 });
