@@ -12,6 +12,61 @@ bd close <id>         # Complete work
 bd dolt push          # Push beads data to remote
 ```
 
+## Issue Worktree And Merge-Slot Workflow
+
+When an agent is asked to work on a specific beads issue, it must always do that work in a dedicated git worktree and land it onto `main` through the beads merge slot.
+
+### Starting issue work
+
+1. Inspect the issue with `bd show <id>`.
+2. Attempt to claim it with `bd update <id> --claim`.
+   If the claim fails because another agent already holds it, continue carefully if explicitly asked to help on that issue, because concurrent agents are the reason the merge slot exists.
+3. Create or reuse a dedicated worktree for that issue from `main`. Use a sibling worktree path and a dedicated branch name:
+   ```bash
+   git worktree add ../simple-msm-<id> -b codex/<id>-<short-slug> main
+   ```
+   If the branch already exists, reuse it instead of creating a new one:
+   ```bash
+   git worktree add ../simple-msm-<id> codex/<id>-<short-slug>
+   ```
+4. Perform all code changes, tests, commits, and issue updates inside that worktree. Do not develop issue work directly in the primary `main` checkout.
+
+### Landing issue work onto `main`
+
+1. Finish the work in the issue worktree and commit it there first.
+2. Return to the primary `main` checkout before merging.
+3. Ensure the merge slot exists:
+   ```bash
+   bd merge-slot create
+   ```
+   If it already exists, that is fine.
+4. Always check the merge slot before trying to acquire it:
+   ```bash
+   bd merge-slot check
+   ```
+5. If another agent is holding the slot, do not start merging or conflict resolution work on `main`.
+   Attempt to queue for the slot instead:
+   ```bash
+   bd merge-slot acquire --wait
+   ```
+   Then wait and retry later. Every agent must check first so it can see whether another agent already holds the slot.
+6. If the slot is available, acquire it before touching `main`:
+   ```bash
+   bd merge-slot acquire
+   ```
+7. While holding the slot, update `main`, merge the issue branch, resolve conflicts if needed, run the relevant verification, and push the result:
+   ```bash
+   git pull --rebase
+   git merge --no-ff codex/<id>-<short-slug>
+   bd dolt push
+   git push
+   ```
+8. Release the merge slot immediately after the merge completes:
+   ```bash
+   bd merge-slot release
+   ```
+9. If the merge or push fails after acquiring the slot, resolve the problem or back out as needed, but always release the merge slot before ending the session.
+
 ## Non-Interactive Shell Commands
 
 **ALWAYS use non-interactive flags** with file operations to avoid hanging on confirmation prompts.
@@ -55,6 +110,8 @@ bd close <id>         # Complete work
 - Use `bd` for ALL task tracking — do NOT use TodoWrite, TaskCreate, or markdown TODO lists
 - Run `bd prime` for detailed command reference and session close protocol
 - Use `bd remember` for persistent knowledge — do NOT use MEMORY.md files
+- For issue work, always use a dedicated git worktree rather than editing directly in the primary `main` checkout
+- Land issue branches onto `main` only through the beads merge slot: create it if needed, check it first, acquire it before merging, and release it immediately after
 
 ## Session Completion
 
