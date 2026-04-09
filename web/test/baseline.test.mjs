@@ -116,7 +116,7 @@ function loadPkg() {
 }
 
 function buildBaselineScenario(appConfig, electricityControl = { mode: 'externalized' }) {
-  const referenceScenario = readJson('../public/app_config/reference_scenario.json');
+  const referenceScenario = readJson('../public/app_config/reference_configuration.json');
 
   const serviceControls = {};
   for (const [outputId, stateId] of Object.entries(INCUMBENT_STATE_IDS)) {
@@ -220,7 +220,7 @@ test('demand is met for all service outputs in every year', () => {
 
   for (const [outputId] of Object.entries(INCUMBENT_STATE_IDS)) {
     for (const year of scenario.years) {
-      const demand = request.scenario.serviceDemandByOutput[outputId]?.[String(year)];
+      const demand = request.configuration.serviceDemandByOutput[outputId]?.[String(year)];
       if (demand == null || demand === 0) continue;
 
       const totalActivity = activeShares

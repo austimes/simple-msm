@@ -19,10 +19,10 @@ function loadAppConfig() {
 }
 
 const appConfig = loadAppConfig();
-const referenceScenario = readJson('../public/app_config/reference_scenario.json');
+const referenceScenario = readJson('../public/app_config/reference_configuration.json');
 
 test('reference scenario demand metadata reproduces the stored demand tables', () => {
-  const resolved = resolveConfigurationDocument(referenceScenario, appConfig, 'reference_scenario.json');
+  const resolved = resolveConfigurationDocument(referenceScenario, appConfig, 'reference_configuration.json');
 
   assert.deepEqual(resolved.service_demands, referenceScenario.service_demands);
   assert.deepEqual(

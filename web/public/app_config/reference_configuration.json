@@ -1,0 +1,241 @@
+{
+  "name": "Reference central-growth configuration",
+  "description": "Library-aligned baseline configuration using 2025 activity anchors, the simple built-in sector growth preset, conservative incumbent controls, and externalized electricity purchases.",
+  "years": [
+    2025,
+    2030,
+    2035,
+    2040,
+    2045,
+    2050
+  ],
+  "service_controls": {
+    "electricity": {
+      "mode": "externalized"
+    },
+    "residential_building_services": {
+      "mode": "pinned_single",
+      "state_id": "buildings__residential__incumbent_mixed_fuels"
+    },
+    "commercial_building_services": {
+      "mode": "pinned_single",
+      "state_id": "buildings__commercial__incumbent_mixed_fuels"
+    },
+    "passenger_road_transport": {
+      "mode": "pinned_single",
+      "state_id": "road_transport__passenger_road__ice_fleet"
+    },
+    "freight_road_transport": {
+      "mode": "pinned_single",
+      "state_id": "road_transport__freight_road__diesel"
+    },
+    "low_temperature_heat": {
+      "mode": "pinned_single",
+      "state_id": "generic_industrial_heat__low_temperature_heat__fossil"
+    },
+    "medium_temperature_heat": {
+      "mode": "pinned_single",
+      "state_id": "generic_industrial_heat__medium_temperature_heat__fossil"
+    },
+    "high_temperature_heat": {
+      "mode": "pinned_single",
+      "state_id": "generic_industrial_heat__high_temperature_heat__fossil"
+    },
+    "crude_steel": {
+      "mode": "pinned_single",
+      "state_id": "steel__crude_steel__bf_bof_conventional"
+    },
+    "cement_equivalent": {
+      "mode": "pinned_single",
+      "state_id": "cement_clinker__cement_equivalent__conventional"
+    },
+    "livestock_output_bundle": {
+      "mode": "pinned_single",
+      "state_id": "agriculture__livestock__conventional"
+    },
+    "cropping_horticulture_output_bundle": {
+      "mode": "pinned_single",
+      "state_id": "agriculture__cropping_horticulture__conventional"
+    },
+    "land_sequestration": {
+      "mode": "optimize",
+      "disabled_state_ids": ["removals_negative_emissions__land_sequestration__biological_sink"]
+    },
+    "engineered_removals": {
+      "mode": "optimize",
+      "disabled_state_ids": ["removals_negative_emissions__engineered_removals__daccs"]
+    }
+  },
+  "service_demands": {
+    "residential_building_services": {
+      "2025": 477000000,
+      "2030": 491482753,
+      "2035": 506405235,
+      "2040": 521780795,
+      "2045": 537623190,
+      "2050": 553946595
+    },
+    "commercial_building_services": {
+      "2025": 314000000,
+      "2030": 328386639,
+      "2035": 343432436,
+      "2040": 359167591,
+      "2045": 375623688,
+      "2050": 392833760
+    },
+    "passenger_road_transport": {
+      "2025": 293414730000,
+      "2030": 305340612929,
+      "2035": 317751225046,
+      "2040": 330666268236,
+      "2045": 344106245172,
+      "2050": 358092491858
+    },
+    "freight_road_transport": {
+      "2025": 249000000000,
+      "2030": 264302888598,
+      "2035": 280546252696,
+      "2040": 297787891458,
+      "2045": 316089156233,
+      "2050": 335515168863
+    },
+    "low_temperature_heat": {
+      "2025": 120000000,
+      "2030": 123030150,
+      "2035": 126136816,
+      "2040": 129321929,
+      "2045": 132587469,
+      "2050": 135935469
+    },
+    "medium_temperature_heat": {
+      "2025": 140000000,
+      "2030": 143535175,
+      "2035": 147159618,
+      "2040": 150875583,
+      "2045": 154685381,
+      "2050": 158591381
+    },
+    "high_temperature_heat": {
+      "2025": 170000000,
+      "2030": 173427309,
+      "2035": 176923715,
+      "2040": 180490610,
+      "2045": 184129417,
+      "2050": 187841584
+    },
+    "crude_steel": {
+      "2025": 5700000,
+      "2030": 5814916,
+      "2035": 5932148,
+      "2040": 6051744,
+      "2045": 6173751,
+      "2050": 6298218
+    },
+    "cement_equivalent": {
+      "2025": 9600000,
+      "2030": 9744867,
+      "2035": 9891919,
+      "2040": 10041191,
+      "2045": 10192715,
+      "2050": 10346526
+    },
+    "livestock_output_bundle": {
+      "2025": 31134.94,
+      "2030": 31447.54,
+      "2035": 31763.27,
+      "2040": 32082.18,
+      "2045": 32404.29,
+      "2050": 32729.63
+    },
+    "cropping_horticulture_output_bundle": {
+      "2025": 36576.29,
+      "2030": 37128.24,
+      "2035": 37688.51,
+      "2040": 38257.24,
+      "2045": 38834.55,
+      "2050": 39420.58
+    }
+  },
+  "demand_generation": {
+    "mode": "anchor_plus_preset",
+    "anchor_year": 2025,
+    "preset_id": "simple_sector_growth_central",
+    "service_anchors": {
+      "residential_building_services": 477000000,
+      "commercial_building_services": 314000000,
+      "passenger_road_transport": 293414730000,
+      "freight_road_transport": 249000000000,
+      "low_temperature_heat": 120000000,
+      "medium_temperature_heat": 140000000,
+      "high_temperature_heat": 170000000,
+      "crude_steel": 5700000,
+      "cement_equivalent": 9600000,
+      "livestock_output_bundle": 31134.94,
+      "cropping_horticulture_output_bundle": 36576.29
+    },
+    "service_growth_rates_pct_per_year": {
+      "residential_building_services": 0.6,
+      "commercial_building_services": 0.9,
+      "passenger_road_transport": 0.8,
+      "freight_road_transport": 1.2,
+      "low_temperature_heat": 0.5,
+      "medium_temperature_heat": 0.5,
+      "high_temperature_heat": 0.4,
+      "crude_steel": 0.4,
+      "cement_equivalent": 0.3,
+      "livestock_output_bundle": 0.2,
+      "cropping_horticulture_output_bundle": 0.3
+    },
+    "external_commodity_anchors": {
+      "electricity": 144018720
+    },
+    "external_commodity_growth_rates_pct_per_year": {
+      "electricity": 0.2
+    },
+    "year_overrides": {},
+    "notes": "Resolved milestone-year demand tables are included for reproducibility. The preset metadata explains how they were generated."
+  },
+  "external_commodity_demands": {
+    "electricity": {
+      "2025": 144018720,
+      "2030": 145464679,
+      "2035": 146925157,
+      "2040": 148400297,
+      "2045": 149890248,
+      "2050": 151395158
+    }
+  },
+  "commodity_pricing": {
+    "selections_by_commodity": {
+      "electricity": "medium",
+      "natural_gas": "medium",
+      "coal": "medium",
+      "refined_liquid_fuels": "medium",
+      "hydrogen": "medium",
+      "biomass": "medium",
+      "iron_ore": "medium",
+      "scrap_steel": "medium",
+      "sequestration_service": "medium"
+    },
+    "overrides": {}
+  },
+  "carbon_price": {
+    "2025": 30,
+    "2030": 35,
+    "2035": 40,
+    "2040": 45,
+    "2045": 47,
+    "2050": 50
+  },
+  "solver_options": {
+    "respect_max_share": false,
+    "respect_max_activity": true,
+    "soft_constraints": false,
+    "allow_removals_credit": true,
+    "share_smoothing": {
+      "enabled": false,
+      "max_delta_pp": 20,
+      "notes": "Generic rollout proxy. Because the current sector_states.csv does not contain numeric uptake-rate fields, max share change per milestone period is the simple app-level uptake limiter."
+    }
+  }
+}

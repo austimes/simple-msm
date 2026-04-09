@@ -100,6 +100,8 @@ test('bundled configurations are full documents with app metadata', () => {
 
 test('configuration documents round-trip through browser persistence into scoped solve requests', async () => {
   const {
+    CONFIGURATION_DRAFT_STORAGE_KEY,
+    LEGACY_SCENARIO_DRAFT_STORAGE_KEY,
     loadPersistedConfigurationDraft,
     persistConfigMeta,
     persistConfigurationDraft,
@@ -108,6 +110,8 @@ test('configuration documents round-trip through browser persistence into scoped
   const configuration = readJson('../src/configurations/buildings-endogenous.json');
 
   assert.equal(persistConfigurationDraft(configuration, storage), null);
+  assert.equal(storage.getItem(CONFIGURATION_DRAFT_STORAGE_KEY), JSON.stringify(configuration));
+  assert.equal(storage.getItem(LEGACY_SCENARIO_DRAFT_STORAGE_KEY), null);
   persistConfigMeta({
     activeConfigurationId: configuration.app_metadata.id,
     activeConfigurationReadonly: configuration.app_metadata.readonly === true,
@@ -125,15 +129,62 @@ test('configuration documents round-trip through browser persistence into scoped
   const request = buildSolveRequest(pkg, restored.configuration);
   const outputsInRequest = new Set(request.rows.map((row) => row.outputId));
 
-  assert.equal(request.scenario.controlsByOutput.electricity['2025'].mode, 'optimize');
+  assert.equal(request.configuration.controlsByOutput.electricity['2025'].mode, 'optimize');
   assert.equal(
-    request.scenario.serviceDemandByOutput.residential_building_services['2050'],
+    request.configuration.serviceDemandByOutput.residential_building_services['2050'],
     configuration.service_demands.residential_building_services['2050'],
   );
   assert.ok(outputsInRequest.has('residential_building_services'));
   assert.ok(outputsInRequest.has('commercial_building_services'));
   assert.ok(outputsInRequest.has('electricity'));
   assert.ok(!outputsInRequest.has('cement_equivalent'));
+});
+
+test('configuration-named app config assets stay in sync with legacy scenario filenames', () => {
+  const assetPairs = [
+    ['../src/app_config/reference_configuration.json', '../src/app_config/reference_scenario.json'],
+    ['../src/app_config/configuration_schema.json', '../src/app_config/scenario_schema.json'],
+    ['../public/app_config/reference_configuration.json', '../public/app_config/reference_scenario.json'],
+    ['../public/app_config/reference_configuration_v02.json', '../public/app_config/reference_scenario_v02.json'],
+    ['../public/app_config/configuration_schema.json', '../public/app_config/scenario_schema.json'],
+    ['../public/app_config/configuration_schema_v02.json', '../public/app_config/scenario_schema_v02.json'],
+  ];
+
+  for (const [configurationPath, legacyPath] of assetPairs) {
+    assert.deepEqual(
+      readJson(configurationPath),
+      readJson(legacyPath),
+      `${configurationPath} should match ${legacyPath}`,
+    );
+  }
+});
+
+test('configuration draft loading migrates the legacy scenario key and legacy config meta payloads', async () => {
+  const {
+    CONFIGURATION_DRAFT_STORAGE_KEY,
+    LEGACY_SCENARIO_DRAFT_STORAGE_KEY,
+    CONFIG_META_STORAGE_KEY,
+    loadPersistedConfigurationDraft,
+  } = await loadViteModule('/src/data/scenarioDraftStorage.ts');
+  const storage = createMemoryStorage();
+  const configuration = readJson('../src/configurations/buildings-endogenous.json');
+
+  storage.setItem(LEGACY_SCENARIO_DRAFT_STORAGE_KEY, JSON.stringify(configuration));
+  storage.setItem(CONFIG_META_STORAGE_KEY, JSON.stringify({
+    activeConfigurationId: configuration.app_metadata.id,
+    activeConfigurationReadonly: configuration.app_metadata.readonly === true,
+    baseConfigurationScenario: structuredClone(configuration),
+    baseIncludedOutputIds: configuration.app_metadata.seed_output_ids,
+  }));
+
+  const restored = loadPersistedConfigurationDraft(appConfig, storage);
+
+  assert.equal(restored.error, null);
+  assert.deepEqual(restored.configuration, configuration);
+  assert.deepEqual(restored.scenario, configuration);
+  assert.deepEqual(restored.configMeta?.baseConfiguration, configuration);
+  assert.equal(storage.getItem(CONFIGURATION_DRAFT_STORAGE_KEY), JSON.stringify(configuration));
+  assert.equal(storage.getItem(LEGACY_SCENARIO_DRAFT_STORAGE_KEY), null);
 });
 
 test('configuration loader accepts legacy included_output_ids and canonicalizes to seed_output_ids', async () => {

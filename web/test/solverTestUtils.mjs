@@ -112,7 +112,7 @@ export function loadPkg() {
 }
 
 export function loadReferenceScenario() {
-  return readJson('../public/app_config/reference_scenario.json');
+  return readJson('../public/app_config/reference_configuration.json');
 }
 
 /**

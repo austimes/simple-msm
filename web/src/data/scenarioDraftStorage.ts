@@ -2,10 +2,10 @@ import { parseConfigurationDocument } from './scenarioLoader.ts';
 import type { AppConfigRegistry, ConfigurationDocument } from './types.ts';
 import { withSeedOutputIds } from './configurationLoader.ts';
 
-// Keep this legacy key stable until a future additive migration can read old
-// drafts into a configuration-named key without dropping browser-local state.
-export const SCENARIO_DRAFT_STORAGE_KEY = 'simple-msm.scenario-draft.v2';
+export const CONFIGURATION_DRAFT_STORAGE_KEY = 'simple-msm.configuration-draft.v2';
+export const LEGACY_SCENARIO_DRAFT_STORAGE_KEY = 'simple-msm.scenario-draft.v2';
 export const CONFIG_META_STORAGE_KEY = 'simple-msm.config-meta.v1';
+export const SCENARIO_DRAFT_STORAGE_KEY = LEGACY_SCENARIO_DRAFT_STORAGE_KEY;
 
 export interface StorageLike {
   getItem(key: string): string | null;
@@ -61,6 +61,21 @@ function formatStorageError(action: string, error: unknown): string {
   return `Could not ${action} the browser-local configuration document: ${detail}`;
 }
 
+function promoteLegacyDraftStorage(
+  storage: StorageLike,
+  configuration: ConfigurationDocument,
+  source: 'configuration' | 'scenario',
+): void {
+  try {
+    if (source === 'scenario') {
+      storage.setItem(CONFIGURATION_DRAFT_STORAGE_KEY, JSON.stringify(configuration));
+    }
+    storage.removeItem(LEGACY_SCENARIO_DRAFT_STORAGE_KEY);
+  } catch {
+    // Keep the legacy key if migration fails; the restored draft is still usable in-memory.
+  }
+}
+
 export function loadPersistedConfigurationDraft(
   appConfig: AppConfigRegistry,
   storage?: StorageLike | null,
@@ -77,10 +92,12 @@ export function loadPersistedConfigurationDraft(
     };
   }
 
-  let raw: string | null;
+  let configurationRaw: string | null;
+  let legacyScenarioRaw: string | null;
 
   try {
-    raw = resolvedStorage.getItem(SCENARIO_DRAFT_STORAGE_KEY);
+    configurationRaw = resolvedStorage.getItem(CONFIGURATION_DRAFT_STORAGE_KEY);
+    legacyScenarioRaw = resolvedStorage.getItem(LEGACY_SCENARIO_DRAFT_STORAGE_KEY);
   } catch (error) {
     return {
       configuration: null,
@@ -91,7 +108,7 @@ export function loadPersistedConfigurationDraft(
     };
   }
 
-  if (!raw) {
+  if (!configurationRaw && !legacyScenarioRaw) {
     return {
       configuration: null,
       scenario: null,
@@ -101,32 +118,51 @@ export function loadPersistedConfigurationDraft(
     };
   }
 
-  try {
-    const configuration = parseConfigurationDocument(raw, appConfig, 'browser-local configuration document');
-    const configMeta = loadPersistedConfigMeta(resolvedStorage);
-    return {
-      configuration,
-      scenario: configuration,
-      configMeta,
-      notice: 'Restored the most recent configuration document from this browser.',
-      error: null,
-    };
-  } catch {
-    try {
-      resolvedStorage.removeItem(SCENARIO_DRAFT_STORAGE_KEY);
-      resolvedStorage.removeItem(CONFIG_META_STORAGE_KEY);
-    } catch {
-      // Ignore cleanup errors and fall back to the packaged reference configuration.
+  const draftCandidates = [
+    { raw: configurationRaw, source: 'configuration' as const },
+    { raw: legacyScenarioRaw, source: 'scenario' as const },
+  ];
+
+  for (const candidate of draftCandidates) {
+    if (!candidate.raw) {
+      continue;
     }
 
-    return {
-      configuration: null,
-      scenario: null,
-      configMeta: null,
-      notice: 'Ignored an invalid saved document and fell back to the packaged reference configuration.',
-      error: null,
-    };
+    try {
+      const configuration = parseConfigurationDocument(
+        candidate.raw,
+        appConfig,
+        'browser-local configuration document',
+      );
+      const configMeta = loadPersistedConfigMeta(resolvedStorage);
+      promoteLegacyDraftStorage(resolvedStorage, configuration, candidate.source);
+      return {
+        configuration,
+        scenario: configuration,
+        configMeta,
+        notice: 'Restored the most recent configuration document from this browser.',
+        error: null,
+      };
+    } catch {
+      continue;
+    }
   }
+
+  try {
+    resolvedStorage.removeItem(CONFIGURATION_DRAFT_STORAGE_KEY);
+    resolvedStorage.removeItem(LEGACY_SCENARIO_DRAFT_STORAGE_KEY);
+    resolvedStorage.removeItem(CONFIG_META_STORAGE_KEY);
+  } catch {
+    // Ignore cleanup errors and fall back to the packaged reference configuration.
+  }
+
+  return {
+    configuration: null,
+    scenario: null,
+    configMeta: null,
+    notice: 'Ignored an invalid saved document and fell back to the packaged reference configuration.',
+    error: null,
+  };
 }
 
 export function persistConfigurationDraft(
@@ -140,7 +176,8 @@ export function persistConfigurationDraft(
   }
 
   try {
-    resolvedStorage.setItem(SCENARIO_DRAFT_STORAGE_KEY, JSON.stringify(configuration));
+    resolvedStorage.setItem(CONFIGURATION_DRAFT_STORAGE_KEY, JSON.stringify(configuration));
+    resolvedStorage.removeItem(LEGACY_SCENARIO_DRAFT_STORAGE_KEY);
     return null;
   } catch (error) {
     return formatStorageError('save', error);
@@ -210,7 +247,8 @@ export function clearPersistedConfigurationDraft(storage?: StorageLike | null): 
   }
 
   try {
-    resolvedStorage.removeItem(SCENARIO_DRAFT_STORAGE_KEY);
+    resolvedStorage.removeItem(CONFIGURATION_DRAFT_STORAGE_KEY);
+    resolvedStorage.removeItem(LEGACY_SCENARIO_DRAFT_STORAGE_KEY);
     resolvedStorage.removeItem(CONFIG_META_STORAGE_KEY);
     return null;
   } catch (error) {

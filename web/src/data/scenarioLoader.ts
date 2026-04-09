@@ -1,7 +1,7 @@
 import Ajv2020 from 'ajv/dist/2020';
 import type { ErrorObject } from 'ajv';
-import referenceScenarioText from '@root/web/src/app_config/reference_scenario.json?raw';
-import scenarioSchemaText from '@root/web/src/app_config/scenario_schema.json?raw';
+import referenceConfigurationText from '@root/web/src/app_config/reference_configuration.json?raw';
+import configurationSchemaText from '@root/web/src/app_config/configuration_schema.json?raw';
 import { resolveConfigurationDocument } from './demandResolution.ts';
 import type { AppConfigRegistry, ConfigurationDocument } from './types.ts';
 
@@ -85,11 +85,14 @@ function formatValidationError(error: ErrorObject): string {
   }
 }
 
-const scenarioSchema = parseJsonObject<JsonObject>(scenarioSchemaText, 'scenario_schema.json');
-const validator = new Ajv2020({ allErrors: true, strict: false }).compile(scenarioSchema);
+const configurationSchema = parseJsonObject<JsonObject>(
+  configurationSchemaText,
+  'configuration_schema.json',
+);
+const validator = new Ajv2020({ allErrors: true, strict: false }).compile(configurationSchema);
 
 export function loadConfigurationSchema(): JsonObject {
-  return scenarioSchema;
+  return configurationSchema;
 }
 
 export function validateConfigurationDocument(
@@ -116,7 +119,7 @@ export function parseConfigurationDocument(
 }
 
 export function loadDefaultConfiguration(appConfig: AppConfigRegistry): ConfigurationDocument {
-  return parseConfigurationDocument(referenceScenarioText, appConfig, 'reference_scenario.json');
+  return parseConfigurationDocument(referenceConfigurationText, appConfig, 'reference_configuration.json');
 }
 
 export const loadScenarioSchema = loadConfigurationSchema;

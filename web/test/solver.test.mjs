@@ -88,8 +88,8 @@ function loadPkg() {
   const csvRows = parseCsv(csvText);
   const sectorStates = csvRows.map(toSectorState);
   const appConfig = loadAppConfig();
-  const referenceScenario = readJson('../public/app_config/reference_scenario.json');
-  const defaultScenario = resolveScenarioDocument(referenceScenario, appConfig, 'reference_scenario.json');
+  const referenceScenario = readJson('../public/app_config/reference_configuration.json');
+  const defaultScenario = resolveScenarioDocument(referenceScenario, appConfig, 'reference_configuration.json');
 
   return { sectorStates, appConfig, defaultScenario };
 }
@@ -225,7 +225,7 @@ function logCase(label, scenario, pkg) {
 
 function main() {
   const pkg = loadPkg();
-  const referenceScenario = readJson('../public/app_config/reference_scenario.json');
+  const referenceScenario = readJson('../public/app_config/reference_configuration.json');
 
   console.log(`Loaded ${pkg.sectorStates.length} sector state rows`);
   console.log(`Output roles: ${Object.keys(pkg.appConfig.output_roles).join(', ')}`);

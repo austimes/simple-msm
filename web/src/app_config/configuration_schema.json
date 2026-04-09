@@ -1,0 +1,332 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Phase 1 Sector State Explorer Configuration Schema v0.3",
+  "type": "object",
+  "required": [
+    "name",
+    "years",
+    "service_controls",
+    "service_demands",
+    "demand_generation",
+    "commodity_pricing",
+    "carbon_price"
+  ],
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "years": {
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "enum": [
+          2025,
+          2030,
+          2035,
+          2040,
+          2045,
+          2050
+        ]
+      },
+      "minItems": 1
+    },
+    "service_controls": {
+      "type": "object",
+      "description": "One control block per service_or_output_name.",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "mode"
+        ],
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "pinned_single",
+              "fixed_shares",
+              "optimize",
+              "externalized",
+              "off",
+              "target"
+            ]
+          },
+          "state_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "fixed_shares": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          },
+          "target_value": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "disabled_state_ids": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "year_overrides": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "mode": {
+                  "type": "string"
+                },
+                "state_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "fixed_shares": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "additionalProperties": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  }
+                },
+                "target_value": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "minimum": 0
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "service_demands": {
+      "type": "object",
+      "description": "Resolved milestone-year demand values for each required service/output. These are the values used in the solve.",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "demand_generation": {
+      "type": "object",
+      "description": "Metadata describing how the resolved service_demands table was produced.",
+      "required": [
+        "mode",
+        "anchor_year",
+        "preset_id",
+        "service_anchors"
+      ],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": [
+            "manual_table",
+            "anchor_plus_preset",
+            "anchor_plus_preset_with_overrides"
+          ]
+        },
+        "anchor_year": {
+          "type": "integer",
+          "enum": [
+            2025
+          ]
+        },
+        "preset_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "service_anchors": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "service_growth_rates_pct_per_year": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "number"
+          }
+        },
+        "external_commodity_anchors": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "external_commodity_growth_rates_pct_per_year": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "number"
+          }
+        },
+        "year_overrides": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        },
+        "notes": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "external_commodity_demands": {
+      "type": "object",
+      "description": "Resolved external demand values for supply commodities such as residual electricity demand not represented by modeled services.",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "commodity_pricing": {
+      "type": "object",
+      "properties": {
+        "selections_by_commodity": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "enum": ["low", "medium", "high"]
+          }
+        },
+        "preset_id": {
+          "type": "string"
+        },
+        "overrides": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number"
+            }
+          }
+        }
+      }
+    },
+    "carbon_price": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "number"
+      }
+    },
+    "solver_options": {
+      "type": "object",
+      "properties": {
+        "respect_max_share": {
+          "type": "boolean"
+        },
+        "respect_max_activity": {
+          "type": "boolean"
+        },
+        "soft_constraints": {
+          "type": "boolean"
+        },
+        "allow_removals_credit": {
+          "type": "boolean"
+        },
+        "share_smoothing": {
+          "type": "object",
+          "description": "Simple app-level rollout / uptake proxy implemented as a maximum share change per milestone period.",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "max_delta_pp": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "notes": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "app_metadata": {
+      "type": "object",
+      "description": "App-owned persistence metadata that travels with the full configuration document.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "readonly": {
+          "type": "boolean"
+        },
+        "seed_output_ids": {
+          "description": "Explicitly selected outputs that seed a scoped solve. The effective run may auto-include dependent outputs.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "included_output_ids": {
+          "description": "Backward-compatible alias for seed_output_ids.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
