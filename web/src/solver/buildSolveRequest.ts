@@ -46,7 +46,7 @@ function buildDemandValidationMessage(
     return `${status.outputId}${yearsLabel}`;
   });
 
-  return `Cannot solve because required-service outputs have positive in-run demand but no enabled pathways: ${details.join(', ')}.`;
+  return `Cannot solve because required-service outputs have positive in-run demand but no available pathways: ${details.join(', ')}.`;
 }
 
 function validateRequiredServiceCoverage(

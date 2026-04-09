@@ -223,7 +223,7 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
     assert.equal(statuses.residential_building_services.capEligibleStateCount, residentialStateIds.length - 1);
   });
 
-  test('buildSolveRequest blocks positive required-service demand with no enabled pathways', () => {
+  test('buildSolveRequest blocks positive required-service demand with no available pathways', () => {
     const allPassengerStateIds = Array.from(
       new Set(
         pkg.sectorStates
@@ -242,10 +242,7 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
       },
     });
 
-    assert.throws(
-      () => buildSolveRequest(pkg, configuration),
-      /passenger_road_transport/,
-    );
+    assert.throws(() => buildSolveRequest(pkg, configuration), /no available pathways: passenger_road_transport/i);
   });
 
   test('marks unscoped configurations as full-model runs', () => {

@@ -44,7 +44,7 @@ describe('getRightSidebarStatusPresentation', () => {
       passengerRoad.badges.some((badge) => badge.label === 'Demand excluded from this run'),
     );
     assert.ok(
-      !passengerRoad.badges.some((badge) => badge.label === 'No enabled pathways'),
+      !passengerRoad.badges.some((badge) => badge.label === 'No available pathways'),
     );
     assert.equal(passengerRoad.isDisabled, false);
     assert.equal(passengerRoad.isDimmed, true);
@@ -78,16 +78,16 @@ describe('getRightSidebarStatusPresentation', () => {
     const electricity = getRightSidebarStatusPresentation(statuses.electricity);
 
     assert.ok(
-      passengerRoad.badges.some((badge) => badge.label === 'Demand active but no enabled pathways'),
+      passengerRoad.badges.some((badge) => badge.label === 'Demand active but no available pathways'),
     );
     assert.ok(
-      passengerRoad.badges.some((badge) => badge.label === 'No enabled pathways'),
+      passengerRoad.badges.some((badge) => badge.label === 'No available pathways'),
     );
     assert.equal(passengerRoad.isDisabled, true);
     assert.equal(passengerRoad.isDimmed, false);
     assert.match(passengerRoad.detail, /demand is still active/i);
     assert.ok(
-      electricity.badges.every((badge) => badge.label !== 'No enabled pathways'),
+      electricity.badges.every((badge) => badge.label !== 'No available pathways'),
     );
   });
 
@@ -103,7 +103,7 @@ describe('getRightSidebarStatusPresentation', () => {
       electricity.badges.some((badge) => badge.label === 'Auto-included dependency'),
     );
     assert.ok(
-      electricity.badges.every((badge) => !/enabled pathway/i.test(badge.label)),
+      electricity.badges.every((badge) => !/available pathway/i.test(badge.label)),
     );
     assert.equal(electricity.isDisabled, false);
     assert.equal(electricity.arePathwaysInactive, true);
@@ -116,9 +116,12 @@ describe('getRightSidebarStatusPresentation', () => {
     const lowTemperatureHeat = getRightSidebarStatusPresentation(statuses.low_temperature_heat);
 
     assert.ok(
-      lowTemperatureHeat.badges.some((badge) => badge.label === '3 enabled pathways'),
+      lowTemperatureHeat.badges.some((badge) => badge.label === '3 available pathways'),
     );
-    assert.match(lowTemperatureHeat.detail, /pins activity to 1 active pathway/i);
+    assert.ok(
+      lowTemperatureHeat.badges.some((badge) => badge.label === '1 active pathway'),
+    );
+    assert.match(lowTemperatureHeat.detail, /keep 1 pathway active in the solve/i);
     assert.match(lowTemperatureHeat.detail, /remain available for cap context/i);
   });
 
@@ -131,8 +134,9 @@ describe('getRightSidebarStatusPresentation', () => {
         'Auto-included dependency',
         'Excluded from this run',
         'Externalized supply in this run',
-        'No enabled pathways',
-        'Demand active but no enabled pathways',
+        'Active pathways in solve',
+        'No available pathways',
+        'Demand active but no available pathways',
       ],
     );
   });

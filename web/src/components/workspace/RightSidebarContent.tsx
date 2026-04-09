@@ -123,7 +123,8 @@ export default function RightSidebarContent({
       <div className="workspace-state-legend" role="note" aria-label="State selector status legend">
         <p className="workspace-state-legend-copy">
           Seed scope is shown separately from the effective run, which may auto-include dependencies.
-          Demand or supply participation is shown separately from pathway enablement.
+          Demand or supply participation is shown separately from pathway availability.
+          Active pathways in the solve are called out separately when exact-share controls narrow them below the available set.
         </p>
         <div className="workspace-state-legend-items">
           {RIGHT_SIDEBAR_STATUS_LEGEND.map((item) => (

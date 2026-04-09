@@ -58,19 +58,25 @@ export const RIGHT_SIDEBAR_STATUS_LEGEND: RightSidebarLegendItem[] = [
     key: 'externalized',
     label: 'Externalized supply in this run',
     tone: 'muted',
-    description: 'Commodity demand is met externally rather than by enabled pathways.',
+    description: 'Commodity demand is met externally rather than by available in-model pathways.',
+  },
+  {
+    key: 'active-pathways',
+    label: 'Active pathways in solve',
+    tone: 'info',
+    description: 'Shown when the active solve set is narrower than the available non-disabled pathway set.',
   },
   {
     key: 'no-pathways',
-    label: 'No enabled pathways',
+    label: 'No available pathways',
     tone: 'warning',
-    description: 'State enablement is separate from seed scope or effective run inclusion.',
+    description: 'Pathway availability is separate from seed scope or effective run inclusion.',
   },
   {
     key: 'blocked-demand',
-    label: 'Demand active but no enabled pathways',
+    label: 'Demand active but no available pathways',
     tone: 'danger',
-    description: 'The solve is blocked until at least one pathway is re-enabled.',
+    description: 'The solve is blocked until at least one pathway is made available again.',
   },
 ];
 
@@ -82,15 +88,31 @@ function buildPathwayBadge(status: DerivedOutputRunStatus): RightSidebarBadge | 
   if (status.availableStateCount === 0) {
     return {
       key: 'no-pathways',
-      label: 'No enabled pathways',
+      label: 'No available pathways',
       tone: status.hasDemandValidationError ? 'danger' : 'warning',
     };
   }
 
   return {
-    key: 'enabled-pathways',
-    label: `${status.availableStateCount} enabled ${status.availableStateCount === 1 ? 'pathway' : 'pathways'}`,
+    key: 'available-pathways',
+    label: `${status.availableStateCount} available ${status.availableStateCount === 1 ? 'pathway' : 'pathways'}`,
     tone: 'success',
+  };
+}
+
+function buildActivePathwayBadge(status: DerivedOutputRunStatus): RightSidebarBadge | null {
+  if (
+    status.supplyParticipation === 'externalized_in_run'
+    || status.availableStateCount === 0
+    || status.activeStateCount === status.availableStateCount
+  ) {
+    return null;
+  }
+
+  return {
+    key: 'active-pathways',
+    label: `${status.activeStateCount} active ${status.activeStateCount === 1 ? 'pathway' : 'pathways'}`,
+    tone: status.activeStateCount > 0 ? 'info' : 'warning',
   };
 }
 
@@ -132,7 +154,7 @@ function buildDemandBadge(status: DerivedOutputRunStatus): RightSidebarBadge | n
     case 'no_enabled_pathways':
       return {
         key: 'blocked-demand',
-        label: 'Demand active but no enabled pathways',
+        label: 'Demand active but no available pathways',
         tone: 'danger',
       };
     default:
@@ -183,7 +205,7 @@ function buildDetail(status: DerivedOutputRunStatus): string {
   }
 
   if (status.hasDemandValidationError) {
-    return `${detail} Demand is still active, but no pathways are enabled.`;
+    return `${detail} Demand is still active, but no pathways are available.`;
   }
 
   if (status.supplyParticipation === 'externalized_in_run') {
@@ -191,15 +213,15 @@ function buildDetail(status: DerivedOutputRunStatus): string {
   }
 
   if (status.isDisabled) {
-    return `${detail} No pathways are currently enabled.`;
+    return `${detail} No pathways are currently available.`;
   }
 
   if (status.controlMode === 'fixed_shares' && status.activeStateCount === 1) {
-    return `${detail} Exact control pins activity to ${status.activeStateCount} active pathway, while ${status.capEligibleStateCount} non-disabled pathways remain available for cap context and future edits.`;
+    return `${detail} Exact shares keep ${status.activeStateCount} pathway active in the solve, while ${status.capEligibleStateCount} non-disabled pathways remain available for cap context and future edits.`;
   }
 
   if (status.controlMode === 'fixed_shares' && status.activeStateCount < status.availableStateCount) {
-    return `${detail} Only pathways with positive exact shares are active in the solve, while ${status.capEligibleStateCount} non-disabled pathways still define cap context in this phase.`;
+    return `${detail} Only pathways with positive exact shares are active in the solve, while ${status.capEligibleStateCount} non-disabled pathways still define the cap denominator in this phase.`;
   }
 
   return detail;
@@ -223,6 +245,7 @@ export function getRightSidebarStatusPresentation(
     buildSupplyBadge(status),
     buildRunParticipationBadge(status),
     buildPathwayBadge(status),
+    buildActivePathwayBadge(status),
   ].filter((badge): badge is RightSidebarBadge => badge !== null);
 
   return {

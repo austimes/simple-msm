@@ -256,7 +256,7 @@ export default function LeftSidebar() {
         <div className="workspace-subsector-group">
           <div className="workspace-subsector-title">Respect max-share caps</div>
           <div className="workspace-subsector-detail">
-            Keeps pathway max-share limits active in the solve and in the pathway cap view.
+            Keeps pathway max-share limits active in the solve and in the pathway cap view, which normalizes over available pathways.
           </div>
           <div className="workspace-chip-group workspace-chip-group--inline">
             <button
@@ -346,8 +346,8 @@ export default function LeftSidebar() {
                 <div className="workspace-fixed-share-panel">
                   <div className="workspace-fixed-share-summary">
                     <div className="workspace-subsector-detail">
-                      Exact shares apply across the active pathways for this commodity in the current run.
-                      Non-disabled pathways remain in the cap denominator for context.
+                      Exact shares determine which available pathways stay active for this commodity in the current run.
+                      All non-disabled pathways remain available and stay in the cap denominator for context.
                     </div>
                     <span className={`workspace-mode-badge workspace-mode-badge--${fixedShareTotalIsValid ? 'success' : 'warning'}`}>
                       Total {formatSharePercent(fixedShareTotal)}
@@ -366,8 +366,8 @@ export default function LeftSidebar() {
                             <div className="workspace-fixed-share-label">{state.stateLabel}</div>
                             <div className="workspace-fixed-share-note">
                               {isAvailable
-                                ? 'Available for cap context; positive shares decide whether it is active.'
-                                : 'Disabled and excluded from both the active mix and cap denominator.'}
+                                ? 'Available for editing and cap context; positive shares decide whether it is active in the solve.'
+                                : 'Unavailable here and excluded from both the active mix and cap denominator.'}
                             </div>
                           </div>
                           {isAvailable ? (
@@ -405,7 +405,7 @@ export default function LeftSidebar() {
                       : `Active-pathway shares currently sum to ${formatSharePercent(fixedShareTotal)}. Adjust them to 100% to satisfy solver validation.`}
                   </div>
                   <div className="workspace-subsector-detail">
-                    Use the state selector on the right to change which pathways stay available.
+                    Use the state selector on the right to change which pathways stay available in this configuration.
                   </div>
                 </div>
               )}

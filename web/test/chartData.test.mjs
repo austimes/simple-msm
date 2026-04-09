@@ -214,6 +214,7 @@ test('buildPathwayChartCards returns output and cap views for selectable outputs
   assert.equal(cards.length, 1);
   assert.equal(cards[0].outputId, 'heat');
   assert.equal(cards[0].outputChart.yAxisLabel, 'PJ');
+  assert.match(cards[0].capChart.yAxisLabel, /available pathways/i);
   assert.equal(cards[0].outputChart.series.length, 2);
   assert.deepEqual(
     cards[0].outputChart.series.find((series) => series.label === 'Heat A')?.values,
@@ -229,7 +230,7 @@ test('buildPathwayChartCards returns output and cap views for selectable outputs
       { year: 2035, value: 16.666666666666668 },
     ],
   );
-  assert.match(cards[0].note, /normalizing the available pathways/i);
+  assert.match(cards[0].note, /normalizing across available \(non-disabled\) pathways/i);
 });
 
 test('buildPathwayChartCards keeps cap context visible when max-share enforcement is off', () => {

@@ -432,10 +432,10 @@ export function buildPathwayChartCards(
       }
 
       const note = !respectMaxShare
-        ? 'Max-share caps were ignored in this solve. Cap view shows the normalized available-pathway caps for context only.'
+        ? 'Max-share caps were ignored in this solve. Cap view still shows the normalized caps across available (non-disabled) pathways for context only.'
         : hasNormalizedCaps
-          ? 'Cap view shows effective max shares after normalizing the available pathways within each year.'
-          : 'Cap view shows the effective max shares applied to each available pathway.';
+          ? 'Cap view shows effective max shares after normalizing across available (non-disabled) pathways within each year.'
+          : 'Cap view shows the effective max shares applied to each available (non-disabled) pathway.';
 
       return {
         outputId,
@@ -450,7 +450,7 @@ export function buildPathwayChartCards(
         },
         capChart: {
           title: `${metadata.outputLabel} Pathway Cap`,
-          yAxisLabel: 'Share of enabled output',
+          yAxisLabel: 'Effective max share of output (available pathways)',
           years,
           series: buildSeries(capGrouped, years, (key) => key),
         },
