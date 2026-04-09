@@ -11,9 +11,9 @@
  *   npx msm --all                              # batch solve all built-ins
  *
  * A <config> is a file path (e.g. ./my-config.json) or a built-in id
- * (e.g. steel-optimize). Built-in ids resolve to public/configurations/<id>.json.
+ * (e.g. steel-optimize). Built-in ids resolve to src/configurations/<id>.json.
  *
- * Scope (includedOutputIds) is defined in the config file itself.
+ * Scope is defined in the config file via app_metadata.included_output_ids.
  *
  * Output:
  *   --json      Machine-readable JSON
@@ -39,8 +39,6 @@ const EXIT_ERROR = 1;
 const EXIT_USAGE = 2;
 const EPSILON = 1e-9;
 
-let referenceScenarioCache = null;
-
 class UsageError extends Error {
   constructor(message) { super(message); this.name = 'UsageError'; }
 }
@@ -53,8 +51,8 @@ Usage:
   npx msm list                         List built-in configs
   npx msm --all                        Batch solve all built-ins
 
-A <config> is a file path or a built-in id (resolves to public/configurations/<id>.json).
-Scope is defined in the config file via includedOutputIds.
+A <config> is a file path or a built-in id (resolves to src/configurations/<id>.json).
+Scope is defined in the config file via app_metadata.included_output_ids.
 
 Options:
   --json       Machine-readable JSON output
@@ -245,16 +243,8 @@ function loadPackage() {
   };
 }
 
-function loadReferenceScenario(appConfig) {
-  if (!referenceScenarioCache) {
-    const raw = readJsonRelative('public/app_config/reference_scenario.json');
-    referenceScenarioCache = resolveScenarioDocument(raw, appConfig, 'reference_scenario.json');
-  }
-  return structuredClone(referenceScenarioCache);
-}
-
 // ---------------------------------------------------------------------------
-// Config loading / application
+// Config loading
 // ---------------------------------------------------------------------------
 
 function resolveConfigReference(raw) {
@@ -275,11 +265,24 @@ function resolveConfigReference(raw) {
   }
 }
 
+function getConfigId(config, fallback = null) {
+  const id = config?.app_metadata?.id;
+  return typeof id === 'string' && id.trim() ? id.trim() : fallback;
+}
+
+function getConfigIncludedOutputIds(config) {
+  return normalizeOptionalStringArray(config?.app_metadata?.included_output_ids);
+}
+
 function validateConfig(config, label) {
   if (!isPlainObject(config)) throw new Error(`Invalid ${label}: expected a JSON object.`);
-  if (typeof config.id !== 'string' || !config.id.trim()) throw new Error(`Invalid ${label}: missing string "id".`);
   if (typeof config.name !== 'string' || !config.name.trim()) throw new Error(`Invalid ${label}: missing string "name".`);
-  if (!isPlainObject(config.serviceControls)) throw new Error(`Invalid ${label}: missing object "serviceControls".`);
+  if (!Array.isArray(config.years) || config.years.length === 0) throw new Error(`Invalid ${label}: missing array "years".`);
+  if (!isPlainObject(config.service_controls)) throw new Error(`Invalid ${label}: missing object "service_controls".`);
+  if (!isPlainObject(config.service_demands)) throw new Error(`Invalid ${label}: missing object "service_demands".`);
+  if (!isPlainObject(config.demand_generation)) throw new Error(`Invalid ${label}: missing object "demand_generation".`);
+  if (!isPlainObject(config.commodity_pricing)) throw new Error(`Invalid ${label}: missing object "commodity_pricing".`);
+  if (!isPlainObject(config.carbon_price)) throw new Error(`Invalid ${label}: missing object "carbon_price".`);
   return config;
 }
 
@@ -287,55 +290,16 @@ function loadConfig(absPath) {
   return validateConfig(readJsonFile(absPath, 'config'), `config ${displayPath(absPath)}`);
 }
 
-function applyConfig(config, referenceScenario) {
-  const scenario = structuredClone(referenceScenario);
-  scenario.name = config.name;
-  if (config.description) scenario.description = config.description;
-
-  const merged = { ...scenario.service_controls };
-  for (const [outputId, control] of Object.entries(config.serviceControls ?? {})) {
-    merged[outputId] = { ...merged[outputId], ...control };
-  }
-  scenario.service_controls = merged;
-
-  if (config.demandPresetId) {
-    scenario.demand_generation.preset_id = config.demandPresetId;
-    if (scenario.demand_generation.mode === 'manual_table') scenario.demand_generation.mode = 'anchor_plus_preset';
-    scenario.demand_generation.service_growth_rates_pct_per_year = null;
-    scenario.demand_generation.external_commodity_growth_rates_pct_per_year = null;
-  }
-  if (config.commodityPriceSelections) {
-    scenario.commodity_pricing.selections_by_commodity = {
-      ...scenario.commodity_pricing.selections_by_commodity,
-      ...config.commodityPriceSelections,
-    };
-    scenario.commodity_pricing.overrides = {};
-  } else if (config.commodityPricePresetId) {
-    // Legacy migration
-    const legacyMap = { central_placeholder_2024aud: 'medium', fossil_shock: 'high', cheap_clean_energy: 'low' };
-    const level = legacyMap[config.commodityPricePresetId] ?? 'medium';
-    const allIds = Object.keys(scenario.commodity_pricing.selections_by_commodity ?? {});
-    const selections = {};
-    for (const id of allIds) selections[id] = level;
-    scenario.commodity_pricing.selections_by_commodity = selections;
-    scenario.commodity_pricing.overrides = {};
-  }
-  if (config.solverOptions) {
-    scenario.solver_options = { ...scenario.solver_options, ...config.solverOptions };
-  }
-
-  return { scenario, includedOutputIds: normalizeOptionalStringArray(config.includedOutputIds) };
+function listBuiltinConfigPaths() {
+  const dir = new URL('src/configurations/', import.meta.url);
+  return readdirSync(dir)
+    .filter((file) => file.endsWith('.json') && !file.startsWith('_'))
+    .sort()
+    .map((file) => resolveCliPath(new URL(`src/configurations/${file}`, import.meta.url).pathname));
 }
 
 function listBuiltinConfigs() {
-  const dir = new URL('src/configurations/', import.meta.url);
-  return readdirSync(dir)
-    .filter((f) => f.endsWith('.json') && !f.startsWith('_'))
-    .sort()
-    .map((f) => {
-      const config = JSON.parse(readFileSync(new URL(`src/configurations/${f}`, import.meta.url), 'utf8'));
-      return config;
-    });
+  return listBuiltinConfigPaths().map((configPath) => loadConfig(configPath));
 }
 
 // ---------------------------------------------------------------------------
@@ -369,23 +333,23 @@ function summarizeRun(run) {
 
 function executeConfig(pkg, configPath) {
   const config = loadConfig(configPath);
-  const ref = loadReferenceScenario(pkg.appConfig);
-  const applied = applyConfig(config, ref);
-  const scenario = resolveScenarioDocument(applied.scenario, pkg.appConfig, config.name);
+  const configId = getConfigId(config, basename(configPath, '.json'));
+  const includedOutputIds = getConfigIncludedOutputIds(config);
+  const scenario = resolveScenarioDocument(config, pkg.appConfig, config.name);
 
   const request = buildSolveRequest(
     { sectorStates: pkg.sectorStates, appConfig: pkg.appConfig, defaultScenario: scenario },
     scenario,
-    applied.includedOutputIds ? { includedOutputIds: applied.includedOutputIds } : {},
+    includedOutputIds ? { includedOutputIds } : {},
   );
 
   const result = solveWithLpAdapter(request);
   const run = {
-    ok: true, label: config.id, configId: config.id,
+    ok: true, label: configId, configId,
     source: displayPath(configPath),
     scenarioName: config.name,
     scenarioDescription: config.description ?? null,
-    includedOutputIds: applied.includedOutputIds ?? null,
+    includedOutputIds: includedOutputIds ?? null,
     request, result,
   };
   run.metrics = summarizeRun(run);
@@ -763,8 +727,14 @@ function main(argv) {
 
   if (cli.command === 'list') {
     const configs = listBuiltinConfigs();
+    const configPaths = listBuiltinConfigPaths();
     if (cli.json) {
-      console.log(JSON.stringify(configs.map((c) => ({ id: c.id, name: c.name, description: c.description ?? null, includedOutputIds: c.includedOutputIds ?? null })), null, 2));
+      console.log(JSON.stringify(configs.map((config, index) => ({
+        id: getConfigId(config, basename(configPaths[index], '.json')),
+        name: config.name,
+        description: config.description ?? null,
+        includedOutputIds: getConfigIncludedOutputIds(config) ?? null,
+      })), null, 2));
     } else {
       console.log(`\nBuilt-in configurations`);
       console.log(renderTable([
@@ -772,11 +742,15 @@ function main(argv) {
         { header: 'name', key: 'name', maxWidth: 36 },
         { header: 'scope', key: 'scope', maxWidth: 18 },
         { header: 'outputs', key: 'outputs', maxWidth: 64 },
-      ], configs.map((c) => ({
-        id: c.id, name: c.name,
-        scope: c.includedOutputIds ? `${c.includedOutputIds.length} outputs` : 'full model',
-        outputs: formatIdList(c.includedOutputIds ?? pkg.allOutputIds, 8),
-      }))));
+      ], configs.map((config, index) => {
+        const includedOutputIds = getConfigIncludedOutputIds(config);
+        return {
+          id: getConfigId(config, basename(configPaths[index], '.json')),
+          name: config.name,
+          scope: includedOutputIds ? `${includedOutputIds.length} outputs` : 'full model',
+          outputs: formatIdList(includedOutputIds ?? pkg.allOutputIds, 8),
+        };
+      })));
       console.log();
     }
     return EXIT_OK;
@@ -790,7 +764,7 @@ function main(argv) {
   }
 
   if (cli.command === 'batch') {
-    const configPaths = cli.configs ?? listBuiltinConfigs().map((c) => resolveConfigReference(c.id));
+    const configPaths = cli.configs ?? listBuiltinConfigPaths();
     const runs = configPaths.map((p) => executeSafe(pkg, p));
     if (cli.json) { console.log(JSON.stringify({ runs }, null, 2)); }
     else { printBatch(runs, { quiet: cli.quiet }); }

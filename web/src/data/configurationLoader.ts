@@ -3,8 +3,8 @@
  * 1. Built-in configs shipped in src/configurations/ (readonly)
  * 2. User configs persisted to localStorage (editable)
  */
-import type { SolveConfiguration } from './configurationTypes';
-import type { AppConfigRegistry, ScenarioDocument, ScenarioServiceControl } from './types';
+import { parseScenarioDocument } from './scenarioLoader';
+import type { ScenarioDocument } from './types';
 
 // --- Built-in configuration loading (Vite eager import) ---
 
@@ -13,16 +13,65 @@ const builtinConfigModules = import.meta.glob<string>(
   { eager: true, import: 'default', query: '?raw' },
 );
 
-function parseBuiltinConfigs(): SolveConfiguration[] {
-  const configs: SolveConfiguration[] = [];
+function normalizeIncludedOutputIds(value: string[] | undefined): string[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
 
-  for (const [path, raw] of Object.entries(builtinConfigModules)) {
+  const normalized = Array.from(
+    new Set(value.filter((entry) => typeof entry === 'string').map((entry) => entry.trim()).filter(Boolean)),
+  );
+
+  return normalized.length > 0 ? normalized : undefined;
+}
+
+function normalizeConfigurationMetadata(configuration: ScenarioDocument): ScenarioDocument {
+  const configurationWithoutMetadata = { ...configuration };
+  delete configurationWithoutMetadata.app_metadata;
+
+  const includedOutputIds = normalizeIncludedOutputIds(configuration.app_metadata?.included_output_ids);
+  const id = configuration.app_metadata?.id?.trim() || undefined;
+  const readonly = configuration.app_metadata?.readonly === true;
+
+  const appMetadata = [id, readonly, includedOutputIds?.length].some(Boolean)
+    ? {
+        ...(id ? { id } : {}),
+        ...(readonly ? { readonly: true } : {}),
+        ...(includedOutputIds ? { included_output_ids: includedOutputIds } : {}),
+      }
+    : undefined;
+
+  return {
+    ...configurationWithoutMetadata,
+    ...(appMetadata ? { app_metadata: appMetadata } : {}),
+  };
+}
+
+function withConfigurationMetadata(
+  configuration: ScenarioDocument,
+  metadata: Partial<NonNullable<ScenarioDocument['app_metadata']>>,
+): ScenarioDocument {
+  return normalizeConfigurationMetadata({
+    ...configuration,
+    app_metadata: {
+      ...(configuration.app_metadata ?? {}),
+      ...metadata,
+    },
+  });
+}
+
+function parseConfigurationCollection(
+  modules: Record<string, string>,
+  readonly: boolean,
+): ScenarioDocument[] {
+  const configs: ScenarioDocument[] = [];
+
+  for (const [path, raw] of Object.entries(modules)) {
     if (path.includes('_index.json')) continue;
 
     try {
-      const parsed = JSON.parse(raw) as SolveConfiguration;
-      parsed.readonly = true;
-      configs.push(parsed);
+      const parsed = parseScenarioDocument(raw, undefined, path);
+      configs.push(withConfigurationMetadata(parsed, { readonly }));
     } catch {
       console.warn(`Failed to parse built-in configuration: ${path}`);
     }
@@ -31,11 +80,34 @@ function parseBuiltinConfigs(): SolveConfiguration[] {
   return configs.sort((a, b) => a.name.localeCompare(b.name));
 }
 
-let cachedBuiltinConfigs: SolveConfiguration[] | null = null;
+let cachedBuiltinConfigs: ScenarioDocument[] | null = null;
 
-export function loadBuiltinConfigurations(): SolveConfiguration[] {
+export function cloneConfigurationDocument(configuration: ScenarioDocument): ScenarioDocument {
+  return structuredClone(configuration);
+}
+
+export function getConfigurationId(configuration: ScenarioDocument): string | null {
+  return configuration.app_metadata?.id ?? null;
+}
+
+export function isReadonlyConfiguration(configuration: ScenarioDocument): boolean {
+  return configuration.app_metadata?.readonly === true;
+}
+
+export function getIncludedOutputIds(configuration: ScenarioDocument): string[] | undefined {
+  return normalizeIncludedOutputIds(configuration.app_metadata?.included_output_ids);
+}
+
+export function withIncludedOutputIds(
+  configuration: ScenarioDocument,
+  includedOutputIds: string[] | undefined,
+): ScenarioDocument {
+  return withConfigurationMetadata(configuration, { included_output_ids: includedOutputIds });
+}
+
+export function loadBuiltinConfigurations(): ScenarioDocument[] {
   if (!cachedBuiltinConfigs) {
-    cachedBuiltinConfigs = parseBuiltinConfigs();
+    cachedBuiltinConfigs = parseConfigurationCollection(builtinConfigModules, true);
   }
 
   return cachedBuiltinConfigs;
@@ -49,35 +121,23 @@ const userConfigModules = import.meta.glob<string>(
   { eager: true, import: 'default', query: '?raw' },
 );
 
-function parseBundledUserConfigs(): SolveConfiguration[] {
-  const configs: SolveConfiguration[] = [];
-  for (const [, raw] of Object.entries(userConfigModules)) {
-    try {
-      const parsed = JSON.parse(raw) as SolveConfiguration;
-      parsed.readonly = false;
-      configs.push(parsed);
-    } catch { /* skip malformed */ }
-  }
-  return configs.sort((a, b) => a.name.localeCompare(b.name));
+export function loadUserConfigurations(): ScenarioDocument[] {
+  return parseConfigurationCollection(userConfigModules, false);
 }
 
-export function loadUserConfigurations(): SolveConfiguration[] {
-  return parseBundledUserConfigs();
-}
-
-export async function fetchUserConfigurations(): Promise<SolveConfiguration[]> {
+export async function fetchUserConfigurations(): Promise<ScenarioDocument[]> {
   try {
     const res = await fetch('/api/user-configurations');
     if (!res.ok) return loadUserConfigurations();
-    const configs = (await res.json()) as SolveConfiguration[];
-    return configs.map((c) => ({ ...c, readonly: false }));
+    const configs = (await res.json()) as ScenarioDocument[];
+    return configs.map((config) => withConfigurationMetadata(config, { readonly: false }));
   } catch {
     return loadUserConfigurations();
   }
 }
 
-export async function saveUserConfiguration(config: SolveConfiguration): Promise<string | null> {
-  const toSave = { ...config, readonly: false };
+export async function saveUserConfiguration(config: ScenarioDocument): Promise<string | null> {
+  const toSave = withConfigurationMetadata(config, { readonly: false });
   try {
     const res = await fetch('/api/user-configurations', {
       method: 'PUT',
@@ -111,164 +171,28 @@ export async function deleteUserConfiguration(configId: string): Promise<string 
 
 // --- Combined loading ---
 
-export function loadAllConfigurations(): SolveConfiguration[] {
+export function loadAllConfigurations(): ScenarioDocument[] {
   return [...loadBuiltinConfigurations(), ...loadUserConfigurations()];
 }
 
-export function findConfiguration(id: string): SolveConfiguration | null {
-  return loadAllConfigurations().find((c) => c.id === id) ?? null;
-}
-
-// --- Apply configuration to a scenario ---
-
-export function applyConfigurationToScenario(
-  config: SolveConfiguration,
-  referenceScenario: ScenarioDocument,
-): { scenario: ScenarioDocument; includedOutputIds: string[] | undefined } {
-  const scenario: ScenarioDocument = structuredClone(referenceScenario);
-
-  scenario.name = config.name;
-  if (config.description) {
-    scenario.description = config.description;
-  }
-
-  // Merge service controls
-  const mergedControls: Record<string, ScenarioServiceControl> = {
-    ...scenario.service_controls,
-  };
-
-  for (const [outputId, control] of Object.entries(config.serviceControls)) {
-    mergedControls[outputId] = {
-      ...mergedControls[outputId],
-      ...control,
-    };
-  }
-
-  scenario.service_controls = mergedControls;
-
-  // Apply demand preset
-  if (config.demandPresetId) {
-    scenario.demand_generation.preset_id = config.demandPresetId;
-    if (scenario.demand_generation.mode === 'manual_table') {
-      scenario.demand_generation.mode = 'anchor_plus_preset';
-    }
-    scenario.demand_generation.service_growth_rates_pct_per_year = null;
-    scenario.demand_generation.external_commodity_growth_rates_pct_per_year = null;
-  }
-
-  // Apply commodity price selections
-  if (config.commodityPriceSelections) {
-    scenario.commodity_pricing.selections_by_commodity = {
-      ...scenario.commodity_pricing.selections_by_commodity,
-      ...config.commodityPriceSelections,
-    };
-    scenario.commodity_pricing.overrides = {};
-  } else if (config.commodityPricePresetId) {
-    // Legacy migration: map old preset IDs to per-commodity selections
-    const legacyMap: Record<string, import('./types').PriceLevel> = {
-      central_placeholder_2024aud: 'medium',
-      fossil_shock: 'high',
-      cheap_clean_energy: 'low',
-    };
-    const level = legacyMap[config.commodityPricePresetId] ?? 'medium';
-    const allCommodityIds = Object.keys(scenario.commodity_pricing.selections_by_commodity ?? {});
-    const selections: Partial<Record<string, import('./types').PriceLevel>> = {};
-    for (const id of allCommodityIds) {
-      selections[id] = level;
-    }
-    scenario.commodity_pricing.selections_by_commodity = selections;
-    scenario.commodity_pricing.overrides = {};
-  }
-
-  // Merge solver options
-  if (config.solverOptions) {
-    scenario.solver_options = {
-      ...scenario.solver_options,
-      ...config.solverOptions,
-    };
-  }
-
-  return {
-    scenario,
-    includedOutputIds: config.includedOutputIds,
-  };
+export function findConfiguration(id: string): ScenarioDocument | null {
+  return loadAllConfigurations().find((config) => getConfigurationId(config) === id) ?? null;
 }
 
 // --- Create configuration from current state ---
 
 export function createConfigurationFromScenario(
   scenario: ScenarioDocument,
-  referenceScenario: ScenarioDocument,
   includedOutputIds: string[] | undefined,
-  appConfig: AppConfigRegistry,
-): SolveConfiguration {
-  const id = slugify(scenario.name);
-
-  // Extract service control overrides that differ from reference
-  const serviceControls: SolveConfiguration['serviceControls'] = {};
-  const allOutputIds = Object.keys(appConfig.output_roles);
-
-  for (const outputId of allOutputIds) {
-    const current = scenario.service_controls[outputId];
-    const reference = referenceScenario.service_controls[outputId];
-
-    if (!current) continue;
-
-    const currentDisabled = [...(current.disabled_state_ids ?? [])].sort();
-    const referenceDisabled = [...(reference?.disabled_state_ids ?? [])].sort();
-    const currentFixedShares = current.fixed_shares ?? null;
-    const referenceFixedShares = reference?.fixed_shares ?? null;
-
-    const differs =
-      !reference ||
-      current.mode !== reference.mode ||
-      current.state_id !== reference.state_id ||
-      JSON.stringify(currentDisabled) !== JSON.stringify(referenceDisabled) ||
-      JSON.stringify(currentFixedShares) !== JSON.stringify(referenceFixedShares);
-
-    if (differs) {
-      serviceControls[outputId] = {
-        mode: current.mode,
-        ...(current.state_id ? { state_id: current.state_id } : {}),
-        ...(current.fixed_shares ? { fixed_shares: current.fixed_shares } : {}),
-        ...(current.disabled_state_ids?.length
-          ? { disabled_state_ids: current.disabled_state_ids }
-          : {}),
-      };
-    }
-  }
-
-  // Capture preset overrides that differ from reference
-  const demandPresetId =
-    scenario.demand_generation.preset_id !== referenceScenario.demand_generation.preset_id
-      ? (scenario.demand_generation.preset_id ?? undefined)
-      : undefined;
-
-  // Capture per-commodity selections that differ from reference
-  const refSelections = referenceScenario.commodity_pricing.selections_by_commodity ?? {};
-  const curSelections = scenario.commodity_pricing.selections_by_commodity ?? {};
-  const diffSelections: Partial<Record<string, import('./types').PriceLevel>> = {};
-  for (const [id, level] of Object.entries(curSelections)) {
-    if (refSelections[id] !== level) {
-      diffSelections[id] = level;
-    }
-  }
-  const commodityPriceSelections = Object.keys(diffSelections).length > 0 ? diffSelections : undefined;
-
-  return {
-    id,
-    name: scenario.name,
-    description: scenario.description,
+): ScenarioDocument {
+  return withConfigurationMetadata(structuredClone(scenario), {
+    id: slugifyConfigurationName(scenario.name),
     readonly: false,
-    includedOutputIds,
-    serviceControls,
-    demandPresetId,
-    commodityPriceSelections,
-    solverOptions: scenario.solver_options,
-  };
+    included_output_ids: includedOutputIds,
+  });
 }
 
-function slugify(name: string): string {
+export function slugifyConfigurationName(name: string): string {
   return (
     name
       .trim()

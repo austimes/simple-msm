@@ -7,8 +7,13 @@ import {
 } from './scenarioDraftStorage';
 import { loadPackage } from './packageLoader';
 import type { PackageData, PriceLevel, ScenarioControlMode, ScenarioDocument, ScenarioServiceControl } from './types';
-import type { SolveConfiguration } from './configurationTypes';
-import { applyConfigurationToScenario, loadBuiltinConfigurations } from './configurationLoader';
+import {
+  getConfigurationId,
+  getIncludedOutputIds,
+  isReadonlyConfiguration,
+  loadBuiltinConfigurations,
+  withIncludedOutputIds,
+} from './configurationLoader';
 import { getEnabledStateIds } from './scenarioWorkspaceModel';
 
 export type ScenarioDraftSource = 'reference' | 'local_draft' | 'imported' | 'draft' | 'configuration';
@@ -37,7 +42,7 @@ interface PackageStore extends PackageData {
   toggleStateEnabled: (outputId: string, stateId: string) => void;
   setOutputControlMode: (outputId: string, mode: ScenarioControlMode) => void;
   setDemandPreset: (presetId: string) => void;
-  loadConfiguration: (config: SolveConfiguration) => void;
+  loadConfiguration: (config: ScenarioDocument) => void;
   setIncludedOutputIds: (outputIds: string[] | undefined) => void;
 }
 
@@ -71,6 +76,26 @@ function normalizeDescription(description: string | undefined): string | undefin
   return description?.trim() ? description : undefined;
 }
 
+function persistActiveConfigurationMeta(state: {
+  activeConfigurationId: string | null;
+  activeConfigurationReadonly: boolean;
+  baseConfigurationScenario: ScenarioDocument | null;
+  baseIncludedOutputIds: string[] | undefined;
+  includedOutputIds: string[] | undefined;
+}): void {
+  if (!state.activeConfigurationId || !state.baseConfigurationScenario) {
+    return;
+  }
+
+  persistConfigMeta({
+    activeConfigurationId: state.activeConfigurationId,
+    activeConfigurationReadonly: state.activeConfigurationReadonly,
+    baseConfigurationScenario: cloneScenario(state.baseConfigurationScenario),
+    baseIncludedOutputIds: state.baseIncludedOutputIds,
+    includedOutputIds: state.includedOutputIds,
+  });
+}
+
 export const usePackageStore = create<PackageStore>((set, get) => {
   const pkg = loadPackage();
   const persistedDraft = loadPersistedScenarioDraft(pkg.appConfig);
@@ -95,7 +120,7 @@ export const usePackageStore = create<PackageStore>((set, get) => {
       initialConfigReadonly = restoredMeta.activeConfigurationReadonly;
       initialBaseScenario = cloneScenario(restoredMeta.baseConfigurationScenario);
       initialBaseIncludedOutputIds = restoredMeta.baseIncludedOutputIds;
-      initialIncludedOutputIds = restoredMeta.includedOutputIds;
+      initialIncludedOutputIds = restoredMeta.includedOutputIds ?? getIncludedOutputIds(initialScenario);
       initialDirty =
         !scenariosEqual(initialScenario, restoredMeta.baseConfigurationScenario) ||
         !includedOutputIdsEqual(restoredMeta.includedOutputIds, restoredMeta.baseIncludedOutputIds);
@@ -103,25 +128,24 @@ export const usePackageStore = create<PackageStore>((set, get) => {
   } else {
     // No persisted draft — load the first builtin configuration as the default
     const builtins = loadBuiltinConfigurations();
-    const defaultConfig = builtins.find((c) => c.id === 'reference') ?? builtins[0];
+    const defaultConfig = builtins.find((config) => getConfigurationId(config) === 'reference') ?? builtins[0];
 
     if (defaultConfig) {
-      const { scenario, includedOutputIds } = applyConfigurationToScenario(
-        defaultConfig,
-        pkg.defaultScenario,
-      );
-      initialScenario = cloneScenario(scenario);
+      const defaultConfigId = getConfigurationId(defaultConfig) ?? defaultConfig.name;
+      const includedOutputIds = getIncludedOutputIds(defaultConfig);
+
+      initialScenario = cloneScenario(defaultConfig);
       initialSource = 'configuration';
-      initialConfigId = defaultConfig.id;
-      initialConfigReadonly = true;
+      initialConfigId = defaultConfigId;
+      initialConfigReadonly = isReadonlyConfiguration(defaultConfig);
       initialBaseScenario = cloneScenario(initialScenario);
       initialBaseIncludedOutputIds = includedOutputIds;
       initialIncludedOutputIds = includedOutputIds;
 
       persistScenarioDraft(initialScenario);
       persistConfigMeta({
-        activeConfigurationId: defaultConfig.id,
-        activeConfigurationReadonly: true,
+        activeConfigurationId: defaultConfigId,
+        activeConfigurationReadonly: initialConfigReadonly,
         baseConfigurationScenario: cloneScenario(initialScenario),
         baseIncludedOutputIds: includedOutputIds,
         includedOutputIds,
@@ -139,6 +163,14 @@ export const usePackageStore = create<PackageStore>((set, get) => {
       ? !scenariosEqual(nextScenario, state.baseConfigurationScenario) ||
         !includedOutputIdsEqual(state.includedOutputIds, state.baseIncludedOutputIds)
       : false;
+
+    persistActiveConfigurationMeta({
+      activeConfigurationId: state.activeConfigurationId,
+      activeConfigurationReadonly: state.activeConfigurationReadonly,
+      baseConfigurationScenario: state.baseConfigurationScenario,
+      baseIncludedOutputIds: state.baseIncludedOutputIds,
+      includedOutputIds: state.includedOutputIds,
+    });
 
     set({
       currentScenario: nextScenario,
@@ -174,6 +206,7 @@ export const usePackageStore = create<PackageStore>((set, get) => {
         activeConfigurationReadonly: false,
         baseConfigurationScenario: null,
         baseIncludedOutputIds: undefined,
+        includedOutputIds: getIncludedOutputIds(nextScenario),
         isConfigurationDirty: false,
         persistenceNotice: notice ?? 'Scenario draft autosaved in this browser.',
         persistenceError,
@@ -211,7 +244,7 @@ export const usePackageStore = create<PackageStore>((set, get) => {
         baseConfigurationScenario: null,
         baseIncludedOutputIds: undefined,
         isConfigurationDirty: false,
-        includedOutputIds: undefined,
+        includedOutputIds: getIncludedOutputIds(nextScenario),
         persistenceNotice: 'Reset to the packaged reference scenario and cleared the local draft.',
         persistenceError,
       });
@@ -332,17 +365,16 @@ export const usePackageStore = create<PackageStore>((set, get) => {
       commitScenarioEdit(nextScenario);
     },
     loadConfiguration: (config) => {
-      const { scenario, includedOutputIds } = applyConfigurationToScenario(
-        config,
-        get().defaultScenario,
-      );
-      const nextScenario = cloneScenario(scenario);
+      const nextScenario = cloneScenario(config);
       const baseScenario = cloneScenario(nextScenario);
+      const configId = getConfigurationId(config) ?? config.name;
+      const includedOutputIds = getIncludedOutputIds(config);
+      const readonly = isReadonlyConfiguration(config);
       const persistenceError = persistScenarioDraft(nextScenario);
 
       persistConfigMeta({
-        activeConfigurationId: config.id,
-        activeConfigurationReadonly: config.readonly,
+        activeConfigurationId: configId,
+        activeConfigurationReadonly: readonly,
         baseConfigurationScenario: baseScenario,
         baseIncludedOutputIds: includedOutputIds,
         includedOutputIds,
@@ -351,8 +383,8 @@ export const usePackageStore = create<PackageStore>((set, get) => {
       set({
         currentScenario: nextScenario,
         currentScenarioSource: 'configuration',
-        activeConfigurationId: config.id,
-        activeConfigurationReadonly: config.readonly,
+        activeConfigurationId: configId,
+        activeConfigurationReadonly: readonly,
         baseConfigurationScenario: cloneScenario(baseScenario),
         baseIncludedOutputIds: includedOutputIds,
         isConfigurationDirty: false,
@@ -363,11 +395,29 @@ export const usePackageStore = create<PackageStore>((set, get) => {
     },
     setIncludedOutputIds: (outputIds) => {
       const state = get();
+      const nextScenario = withIncludedOutputIds(cloneScenario(state.currentScenario), outputIds);
+      const persistenceError = persistScenarioDraft(nextScenario);
       const dirty = state.baseConfigurationScenario
-        ? !scenariosEqual(state.currentScenario, state.baseConfigurationScenario) ||
+        ? !scenariosEqual(nextScenario, state.baseConfigurationScenario) ||
           !includedOutputIdsEqual(outputIds, state.baseIncludedOutputIds)
         : false;
-      set({ includedOutputIds: outputIds, isConfigurationDirty: dirty });
+
+      persistActiveConfigurationMeta({
+        activeConfigurationId: state.activeConfigurationId,
+        activeConfigurationReadonly: state.activeConfigurationReadonly,
+        baseConfigurationScenario: state.baseConfigurationScenario,
+        baseIncludedOutputIds: state.baseIncludedOutputIds,
+        includedOutputIds: outputIds,
+      });
+
+      set({
+        currentScenario: nextScenario,
+        currentScenarioSource: 'draft',
+        includedOutputIds: outputIds,
+        isConfigurationDirty: dirty,
+        persistenceNotice: 'Scenario draft autosaves in this browser as you edit it.',
+        persistenceError,
+      });
     },
   };
 });

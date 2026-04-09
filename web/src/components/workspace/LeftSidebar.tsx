@@ -2,16 +2,18 @@ import { useMemo, useState, useCallback } from 'react';
 import { usePackageStore } from '../../data/packageStore';
 import { getActiveDemandPreset, getCommodityPriceLevel, getActiveCarbonPricePreset } from '../../data/scenarioWorkspaceModel';
 import {
+  getConfigurationId,
+  isReadonlyConfiguration,
   loadBuiltinConfigurations,
   loadUserConfigurations,
   fetchUserConfigurations,
   saveUserConfiguration,
   deleteUserConfiguration,
   createConfigurationFromScenario,
+  slugifyConfigurationName,
 } from '../../data/configurationLoader';
 import { PRICE_LEVELS } from '../../data/types';
-import type { CommodityPriceSeries, CarbonPricePreset } from '../../data/types';
-import type { SolveConfiguration } from '../../data/configurationTypes';
+import type { CommodityPriceSeries, CarbonPricePreset, ScenarioDocument } from '../../data/types';
 
 function formatUnit(raw: string): string {
   return raw
@@ -35,20 +37,9 @@ function formatCarbonPriceRange(preset: CarbonPricePreset): string {
   return `${unit.replace('$/', `$${first}–${last}/`)}`;
 }
 
-function slugify(name: string): string {
-  return (
-    name
-      .trim()
-      .toLowerCase()
-      .replaceAll(/[^a-z0-9]+/g, '-')
-      .replaceAll(/^-+|-+$/g, '') || `config-${Date.now()}`
-  );
-}
-
 export default function LeftSidebar() {
   const appConfig = usePackageStore((s) => s.appConfig);
   const currentScenario = usePackageStore((s) => s.currentScenario);
-  const defaultScenario = usePackageStore((s) => s.defaultScenario);
   const includedOutputIds = usePackageStore((s) => s.includedOutputIds);
   const setDemandPreset = usePackageStore((s) => s.setDemandPreset);
   const setCommodityPriceLevel = usePackageStore((s) => s.setCommodityPriceLevel);
@@ -77,26 +68,38 @@ export default function LeftSidebar() {
 
   const activeUserConfig =
     activeConfigurationId && !activeConfigurationReadonly
-      ? userConfigs.find((c) => c.id === activeConfigurationId) ?? null
+      ? userConfigs.find((config) => getConfigurationId(config) === activeConfigurationId) ?? null
       : null;
+
+  function buildUserConfiguration(name: string, configurationId: string): ScenarioDocument {
+    const configuration = createConfigurationFromScenario(currentScenario, includedOutputIds);
+    configuration.name = name;
+    configuration.app_metadata = {
+      ...(configuration.app_metadata ?? {}),
+      id: configurationId,
+      readonly: false,
+      included_output_ids: includedOutputIds,
+    };
+    return configuration;
+  }
 
   async function handleSaveAs() {
     const name = prompt('Configuration name:');
     if (!name?.trim()) return;
 
-    const config = createConfigurationFromScenario(
-      currentScenario,
-      defaultScenario,
-      includedOutputIds,
-      appConfig,
-    );
-    config.name = name.trim();
-    config.id = slugify(name.trim());
+    const trimmedName = name.trim();
+    let configurationId = slugifyConfigurationName(trimmedName);
 
-    const builtinIds = new Set(builtinConfigs.map((c) => c.id));
-    if (builtinIds.has(config.id)) {
-      config.id = `${config.id}-custom`;
+    const builtinIds = new Set(
+      builtinConfigs
+        .map((config) => getConfigurationId(config))
+        .filter((id): id is string => id !== null),
+    );
+    if (builtinIds.has(configurationId)) {
+      configurationId = `${configurationId}-custom`;
     }
+
+    const config = buildUserConfiguration(trimmedName, configurationId);
 
     const error = await saveUserConfiguration(config);
     if (error) {
@@ -108,15 +111,9 @@ export default function LeftSidebar() {
     }
   }
 
-  async function handleOverwrite(existing: SolveConfiguration) {
-    const config = createConfigurationFromScenario(
-      currentScenario,
-      defaultScenario,
-      includedOutputIds,
-      appConfig,
-    );
-    config.id = existing.id;
-    config.name = existing.name;
+  async function handleOverwrite(existing: ScenarioDocument) {
+    const existingId = getConfigurationId(existing) ?? slugifyConfigurationName(existing.name);
+    const config = buildUserConfiguration(existing.name, existingId);
 
     const error = await saveUserConfiguration(config);
     if (error) {
@@ -223,10 +220,11 @@ export default function LeftSidebar() {
         {configs.length > 0 && (
           <div className="workspace-chip-group">
             {configs.map((config) => {
-              const isActiveBase = activeConfigurationId === config.id;
+              const configId = getConfigurationId(config) ?? config.name;
+              const isActiveBase = activeConfigurationId === configId;
               const isModified = isActiveBase && isConfigurationDirty;
               return (
-                <span key={config.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+                <span key={configId} style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
                   <button
                     className={`workspace-chip${isActiveBase ? ' workspace-chip--active' : ''}${isModified ? ' workspace-chip--modified' : ''}`}
                     onClick={() => loadConfiguration(config)}
@@ -234,11 +232,11 @@ export default function LeftSidebar() {
                   >
                     {config.name}{isModified ? ' (modified)' : ''}
                   </button>
-                  {!config.readonly && (
+                  {!isReadonlyConfiguration(config) && (
                     <button
                       className="workspace-chip"
                       style={{ padding: '2px 6px', fontSize: 11, color: '#b91c1c' }}
-                      onClick={() => handleDelete(config.id)}
+                      onClick={() => handleDelete(configId)}
                       title="Delete configuration"
                     >
                       ×

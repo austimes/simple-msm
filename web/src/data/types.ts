@@ -74,6 +74,12 @@ export interface ScenarioSolverOptions {
   share_smoothing?: ScenarioShareSmoothing;
 }
 
+export interface ScenarioAppMetadata {
+  id?: string;
+  readonly?: boolean;
+  included_output_ids?: string[];
+}
+
 export interface ScenarioDocument {
   name: string;
   description?: string;
@@ -85,6 +91,7 @@ export interface ScenarioDocument {
   commodity_pricing: ScenarioCommodityPricing;
   carbon_price: ScenarioYearValueTable;
   solver_options?: ScenarioSolverOptions;
+  app_metadata?: ScenarioAppMetadata;
 }
 
 export interface OutputRoleMetadata {
