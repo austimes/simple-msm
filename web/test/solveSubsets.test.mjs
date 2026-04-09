@@ -9,7 +9,7 @@ import { describe, test } from 'node:test';
 import {
   INCUMBENT_STATE_IDS,
   loadPkg,
-  buildScenario,
+  buildConfiguration,
   solveScoped,
 } from './solverTestUtils.mjs';
 
@@ -65,7 +65,7 @@ function assertElectricityAbsent(request) {
   const hasElecRows = request.rows.some((r) => r.outputId === 'electricity');
   assert.ok(!hasElecRows, 'electricity rows should be absent from scoped request');
   assert.ok(
-    !request.scenario.controlsByOutput['electricity'],
+    !request.configuration.controlsByOutput['electricity'],
     'electricity should be absent from controlsByOutput',
   );
 }
@@ -109,7 +109,7 @@ function assertPinnedStatesMatch(result, pinnedMap, years) {
   }
 }
 
-const SCENARIO_YEARS = [2025, 2030, 2035, 2040, 2045, 2050];
+const CONFIGURATION_YEARS = [2025, 2030, 2035, 2040, 2045, 2050];
 const DEFAULT_SOLVER_OPTIONS = {
   respect_max_share: false,
   respect_max_activity: true,
@@ -131,12 +131,12 @@ describe('agriculture only (uses electricity — auto-included)', () => {
   const serviceControls = buildServiceControls(outputIds, {
     electricity: { mode: 'externalized' },
   });
-  const scenario = buildScenario(pkg.appConfig, {
+  const configuration = buildConfiguration(pkg.appConfig, {
     name: 'Agriculture only',
     serviceControls,
     solverOptions: DEFAULT_SOLVER_OPTIONS,
   });
-  const { request, result } = solveScoped(pkg, scenario, outputIds);
+  const { request, result } = solveScoped(pkg, configuration, outputIds);
 
   test('solves optimally', () => assertSolvesOptimally(result));
 
@@ -149,7 +149,7 @@ describe('agriculture only (uses electricity — auto-included)', () => {
 
   test('electricity is externalized', () => assertElectricityExternalized(result));
 
-  test('pinned states match', () => assertPinnedStatesMatch(result, pinnedMap, SCENARIO_YEARS));
+  test('pinned states match', () => assertPinnedStatesMatch(result, pinnedMap, CONFIGURATION_YEARS));
 });
 
 describe('cement only (conventional uses electricity — auto-included)', () => {
@@ -158,12 +158,12 @@ describe('cement only (conventional uses electricity — auto-included)', () => 
   const serviceControls = buildServiceControls(outputIds, {
     electricity: { mode: 'externalized' },
   });
-  const scenario = buildScenario(pkg.appConfig, {
+  const configuration = buildConfiguration(pkg.appConfig, {
     name: 'Cement only',
     serviceControls,
     solverOptions: DEFAULT_SOLVER_OPTIONS,
   });
-  const { request, result } = solveScoped(pkg, scenario, outputIds);
+  const { request, result } = solveScoped(pkg, configuration, outputIds);
 
   test('solves optimally', () => assertSolvesOptimally(result));
 
@@ -175,7 +175,7 @@ describe('cement only (conventional uses electricity — auto-included)', () => 
 
   test('electricity is externalized', () => assertElectricityExternalized(result));
 
-  test('pinned state matches', () => assertPinnedStatesMatch(result, pinnedMap, SCENARIO_YEARS));
+  test('pinned state matches', () => assertPinnedStatesMatch(result, pinnedMap, CONFIGURATION_YEARS));
 });
 
 describe('steel incumbent only (BF-BOF uses electricity — auto-included)', () => {
@@ -184,12 +184,12 @@ describe('steel incumbent only (BF-BOF uses electricity — auto-included)', () 
   const serviceControls = buildServiceControls(outputIds, {
     electricity: { mode: 'externalized' },
   });
-  const scenario = buildScenario(pkg.appConfig, {
+  const configuration = buildConfiguration(pkg.appConfig, {
     name: 'Steel incumbent only',
     serviceControls,
     solverOptions: DEFAULT_SOLVER_OPTIONS,
   });
-  const { request, result } = solveScoped(pkg, scenario, outputIds);
+  const { request, result } = solveScoped(pkg, configuration, outputIds);
 
   test('solves optimally', () => assertSolvesOptimally(result));
 
@@ -201,7 +201,7 @@ describe('steel incumbent only (BF-BOF uses electricity — auto-included)', () 
 
   test('electricity is externalized', () => assertElectricityExternalized(result));
 
-  test('pinned state matches', () => assertPinnedStatesMatch(result, pinnedMap, SCENARIO_YEARS));
+  test('pinned state matches', () => assertPinnedStatesMatch(result, pinnedMap, CONFIGURATION_YEARS));
 });
 
 describe('steel optimize (auto-includes electricity)', () => {
@@ -212,12 +212,12 @@ describe('steel optimize (auto-includes electricity)', () => {
       crude_steel: { mode: 'optimize' },
     },
   });
-  const scenario = buildScenario(pkg.appConfig, {
+  const configuration = buildConfiguration(pkg.appConfig, {
     name: 'Steel optimize with electricity',
     serviceControls,
     solverOptions: DEFAULT_SOLVER_OPTIONS,
   });
-  const { request, result } = solveScoped(pkg, scenario, outputIds);
+  const { request, result } = solveScoped(pkg, configuration, outputIds);
 
   test('solves optimally', () => assertSolvesOptimally(result));
 
@@ -239,12 +239,12 @@ describe('buildings only with electricity externalized', () => {
   const serviceControls = buildServiceControls(outputIds, {
     electricity: { mode: 'externalized' },
   });
-  const scenario = buildScenario(pkg.appConfig, {
+  const configuration = buildConfiguration(pkg.appConfig, {
     name: 'Buildings only — electricity externalized',
     serviceControls,
     solverOptions: DEFAULT_SOLVER_OPTIONS,
   });
-  const { request, result } = solveScoped(pkg, scenario, outputIds);
+  const { request, result } = solveScoped(pkg, configuration, outputIds);
 
   test('solves optimally', () => assertSolvesOptimally(result));
 
@@ -257,7 +257,7 @@ describe('buildings only with electricity externalized', () => {
 
   test('electricity is externalized', () => assertElectricityExternalized(result));
 
-  test('pinned states match', () => assertPinnedStatesMatch(result, pinnedMap, SCENARIO_YEARS));
+  test('pinned states match', () => assertPinnedStatesMatch(result, pinnedMap, CONFIGURATION_YEARS));
 });
 
 describe('buildings only with electricity endogenous (optimize) — scaled demand', () => {
@@ -270,12 +270,12 @@ describe('buildings only with electricity endogenous (optimize) — scaled deman
     },
   });
 
-  const scenario = buildScenario(pkg.appConfig, {
+  const configuration = buildConfiguration(pkg.appConfig, {
     name: 'Buildings only — electricity endogenous',
     serviceControls,
     solverOptions: DEFAULT_SOLVER_OPTIONS,
   });
-  const { request, result } = solveScoped(pkg, scenario, outputIds);
+  const { request, result } = solveScoped(pkg, configuration, outputIds);
 
   test('request includes electricity auto-expanded', () => {
     const outputsInRequest = new Set(request.rows.map((r) => r.outputId));
@@ -283,12 +283,12 @@ describe('buildings only with electricity endogenous (optimize) — scaled deman
   });
 
   test('electricity control is optimize', () => {
-    assert.equal(request.scenario.controlsByOutput.electricity?.['2025']?.mode, 'optimize');
+    assert.equal(request.configuration.controlsByOutput.electricity?.['2025']?.mode, 'optimize');
   });
 
   test('external electricity demand is excluded for scoped solve', () => {
     assert.equal(
-      request.scenario.externalCommodityDemandByCommodity.electricity,
+      request.configuration.externalCommodityDemandByCommodity.electricity,
       undefined,
       'external electricity demand should be excluded when electricity is auto-expanded',
     );
@@ -306,12 +306,12 @@ describe('road transport with BEV (needs electricity)', () => {
       },
     },
   });
-  const scenario = buildScenario(pkg.appConfig, {
+  const configuration = buildConfiguration(pkg.appConfig, {
     name: 'Road transport BEV',
     serviceControls,
     solverOptions: DEFAULT_SOLVER_OPTIONS,
   });
-  const { request, result } = solveScoped(pkg, scenario, outputIds);
+  const { request, result } = solveScoped(pkg, configuration, outputIds);
 
   test('solves optimally', () => assertSolvesOptimally(result));
 
@@ -325,7 +325,7 @@ describe('road transport with BEV (needs electricity)', () => {
 
   test('BEV is the active state', () => {
     const activeShares = result.reporting.stateShares.filter((s) => s.activity > 1e-6);
-    for (const year of SCENARIO_YEARS) {
+    for (const year of CONFIGURATION_YEARS) {
       const matches = activeShares.filter(
         (s) => s.outputId === 'passenger_road_transport' && s.year === year,
       );
@@ -343,12 +343,12 @@ describe('industrial heat only (fossil, no electricity dependency)', () => {
     high_temperature_heat: INCUMBENT_STATE_IDS.high_temperature_heat,
   };
   const serviceControls = buildServiceControls(outputIds);
-  const scenario = buildScenario(pkg.appConfig, {
+  const configuration = buildConfiguration(pkg.appConfig, {
     name: 'Industrial heat only (fossil)',
     serviceControls,
     solverOptions: DEFAULT_SOLVER_OPTIONS,
   });
-  const { request, result } = solveScoped(pkg, scenario, outputIds);
+  const { request, result } = solveScoped(pkg, configuration, outputIds);
 
   test('solves optimally', () => assertSolvesOptimally(result));
 
@@ -360,7 +360,7 @@ describe('industrial heat only (fossil, no electricity dependency)', () => {
     assertElectricityAbsent(request);
   });
 
-  test('pinned states match', () => assertPinnedStatesMatch(result, pinnedMap, SCENARIO_YEARS));
+  test('pinned states match', () => assertPinnedStatesMatch(result, pinnedMap, CONFIGURATION_YEARS));
 });
 
 describe('industrial heat electrified (auto-includes electricity)', () => {
@@ -382,12 +382,12 @@ describe('industrial heat electrified (auto-includes electricity)', () => {
       },
     },
   });
-  const scenario = buildScenario(pkg.appConfig, {
+  const configuration = buildConfiguration(pkg.appConfig, {
     name: 'Industrial heat electrified',
     serviceControls,
     solverOptions: DEFAULT_SOLVER_OPTIONS,
   });
-  const { request, result } = solveScoped(pkg, scenario, outputIds);
+  const { request, result } = solveScoped(pkg, configuration, outputIds);
 
   test('solves optimally', () => assertSolvesOptimally(result));
 
@@ -403,12 +403,12 @@ describe('freight transport only (diesel incumbent, no electricity)', () => {
   const outputIds = ['freight_road_transport'];
   const pinnedMap = { freight_road_transport: INCUMBENT_STATE_IDS.freight_road_transport };
   const serviceControls = buildServiceControls(outputIds);
-  const scenario = buildScenario(pkg.appConfig, {
+  const configuration = buildConfiguration(pkg.appConfig, {
     name: 'Freight transport only (diesel)',
     serviceControls,
     solverOptions: DEFAULT_SOLVER_OPTIONS,
   });
-  const { request, result } = solveScoped(pkg, scenario, outputIds);
+  const { request, result } = solveScoped(pkg, configuration, outputIds);
 
   test('solves optimally', () => assertSolvesOptimally(result));
 
@@ -416,7 +416,7 @@ describe('freight transport only (diesel incumbent, no electricity)', () => {
     assertElectricityAbsent(request);
   });
 
-  test('pinned state matches', () => assertPinnedStatesMatch(result, pinnedMap, SCENARIO_YEARS));
+  test('pinned state matches', () => assertPinnedStatesMatch(result, pinnedMap, CONFIGURATION_YEARS));
 });
 
 describe('full model subset (all required services + electricity externalized)', () => {
@@ -424,17 +424,17 @@ describe('full model subset (all required services + electricity externalized)',
   const serviceControls = buildServiceControls(allRequiredOutputIds, {
     electricity: { mode: 'externalized' },
   });
-  const scenario = buildScenario(pkg.appConfig, {
+  const configuration = buildConfiguration(pkg.appConfig, {
     name: 'Full model — all incumbents',
     serviceControls,
     solverOptions: DEFAULT_SOLVER_OPTIONS,
   });
-  const { request, result } = solveScoped(pkg, scenario, allRequiredOutputIds);
+  const { request, result } = solveScoped(pkg, configuration, allRequiredOutputIds);
 
   test('solves optimally', () => assertSolvesOptimally(result));
 
   test('all incumbent pinned states match', () => {
-    assertPinnedStatesMatch(result, INCUMBENT_STATE_IDS, SCENARIO_YEARS);
+    assertPinnedStatesMatch(result, INCUMBENT_STATE_IDS, CONFIGURATION_YEARS);
   });
 
   test('electricity is externalized', () => assertElectricityExternalized(result));
@@ -442,8 +442,8 @@ describe('full model subset (all required services + electricity externalized)',
   test('demand is met for all outputs', () => {
     const activeShares = result.reporting.stateShares.filter((s) => s.activity > 1e-6);
     for (const outputId of allRequiredOutputIds) {
-      for (const year of SCENARIO_YEARS) {
-        const demand = request.scenario.serviceDemandByOutput[outputId]?.[String(year)];
+      for (const year of CONFIGURATION_YEARS) {
+        const demand = request.configuration.serviceDemandByOutput[outputId]?.[String(year)];
         if (demand == null || demand === 0) continue;
 
         const totalActivity = activeShares

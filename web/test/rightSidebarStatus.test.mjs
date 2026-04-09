@@ -6,7 +6,7 @@ import {
   RIGHT_SIDEBAR_STATUS_LEGEND,
 } from '../src/components/workspace/rightSidebarStatus.ts';
 import { deriveOutputRunStatusesForConfiguration } from '../src/solver/solveScope.ts';
-import { buildScenario, loadPkg } from './solverTestUtils.mjs';
+import { buildConfiguration, loadPkg } from './solverTestUtils.mjs';
 
 const pkg = loadPkg();
 
@@ -17,8 +17,8 @@ function readJson(relativePath) {
 
 describe('getRightSidebarStatusPresentation', () => {
   test('distinguishes seed scope, dependency inclusion, and excluded outputs in buildings-only runs', () => {
-    const scenario = readJson('../src/configurations/buildings-endogenous.json');
-    const statuses = deriveOutputRunStatusesForConfiguration(pkg, scenario);
+    const configuration = readJson('../src/configurations/buildings-endogenous.json');
+    const statuses = deriveOutputRunStatusesForConfiguration(pkg, configuration);
 
     const residential = getRightSidebarStatusPresentation(
       statuses.residential_building_services,
@@ -61,7 +61,7 @@ describe('getRightSidebarStatusPresentation', () => {
       ),
     );
 
-    const scenario = buildScenario(pkg.appConfig, {
+    const configuration = buildConfiguration(pkg.appConfig, {
       name: 'Passenger transport fully disabled',
       serviceControls: {
         passenger_road_transport: {
@@ -71,7 +71,7 @@ describe('getRightSidebarStatusPresentation', () => {
       },
     });
 
-    const statuses = deriveOutputRunStatusesForConfiguration(pkg, scenario);
+    const statuses = deriveOutputRunStatusesForConfiguration(pkg, configuration);
     const passengerRoad = getRightSidebarStatusPresentation(
       statuses.passenger_road_transport,
     );

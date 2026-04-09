@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { parseCsv } from '../src/data/parseCsv.ts';
-import { resolveScenarioDocument } from '../src/data/demandResolution.ts';
-import { buildSolveRequest, normalizeSolverRows, resolveScenarioForSolve } from '../src/solver/buildSolveRequest.ts';
-import { solveWithLpAdapter, inspectScenarioLpBuild } from '../src/solver/lpAdapter.ts';
+import { resolveScenarioDocument as resolveConfigurationDocument } from '../src/data/demandResolution.ts';
+import { buildSolveRequest, normalizeSolverRows } from '../src/solver/buildSolveRequest.ts';
+import { solveWithLpAdapter, inspectConfigurationLpBuild } from '../src/solver/lpAdapter.ts';
 
 // --- Data loading (mirrors demandResolution.test.mjs + packageLoader.ts) ---
 
@@ -88,10 +88,10 @@ function loadPkg() {
   const csvRows = parseCsv(csvText);
   const sectorStates = csvRows.map(toSectorState);
   const appConfig = loadAppConfig();
-  const referenceScenario = readJson('../public/app_config/reference_configuration.json');
-  const defaultScenario = resolveScenarioDocument(referenceScenario, appConfig, 'reference_configuration.json');
+  const referenceConfiguration = readJson('../public/app_config/reference_configuration.json');
+  const defaultConfiguration = resolveConfigurationDocument(referenceConfiguration, appConfig, 'reference_configuration.json');
 
-  return { sectorStates, appConfig, defaultScenario };
+  return { sectorStates, appConfig, defaultScenario: defaultConfiguration };
 }
 
 // --- Formatting helpers ---
@@ -110,7 +110,7 @@ function summarizeDiagnostics(diagnostics) {
 
 function flattenResolvedControls(request) {
   const rows = [];
-  for (const [outputId, yearTable] of Object.entries(request.scenario.controlsByOutput)) {
+  for (const [outputId, yearTable] of Object.entries(request.configuration.controlsByOutput)) {
     for (const [year, control] of Object.entries(yearTable)) {
       if (control.mode === 'optimize' && !control.stateId && control.disabledStateIds.length === 0) {
         continue;
@@ -130,14 +130,14 @@ function flattenResolvedControls(request) {
 
 // --- Main test runner ---
 
-function logCase(label, scenario, pkg) {
+function logCase(label, configuration, pkg) {
   console.log(`\n${'='.repeat(70)}`);
   console.log(`  ${label}`);
   console.log(`${'='.repeat(70)}`);
 
   let request;
   try {
-    request = buildSolveRequest(pkg, scenario);
+    request = buildSolveRequest(pkg, configuration);
   } catch (err) {
     console.error(`\n  BUILD REQUEST FAILED: ${err.message}`);
     return { request: null, build: null, result: null };
@@ -151,7 +151,7 @@ function logCase(label, scenario, pkg) {
   // LP build inspection
   let build;
   try {
-    build = inspectScenarioLpBuild(request);
+    build = inspectConfigurationLpBuild(request);
   } catch (err) {
     console.error(`\n  LP BUILD INSPECTION FAILED: ${err.message}`);
     build = null;
@@ -225,7 +225,7 @@ function logCase(label, scenario, pkg) {
 
 function main() {
   const pkg = loadPkg();
-  const referenceScenario = readJson('../public/app_config/reference_configuration.json');
+  const referenceConfiguration = readJson('../public/app_config/reference_configuration.json');
 
   console.log(`Loaded ${pkg.sectorStates.length} sector state rows`);
   console.log(`Output roles: ${Object.keys(pkg.appConfig.output_roles).join(', ')}`);
@@ -241,11 +241,11 @@ function main() {
   console.log(`Electricity allowed modes: ${pkg.appConfig.output_roles['electricity']?.allowed_control_modes?.join(', ') ?? 'MISSING'}`);
   console.log(`Electricity default mode: ${pkg.appConfig.output_roles['electricity']?.default_control_mode ?? 'MISSING'}`);
 
-  // Case 1: Reference scenario (externalized electricity) — should be feasible
-  const case1 = logCase('Case 1: Reference scenario (externalized electricity)', referenceScenario, pkg);
+  // Case 1: Reference configuration (externalized electricity) — should be feasible
+  const case1 = logCase('Case 1: Reference configuration (externalized electricity)', referenceConfiguration, pkg);
 
   // Case 2: Electricity in optimize mode
-  const optimizeElectricity = structuredClone(referenceScenario);
+  const optimizeElectricity = structuredClone(referenceConfiguration);
   optimizeElectricity.name += ' [electricity optimize]';
   optimizeElectricity.service_controls = {
     ...optimizeElectricity.service_controls,
@@ -255,7 +255,7 @@ function main() {
 
   // Case 3: Stale pinned_single (simulating localStorage bug)
   if (electricityStates.length > 0) {
-    const stalePinned = structuredClone(referenceScenario);
+    const stalePinned = structuredClone(referenceConfiguration);
     stalePinned.name += ' [stale electricity pinned_single]';
     stalePinned.service_controls = {
       ...stalePinned.service_controls,
@@ -269,7 +269,7 @@ function main() {
 
   // Case 4: Electricity fixed_shares with single state at 100%
   if (electricityStates.length > 0) {
-    const fixedElectricity = structuredClone(referenceScenario);
+    const fixedElectricity = structuredClone(referenceConfiguration);
     fixedElectricity.name += ' [electricity fixed_shares single]';
     fixedElectricity.service_controls = {
       ...fixedElectricity.service_controls,
@@ -294,10 +294,10 @@ function main() {
   }
 
   if (case1.result?.raw?.solutionStatus !== 'optimal') {
-    console.error('\n  ⚠ Reference scenario is INFEASIBLE — this indicates a deeper model problem.');
+    console.error('\n  ⚠ Reference configuration is INFEASIBLE — this indicates a deeper model problem.');
     process.exitCode = 1;
   } else {
-    console.log('\n  ✓ Reference scenario is feasible. If the browser solve fails, the issue is likely a stale localStorage draft.');
+    console.log('\n  ✓ Reference configuration is feasible. If the browser solve fails, the issue is likely a stale localStorage draft.');
   }
 }
 

@@ -65,7 +65,7 @@ export function useConfigurationSolve(): SolveState {
       });
   }, [sectorStates, appConfig, currentConfiguration]);
 
-  // Auto-solve whenever the active configuration changes.
+  // Auto-solve whenever the active document changes.
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
       solve();

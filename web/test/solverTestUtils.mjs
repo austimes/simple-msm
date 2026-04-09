@@ -1,11 +1,11 @@
 /**
  * Shared test utilities for solver tests.
  *
- * Provides data loading, scenario building, and assertion helpers.
+ * Provides data loading, configuration building, and assertion helpers.
  */
 import { readFileSync } from 'node:fs';
 import { parseCsv } from '../src/data/parseCsv.ts';
-import { resolveScenarioDocument } from '../src/data/demandResolution.ts';
+import { resolveScenarioDocument as resolveConfigurationDocument } from '../src/data/demandResolution.ts';
 import { buildSolveRequest } from '../src/solver/buildSolveRequest.ts';
 import { solveWithLpAdapter } from '../src/solver/lpAdapter.ts';
 
@@ -111,40 +111,40 @@ export function loadPkg() {
   return { sectorStates, appConfig };
 }
 
-export function loadReferenceScenario() {
+export function loadReferenceConfiguration() {
   return readJson('../public/app_config/reference_configuration.json');
 }
 
 /**
- * Build a scenario with custom service controls and solver options.
+ * Build a configuration with custom service controls and solver options.
  */
-export function buildScenario(appConfig, overrides = {}) {
-  const referenceScenario = loadReferenceScenario();
+export function buildConfiguration(appConfig, overrides = {}) {
+  const referenceConfiguration = loadReferenceConfiguration();
 
-  const scenario = {
-    ...referenceScenario,
-    name: overrides.name ?? referenceScenario.name,
-    description: overrides.description ?? referenceScenario.description,
+  const configuration = {
+    ...referenceConfiguration,
+    name: overrides.name ?? referenceConfiguration.name,
+    description: overrides.description ?? referenceConfiguration.description,
     service_controls: {
-      ...referenceScenario.service_controls,
+      ...referenceConfiguration.service_controls,
       ...(overrides.serviceControls ?? {}),
     },
     solver_options: {
-      ...referenceScenario.solver_options,
+      ...referenceConfiguration.solver_options,
       ...(overrides.solverOptions ?? {}),
     },
   };
 
-  return resolveScenarioDocument(scenario, appConfig, overrides.name ?? 'test scenario');
+  return resolveConfigurationDocument(configuration, appConfig, overrides.name ?? 'test configuration');
 }
 
 /**
  * Build and solve a request with optional seed scope.
  */
-export function solveScoped(pkg, scenario, seedOutputIds) {
+export function solveScoped(pkg, configuration, seedOutputIds) {
   const request = buildSolveRequest(
     { sectorStates: pkg.sectorStates, appConfig: pkg.appConfig },
-    scenario,
+    configuration,
     seedOutputIds ? { seedOutputIds } : {},
   );
   const result = solveWithLpAdapter(request);

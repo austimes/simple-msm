@@ -19,15 +19,15 @@ function loadAppConfig() {
 }
 
 const appConfig = loadAppConfig();
-const referenceScenario = readJson('../public/app_config/reference_configuration.json');
+const referenceConfiguration = readJson('../public/app_config/reference_configuration.json');
 
-test('reference scenario demand metadata reproduces the stored demand tables', () => {
-  const resolved = resolveConfigurationDocument(referenceScenario, appConfig, 'reference_configuration.json');
+test('reference configuration demand metadata reproduces the stored demand tables', () => {
+  const resolved = resolveConfigurationDocument(referenceConfiguration, appConfig, 'reference_configuration.json');
 
-  assert.deepEqual(resolved.service_demands, referenceScenario.service_demands);
+  assert.deepEqual(resolved.service_demands, referenceConfiguration.service_demands);
   assert.deepEqual(
     resolved.external_commodity_demands,
-    referenceScenario.external_commodity_demands,
+    referenceConfiguration.external_commodity_demands,
   );
   assert.equal(
     appConfig.demand_growth_presets[resolved.demand_generation.preset_id].provenance_note,
@@ -35,9 +35,9 @@ test('reference scenario demand metadata reproduces the stored demand tables', (
   );
 });
 
-test('manual-table scenarios normalize every milestone year the solver consumes', () => {
-  const manualScenario = {
-    ...structuredClone(referenceScenario),
+test('manual-table configurations normalize every milestone year the solver consumes', () => {
+  const manualConfiguration = {
+    ...structuredClone(referenceConfiguration),
     years: [2025, 2030],
     service_demands: {
       residential_building_services: {
@@ -58,7 +58,7 @@ test('manual-table scenarios normalize every milestone year the solver consumes'
     },
   };
 
-  const resolved = resolveConfigurationDocument(manualScenario, appConfig, 'manual configuration');
+  const resolved = resolveConfigurationDocument(manualConfiguration, appConfig, 'manual configuration');
 
   assert.deepEqual(resolved.service_demands.residential_building_services, {
     2025: 10,
@@ -75,13 +75,13 @@ test('manual-table scenarios normalize every milestone year the solver consumes'
 });
 
 test('anchor-plus-preset-with-overrides merges baseline anchors, overrides, and year edits', () => {
-  const overrideScenario = {
-    ...structuredClone(referenceScenario),
+  const overrideConfiguration = {
+    ...structuredClone(referenceConfiguration),
     years: [2025, 2030, 2035],
     service_demands: {},
     external_commodity_demands: {},
     demand_generation: {
-      ...structuredClone(referenceScenario.demand_generation),
+      ...structuredClone(referenceConfiguration.demand_generation),
       mode: 'anchor_plus_preset_with_overrides',
       service_anchors: {
         residential_building_services: 100,
@@ -104,7 +104,7 @@ test('anchor-plus-preset-with-overrides merges baseline anchors, overrides, and 
     },
   };
 
-  const resolved = resolveConfigurationDocument(overrideScenario, appConfig, 'override configuration');
+  const resolved = resolveConfigurationDocument(overrideConfiguration, appConfig, 'override configuration');
 
   assert.deepEqual(resolved.service_demands.residential_building_services, {
     2025: 100,

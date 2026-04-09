@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { parseCsv } from '../src/data/parseCsv.ts';
-import { resolveScenarioDocument } from '../src/data/demandResolution.ts';
+import { resolveScenarioDocument as resolveConfigurationDocument } from '../src/data/demandResolution.ts';
 import { buildSolveRequest } from '../src/solver/buildSolveRequest.ts';
 import { solveWithLpAdapter } from '../src/solver/lpAdapter.ts';
 
@@ -115,8 +115,8 @@ function loadPkg() {
   return { sectorStates, appConfig };
 }
 
-function buildBaselineScenario(appConfig, electricityControl = { mode: 'externalized' }) {
-  const referenceScenario = readJson('../public/app_config/reference_configuration.json');
+function buildBaselineConfiguration(appConfig, electricityControl = { mode: 'externalized' }) {
+  const referenceConfiguration = readJson('../public/app_config/reference_configuration.json');
 
   const serviceControls = {};
   for (const [outputId, stateId] of Object.entries(INCUMBENT_STATE_IDS)) {
@@ -126,8 +126,8 @@ function buildBaselineScenario(appConfig, electricityControl = { mode: 'external
   serviceControls.land_sequestration = { mode: 'optimize', disabled_state_ids: ['removals_negative_emissions__land_sequestration__biological_sink'] };
   serviceControls.engineered_removals = { mode: 'optimize', disabled_state_ids: ['removals_negative_emissions__engineered_removals__daccs'] };
 
-  const scenario = {
-    ...referenceScenario,
+  const configuration = {
+    ...referenceConfiguration,
     name: 'Baseline — all incumbents, externalized electricity',
     description: 'Every subsector pinned to its least-ambitious state. Electricity externalized, removals off.',
     service_controls: serviceControls,
@@ -140,23 +140,23 @@ function buildBaselineScenario(appConfig, electricityControl = { mode: 'external
     },
   };
 
-  return resolveScenarioDocument(scenario, appConfig, 'baseline test scenario');
+  return resolveConfigurationDocument(configuration, appConfig, 'baseline test configuration');
 }
 
 // --- Tests ---
 
 const pkg = loadPkg();
-const scenario = buildBaselineScenario(pkg.appConfig);
-const endogenousElectricityScenario = buildBaselineScenario(pkg.appConfig, {
+const configuration = buildBaselineConfiguration(pkg.appConfig);
+const endogenousElectricityConfiguration = buildBaselineConfiguration(pkg.appConfig, {
   mode: 'fixed_shares',
   fixed_shares: { [INCUMBENT_ELECTRICITY_STATE_ID]: 1 },
 });
 
-test('baseline incumbent scenario solves optimally', () => {
+test('baseline incumbent configuration solves optimally', () => {
   const request = buildSolveRequest({
     sectorStates: pkg.sectorStates,
     appConfig: pkg.appConfig,
-  }, scenario);
+  }, configuration);
 
   const result = solveWithLpAdapter(request);
 
@@ -169,13 +169,13 @@ test('every required-service output has exactly one active state per year', () =
   const request = buildSolveRequest({
     sectorStates: pkg.sectorStates,
     appConfig: pkg.appConfig,
-  }, scenario);
+  }, configuration);
 
   const result = solveWithLpAdapter(request);
   const activeShares = result.reporting.stateShares.filter((s) => s.activity > 1e-6);
 
   for (const [outputId, stateId] of Object.entries(INCUMBENT_STATE_IDS)) {
-    for (const year of scenario.years) {
+    for (const year of configuration.years) {
       const matches = activeShares.filter((s) => s.outputId === outputId && s.year === year);
 
       assert.equal(
@@ -198,7 +198,7 @@ test('electricity is externalized with zero supply', () => {
   const request = buildSolveRequest({
     sectorStates: pkg.sectorStates,
     appConfig: pkg.appConfig,
-  }, scenario);
+  }, configuration);
 
   const result = solveWithLpAdapter(request);
 
@@ -213,13 +213,13 @@ test('demand is met for all service outputs in every year', () => {
   const request = buildSolveRequest({
     sectorStates: pkg.sectorStates,
     appConfig: pkg.appConfig,
-  }, scenario);
+  }, configuration);
 
   const result = solveWithLpAdapter(request);
   const activeShares = result.reporting.stateShares.filter((s) => s.activity > 1e-6);
 
   for (const [outputId] of Object.entries(INCUMBENT_STATE_IDS)) {
-    for (const year of scenario.years) {
+    for (const year of configuration.years) {
       const demand = request.configuration.serviceDemandByOutput[outputId]?.[String(year)];
       if (demand == null || demand === 0) continue;
 
@@ -235,11 +235,11 @@ test('demand is met for all service outputs in every year', () => {
   }
 });
 
-test('baseline incumbent scenario also solves with endogenous fixed-share electricity', () => {
+test('baseline incumbent configuration also solves with endogenous fixed-share electricity', () => {
   const request = buildSolveRequest({
     sectorStates: pkg.sectorStates,
     appConfig: pkg.appConfig,
-  }, endogenousElectricityScenario);
+  }, endogenousElectricityConfiguration);
 
   const result = solveWithLpAdapter(request);
 

@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
-import { buildComparisonReport, buildComparisonScenarioPlan } from '../src/compare/compareAnalysis.ts';
-import { resolveScenarioDocument } from '../src/data/demandResolution.ts';
+import { buildComparisonReport, buildComparisonConfigurationPlan } from '../src/compare/compareAnalysis.ts';
+import { resolveScenarioDocument as resolveConfigurationDocument } from '../src/data/demandResolution.ts';
 import { parseCsv } from '../src/data/parseCsv.ts';
 import { SOLVER_CONTRACT_VERSION } from '../src/solver/contract.ts';
 import { solveWithLpAdapter } from '../src/solver/lpAdapter.ts';
@@ -149,12 +149,12 @@ function resolveCommodityPriceSeries(baseSeries, overrideSeries, years) {
   };
 }
 
-function resolveScenarioForSolve(scenario, appConfig) {
-  const years = [...scenario.years];
+function resolveConfigurationForSolve(configuration, appConfig) {
+  const years = [...configuration.years];
   const controlsByOutput = Object.entries(appConfig.output_roles).reduce((resolved, [outputId, metadata]) => {
     resolved[outputId] = years.reduce((controlsByYear, year) => {
       const key = String(year);
-      const control = scenario.service_controls[outputId];
+      const control = configuration.service_controls[outputId];
       const override = control?.year_overrides?.[key] ?? null;
       controlsByYear[key] = {
         mode: override?.mode ?? control?.mode ?? metadata.default_control_mode,
@@ -174,13 +174,13 @@ function resolveScenarioForSolve(scenario, appConfig) {
     }
 
     resolved[outputId] = years.reduce((valuesByYear, year) => {
-      valuesByYear[String(year)] = scenario.service_demands[outputId]?.[String(year)] ?? 0;
+      valuesByYear[String(year)] = configuration.service_demands[outputId]?.[String(year)] ?? 0;
       return valuesByYear;
     }, {});
     return resolved;
   }, {});
 
-  const externalCommodityDemandByCommodity = Object.entries(scenario.external_commodity_demands ?? {}).reduce(
+  const externalCommodityDemandByCommodity = Object.entries(configuration.external_commodity_demands ?? {}).reduce(
     (resolved, [commodityId, values]) => {
       resolved[commodityId] = years.reduce((valuesByYear, year) => {
         valuesByYear[String(year)] = values[String(year)] ?? 0;
@@ -194,28 +194,28 @@ function resolveScenarioForSolve(scenario, appConfig) {
   const commodityDrivers = appConfig.commodity_price_presets;
   const commodityIds = new Set([
     ...Object.keys(commodityDrivers),
-    ...Object.keys(scenario.commodity_pricing.overrides),
+    ...Object.keys(configuration.commodity_pricing.overrides),
   ]);
   const commodityPriceByCommodity = Array.from(commodityIds).reduce((resolved, commodityId) => {
     const driver = commodityDrivers[commodityId];
-    const level = scenario.commodity_pricing.selections_by_commodity?.[commodityId] ?? 'medium';
+    const level = configuration.commodity_pricing.selections_by_commodity?.[commodityId] ?? 'medium';
     const baseSeries = driver?.levels[level];
     resolved[commodityId] = resolveCommodityPriceSeries(
       baseSeries,
-      scenario.commodity_pricing.overrides[commodityId],
+      configuration.commodity_pricing.overrides[commodityId],
       years,
     );
     return resolved;
   }, {});
 
   const carbonPriceByYear = years.reduce((resolved, year) => {
-    resolved[String(year)] = scenario.carbon_price[String(year)] ?? 0;
+    resolved[String(year)] = configuration.carbon_price[String(year)] ?? 0;
     return resolved;
   }, {});
 
   return {
-    name: scenario.name,
-    description: scenario.description ?? null,
+    name: configuration.name,
+    description: configuration.description ?? null,
     years,
     controlsByOutput,
     serviceDemandByOutput,
@@ -223,30 +223,30 @@ function resolveScenarioForSolve(scenario, appConfig) {
     commodityPriceByCommodity,
     carbonPriceByYear,
     options: {
-      respectMaxShare: scenario.solver_options?.respect_max_share ?? true,
-      respectMaxActivity: scenario.solver_options?.respect_max_activity ?? true,
-      softConstraints: scenario.solver_options?.soft_constraints ?? false,
-      allowRemovalsCredit: scenario.solver_options?.allow_removals_credit ?? false,
+      respectMaxShare: configuration.solver_options?.respect_max_share ?? true,
+      respectMaxActivity: configuration.solver_options?.respect_max_activity ?? true,
+      softConstraints: configuration.solver_options?.soft_constraints ?? false,
+      allowRemovalsCredit: configuration.solver_options?.allow_removals_credit ?? false,
       shareSmoothing: {
-        enabled: scenario.solver_options?.share_smoothing?.enabled ?? false,
-        maxDeltaPp: scenario.solver_options?.share_smoothing?.max_delta_pp ?? null,
+        enabled: configuration.solver_options?.share_smoothing?.enabled ?? false,
+        maxDeltaPp: configuration.solver_options?.share_smoothing?.max_delta_pp ?? null,
       },
     },
   };
 }
 
-function buildSolveRequestForTest(pkg, scenario) {
+function buildSolveRequestForTest(pkg, configuration) {
   return {
     contractVersion: SOLVER_CONTRACT_VERSION,
-    requestId: `compare-test-${scenario.name.replaceAll(/\s+/g, '-').toLowerCase()}`,
+    requestId: `compare-test-${configuration.name.replaceAll(/\s+/g, '-').toLowerCase()}`,
     rows: normalizeSolverRows(pkg.sectorStates, pkg.appConfig),
-    scenario: resolveScenarioForSolve(scenario, pkg.appConfig),
+    configuration: resolveConfigurationForSolve(configuration, pkg.appConfig),
   };
 }
 
-test('packaged reference scenario solves as a stable baseline on the Results path', () => {
+test('packaged reference configuration solves as a stable baseline on the Results path', () => {
   const appConfig = loadAppConfig();
-  const referenceScenario = resolveScenarioDocument(
+  const referenceConfiguration = resolveConfigurationDocument(
     readJson('../public/app_config/reference_configuration.json'),
     appConfig,
     'reference_configuration.json',
@@ -256,14 +256,14 @@ test('packaged reference scenario solves as a stable baseline on the Results pat
   const pkg = {
     sectorStates,
     appConfig,
-    defaultScenario: referenceScenario,
+    defaultScenario: referenceConfiguration,
   };
 
-  const request = buildSolveRequestForTest(pkg, referenceScenario);
+  const request = buildSolveRequestForTest(pkg, referenceConfiguration);
   const result = solveWithLpAdapter(request);
 
-  assert.equal(referenceScenario.service_controls.electricity.mode, 'externalized');
-  assert.equal(referenceScenario.solver_options?.respect_max_share, false);
+  assert.equal(referenceConfiguration.service_controls.electricity.mode, 'externalized');
+  assert.equal(referenceConfiguration.solver_options?.respect_max_share, false);
   assert.ok(result.status === 'solved' || result.status === 'partial');
   assert.equal(result.raw?.solutionStatus, 'optimal');
   assert.ok(!result.diagnostics.some((diagnostic) => diagnostic.code === 'service_and_supply_lp_not_optimal'));
@@ -271,7 +271,7 @@ test('packaged reference scenario solves as a stable baseline on the Results pat
 
 test('compare analysis builds heuristic decomposition and narratives from the built-in transition pair', () => {
   const appConfig = loadAppConfig();
-  const referenceScenario = resolveScenarioDocument(
+  const referenceConfiguration = resolveConfigurationDocument(
     readJson('../public/app_config/reference_configuration.json'),
     appConfig,
     'reference_configuration.json',
@@ -281,17 +281,17 @@ test('compare analysis builds heuristic decomposition and narratives from the bu
   const pkg = {
     sectorStates,
     appConfig,
-    defaultScenario: referenceScenario,
+    defaultScenario: referenceConfiguration,
   };
 
-  const plan = buildComparisonScenarioPlan(referenceScenario, appConfig);
-  assert.equal(plan.scenarios.compare.service_controls.electricity.mode, 'optimize');
+  const plan = buildComparisonConfigurationPlan(referenceConfiguration, appConfig);
+  assert.equal(plan.configurations.compare.service_controls.electricity.mode, 'optimize');
 
   const solves = plan.order.map((key) => {
-    const scenario = plan.scenarios[key];
-    const request = buildSolveRequestForTest(pkg, scenario);
+    const configuration = plan.configurations[key];
+    const request = buildSolveRequestForTest(pkg, configuration);
     const result = solveWithLpAdapter(request);
-    return { key, scenario, request, result };
+    return { key, configuration, request, result };
   });
 
   assert.ok(
@@ -310,6 +310,6 @@ test('compare analysis builds heuristic decomposition and narratives from the bu
   assert.ok(report.narratives.some((entry) => entry.id === 'state-choice'));
   assert.ok(report.stateShareDeltas.length > 0);
   assert.ok(report.commodityDemandDeltas.some((entry) => entry.commodityId === 'electricity'));
-  assert.equal(report.electricityDeltas.length, referenceScenario.years.length);
+  assert.equal(report.electricityDeltas.length, referenceConfiguration.years.length);
   assert.match(report.heuristicNote, /heuristic/i);
 });

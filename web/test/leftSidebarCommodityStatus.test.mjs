@@ -6,7 +6,7 @@ import {
   getCommodityPriceSelectorPresentation,
 } from '../src/components/workspace/leftSidebarCommodityStatus.ts';
 import { deriveOutputRunStatusesForConfiguration } from '../src/solver/solveScope.ts';
-import { buildScenario, loadPkg } from './solverTestUtils.mjs';
+import { buildConfiguration, loadPkg } from './solverTestUtils.mjs';
 
 const pkg = loadPkg();
 
@@ -17,11 +17,11 @@ function readJson(relativePath) {
 
 describe('getCommodityPriceSelectorPresentation', () => {
   test('disables endogenous commodity price selectors when supply stays in model', () => {
-    const scenario = readJson('../src/configurations/buildings-endogenous.json');
-    const statuses = deriveOutputRunStatusesForConfiguration(pkg, scenario);
+    const configuration = readJson('../src/configurations/buildings-endogenous.json');
+    const statuses = deriveOutputRunStatusesForConfiguration(pkg, configuration);
     const presentation = getCommodityPriceSelectorPresentation(
       statuses.electricity,
-      getCommodityPriceLevel(scenario, 'electricity'),
+      getCommodityPriceLevel(configuration, 'electricity'),
     );
 
     assert.equal(presentation.badgeLabel, 'in model');
@@ -33,9 +33,9 @@ describe('getCommodityPriceSelectorPresentation', () => {
   });
 
   test('keeps externalized endogenous commodity price selectors active', () => {
-    const scenario = readJson('../src/configurations/buildings-externalized.json');
-    const statuses = deriveOutputRunStatusesForConfiguration(pkg, scenario);
-    const activeLevel = getCommodityPriceLevel(scenario, 'electricity');
+    const configuration = readJson('../src/configurations/buildings-externalized.json');
+    const statuses = deriveOutputRunStatusesForConfiguration(pkg, configuration);
+    const activeLevel = getCommodityPriceLevel(configuration, 'electricity');
     const presentation = getCommodityPriceSelectorPresentation(
       statuses.electricity,
       activeLevel,
@@ -56,7 +56,7 @@ describe('getCommodityPriceSelectorPresentation', () => {
 
     assert.ok(electricityStateId, 'expected an electricity state');
 
-    const scenario = buildScenario(pkg.appConfig, {
+    const configuration = buildConfiguration(pkg.appConfig, {
       name: 'Electricity fixed shares',
       serviceControls: {
         electricity: {
@@ -65,10 +65,10 @@ describe('getCommodityPriceSelectorPresentation', () => {
         },
       },
     });
-    const statuses = deriveOutputRunStatusesForConfiguration(pkg, scenario);
+    const statuses = deriveOutputRunStatusesForConfiguration(pkg, configuration);
     const presentation = getCommodityPriceSelectorPresentation(
       statuses.electricity,
-      getCommodityPriceLevel(scenario, 'electricity'),
+      getCommodityPriceLevel(configuration, 'electricity'),
     );
 
     assert.equal(presentation.badgeLabel, 'in model');
@@ -77,9 +77,9 @@ describe('getCommodityPriceSelectorPresentation', () => {
   });
 
   test('leaves non-endogenous commodity selectors unchanged', () => {
-    const scenario = readJson('../src/configurations/reference.json');
-    const statuses = deriveOutputRunStatusesForConfiguration(pkg, scenario);
-    const activeLevel = getCommodityPriceLevel(scenario, 'natural_gas');
+    const configuration = readJson('../src/configurations/reference.json');
+    const statuses = deriveOutputRunStatusesForConfiguration(pkg, configuration);
+    const activeLevel = getCommodityPriceLevel(configuration, 'natural_gas');
     const presentation = getCommodityPriceSelectorPresentation(
       statuses.natural_gas,
       activeLevel,

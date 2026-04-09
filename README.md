@@ -28,9 +28,9 @@ The app now uses one canonical configuration model everywhere.
 - Browser autosave stores that same full document as the active working document.
 - The solver receives that same document after demand resolution and output scoping.
 
-There is no separate user-facing split between a base scenario and a configuration overlay. A built-in configuration is already the thing you edit, save, solve, and compare.
+There is no separate user-facing split between a packaged reference configuration and an overlay. A built-in configuration is already the thing you edit, save, solve, and compare.
 
-Some internal TypeScript types and schema filenames still use the historical `scenario` name because they describe the same JSON shape. Contributor guidance in this repo uses `configuration` for the user-facing document concept. The main working page is labeled `Run`, but internal component and file names stay workspace- and configuration-oriented for now so this label change does not force a broad code rename.
+Some internal TypeScript types and schema filenames still use the historical `scenario` name because they describe the same JSON shape. Treat that as implementation or compatibility residue, not contributor-facing terminology. The main working page is labeled `Run`, but internal component and file names stay workspace- and configuration-oriented for now so this label change does not force a broad code rename.
 
 ## What Is In The Repo
 

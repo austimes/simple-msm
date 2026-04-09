@@ -5,7 +5,7 @@ import { buildSolveRequest } from '../src/solver/buildSolveRequest.ts';
 import {
   deriveOutputRunStatusesForConfiguration,
 } from '../src/solver/solveScope.ts';
-import { buildScenario, loadPkg } from './solverTestUtils.mjs';
+import { buildConfiguration, loadPkg } from './solverTestUtils.mjs';
 
 const pkg = loadPkg();
 
@@ -28,9 +28,9 @@ function outputSetFromRequest(request) {
 
 describe('deriveOutputRunStatusesForConfiguration', () => {
   test('matches the buildings-endogenous seed-scope and effective-run semantics', () => {
-    const scenario = readJson('../src/configurations/buildings-endogenous.json');
-    const statuses = deriveOutputRunStatusesForConfiguration(pkg, scenario);
-    const request = buildSolveRequest(pkg, scenario);
+    const configuration = readJson('../src/configurations/buildings-endogenous.json');
+    const statuses = deriveOutputRunStatusesForConfiguration(pkg, configuration);
+    const request = buildSolveRequest(pkg, configuration);
 
     assert.equal(
       statuses.residential_building_services.runParticipation,
@@ -64,18 +64,18 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
   });
 
   test('accepts legacy included_output_ids as an alias for seed_output_ids', () => {
-    const scenario = readJson('../src/configurations/buildings-endogenous.json');
-    const legacyScenario = structuredClone(scenario);
-    legacyScenario.app_metadata = {
-      ...legacyScenario.app_metadata,
-      included_output_ids: legacyScenario.app_metadata.seed_output_ids,
+    const configuration = readJson('../src/configurations/buildings-endogenous.json');
+    const legacyConfiguration = structuredClone(configuration);
+    legacyConfiguration.app_metadata = {
+      ...legacyConfiguration.app_metadata,
+      included_output_ids: legacyConfiguration.app_metadata.seed_output_ids,
     };
-    delete legacyScenario.app_metadata.seed_output_ids;
+    delete legacyConfiguration.app_metadata.seed_output_ids;
 
-    const canonicalStatuses = deriveOutputRunStatusesForConfiguration(pkg, scenario);
-    const legacyStatuses = deriveOutputRunStatusesForConfiguration(pkg, legacyScenario);
-    const canonicalRequest = buildSolveRequest(pkg, scenario);
-    const legacyRequest = buildSolveRequest(pkg, legacyScenario);
+    const canonicalStatuses = deriveOutputRunStatusesForConfiguration(pkg, configuration);
+    const legacyStatuses = deriveOutputRunStatusesForConfiguration(pkg, legacyConfiguration);
+    const canonicalRequest = buildSolveRequest(pkg, configuration);
+    const legacyRequest = buildSolveRequest(pkg, legacyConfiguration);
 
     assert.equal(
       legacyStatuses.residential_building_services.runParticipation,
@@ -104,7 +104,7 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
       ),
     );
 
-    const scenario = buildScenario(pkg.appConfig, {
+    const configuration = buildConfiguration(pkg.appConfig, {
       name: 'Passenger transport fully disabled',
       serviceControls: {
         passenger_road_transport: {
@@ -114,7 +114,7 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
       },
     });
 
-    const statuses = deriveOutputRunStatusesForConfiguration(pkg, scenario);
+    const statuses = deriveOutputRunStatusesForConfiguration(pkg, configuration);
 
     assert.deepEqual(statuses.passenger_road_transport.enabledStateIds, []);
     assert.equal(statuses.passenger_road_transport.enabledStateCount, 0);
@@ -129,14 +129,14 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
   });
 
   test('marks commodity outputs as externalized supply without reading as disabled', () => {
-    const scenario = buildScenario(pkg.appConfig, {
+    const configuration = buildConfiguration(pkg.appConfig, {
       name: 'Buildings with externalized electricity',
       serviceControls: {
         electricity: { mode: 'externalized' },
       },
     });
 
-    const statuses = deriveOutputRunStatusesForConfiguration(pkg, scenario);
+    const statuses = deriveOutputRunStatusesForConfiguration(pkg, configuration);
 
     assert.equal(statuses.electricity.supplyParticipation, 'externalized_in_run');
     assert.equal(statuses.electricity.isDisabled, false);
@@ -152,7 +152,7 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
       ),
     );
 
-    const scenario = buildScenario(pkg.appConfig, {
+    const configuration = buildConfiguration(pkg.appConfig, {
       name: 'Passenger transport blocked by disabled pathways',
       serviceControls: {
         passenger_road_transport: {
@@ -163,17 +163,17 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
     });
 
     assert.throws(
-      () => buildSolveRequest(pkg, scenario),
+      () => buildSolveRequest(pkg, configuration),
       /passenger_road_transport/,
     );
   });
 
-  test('marks unscoped scenarios as full-model runs', () => {
-    const scenario = buildScenario(pkg.appConfig, {
+  test('marks unscoped configurations as full-model runs', () => {
+    const configuration = buildConfiguration(pkg.appConfig, {
       name: 'Full model status baseline',
     });
 
-    const statuses = deriveOutputRunStatusesForConfiguration(pkg, scenario);
+    const statuses = deriveOutputRunStatusesForConfiguration(pkg, configuration);
 
     assert.equal(statuses.electricity.runParticipation, 'full_model');
     assert.equal(statuses.residential_building_services.runParticipation, 'full_model');

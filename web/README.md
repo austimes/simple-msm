@@ -11,7 +11,7 @@ The app is configuration-first.
 - Browser autosave persists that same full document as the active working document.
 - The solver consumes that same document after demand resolution and optional output scoping.
 
-There is no separate user-facing base-scenario-plus-overlay workflow.
+There is no separate user-facing packaged-reference-plus-overlay workflow.
 
 ## Run It
 
@@ -42,10 +42,10 @@ npx tsx --test test/*.test.mjs
 ## Contributor Notes
 
 - `public/app_config/` contains app-owned registries and defaults such as output roles, demand presets, commodity-price presets, and explanation rules.
-- `src/data/scenarioLoader.ts` now loads the configuration-named aliases `src/app_config/reference_configuration.json` and `src/app_config/configuration_schema.json`. Keep the matching `*_scenario*.json` files in place until the published compatibility window is intentionally closed.
+- The loader in `src/data/scenarioLoader.ts` now loads the configuration-named aliases `src/app_config/reference_configuration.json` and `src/app_config/configuration_schema.json`. Keep the matching `*_scenario*.json` files in place until the published compatibility window is intentionally closed.
 - If you add a built-in configuration, keep it as a complete document with explicit demand tables and metadata. Do not rely on reference-document inheritance or overlays.
 
-## Scenario Compatibility Policy
+## Legacy Scenario Compatibility Policy
 
 Use configuration terminology in product copy, docs, and new code. The remaining `scenario` names below are compatibility boundaries, not permission to keep expanding the old term.
 
