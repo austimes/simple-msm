@@ -3,10 +3,84 @@ import { usePackageStore } from '../../data/packageStore';
 import {
   buildStateCatalog,
 } from '../../data/scenarioWorkspaceModel';
+import type { DerivedOutputRunStatus } from '../../solver/solveScope.ts';
 import { deriveOutputRunStatusesForConfiguration } from '../../solver/solveScope.ts';
 
 function formatSectorName(sector: string): string {
   return sector.replaceAll('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function describePathwayStatus(status: DerivedOutputRunStatus): string {
+  return status.enabledStateCount === 0
+    ? 'No enabled pathways'
+    : `${status.enabledStateCount} enabled ${status.enabledStateCount === 1 ? 'pathway' : 'pathways'}`;
+}
+
+function describeDemandStatus(status: DerivedOutputRunStatus): string | null {
+  switch (status.demandParticipation) {
+    case 'active_in_run':
+      return 'Demand active in this run';
+    case 'excluded_from_run':
+      return 'Demand excluded from this run';
+    case 'no_enabled_pathways':
+      return 'Demand active but no enabled pathways';
+    default:
+      return null;
+  }
+}
+
+function describeSupplyStatus(status: DerivedOutputRunStatus): string | null {
+  switch (status.supplyParticipation) {
+    case 'endogenous_in_run':
+      return 'Endogenous supply in this run';
+    case 'externalized_in_run':
+      return 'Externalized supply in this run';
+    case 'excluded_from_run':
+      return 'Supply excluded from this run';
+    default:
+      return null;
+  }
+}
+
+function describeRunParticipation(status: DerivedOutputRunStatus): string | null {
+  switch (status.runParticipation) {
+    case 'seed_scope':
+      return 'Selected scope';
+    case 'auto_included_dependency':
+      return 'Auto-included dependency';
+    default:
+      return null;
+  }
+}
+
+function getBadgeTone(status: DerivedOutputRunStatus, label: string): string {
+  if (label === 'Demand active but no enabled pathways') {
+    return ' workspace-mode-badge--danger';
+  }
+  if (label === 'Demand active in this run' || label === 'Endogenous supply in this run') {
+    return ' workspace-mode-badge--active';
+  }
+  if (
+    label === 'Demand excluded from this run'
+    || label === 'Externalized supply in this run'
+    || label === 'Supply excluded from this run'
+  ) {
+    return ' workspace-mode-badge--muted';
+  }
+  if (label === 'Auto-included dependency') {
+    return ' workspace-mode-badge--info';
+  }
+  if (label === 'Selected scope') {
+    return ' workspace-mode-badge--success';
+  }
+  if (label === 'No enabled pathways') {
+    return status.hasDemandValidationError
+      ? ' workspace-mode-badge--danger'
+      : ' workspace-mode-badge--warning';
+  }
+  return status.enabledStateCount > 0
+    ? ' workspace-mode-badge--success'
+    : ' workspace-mode-badge--warning';
 }
 
 export default function RightSidebar() {
@@ -57,23 +131,47 @@ export default function RightSidebar() {
             const allDisabled = status?.isDisabled ?? enabledIds.size === 0;
             const outOfScope = status?.isExcludedFromRun ?? false;
             const isCollapsed = allDisabled && !expandedDisabled.has(sub.outputId);
+            const badges = status
+              ? [
+                  describeDemandStatus(status),
+                  describeSupplyStatus(status),
+                  describeRunParticipation(status),
+                  describePathwayStatus(status),
+                ].filter((label): label is string => label !== null)
+              : [];
 
             return (
               <div
                 key={sub.outputId}
-                className={`workspace-subsector-group${outOfScope || allDisabled ? ' workspace-subsector-group--dimmed' : ''}`}
+                className={`workspace-subsector-group${outOfScope ? ' workspace-subsector-group--dimmed' : ''}`}
               >
                 <div
                   className={`workspace-subsector-title${allDisabled ? ' workspace-subsector-title--clickable' : ''}`}
                   onClick={allDisabled ? () => toggleExpanded(sub.outputId) : undefined}
                 >
                   {sub.outputLabel}
-                  {allDisabled && (
-                    <span className="workspace-mode-badge workspace-mode-badge--disabled">
-                      disabled {isCollapsed ? '▸' : '▾'}
-                    </span>
-                  )}
                 </div>
+                {badges.length > 0 && (
+                  <div className="workspace-subsector-meta">
+                    {badges.map((label) => (
+                      <span
+                        key={label}
+                        className={`workspace-mode-badge${getBadgeTone(status, label)}`}
+                      >
+                        {label}
+                      </span>
+                    ))}
+                    {allDisabled && (
+                      <button
+                        type="button"
+                        className="workspace-mode-toggle"
+                        onClick={() => toggleExpanded(sub.outputId)}
+                      >
+                        {isCollapsed ? 'Show states' : 'Hide states'}
+                      </button>
+                    )}
+                  </div>
+                )}
                 {!isCollapsed && (
                   <div className="workspace-state-chips">
                     {sub.states.map((state) => {

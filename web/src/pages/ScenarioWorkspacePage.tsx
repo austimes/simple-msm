@@ -12,7 +12,7 @@ import {
 } from '../results/chartData';
 
 export default function ScenarioWorkspacePage() {
-  const { phase, result, request } = useScenarioSolve();
+  const { phase, result, request, error } = useScenarioSolve();
 
   const demandBySectorChart = useMemo(
     () => (request ? buildDemandBySectorChart(request) : null),
@@ -38,6 +38,9 @@ export default function ScenarioWorkspacePage() {
       </aside>
 
       <section className="workspace-center">
+        {phase === 'error' && error && (
+          <p className="scenario-status scenario-status--error">{error}</p>
+        )}
         {phase === 'solved' && result && request && (
           <div className="workspace-chart-grid">
             {demandBySectorChart && (

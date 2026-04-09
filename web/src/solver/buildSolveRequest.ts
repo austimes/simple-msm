@@ -7,7 +7,10 @@ import {
   type ResolvedSolveControl,
   type SolveRequest,
 } from './contract.ts';
-import { expandIncludedOutputsForDependencies } from './solveScope.ts';
+import {
+  deriveOutputRunStatuses,
+  expandIncludedOutputsForDependencies,
+} from './solveScope.ts';
 import {
   normalizeSolverRows,
   resolveScenarioForSolve,
@@ -23,6 +26,41 @@ function createRequestId(): string {
 
 export interface BuildSolveRequestOptions {
   includedOutputIds?: string[];
+}
+
+function buildDemandValidationMessage(
+  scenario: ResolvedScenarioForSolve,
+  invalidStatuses: ReturnType<typeof deriveOutputRunStatuses>,
+): string {
+  const details = Object.values(invalidStatuses).map((status) => {
+    const activeYears = scenario.years.filter(
+      (year) => (scenario.serviceDemandByOutput[status.outputId]?.[String(year)] ?? 0) > 0,
+    );
+    const yearsLabel = activeYears.length > 0 ? ` (${activeYears.join(', ')})` : '';
+    return `${status.outputId}${yearsLabel}`;
+  });
+
+  return `Cannot solve because required-service outputs have positive in-run demand but no enabled pathways: ${details.join(', ')}.`;
+}
+
+function validateRequiredServiceCoverage(
+  rows: NormalizedSolverRow[],
+  configuration: ScenarioDocument,
+  scenario: ResolvedScenarioForSolve,
+  appConfig: PackageData['appConfig'],
+  includedOutputIds: string[] | undefined,
+): void {
+  const invalidStatuses = Object.fromEntries(
+    Object.entries(
+      deriveOutputRunStatuses(rows, configuration, scenario, appConfig, includedOutputIds),
+    ).filter(([, status]) => status.hasDemandValidationError),
+  );
+
+  if (Object.keys(invalidStatuses).length === 0) {
+    return;
+  }
+
+  throw new Error(buildDemandValidationMessage(scenario, invalidStatuses));
 }
 
 function filterSolveRequestForOutputs(
@@ -106,6 +144,13 @@ export function buildSolveRequest(
   const allRows = normalizeSolverRows(pkg);
   const resolvedScenario = resolveScenarioForSolve(configuration, pkg.appConfig);
   const includedOutputIds = options.includedOutputIds ?? getIncludedOutputIds(configuration);
+  validateRequiredServiceCoverage(
+    allRows,
+    configuration,
+    resolvedScenario,
+    pkg.appConfig,
+    includedOutputIds,
+  );
 
   if (!includedOutputIds || includedOutputIds.length === 0) {
     return {

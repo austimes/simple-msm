@@ -53,6 +53,7 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
       statuses.passenger_road_transport.demandParticipation,
       'excluded_from_run',
     );
+    assert.equal(statuses.electricity.supplyParticipation, 'endogenous_in_run');
     assert.ok(statuses.residential_building_services.enabledStateCount > 0);
     assert.ok(statuses.commercial_building_services.enabledStateCount > 0);
     assert.equal(statuses.electricity.isDisabled, false);
@@ -89,7 +90,49 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
     assert.equal(statuses.passenger_road_transport.controlMode, 'optimize');
     assert.equal(
       statuses.passenger_road_transport.demandParticipation,
-      'active_in_run',
+      'no_enabled_pathways',
+    );
+    assert.equal(statuses.passenger_road_transport.hasPositiveDemandInRun, true);
+    assert.equal(statuses.passenger_road_transport.hasDemandValidationError, true);
+  });
+
+  test('marks commodity outputs as externalized supply without reading as disabled', () => {
+    const scenario = buildScenario(pkg.appConfig, {
+      name: 'Buildings with externalized electricity',
+      serviceControls: {
+        electricity: { mode: 'externalized' },
+      },
+    });
+
+    const statuses = deriveOutputRunStatusesForConfiguration(pkg, scenario);
+
+    assert.equal(statuses.electricity.supplyParticipation, 'externalized_in_run');
+    assert.equal(statuses.electricity.isDisabled, false);
+    assert.equal(statuses.electricity.demandParticipation, 'not_applicable');
+  });
+
+  test('buildSolveRequest blocks positive required-service demand with no enabled pathways', () => {
+    const allPassengerStateIds = Array.from(
+      new Set(
+        pkg.sectorStates
+          .filter((row) => row.service_or_output_name === 'passenger_road_transport')
+          .map((row) => row.state_id),
+      ),
+    );
+
+    const scenario = buildScenario(pkg.appConfig, {
+      name: 'Passenger transport blocked by disabled pathways',
+      serviceControls: {
+        passenger_road_transport: {
+          mode: 'optimize',
+          disabled_state_ids: allPassengerStateIds,
+        },
+      },
+    });
+
+    assert.throws(
+      () => buildSolveRequest(pkg, scenario),
+      /passenger_road_transport/,
     );
   });
 
