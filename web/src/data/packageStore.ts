@@ -54,6 +54,22 @@ function cloneConfiguration(configuration: ConfigurationDocument): Configuration
   return structuredClone(configuration);
 }
 
+function sortNestedValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(sortNestedValue);
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, nestedValue]) => [key, sortNestedValue(nestedValue)]),
+    );
+  }
+
+  return value;
+}
+
 function configurationsEqual(a: ConfigurationDocument, b: ConfigurationDocument): boolean {
   const normalize = (configuration: ConfigurationDocument): unknown => {
     const clone = structuredClone(configuration);
@@ -62,7 +78,7 @@ function configurationsEqual(a: ConfigurationDocument, b: ConfigurationDocument)
         control.disabled_state_ids = [...control.disabled_state_ids].sort();
       }
     }
-    return JSON.stringify(clone, Object.keys(clone).sort());
+    return JSON.stringify(sortNestedValue(clone));
   };
   return normalize(a) === normalize(b);
 }
