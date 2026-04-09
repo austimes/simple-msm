@@ -5,9 +5,9 @@ import {
 } from '../../data/configurationWorkspaceModel';
 import { deriveOutputRunStatusesForConfiguration } from '../../solver/solveScope.ts';
 import {
-  getRightSidebarStatusPresentation,
   RIGHT_SIDEBAR_STATUS_LEGEND,
 } from './rightSidebarStatus';
+import { deriveRightSidebarTree } from './rightSidebarTree';
 
 function formatSectorName(sector: string): string {
   return sector.replaceAll('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase());
@@ -19,15 +19,28 @@ export default function RightSidebar() {
   const currentConfiguration = usePackageStore((s) => s.currentConfiguration);
   const toggleStateEnabled = usePackageStore((s) => s.toggleStateEnabled);
 
-  const [expandedDisabled, setExpandedDisabled] = useState<Set<string>>(new Set());
+  const [expandedSubsectors, setExpandedSubsectors] = useState<Set<string>>(new Set());
+  const [expandedSectors, setExpandedSectors] = useState<Set<string>>(new Set());
 
-  const toggleExpanded = useCallback((outputId: string) => {
-    setExpandedDisabled((prev) => {
+  const toggleExpandedSubsector = useCallback((outputId: string) => {
+    setExpandedSubsectors((prev) => {
       const next = new Set(prev);
       if (next.has(outputId)) {
         next.delete(outputId);
       } else {
         next.add(outputId);
+      }
+      return next;
+    });
+  }, []);
+
+  const toggleExpandedSector = useCallback((sector: string) => {
+    setExpandedSectors((prev) => {
+      const next = new Set(prev);
+      if (next.has(sector)) {
+        next.delete(sector);
+      } else {
+        next.add(sector);
       }
       return next;
     });
@@ -44,6 +57,11 @@ export default function RightSidebar() {
       currentConfiguration,
     ),
     [sectorStates, appConfig, currentConfiguration],
+  );
+
+  const tree = useMemo(
+    () => deriveRightSidebarTree(catalog, outputStatuses, expandedSubsectors, expandedSectors),
+    [catalog, outputStatuses, expandedSubsectors, expandedSectors],
   );
 
   return (
@@ -65,20 +83,39 @@ export default function RightSidebar() {
           ))}
         </div>
       </div>
-      {catalog.map((sectorEntry) => (
-        <div key={sectorEntry.sector} className="workspace-sector-group">
-          <div className="workspace-sector-title">
-            {formatSectorName(sectorEntry.sector)}
+      {tree.map((sectorEntry) => (
+        <div
+          key={sectorEntry.sector}
+          className={`workspace-sector-group${sectorEntry.isExcluded ? ' workspace-sector-group--dimmed' : ''}`}
+        >
+          <div className="workspace-sector-header">
+            <div
+              className={`workspace-sector-title${sectorEntry.isExcluded ? ' workspace-sector-title--clickable' : ''}`}
+              onClick={sectorEntry.isExcluded ? () => toggleExpandedSector(sectorEntry.sector) : undefined}
+            >
+              {formatSectorName(sectorEntry.sector)}
+            </div>
+            {sectorEntry.isExcluded && (
+              <div className="workspace-sector-meta">
+                <span className="workspace-mode-badge workspace-mode-badge--muted">
+                  Excluded from this run
+                </span>
+                <button
+                  type="button"
+                  className="workspace-mode-toggle"
+                  onClick={() => toggleExpandedSector(sectorEntry.sector)}
+                >
+                  {sectorEntry.isCollapsed ? 'Show sub-sectors' : 'Hide sub-sectors'}
+                </button>
+              </div>
+            )}
           </div>
-          {sectorEntry.subsectors.map((sub) => {
-            const status = outputStatuses[sub.outputId];
-            const presentation = getRightSidebarStatusPresentation(status);
-            const enabledIds = new Set(status?.enabledStateIds ?? []);
-            const pathwaysInactive = presentation.arePathwaysInactive;
-            const allDisabled = status?.isDisabled ?? enabledIds.size === 0;
-            const outOfScope = presentation.isDimmed;
-            const isCollapsed = allDisabled && !expandedDisabled.has(sub.outputId);
-            const badges = presentation.badges;
+          {!sectorEntry.isCollapsed && sectorEntry.subsectors.map((sub) => {
+            const enabledIds = new Set(sub.enabledStateIds);
+            const pathwaysInactive = sub.pathwaysInactive;
+            const outOfScope = sub.outOfScope;
+            const isCollapsed = sub.isCollapsed;
+            const badges = sub.badges;
 
             return (
               <div
@@ -86,8 +123,8 @@ export default function RightSidebar() {
                 className={`workspace-subsector-group${outOfScope ? ' workspace-subsector-group--dimmed' : ''}`}
               >
                 <div
-                  className={`workspace-subsector-title${allDisabled ? ' workspace-subsector-title--clickable' : ''}`}
-                  onClick={allDisabled ? () => toggleExpanded(sub.outputId) : undefined}
+                  className={`workspace-subsector-title${sub.canCollapse ? ' workspace-subsector-title--clickable' : ''}`}
+                  onClick={sub.canCollapse ? () => toggleExpandedSubsector(sub.outputId) : undefined}
                 >
                   {sub.outputLabel}
                 </div>
@@ -97,16 +134,16 @@ export default function RightSidebar() {
                       <span
                         key={badge.key}
                         className={`workspace-mode-badge workspace-mode-badge--${badge.tone}`}
-                        title={presentation.detail}
+                        title={sub.presentation.detail}
                       >
                         {badge.label}
                       </span>
                     ))}
-                    {allDisabled && (
+                    {sub.canCollapse && (
                       <button
                         type="button"
                         className="workspace-mode-toggle"
-                        onClick={() => toggleExpanded(sub.outputId)}
+                        onClick={() => toggleExpandedSubsector(sub.outputId)}
                       >
                         {isCollapsed ? 'Show states' : 'Hide states'}
                       </button>
@@ -114,7 +151,7 @@ export default function RightSidebar() {
                   </div>
                 )}
                 {pathwaysInactive && (
-                  <div className="workspace-subsector-detail">{presentation.detail}</div>
+                  <div className="workspace-subsector-detail">{sub.presentation.detail}</div>
                 )}
                 {!isCollapsed && (
                   <div className="workspace-state-chips">
@@ -129,7 +166,7 @@ export default function RightSidebar() {
                             toggleStateEnabled(sub.outputId, state.stateId)
                           }
                           disabled={pathwaysInactive}
-                          title={pathwaysInactive ? presentation.detail : undefined}
+                          title={pathwaysInactive ? sub.presentation.detail : undefined}
                         >
                           {state.stateLabel}
                         </button>

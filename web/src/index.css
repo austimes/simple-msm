@@ -1632,13 +1632,28 @@ body {
   margin-top: 20px;
 }
 
+.workspace-sector-group--dimmed .workspace-sector-header {
+  opacity: 0.72;
+}
+
+.workspace-sector-header {
+  margin-bottom: 10px;
+}
+
 .workspace-sector-title {
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--color-text-muted);
-  margin-bottom: 10px;
+  margin-bottom: 0;
+}
+
+.workspace-sector-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
 }
 
 .workspace-subsector-group {
@@ -1685,6 +1700,15 @@ body {
 .workspace-subsector-title--clickable {
   cursor: pointer;
   user-select: none;
+}
+
+.workspace-sector-title--clickable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.workspace-sector-title--clickable:hover {
+  color: var(--color-primary);
 }
 
 .workspace-subsector-title--clickable:hover {
