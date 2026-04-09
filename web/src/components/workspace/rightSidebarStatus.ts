@@ -1,26 +1,10 @@
-import type {
-  DerivedOutputRunStatus,
-  OutputRunParticipation,
-} from '../../solver/solveScope.ts';
-
 export type RightSidebarBadgeTone =
   | 'active'
-  | 'dependency'
-  | 'excluded'
-  | 'disabled';
-
-export interface RightSidebarBadge {
-  key: string;
-  label: string;
-  tone: RightSidebarBadgeTone;
-}
-
-export interface RightSidebarStatusPresentation {
-  badges: RightSidebarBadge[];
-  detail: string;
-  groupClassNames: string[];
-  isDisabled: boolean;
-}
+  | 'success'
+  | 'warning'
+  | 'danger'
+  | 'info'
+  | 'muted';
 
 export interface RightSidebarLegendItem {
   key: string;
@@ -29,88 +13,41 @@ export interface RightSidebarLegendItem {
   description: string;
 }
 
-const PARTICIPATION_DETAILS: Record<
-  OutputRunParticipation,
-  {
-    badge: RightSidebarBadge;
-    detail: string;
-    groupClassName?: string;
-  }
-> = {
-  full_model: {
-    badge: { key: 'full-model', label: 'full model', tone: 'active' },
-    detail: 'Included in the full-model run.',
-  },
-  seed_scope: {
-    badge: { key: 'in-scope', label: 'in scope', tone: 'active' },
-    detail: 'Explicitly selected for this scoped run.',
-  },
-  auto_included_dependency: {
-    badge: { key: 'dependency', label: 'dependency', tone: 'dependency' },
-    detail: 'Included automatically because another in-run output depends on it.',
-    groupClassName: 'workspace-subsector-group--dependency',
-  },
-  excluded_from_run: {
-    badge: { key: 'excluded', label: 'excluded', tone: 'excluded' },
-    detail: 'Outside the current scoped run.',
-    groupClassName: 'workspace-subsector-group--excluded',
-  },
-};
-
 export const RIGHT_SIDEBAR_STATUS_LEGEND: RightSidebarLegendItem[] = [
   {
-    key: 'in-scope',
-    label: 'in scope',
+    key: 'demand-active',
+    label: 'Demand active in this run',
     tone: 'active',
-    description: 'Explicitly selected for this run.',
+    description: 'Required-service demand participates in the current solve.',
   },
   {
-    key: 'dependency',
-    label: 'dependency',
-    tone: 'dependency',
-    description: 'Added automatically because an in-run output needs it.',
+    key: 'selected-scope',
+    label: 'Selected scope',
+    tone: 'success',
+    description: 'Explicitly selected for the current scoped run.',
   },
   {
-    key: 'excluded',
-    label: 'excluded',
-    tone: 'excluded',
-    description: 'Outside the current scoped run.',
+    key: 'auto-dependency',
+    label: 'Auto-included dependency',
+    tone: 'info',
+    description: 'Added because another in-run output depends on it.',
   },
   {
-    key: 'disabled',
-    label: 'disabled',
-    tone: 'disabled',
-    description: 'No states are currently enabled for this output.',
+    key: 'externalized',
+    label: 'Externalized supply in this run',
+    tone: 'muted',
+    description: 'Commodity demand is met externally rather than by enabled pathways.',
+  },
+  {
+    key: 'no-pathways',
+    label: 'No enabled pathways',
+    tone: 'warning',
+    description: 'State enablement is separate from demand or supply participation.',
+  },
+  {
+    key: 'blocked-demand',
+    label: 'Demand active but no enabled pathways',
+    tone: 'danger',
+    description: 'The solve is blocked until at least one pathway is re-enabled.',
   },
 ];
-
-export function getRightSidebarStatusPresentation(
-  status: DerivedOutputRunStatus | undefined,
-): RightSidebarStatusPresentation {
-  if (!status) {
-    return {
-      badges: [],
-      detail: 'Run status unavailable.',
-      groupClassNames: [],
-      isDisabled: false,
-    };
-  }
-
-  const participation = PARTICIPATION_DETAILS[status.runParticipation];
-  const badges = [participation.badge];
-  const groupClassNames = participation.groupClassName ? [participation.groupClassName] : [];
-  let detail = participation.detail;
-
-  if (status.isDisabled) {
-    badges.push({ key: 'disabled', label: 'disabled', tone: 'disabled' });
-    groupClassNames.push('workspace-subsector-group--disabled');
-    detail = `${detail} No states are enabled, so this output cannot run until a state is re-enabled.`;
-  }
-
-  return {
-    badges,
-    detail,
-    groupClassNames,
-    isDisabled: status.isDisabled,
-  };
-}

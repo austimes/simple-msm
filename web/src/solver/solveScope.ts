@@ -22,6 +22,13 @@ export type OutputRunParticipation =
 
 export type OutputDemandParticipation =
   | 'active_in_run'
+  | 'no_enabled_pathways'
+  | 'excluded_from_run'
+  | 'not_applicable';
+
+export type OutputSupplyParticipation =
+  | 'endogenous_in_run'
+  | 'externalized_in_run'
   | 'excluded_from_run'
   | 'not_applicable';
 
@@ -35,6 +42,9 @@ export interface DerivedOutputRunStatus {
   inRun: boolean;
   runParticipation: OutputRunParticipation;
   demandParticipation: OutputDemandParticipation;
+  supplyParticipation: OutputSupplyParticipation;
+  hasPositiveDemandInRun: boolean;
+  hasDemandValidationError: boolean;
   isSeedScoped: boolean;
   isAutoIncludedDependency: boolean;
   isExcludedFromRun: boolean;
@@ -168,6 +178,12 @@ export function deriveOutputRunStatuses(
         && !isSeedScoped
         && !!expandedOutputIds?.has(outputId);
       const inRun = isFullModel || isSeedScoped || isAutoIncludedDependency;
+      const hasPositiveDemandInRun = outputMetadata.demand_required
+        && inRun
+        && Object.values(resolvedScenario.serviceDemandByOutput[outputId] ?? {}).some((value) => value > 0);
+      const hasDemandValidationError = outputMetadata.demand_required
+        && hasPositiveDemandInRun
+        && enabledStateCount === 0;
       const runParticipation: OutputRunParticipation = isFullModel
         ? 'full_model'
         : isSeedScoped
@@ -186,8 +202,19 @@ export function deriveOutputRunStatuses(
         inRun,
         runParticipation,
         demandParticipation: outputMetadata.demand_required
-          ? (inRun ? 'active_in_run' : 'excluded_from_run')
+          ? (inRun
+              ? (enabledStateCount === 0 ? 'no_enabled_pathways' : 'active_in_run')
+              : 'excluded_from_run')
           : 'not_applicable',
+        supplyParticipation: outputMetadata.output_role === 'endogenous_supply_commodity'
+          ? (inRun
+              ? (getControlMode(scenario, appConfig, outputId) === 'externalized'
+                  ? 'externalized_in_run'
+                  : 'endogenous_in_run')
+              : 'excluded_from_run')
+          : 'not_applicable',
+        hasPositiveDemandInRun,
+        hasDemandValidationError,
         isSeedScoped,
         isAutoIncludedDependency,
         isExcludedFromRun: !inRun,

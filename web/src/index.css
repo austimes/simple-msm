@@ -1655,6 +1655,17 @@ body {
   border-color: #fecaca;
 }
 
+.workspace-subsector-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.workspace-subsector-group--dimmed {
+  opacity: 0.5;
+}
+
 .workspace-subsector-title--clickable {
   cursor: pointer;
   user-select: none;
@@ -1723,8 +1734,7 @@ body {
 
 .workspace-mode-badge {
   display: inline-block;
-  margin-left: 6px;
-  padding: 1px 6px;
+  padding: 2px 8px;
   border-radius: 999px;
   font-size: 10px;
   font-weight: 700;
@@ -1732,6 +1742,51 @@ body {
   text-transform: uppercase;
   background: #f1f5f9;
   color: var(--color-text-muted);
+}
+
+.workspace-mode-badge--active {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.workspace-mode-badge--success {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.workspace-mode-badge--warning {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.workspace-mode-badge--danger {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.workspace-mode-badge--info {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.workspace-mode-badge--muted {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.workspace-mode-toggle {
+  border: 0;
+  background: transparent;
+  color: var(--color-primary);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0 2px;
+}
+
+.workspace-mode-toggle:hover {
+  text-decoration: underline;
 }
 
 .workspace-state-chips {
