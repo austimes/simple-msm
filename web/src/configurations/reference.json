@@ -232,7 +232,7 @@
     "2050": 50
   },
   "solver_options": {
-    "respect_max_share": false,
+    "respect_max_share": true,
     "respect_max_activity": true,
     "soft_constraints": false,
     "allow_removals_credit": true,
