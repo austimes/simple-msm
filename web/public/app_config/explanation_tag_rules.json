@@ -79,7 +79,7 @@
   },
   "rollout_cap_binding": {
     "label": "Rollout cap binding",
-    "description": "Tag when a scenario explanation should point to max-share, max-activity, or rollout notes as active limits.",
+    "description": "Tag when a configuration explanation should point to max-share, max-activity, or rollout notes as active limits.",
     "comparison_basis": "metadata_signal",
     "metadata_signals": ["max_share_present", "max_activity_present", "rollout_limit_notes_present"],
     "applies_to_output_roles": ["required_service", "endogenous_supply_commodity", "optional_removals"]
