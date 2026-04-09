@@ -1,7 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom';
 
 const navItems = [
-  { to: '/', label: 'Configuration' },
+  { to: '/', label: 'Run' },
   { to: '/compare', label: 'Compare' },
   { to: '/library', label: 'Library' },
   { to: '/methods', label: 'Methods' },

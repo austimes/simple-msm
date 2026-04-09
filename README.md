@@ -30,7 +30,7 @@ The app now uses one canonical configuration model everywhere.
 
 There is no separate user-facing split between a base scenario and a configuration overlay. A built-in configuration is already the thing you edit, save, solve, and compare.
 
-Some internal TypeScript types and schema filenames still use the historical `scenario` name because they describe the same JSON shape. Contributor guidance in this repo uses `configuration` for the user-facing concept.
+Some internal TypeScript types and schema filenames still use the historical `scenario` name because they describe the same JSON shape. Contributor guidance in this repo uses `configuration` for the user-facing document concept. The main working page is labeled `Run`, but internal component and file names stay workspace- and configuration-oriented for now so this label change does not force a broad code rename.
 
 ## What Is In The Repo
 
@@ -52,7 +52,7 @@ The current package contains 228 state-year rows across milestone years 2025, 20
 
 `web/` exposes four main surfaces:
 
-- `Configuration` — inspect the active working document, import/export JSON, reset to the packaged reference configuration, edit metadata, scope outputs, and solve in place.
+- `Run` — inspect the active working document, import/export JSON, reset to the packaged reference configuration, edit metadata, scope outputs, and solve in place.
 - `Compare` — run built-in counterfactual solves derived from the active configuration and summarize deltas heuristically.
 - `Library` — browse state-year rows, evidence, constraints, and coefficients.
 - `Methods` — surface the package README and companion docs inside the app.
@@ -76,7 +76,7 @@ The app follows a straightforward pipeline:
 7. Run the solve in-browser.
    A web worker runs the LP adapter with `yalps`, keeping the UI responsive while returning status, diagnostics, constraint summaries, commodity balances, and state-share reporting.
 8. Reuse the same active configuration across the app.
-   The Configuration, Compare, Library, and Methods pages all stay anchored to the same working document and package data.
+   The Run, Compare, Library, and Methods pages all stay anchored to the same working document and package data.
 
 ## Quickstart
 
@@ -102,9 +102,9 @@ npx tsx --test test/*.test.mjs
 
 ## How To Use It
 
-### Configuration workspace
+### Run workspace
 
-Start on the `Configuration` page. The app loads the packaged reference configuration by default, restores a browser-local document if one exists, and lets you:
+Start on the `Run` page. The app loads the packaged reference configuration by default, restores a browser-local document if one exists, and lets you:
 
 - inspect document metadata,
 - import or export a validated JSON configuration document,
@@ -117,7 +117,7 @@ Autosave stores the active working document in browser storage. The UI is config
 
 ### Solve and compare workflow
 
-The solve output is shown directly from the Configuration workspace. The app rebuilds the normalized request from the current document, runs the worker-backed LP, and surfaces timings, diagnostics, electricity balance reporting, charts, and active-state summaries.
+The solve output is shown directly from the Run workspace. The app rebuilds the normalized request from the current document, runs the worker-backed LP, and surfaces timings, diagnostics, electricity balance reporting, charts, and active-state summaries.
 
 Open `Compare` to evaluate the active configuration against built-in counterfactual variants. Compare mode is heuristic: it is designed to explain likely drivers of change, not to claim exact causal decomposition.
 
@@ -148,7 +148,7 @@ For the full package-specific conventions and caveats, start with `aus_phase1_se
 
 - The app is intentionally standalone and browser-based; it is not a backend solve service.
 - The app currently expects the checked-in `aus_phase1_sector_state_library/` folder and imports it directly.
-- The configuration workspace is strongest for import/export, scoping, and solve workflows; it is not yet a full bespoke form editor for every document field.
+- The Run workspace is strongest for import/export, scoping, and solve workflows; it is not yet a full bespoke form editor for every document field.
 - Compare mode is explanatory and heuristic.
 - The root repo does not define shared scripts; app commands live under `web/package.json`.
 
