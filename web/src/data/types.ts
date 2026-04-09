@@ -77,6 +77,11 @@ export interface ScenarioSolverOptions {
 export interface ScenarioAppMetadata {
   id?: string;
   readonly?: boolean;
+  seed_output_ids?: string[];
+  /**
+   * Backward-compatible alias for `seed_output_ids`.
+   * Older saved configuration documents may still use this field.
+   */
   included_output_ids?: string[];
 }
 

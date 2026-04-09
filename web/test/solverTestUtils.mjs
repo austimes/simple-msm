@@ -139,13 +139,13 @@ export function buildScenario(appConfig, overrides = {}) {
 }
 
 /**
- * Build and solve a request with optional output scoping.
+ * Build and solve a request with optional seed scope.
  */
-export function solveScoped(pkg, scenario, includedOutputIds) {
+export function solveScoped(pkg, scenario, seedOutputIds) {
   const request = buildSolveRequest(
     { sectorStates: pkg.sectorStates, appConfig: pkg.appConfig },
     scenario,
-    includedOutputIds ? { includedOutputIds } : {},
+    seedOutputIds ? { seedOutputIds } : {},
   );
   const result = solveWithLpAdapter(request);
   return { request, result };

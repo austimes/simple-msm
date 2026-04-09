@@ -1,4 +1,4 @@
-import { getIncludedOutputIds } from '../data/configurationMetadata';
+import { getSeedOutputIds } from '../data/configurationMetadata';
 import { getEnabledStateIds } from '../data/scenarioWorkspaceModel';
 import type {
   AppConfigRegistry,
@@ -158,11 +158,13 @@ export function deriveOutputRunStatuses(
   scenario: ScenarioDocument,
   resolvedScenario: ResolvedScenarioForSolve,
   appConfig: AppConfigRegistry,
-  includedOutputIds: string[] | undefined,
+  seedOutputIdsFromMetadata: string[] | undefined,
 ): Record<string, DerivedOutputRunStatus> {
   const stateIdsByOutput = collectStateIdsByOutput(rows);
-  const hasScopedRun = !!includedOutputIds?.length;
-  const seedOutputIds = new Set(includedOutputIds ?? []);
+  const hasScopedRun = !!seedOutputIdsFromMetadata?.length;
+  const seedOutputIds = new Set(seedOutputIdsFromMetadata ?? []);
+  // Seed scope comes directly from configuration metadata. The effective run
+  // may be larger after endogenous supply dependencies are auto-included.
   const expandedOutputIds = hasScopedRun
     ? expandIncludedOutputsForDependencies(rows, resolvedScenario, appConfig, seedOutputIds)
     : null;
@@ -237,6 +239,6 @@ export function deriveOutputRunStatusesForConfiguration(
     scenario,
     resolvedScenario,
     pkg.appConfig,
-    getIncludedOutputIds(scenario),
+    getSeedOutputIds(scenario),
   );
 }

@@ -1,4 +1,4 @@
-import { getIncludedOutputIds } from '../data/configurationMetadata';
+import { getSeedOutputIds } from '../data/configurationMetadata';
 import type { PackageData, ScenarioDocument } from '../data/types';
 import {
   SOLVER_CONTRACT_VERSION,
@@ -16,10 +16,7 @@ import {
   resolveScenarioForSolve,
 } from './solveRequestModel.ts';
 
-export {
-  normalizeSolverRows,
-  resolveScenarioForSolve,
-} from './solveRequestModel.ts';
+export { normalizeSolverRows, resolveScenarioForSolve } from './solveRequestModel.ts';
 
 function createRequestId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -30,6 +27,10 @@ function createRequestId(): string {
 }
 
 export interface BuildSolveRequestOptions {
+  seedOutputIds?: string[];
+  /**
+   * Backward-compatible alias for `seedOutputIds`.
+   */
   includedOutputIds?: string[];
 }
 
@@ -53,11 +54,11 @@ function validateRequiredServiceCoverage(
   configuration: ScenarioDocument,
   scenario: ResolvedScenarioForSolve,
   appConfig: PackageData['appConfig'],
-  includedOutputIds: string[] | undefined,
+  seedOutputIds: string[] | undefined,
 ): void {
   const invalidStatuses = Object.fromEntries(
     Object.entries(
-      deriveOutputRunStatuses(rows, configuration, scenario, appConfig, includedOutputIds),
+      deriveOutputRunStatuses(rows, configuration, scenario, appConfig, seedOutputIds),
     ).filter(([, status]) => status.hasDemandValidationError),
   );
 
@@ -71,20 +72,20 @@ function validateRequiredServiceCoverage(
 function filterSolveRequestForOutputs(
   rows: NormalizedSolverRow[],
   scenario: ResolvedScenarioForSolve,
-  includedOutputIds: Set<string>,
+  effectiveOutputIds: Set<string>,
   seedOutputIds: Set<string>,
 ): { rows: NormalizedSolverRow[]; scenario: ResolvedScenarioForSolve } {
-  const filteredRows = rows.filter((row) => includedOutputIds.has(row.outputId));
+  const filteredRows = rows.filter((row) => effectiveOutputIds.has(row.outputId));
 
   const filteredControlsByOutput: Record<string, Record<string, ResolvedSolveControl>> = {};
-  for (const outputId of includedOutputIds) {
+  for (const outputId of effectiveOutputIds) {
     if (scenario.controlsByOutput[outputId]) {
       filteredControlsByOutput[outputId] = scenario.controlsByOutput[outputId];
     }
   }
 
   const filteredServiceDemandByOutput: Record<string, Record<string, number>> = {};
-  for (const outputId of includedOutputIds) {
+  for (const outputId of effectiveOutputIds) {
     if (scenario.serviceDemandByOutput[outputId]) {
       filteredServiceDemandByOutput[outputId] = scenario.serviceDemandByOutput[outputId];
     }
@@ -148,16 +149,18 @@ export function buildSolveRequest(
 ): SolveRequest {
   const allRows = normalizeSolverRows(pkg);
   const resolvedScenario = resolveScenarioForSolve(configuration, pkg.appConfig);
-  const includedOutputIds = options.includedOutputIds ?? getIncludedOutputIds(configuration);
+  const seedOutputIds = options.seedOutputIds
+    ?? options.includedOutputIds
+    ?? getSeedOutputIds(configuration);
   validateRequiredServiceCoverage(
     allRows,
     configuration,
     resolvedScenario,
     pkg.appConfig,
-    includedOutputIds,
+    seedOutputIds,
   );
 
-  if (!includedOutputIds || includedOutputIds.length === 0) {
+  if (!seedOutputIds || seedOutputIds.length === 0) {
     return {
       contractVersion: SOLVER_CONTRACT_VERSION,
       requestId: createRequestId(),
@@ -166,14 +169,19 @@ export function buildSolveRequest(
     };
   }
 
-  const seedOutputIds = new Set(includedOutputIds);
+  const seedOutputIdSet = new Set(seedOutputIds);
   const expandedOutputIds = expandIncludedOutputsForDependencies(
     allRows,
     resolvedScenario,
     pkg.appConfig,
-    seedOutputIds,
+    seedOutputIdSet,
   );
-  const filtered = filterSolveRequestForOutputs(allRows, resolvedScenario, expandedOutputIds, seedOutputIds);
+  const filtered = filterSolveRequestForOutputs(
+    allRows,
+    resolvedScenario,
+    expandedOutputIds,
+    seedOutputIdSet,
+  );
 
   return {
     contractVersion: SOLVER_CONTRACT_VERSION,

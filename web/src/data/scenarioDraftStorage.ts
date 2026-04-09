@@ -1,6 +1,6 @@
 import { parseScenarioDocument } from './scenarioLoader';
 import type { AppConfigRegistry, ScenarioDocument } from './types';
-import { withIncludedOutputIds } from './configurationLoader';
+import { withSeedOutputIds } from './configurationLoader';
 
 export const SCENARIO_DRAFT_STORAGE_KEY = 'simple-msm.scenario-draft.v2';
 export const CONFIG_META_STORAGE_KEY = 'simple-msm.config-meta.v1';
@@ -175,7 +175,7 @@ function loadPersistedConfigMeta(
       return {
         activeConfigurationId: parsed.activeConfigurationId,
         activeConfigurationReadonly: parsed.activeConfigurationReadonly,
-        baseConfiguration: withIncludedOutputIds(
+        baseConfiguration: withSeedOutputIds(
           structuredClone(parsed.baseConfigurationScenario),
           parsed.baseIncludedOutputIds,
         ),

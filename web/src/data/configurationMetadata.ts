@@ -1,6 +1,6 @@
 import type { ScenarioDocument } from './types';
 
-export function normalizeIncludedOutputIds(value: string[] | undefined): string[] | undefined {
+export function normalizeSeedOutputIds(value: string[] | undefined): string[] | undefined {
   if (!Array.isArray(value)) {
     return undefined;
   }
@@ -12,6 +12,15 @@ export function normalizeIncludedOutputIds(value: string[] | undefined): string[
   return normalized.length > 0 ? normalized : undefined;
 }
 
-export function getIncludedOutputIds(configuration: ScenarioDocument): string[] | undefined {
-  return normalizeIncludedOutputIds(configuration.app_metadata?.included_output_ids);
+export function getSeedOutputIds(configuration: ScenarioDocument): string[] | undefined {
+  return normalizeSeedOutputIds(
+    configuration.app_metadata?.seed_output_ids
+    ?? configuration.app_metadata?.included_output_ids,
+  );
 }
+
+// Backward-compatible alias for older call sites.
+export const normalizeIncludedOutputIds = normalizeSeedOutputIds;
+
+// Backward-compatible alias for older call sites.
+export const getIncludedOutputIds = getSeedOutputIds;
