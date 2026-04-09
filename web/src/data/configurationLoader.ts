@@ -1,5 +1,5 @@
 /**
- * Loads solve configurations from:
+ * Loads full configuration documents from:
  * 1. Built-in configs shipped in src/configurations/ (readonly)
  * 2. User configs persisted to localStorage (editable)
  */
@@ -60,7 +60,7 @@ function withConfigurationMetadata(
   });
 }
 
-function parseConfigurationCollection(
+export function parseConfigurationCollection(
   modules: Record<string, string>,
   readonly: boolean,
 ): ScenarioDocument[] {
@@ -73,7 +73,7 @@ function parseConfigurationCollection(
       const parsed = parseScenarioDocument(raw, undefined, path);
       configs.push(withConfigurationMetadata(parsed, { readonly }));
     } catch {
-      console.warn(`Failed to parse built-in configuration: ${path}`);
+      console.warn(`Failed to parse configuration document: ${path}`);
     }
   }
 

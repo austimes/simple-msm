@@ -1,73 +1,46 @@
-# React + TypeScript + Vite
+# Web App
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+`web/` is the standalone front end for `simple-msm`. It loads the checked-in Phase 1 sector-state library, restores one active configuration document, builds a normalized solve request, and runs the LP solve in-browser.
 
-Currently, two official plugins are available:
+## Configuration Model
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+The app is configuration-first.
 
-## React Compiler
+- Built-in configurations live in `src/configurations/*.json` and are full solve documents.
+- Imported JSON uses that same document shape.
+- Browser autosave persists that same full document as the active working document.
+- The solver consumes that same document after demand resolution and optional output scoping.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+There is no separate user-facing base-scenario-plus-overlay workflow.
 
-## Expanding the ESLint configuration
+## Run It
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Open the local URL printed by Vite.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Quality Checks
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm run lint
+npm run build
+npx tsx --test test/*.test.mjs
 ```
+
+## Main Folders
+
+- `src/configurations/` — built-in full configuration documents.
+- `src/components/workspace/` — configuration workspace UI, including import/export and metadata editing.
+- `src/data/` — package loading, configuration loading, browser persistence, and demand resolution.
+- `src/solver/` — normalized solve-request construction, worker bridge, and LP adapter.
+- `src/compare/` — heuristic compare planning and reporting.
+- `test/` — regression coverage for configuration documents, demand resolution, solves, compare flows, and package companions.
+
+## Contributor Notes
+
+- `public/app_config/` contains app-owned registries and defaults such as output roles, demand presets, commodity-price presets, and explanation rules.
+- `src/app_config/reference_scenario.json` and `src/data/scenarioLoader.ts` still use the historical `scenario` name for the JSON schema and shared TypeScript model. In user-facing docs and product language, treat that document as a configuration.
+- If you add a built-in configuration, keep it as a complete document with explicit demand tables and metadata. Do not rely on reference-document inheritance or overlays.

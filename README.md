@@ -1,28 +1,36 @@
 # simple-msm
 
-`simple-msm` packages an Australia-focused Phase 1 sector-state library together with a small standalone web explorer for running and inspecting reduced-form decarbonisation scenarios. The repository exists to make the Phase 1 library both reviewable and runnable: the checked-in data package captures sector-state assumptions, evidence, and caveats, while the web app turns those rows into an inspectable scenario explorer without requiring a backend service or a VedaLang/Vita stack.
+`simple-msm` packages an Australia-focused Phase 1 sector-state library together with a standalone web explorer for inspecting, solving, and comparing reduced-form decarbonisation configurations.
 
-At a high level, the repo has two halves:
+The repository has two halves:
 
-- `aus_phase1_sector_state_library/` contains the research package.
-- `web/` contains a Vite + React + TypeScript app that loads that package directly, resolves scenarios from app-owned config, builds a generic LP solve request, and runs solves in-browser with `yalps` inside a web worker.
+- `aus_phase1_sector_state_library/` contains the checked-in research package.
+- `web/` contains a Vite + React + TypeScript app that loads that package directly, turns one active configuration document into a normalized solve request, and runs solves in-browser with `yalps` inside a web worker.
 
 ## Why This Exists
 
-The underlying Phase 1 library is meant to be:
+The Phase 1 library is meant to be scientifically reviewable, traceable back to explicit evidence and assumptions, useful for fast whole-economy MVP analysis, and expandable into more explicit future representations.
 
-- scientifically reviewable,
-- traceable back to source families and explicit assumptions,
-- good enough for a fast reduced-form MVP that captures whole-economy pressure and electricity interactions,
-- and expandable later into more explicit process or TIMES-style representations.
-
-This repo adds a thin application layer around that package so an analyst or reviewer can:
+This repo adds the thinnest possible application layer around that package so an analyst or reviewer can:
 
 - inspect sector states, assumptions, evidence summaries, and confidence ratings,
-- work from a packaged reference scenario or import a scenario JSON document,
+- load a built-in configuration or import a JSON configuration document,
 - apply app-owned demand, price, and carbon assumptions,
 - run a generic LP solve across milestone years,
-- and compare the effect of scenario changes on cost, direct emissions, commodity demand, electricity balance, and state shares.
+- and compare how configuration changes affect cost, direct emissions, commodity demand, electricity balance, and state shares.
+
+## Canonical Model
+
+The app now uses one canonical configuration model everywhere.
+
+- Every built-in configuration in `web/src/configurations/*.json` is a full solve document.
+- Imported JSON uses that same full-document shape.
+- Browser autosave stores that same full document as the active working document.
+- The solver receives that same document after demand resolution and output scoping.
+
+There is no separate user-facing split between a base scenario and a configuration overlay. A built-in configuration is already the thing you edit, save, solve, and compare.
+
+Some internal TypeScript types and schema filenames still use the historical `scenario` name because they describe the same JSON shape. Contributor guidance in this repo uses `configuration` for the user-facing concept.
 
 ## What Is In The Repo
 
@@ -42,12 +50,11 @@ The current package contains 228 state-year rows across milestone years 2025, 20
 
 ### Web explorer
 
-`web/` is a small standalone application with pages for:
+`web/` exposes four main surfaces:
 
-- `Scenario` — load, inspect, import, export, and reset the active scenario draft.
-- `Results` — build the normalized request, solve it in a worker, and inspect diagnostics and balance outputs.
-- `Compare` — run built-in counterfactual solves and summarize deltas heuristically.
-- `Library` — browse every state-year row and inspect evidence, constraints, and coefficients.
+- `Configuration` — inspect the active working document, import/export JSON, reset to the packaged reference configuration, edit metadata, scope outputs, and solve in place.
+- `Compare` — run built-in counterfactual solves derived from the active configuration and summarize deltas heuristically.
+- `Library` — browse state-year rows, evidence, constraints, and coefficients.
 - `Methods` — surface the package README and companion docs inside the app.
 
 ## How It Works
@@ -55,19 +62,21 @@ The current package contains 228 state-year rows across milestone years 2025, 20
 The app follows a straightforward pipeline:
 
 1. Load the checked-in package directly.
-   Vite raw-imports Markdown, CSV, and JSON files from `aus_phase1_sector_state_library/`. The current app is coupled to that folder being present in this repo; it is not a generic package uploader.
+   Vite raw-imports Markdown, CSV, and JSON files from `aus_phase1_sector_state_library/`. The app expects that folder to exist in this repo; it is not a generic package uploader.
 2. Normalize the package.
    The loader parses `sector_states.csv` into typed sector-state rows, converts JSON-encoded array columns into usable arrays, and loads companion ledgers and docs when present.
-3. Load app-owned configuration.
-   The app reads `web/public/app_config/` for output-role metadata, baseline activity anchors, demand-growth presets, commodity-price presets, explanation rules, a reference scenario, and the scenario JSON schema.
-4. Resolve the active scenario.
-   The packaged reference scenario or an imported JSON document is validated, then demand tables and year overrides are materialized into the shape the solver expects.
-5. Build a generic solve request.
-   The app maps every sector-state row into a normalized solver row with output role, inputs, direct emissions, and numeric bounds so the solver logic can stay generic rather than sector-specific.
-6. Run the solve in-browser.
+3. Load app-owned registries and configuration documents.
+   The app reads `web/public/app_config/` for output-role metadata, baseline anchors, demand presets, commodity-price presets, explanation rules, and the JSON schema. It also loads full built-in configurations from `web/src/configurations/`.
+4. Restore one active working document.
+   On startup, the app restores the most recent browser-local configuration document when available; otherwise it loads the packaged reference configuration.
+5. Resolve demand and scope.
+   The active configuration is validated, demand tables are materialized into explicit milestone-year values, and optional output scoping is applied from the document metadata.
+6. Build a generic solve request.
+   The app maps each sector-state row into a normalized solver row with output role, inputs, direct emissions, and numeric bounds so the LP logic stays generic rather than sector-specific.
+7. Run the solve in-browser.
    A web worker runs the LP adapter with `yalps`, keeping the UI responsive while returning status, diagnostics, constraint summaries, commodity balances, and state-share reporting.
-7. Render inspection and comparison views.
-   The app uses the same normalized data for the Results, Compare, Library, and Methods pages so scenario outputs and trust views stay aligned with the underlying package.
+8. Reuse the same active configuration across the app.
+   The Configuration, Compare, Library, and Methods pages all stay anchored to the same working document and package data.
 
 ## Quickstart
 
@@ -88,37 +97,29 @@ cd web
 npm run build
 npm run preview
 npm run lint
+npx tsx --test test/*.test.mjs
 ```
 
 ## How To Use It
 
-### Scenario workflow
+### Configuration workspace
 
-Start on the `Scenario` page. The app loads a packaged reference scenario by default, restores a browser draft if one exists, and lets you:
+Start on the `Configuration` page. The app loads the packaged reference configuration by default, restores a browser-local document if one exists, and lets you:
 
-- inspect scenario metadata,
-- import a validated JSON scenario,
-- export the active scenario draft,
-- and reset back to the packaged reference scenario.
+- inspect document metadata,
+- import or export a validated JSON configuration document,
+- edit the current document name and description,
+- save new named configurations from the sidebar,
+- scope the working document to a subset of outputs,
+- and reset back to the packaged reference configuration.
 
-Scenario drafts autosave in the browser. The current UI is strongest for working from the packaged reference scenario plus JSON import/export; it is not yet a full in-browser scenario authoring system.
+Autosave stores the active working document in browser storage. The UI is configuration-first: you stay on one document as you edit, solve, and compare.
 
-### Results workflow
+### Solve and compare workflow
 
-Open `Results` to build the normalized solve request and run the worker-backed LP. The page surfaces:
+The solve output is shown directly from the Configuration workspace. The app rebuilds the normalized request from the current document, runs the worker-backed LP, and surfaces timings, diagnostics, electricity balance reporting, charts, and active-state summaries.
 
-- solve status and timings,
-- normalized input counts,
-- electricity balance reporting,
-- binding constraints,
-- soft-constraint violations when enabled,
-- and raw diagnostics from the LP adapter.
-
-### Compare workflow
-
-Open `Compare` to evaluate the active scenario against built-in counterfactual variants. This mode summarizes KPI deltas, commodity shifts, electricity deltas, confidence exposure, and state-share changes.
-
-Compare mode is heuristic. It is designed to explain likely drivers of change, not to claim exact causal decomposition.
+Open `Compare` to evaluate the active configuration against built-in counterfactual variants. Compare mode is heuristic: it is designed to explain likely drivers of change, not to claim exact causal decomposition.
 
 ### Library and methods workflow
 
@@ -128,13 +129,14 @@ Use `Methods` to read the package README, Phase 2 memo, methods overview, and se
 
 ## Key Modeling Conventions
 
-The repo intentionally separates library-owned research content from app-owned convenience configuration.
+The repo still separates library-owned research content from app-owned convenience registries.
 
-Library-owned content includes sector-state rows, evidence summaries, review notes, source IDs, assumptions, and companion docs. App-owned content includes output roles, baseline anchors, demand-growth presets, commodity-price presets, explanation rules, and the reference scenario scaffolding.
+- Library-owned content includes sector-state rows, evidence summaries, review notes, source IDs, assumptions, and companion docs.
+- App-owned content includes output roles, baseline anchors, demand presets, commodity-price presets, explanation rules, and built-in configuration documents.
 
 That distinction matters when interpreting results.
 
-- Built-in growth presets are convenience defaults, not research evidence from the package.
+- Built-in demand-growth presets are convenience defaults, not research evidence from the package.
 - Commodity price presets are app defaults used at solve time, not values embedded in the sector-state rows.
 - `output_cost_per_unit` is generally a real-2024 non-commodity conversion or supply cost; the app adds explicit commodity purchases and carbon-price effects during the solve.
 - For end-use sectors, direct emissions in the rows are scope-1 style on-site emissions only. Electricity-related emissions are represented through electricity supply states and should not be double counted.
@@ -146,9 +148,9 @@ For the full package-specific conventions and caveats, start with `aus_phase1_se
 
 - The app is intentionally standalone and browser-based; it is not a backend solve service.
 - The app currently expects the checked-in `aus_phase1_sector_state_library/` folder and imports it directly.
-- The Scenario page supports packaged/reference and imported JSON workflows well, but does not yet expose every scenario authoring capability directly in the UI.
+- The configuration workspace is strongest for import/export, scoping, and solve workflows; it is not yet a full bespoke form editor for every document field.
 - Compare mode is explanatory and heuristic.
-- The root repo does not currently define shared scripts; app commands live under `web/package.json`.
+- The root repo does not define shared scripts; app commands live under `web/package.json`.
 
 ## Repo Map
 
@@ -165,12 +167,15 @@ For the full package-specific conventions and caveats, start with `aus_phase1_se
     ├── package.json
     ├── public/app_config/
     ├── src/
+    │   ├── configurations/
+    │   └── data/
     └── test/
 ```
 
 ## Further Reading
 
 - `aus_phase1_sector_state_library/README.md` — package-specific methods and caveats.
-- `docs/prd/phase1_sector_state_explorer_prd_v02.md` — product and technical specification for the explorer.
-- `web/public/app_config/` — app-owned scenario metadata and defaults.
+- `docs/prd/phase1_sector_state_explorer_prd_v02.md` — historical product and technical specification for the explorer.
+- `web/src/configurations/` — built-in full configuration documents.
+- `web/public/app_config/` — app-owned registries and defaults.
 - `web/src/` — application code for loading, solving, comparison, and trust views.

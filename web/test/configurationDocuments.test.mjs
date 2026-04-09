@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import { after, before, test } from 'node:test';
 import { readdirSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { resolveScenarioDocument } from '../src/data/demandResolution.ts';
+import { buildSolveRequest } from '../src/solver/buildSolveRequest.ts';
+import { createServer } from 'vite';
+import { loadPkg } from './solverTestUtils.mjs';
 
 function readJson(relativePath) {
   const url = new URL(relativePath, import.meta.url);
@@ -19,10 +23,46 @@ function loadAppConfig() {
 }
 
 const appConfig = loadAppConfig();
+const pkg = loadPkg();
 const configDir = new URL('../src/configurations/', import.meta.url);
 const configFiles = readdirSync(configDir)
   .filter((name) => name.endsWith('.json') && !name.startsWith('_'))
   .sort();
+let viteServer;
+
+before(async () => {
+  viteServer = await createServer({
+    configFile: fileURLToPath(new URL('../vite.config.ts', import.meta.url)),
+    logLevel: 'error',
+    server: {
+      middlewareMode: true,
+    },
+  });
+});
+
+after(async () => {
+  await viteServer?.close();
+});
+
+async function loadViteModule(modulePath) {
+  assert.ok(viteServer, 'expected Vite SSR server to be available for module loading');
+  return viteServer.ssrLoadModule(modulePath);
+}
+
+function createMemoryStorage() {
+  const values = new Map();
+  return {
+    getItem(key) {
+      return values.has(key) ? values.get(key) : null;
+    },
+    setItem(key, value) {
+      values.set(key, value);
+    },
+    removeItem(key) {
+      values.delete(key);
+    },
+  };
+}
 
 test('bundled configurations are full documents with app metadata', () => {
   for (const file of configFiles) {
@@ -46,4 +86,72 @@ test('bundled configurations are full documents with app metadata', () => {
 
     resolveScenarioDocument(config, appConfig, file);
   }
+});
+
+test('configuration documents round-trip through browser persistence into scoped solve requests', async () => {
+  const {
+    loadPersistedScenarioDraft,
+    persistConfigMeta,
+    persistScenarioDraft,
+  } = await loadViteModule('/src/data/scenarioDraftStorage.ts');
+  const storage = createMemoryStorage();
+  const configuration = readJson('../src/configurations/buildings-endogenous.json');
+
+  assert.equal(persistScenarioDraft(configuration, storage), null);
+  persistConfigMeta({
+    activeConfigurationId: configuration.app_metadata.id,
+    activeConfigurationReadonly: configuration.app_metadata.readonly === true,
+    baseConfiguration: structuredClone(configuration),
+  }, storage);
+
+  const restored = loadPersistedScenarioDraft(appConfig, storage);
+
+  assert.equal(restored.error, null);
+  assert.equal(restored.notice, 'Restored the most recent configuration document from this browser.');
+  assert.deepEqual(restored.scenario, configuration);
+  assert.deepEqual(restored.configMeta?.baseConfiguration, configuration);
+
+  const request = buildSolveRequest(pkg, restored.scenario);
+  const outputsInRequest = new Set(request.rows.map((row) => row.outputId));
+
+  assert.equal(request.scenario.controlsByOutput.electricity['2025'].mode, 'optimize');
+  assert.equal(
+    request.scenario.serviceDemandByOutput.residential_building_services['2050'],
+    configuration.service_demands.residential_building_services['2050'],
+  );
+  assert.ok(outputsInRequest.has('residential_building_services'));
+  assert.ok(outputsInRequest.has('commercial_building_services'));
+  assert.ok(outputsInRequest.has('electricity'));
+  assert.ok(!outputsInRequest.has('cement_equivalent'));
+});
+
+test('configuration loader rejects partial overlay documents instead of merging them with a reference config', async () => {
+  const { parseConfigurationCollection } = await loadViteModule('/src/data/configurationLoader.ts');
+  const warnings = [];
+  const originalWarn = console.warn;
+  console.warn = (message) => warnings.push(String(message));
+
+  try {
+    const parsed = parseConfigurationCollection(
+      {
+        '/src/configurations/overlay-like.json': JSON.stringify({
+          name: 'Overlay-like configuration',
+          description: 'Deliberately incomplete regression fixture.',
+          service_controls: {
+            electricity: { mode: 'optimize' },
+          },
+          app_metadata: {
+            id: 'overlay-like',
+          },
+        }),
+      },
+      true,
+    );
+
+    assert.deepEqual(parsed, []);
+  } finally {
+    console.warn = originalWarn;
+  }
+
+  assert.deepEqual(warnings, ['Failed to parse configuration document: /src/configurations/overlay-like.json']);
 });
