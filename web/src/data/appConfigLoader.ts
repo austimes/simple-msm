@@ -4,7 +4,7 @@ import demandGrowthPresetsText from '@root/web/src/app_config/demand_growth_pres
 import commodityPricePresetsText from '@root/web/src/app_config/commodity_price_presets.json?raw';
 import carbonPricePresetsText from '@root/web/src/app_config/carbon_price_presets.json?raw';
 import explanationTagRulesText from '@root/web/src/app_config/explanation_tag_rules.json?raw';
-import type { AppConfigRegistry } from './types';
+import type { AppConfigRegistry } from './types.ts';
 
 function parseJsonObject<T>(raw: string, label: string): T {
   try {

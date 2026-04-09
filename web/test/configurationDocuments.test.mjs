@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { resolveScenarioDocument } from '../src/data/demandResolution.ts';
+import { resolveConfigurationDocument } from '../src/data/demandResolution.ts';
 import { buildSolveRequest } from '../src/solver/buildSolveRequest.ts';
 import { createServer } from 'vite';
 import { loadPkg } from './solverTestUtils.mjs';
@@ -94,34 +94,35 @@ test('bundled configurations are full documents with app metadata', () => {
     assert.ok(!('serviceControls' in config), `${file} should not keep legacy serviceControls`);
     assert.ok(!('solverOptions' in config), `${file} should not keep legacy solverOptions`);
 
-    resolveScenarioDocument(config, appConfig, file);
+    resolveConfigurationDocument(config, appConfig, file);
   }
 });
 
 test('configuration documents round-trip through browser persistence into scoped solve requests', async () => {
   const {
-    loadPersistedScenarioDraft,
+    loadPersistedConfigurationDraft,
     persistConfigMeta,
-    persistScenarioDraft,
+    persistConfigurationDraft,
   } = await loadViteModule('/src/data/scenarioDraftStorage.ts');
   const storage = createMemoryStorage();
   const configuration = readJson('../src/configurations/buildings-endogenous.json');
 
-  assert.equal(persistScenarioDraft(configuration, storage), null);
+  assert.equal(persistConfigurationDraft(configuration, storage), null);
   persistConfigMeta({
     activeConfigurationId: configuration.app_metadata.id,
     activeConfigurationReadonly: configuration.app_metadata.readonly === true,
     baseConfiguration: structuredClone(configuration),
   }, storage);
 
-  const restored = loadPersistedScenarioDraft(appConfig, storage);
+  const restored = loadPersistedConfigurationDraft(appConfig, storage);
 
   assert.equal(restored.error, null);
   assert.equal(restored.notice, 'Restored the most recent configuration document from this browser.');
+  assert.deepEqual(restored.configuration, configuration);
   assert.deepEqual(restored.scenario, configuration);
   assert.deepEqual(restored.configMeta?.baseConfiguration, configuration);
 
-  const request = buildSolveRequest(pkg, restored.scenario);
+  const request = buildSolveRequest(pkg, restored.configuration);
   const outputsInRequest = new Set(request.rows.map((row) => row.outputId));
 
   assert.equal(request.scenario.controlsByOutput.electricity['2025'].mode, 'optimize');

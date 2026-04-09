@@ -1,12 +1,12 @@
-import { getSeedOutputIds } from '../data/configurationMetadata';
-import { getEnabledStateIds } from '../data/scenarioWorkspaceModel';
+import { getSeedOutputIds } from '../data/configurationMetadata.ts';
+import { getEnabledStateIds } from '../data/scenarioWorkspaceModel.ts';
 import type {
   AppConfigRegistry,
   OutputRole,
   PackageData,
   ScenarioControlMode,
   ScenarioDocument,
-} from '../data/types';
+} from '../data/types.ts';
 import type {
   NormalizedSolverRow,
   ResolvedScenarioForSolve,

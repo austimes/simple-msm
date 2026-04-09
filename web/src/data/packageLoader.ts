@@ -1,8 +1,8 @@
-import { loadAppConfig } from './appConfigLoader';
-import { buildPackageEnrichment, normalizePackageTextFiles } from './packageCompanions';
-import { parseCsv } from './parseCsv';
-import { loadDefaultScenario } from './scenarioLoader';
-import type { EmissionEntry, PackageData, SectorState } from './types';
+import { loadAppConfig } from './appConfigLoader.ts';
+import { buildPackageEnrichment, normalizePackageTextFiles } from './packageCompanions.ts';
+import { parseCsv } from './parseCsv.ts';
+import { loadDefaultConfiguration } from './scenarioLoader.ts';
+import type { EmissionEntry, PackageData, SectorState } from './types.ts';
 
 const packageTextFiles = normalizePackageTextFiles(
   import.meta.glob<string>(
@@ -95,6 +95,7 @@ export function loadPackage(): PackageData {
   const rows = parseCsv(requirePackageFile('data/sector_states.csv'));
   const appConfig = loadAppConfig();
   const enrichment = buildPackageEnrichment(packageTextFiles);
+  const defaultConfiguration = loadDefaultConfiguration(appConfig);
 
   return {
     sectorStates: rows.map(toSectorState),
@@ -102,6 +103,7 @@ export function loadPackage(): PackageData {
     phase2Memo: enrichment.phase2Memo,
     enrichment,
     appConfig,
-    defaultScenario: loadDefaultScenario(appConfig),
+    defaultConfiguration,
+    defaultScenario: defaultConfiguration,
   };
 }

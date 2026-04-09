@@ -42,7 +42,7 @@ npx tsx --test test/*.test.mjs
 ## Contributor Notes
 
 - `public/app_config/` contains app-owned registries and defaults such as output roles, demand presets, commodity-price presets, and explanation rules.
-- `src/app_config/reference_scenario.json` and `src/data/scenarioLoader.ts` still use the historical `scenario` name for the JSON schema and shared TypeScript model. In user-facing docs and product language, treat that document as a configuration.
+- `src/app_config/reference_scenario.json` and `src/data/scenarioLoader.ts` still use the historical `scenario` name at the compatibility boundary. The shared TypeScript model now exposes configuration-named primary exports with scenario-named aliases for older callers.
 - If you add a built-in configuration, keep it as a complete document with explicit demand tables and metadata. Do not rely on reference-document inheritance or overlays.
 
 ## Scenario Compatibility Policy

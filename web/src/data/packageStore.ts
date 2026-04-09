@@ -1,34 +1,40 @@
 import { create } from 'zustand';
 import {
-  clearPersistedScenarioDraft,
-  loadPersistedScenarioDraft,
-  persistScenarioDraft,
+  clearPersistedConfigurationDraft,
+  loadPersistedConfigurationDraft,
+  persistConfigurationDraft,
   persistConfigMeta,
 } from './scenarioDraftStorage';
-import { loadPackage } from './packageLoader';
-import type { PackageData, PriceLevel, ScenarioControlMode, ScenarioDocument, ScenarioServiceControl } from './types';
+import { loadPackage } from './packageLoader.ts';
+import type {
+  ConfigurationControlMode,
+  ConfigurationDocument,
+  ConfigurationServiceControl,
+  PackageData,
+  PriceLevel,
+} from './types.ts';
 import {
   getConfigurationId,
   isReadonlyConfiguration,
   loadBuiltinConfigurations,
   withSeedOutputIds,
-} from './configurationLoader';
-import { getEnabledStateIds } from './scenarioWorkspaceModel';
+} from './configurationLoader.ts';
+import { getEnabledStateIds } from './scenarioWorkspaceModel.ts';
 
 export type ConfigurationDraftSource = 'reference' | 'local_draft' | 'imported' | 'draft' | 'configuration';
 
 interface PackageStore extends PackageData {
   loaded: boolean;
-  currentConfiguration: ScenarioDocument;
+  currentConfiguration: ConfigurationDocument;
   currentConfigurationSource: ConfigurationDraftSource;
   activeConfigurationId: string | null;
   activeConfigurationReadonly: boolean;
   isConfigurationDirty: boolean;
-  baseConfiguration: ScenarioDocument | null;
+  baseConfiguration: ConfigurationDocument | null;
   persistenceNotice: string | null;
   persistenceError: string | null;
   replaceCurrentConfiguration: (
-    configuration: ScenarioDocument,
+    configuration: ConfigurationDocument,
     source?: Exclude<ConfigurationDraftSource, 'reference'>,
     notice?: string | null,
   ) => void;
@@ -37,18 +43,18 @@ interface PackageStore extends PackageData {
   setCommodityPriceLevel: (commodityId: string, level: PriceLevel) => void;
   setCarbonPricePreset: (presetId: string) => void;
   toggleStateEnabled: (outputId: string, stateId: string) => void;
-  setOutputControlMode: (outputId: string, mode: ScenarioControlMode) => void;
+  setOutputControlMode: (outputId: string, mode: ConfigurationControlMode) => void;
   setDemandPreset: (presetId: string) => void;
-  loadConfiguration: (config: ScenarioDocument) => void;
+  loadConfiguration: (config: ConfigurationDocument) => void;
   setIncludedOutputIds: (outputIds: string[] | undefined) => void;
 }
 
-function cloneConfiguration(configuration: ScenarioDocument): ScenarioDocument {
+function cloneConfiguration(configuration: ConfigurationDocument): ConfigurationDocument {
   return structuredClone(configuration);
 }
 
-function configurationsEqual(a: ScenarioDocument, b: ScenarioDocument): boolean {
-  const normalize = (configuration: ScenarioDocument): unknown => {
+function configurationsEqual(a: ConfigurationDocument, b: ConfigurationDocument): boolean {
+  const normalize = (configuration: ConfigurationDocument): unknown => {
     const clone = structuredClone(configuration);
     for (const control of Object.values(clone.service_controls ?? {})) {
       if (control?.disabled_state_ids) {
@@ -67,7 +73,7 @@ function normalizeDescription(description: string | undefined): string | undefin
 function persistActiveConfigurationMeta(state: {
   activeConfigurationId: string | null;
   activeConfigurationReadonly: boolean;
-  baseConfiguration: ScenarioDocument | null;
+  baseConfiguration: ConfigurationDocument | null;
 }): void {
   if (!state.activeConfigurationId || !state.baseConfiguration) {
     return;
@@ -82,18 +88,18 @@ function persistActiveConfigurationMeta(state: {
 
 export const usePackageStore = create<PackageStore>((set, get) => {
   const pkg = loadPackage();
-  const persistedDraft = loadPersistedScenarioDraft(pkg.appConfig);
+  const persistedDraft = loadPersistedConfigurationDraft(pkg.appConfig);
 
   // Determine initial state: persisted draft → first builtin config → bare default
-  let initialConfiguration: ScenarioDocument;
+  let initialConfiguration: ConfigurationDocument;
   let initialSource: ConfigurationDraftSource;
   let initialConfigId: string | null = null;
   let initialConfigReadonly = false;
-  let initialBaseConfiguration: ScenarioDocument | null = null;
+  let initialBaseConfiguration: ConfigurationDocument | null = null;
   let initialDirty = false;
 
-  if (persistedDraft.scenario) {
-    initialConfiguration = cloneConfiguration(persistedDraft.scenario);
+  if (persistedDraft.configuration) {
+    initialConfiguration = cloneConfiguration(persistedDraft.configuration);
     initialSource = 'local_draft';
 
     const restoredMeta = persistedDraft.configMeta;
@@ -118,21 +124,21 @@ export const usePackageStore = create<PackageStore>((set, get) => {
       initialConfigReadonly = isReadonlyConfiguration(defaultConfig);
       initialBaseConfiguration = cloneConfiguration(initialConfiguration);
 
-      persistScenarioDraft(initialConfiguration);
+      persistConfigurationDraft(initialConfiguration);
       persistConfigMeta({
         activeConfigurationId: defaultConfigId,
         activeConfigurationReadonly: initialConfigReadonly,
         baseConfiguration: cloneConfiguration(initialConfiguration),
       });
     } else {
-      initialConfiguration = cloneConfiguration(pkg.defaultScenario);
+      initialConfiguration = cloneConfiguration(pkg.defaultConfiguration);
       initialSource = 'reference';
     }
   }
 
-  function commitConfigurationEdit(nextConfiguration: ScenarioDocument) {
+  function commitConfigurationEdit(nextConfiguration: ConfigurationDocument) {
     const state = get();
-    const persistenceError = persistScenarioDraft(nextConfiguration);
+    const persistenceError = persistConfigurationDraft(nextConfiguration);
     const dirty = state.baseConfiguration
       ? !configurationsEqual(nextConfiguration, state.baseConfiguration)
       : false;
@@ -165,7 +171,7 @@ export const usePackageStore = create<PackageStore>((set, get) => {
     persistenceError: persistedDraft.error,
     replaceCurrentConfiguration: (configuration, source = 'draft', notice = null) => {
       const nextConfiguration = cloneConfiguration(configuration);
-      const persistenceError = persistScenarioDraft(nextConfiguration);
+      const persistenceError = persistConfigurationDraft(nextConfiguration);
       persistConfigMeta(null);
 
       set({
@@ -199,8 +205,8 @@ export const usePackageStore = create<PackageStore>((set, get) => {
       commitConfigurationEdit(nextConfiguration);
     },
     resetCurrentConfiguration: () => {
-      const nextConfiguration = cloneConfiguration(get().defaultScenario);
-      const persistenceError = clearPersistedScenarioDraft();
+      const nextConfiguration = cloneConfiguration(get().defaultConfiguration);
+      const persistenceError = clearPersistedConfigurationDraft();
       persistConfigMeta(null);
 
       set({
@@ -260,7 +266,7 @@ export const usePackageStore = create<PackageStore>((set, get) => {
         disabled_state_ids: [],
       };
 
-      const control: ScenarioServiceControl = {
+      const control: ConfigurationServiceControl = {
         ...existing,
         disabled_state_ids: disabledStateIds.length > 0 ? disabledStateIds : [],
       };
@@ -309,7 +315,7 @@ export const usePackageStore = create<PackageStore>((set, get) => {
 
       const nextConfiguration = cloneConfiguration(get().currentConfiguration);
 
-      const control: ScenarioServiceControl = nextConfiguration.service_controls[outputId] ?? {
+      const control: ConfigurationServiceControl = nextConfiguration.service_controls[outputId] ?? {
         mode: 'optimize',
         disabled_state_ids: [],
       };
@@ -334,7 +340,7 @@ export const usePackageStore = create<PackageStore>((set, get) => {
       const baseConfiguration = cloneConfiguration(nextConfiguration);
       const configId = getConfigurationId(config) ?? config.name;
       const readonly = isReadonlyConfiguration(config);
-      const persistenceError = persistScenarioDraft(nextConfiguration);
+      const persistenceError = persistConfigurationDraft(nextConfiguration);
 
       persistConfigMeta({
         activeConfigurationId: configId,

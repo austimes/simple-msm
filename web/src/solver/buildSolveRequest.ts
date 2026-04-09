@@ -1,5 +1,5 @@
-import { getSeedOutputIds } from '../data/configurationMetadata';
-import type { PackageData, ScenarioDocument } from '../data/types';
+import { getSeedOutputIds } from '../data/configurationMetadata.ts';
+import type { PackageData, ScenarioDocument } from '../data/types.ts';
 import {
   SOLVER_CONTRACT_VERSION,
   type NormalizedSolverRow,

@@ -1,4 +1,4 @@
-import type { EmissionEntry, SectorState } from './types';
+import type { EmissionEntry, SectorState } from './types.ts';
 
 export interface SectorStateFamily {
   stateId: string;

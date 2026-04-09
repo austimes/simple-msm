@@ -5,8 +5,8 @@ import {
   type SolveResult,
   type SolverWorkerRequestMessage,
   type SolverWorkerResponseMessage,
-} from './contract';
-import { solveWithLpAdapter } from './lpAdapter';
+} from './contract.ts';
+import { solveWithLpAdapter } from './lpAdapter.ts';
 
 const workerScope = self as unknown as {
   onmessage: ((event: MessageEvent<SolverWorkerRequestMessage>) => void) | null;

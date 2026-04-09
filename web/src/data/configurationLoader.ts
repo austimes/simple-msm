@@ -3,11 +3,11 @@
  * 1. Built-in configs shipped in src/configurations/ (readonly)
  * 2. User configs persisted to localStorage (editable)
  */
-import { parseScenarioDocument } from './scenarioLoader';
-import { normalizeSeedOutputIds } from './configurationMetadata';
-import type { ScenarioDocument } from './types';
+import { parseConfigurationDocument } from './scenarioLoader.ts';
+import { normalizeSeedOutputIds } from './configurationMetadata.ts';
+import type { ConfigurationDocument } from './types.ts';
 
-export { getIncludedOutputIds, getSeedOutputIds } from './configurationMetadata';
+export { getIncludedOutputIds, getSeedOutputIds } from './configurationMetadata.ts';
 
 // --- Built-in configuration loading (Vite eager import) ---
 
@@ -16,7 +16,7 @@ const builtinConfigModules = import.meta.glob<string>(
   { eager: true, import: 'default', query: '?raw' },
 );
 
-function normalizeConfigurationMetadata(configuration: ScenarioDocument): ScenarioDocument {
+function normalizeConfigurationMetadata(configuration: ConfigurationDocument): ConfigurationDocument {
   const configurationWithoutMetadata = { ...configuration };
   delete configurationWithoutMetadata.app_metadata;
 
@@ -42,9 +42,9 @@ function normalizeConfigurationMetadata(configuration: ScenarioDocument): Scenar
 }
 
 function withConfigurationMetadata(
-  configuration: ScenarioDocument,
-  metadata: Partial<NonNullable<ScenarioDocument['app_metadata']>>,
-): ScenarioDocument {
+  configuration: ConfigurationDocument,
+  metadata: Partial<NonNullable<ConfigurationDocument['app_metadata']>>,
+): ConfigurationDocument {
   return normalizeConfigurationMetadata({
     ...configuration,
     app_metadata: {
@@ -57,14 +57,14 @@ function withConfigurationMetadata(
 export function parseConfigurationCollection(
   modules: Record<string, string>,
   readonly: boolean,
-): ScenarioDocument[] {
-  const configs: ScenarioDocument[] = [];
+): ConfigurationDocument[] {
+  const configs: ConfigurationDocument[] = [];
 
   for (const [path, raw] of Object.entries(modules)) {
     if (path.includes('_index.json')) continue;
 
     try {
-      const parsed = parseScenarioDocument(raw, undefined, path);
+      const parsed = parseConfigurationDocument(raw, undefined, path);
       configs.push(withConfigurationMetadata(parsed, { readonly }));
     } catch {
       console.warn(`Failed to parse configuration document: ${path}`);
@@ -74,35 +74,35 @@ export function parseConfigurationCollection(
   return configs.sort((a, b) => a.name.localeCompare(b.name));
 }
 
-let cachedBuiltinConfigs: ScenarioDocument[] | null = null;
+let cachedBuiltinConfigs: ConfigurationDocument[] | null = null;
 
-export function cloneConfigurationDocument(configuration: ScenarioDocument): ScenarioDocument {
+export function cloneConfigurationDocument(configuration: ConfigurationDocument): ConfigurationDocument {
   return structuredClone(configuration);
 }
 
-export function getConfigurationId(configuration: ScenarioDocument): string | null {
+export function getConfigurationId(configuration: ConfigurationDocument): string | null {
   return configuration.app_metadata?.id ?? null;
 }
 
-export function isReadonlyConfiguration(configuration: ScenarioDocument): boolean {
+export function isReadonlyConfiguration(configuration: ConfigurationDocument): boolean {
   return configuration.app_metadata?.readonly === true;
 }
 
 export function withIncludedOutputIds(
-  configuration: ScenarioDocument,
+  configuration: ConfigurationDocument,
   includedOutputIds: string[] | undefined,
-): ScenarioDocument {
+): ConfigurationDocument {
   return withSeedOutputIds(configuration, includedOutputIds);
 }
 
 export function withSeedOutputIds(
-  configuration: ScenarioDocument,
+  configuration: ConfigurationDocument,
   seedOutputIds: string[] | undefined,
-): ScenarioDocument {
+): ConfigurationDocument {
   return withConfigurationMetadata(configuration, { seed_output_ids: seedOutputIds });
 }
 
-export function loadBuiltinConfigurations(): ScenarioDocument[] {
+export function loadBuiltinConfigurations(): ConfigurationDocument[] {
   if (!cachedBuiltinConfigs) {
     cachedBuiltinConfigs = parseConfigurationCollection(builtinConfigModules, true);
   }
@@ -118,22 +118,22 @@ const userConfigModules = import.meta.glob<string>(
   { eager: true, import: 'default', query: '?raw' },
 );
 
-export function loadUserConfigurations(): ScenarioDocument[] {
+export function loadUserConfigurations(): ConfigurationDocument[] {
   return parseConfigurationCollection(userConfigModules, false);
 }
 
-export async function fetchUserConfigurations(): Promise<ScenarioDocument[]> {
+export async function fetchUserConfigurations(): Promise<ConfigurationDocument[]> {
   try {
     const res = await fetch('/api/user-configurations');
     if (!res.ok) return loadUserConfigurations();
-    const configs = (await res.json()) as ScenarioDocument[];
+    const configs = (await res.json()) as ConfigurationDocument[];
     return configs.map((config) => withConfigurationMetadata(config, { readonly: false }));
   } catch {
     return loadUserConfigurations();
   }
 }
 
-export async function saveUserConfiguration(config: ScenarioDocument): Promise<string | null> {
+export async function saveUserConfiguration(config: ConfigurationDocument): Promise<string | null> {
   const toSave = withConfigurationMetadata(config, { readonly: false });
   try {
     const res = await fetch('/api/user-configurations', {
@@ -168,26 +168,28 @@ export async function deleteUserConfiguration(configId: string): Promise<string 
 
 // --- Combined loading ---
 
-export function loadAllConfigurations(): ScenarioDocument[] {
+export function loadAllConfigurations(): ConfigurationDocument[] {
   return [...loadBuiltinConfigurations(), ...loadUserConfigurations()];
 }
 
-export function findConfiguration(id: string): ScenarioDocument | null {
+export function findConfiguration(id: string): ConfigurationDocument | null {
   return loadAllConfigurations().find((config) => getConfigurationId(config) === id) ?? null;
 }
 
 // --- Create configuration from current state ---
 
-export function createConfigurationFromScenario(
-  scenario: ScenarioDocument,
+export function createConfigurationFromDocument(
+  configuration: ConfigurationDocument,
   seedOutputIds: string[] | undefined,
-): ScenarioDocument {
-  return withConfigurationMetadata(structuredClone(scenario), {
-    id: slugifyConfigurationName(scenario.name),
+): ConfigurationDocument {
+  return withConfigurationMetadata(structuredClone(configuration), {
+    id: slugifyConfigurationName(configuration.name),
     readonly: false,
     seed_output_ids: seedOutputIds,
   });
 }
+
+export const createConfigurationFromScenario = createConfigurationFromDocument;
 
 export function slugifyConfigurationName(name: string): string {
   return (
