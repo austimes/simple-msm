@@ -1834,6 +1834,10 @@ body {
   transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
 
+.workspace-state-chip:disabled {
+  cursor: not-allowed;
+}
+
 .workspace-state-chip--on {
   background: var(--color-primary-bg);
   border: 1px solid var(--color-primary);
@@ -1851,6 +1855,14 @@ body {
   background: var(--color-primary-bg);
   border-color: rgba(43, 108, 176, 0.18);
   color: var(--color-primary);
+}
+
+.workspace-state-chip--inactive,
+.workspace-state-chip--inactive:hover,
+.workspace-state-chip--inactive:disabled {
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  color: #64748b;
 }
 
 .workspace-chart-grid {

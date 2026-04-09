@@ -72,9 +72,10 @@ export default function RightSidebar() {
           </div>
           {sectorEntry.subsectors.map((sub) => {
             const status = outputStatuses[sub.outputId];
-            const enabledIds = new Set(status?.enabledStateIds ?? []);
-            const allDisabled = status?.isDisabled ?? enabledIds.size === 0;
             const presentation = getRightSidebarStatusPresentation(status);
+            const enabledIds = new Set(status?.enabledStateIds ?? []);
+            const pathwaysInactive = presentation.arePathwaysInactive;
+            const allDisabled = status?.isDisabled ?? enabledIds.size === 0;
             const outOfScope = presentation.isDimmed;
             const isCollapsed = allDisabled && !expandedDisabled.has(sub.outputId);
             const badges = presentation.badges;
@@ -112,18 +113,23 @@ export default function RightSidebar() {
                     )}
                   </div>
                 )}
+                {pathwaysInactive && (
+                  <div className="workspace-subsector-detail">{presentation.detail}</div>
+                )}
                 {!isCollapsed && (
                   <div className="workspace-state-chips">
                     {sub.states.map((state) => {
-                      const isOn = enabledIds.has(state.stateId);
+                      const isOn = !pathwaysInactive && enabledIds.has(state.stateId);
                       return (
                         <button
                           key={state.stateId}
                           type="button"
-                          className={`workspace-state-chip ${isOn ? 'workspace-state-chip--on' : 'workspace-state-chip--off'}${outOfScope ? ' workspace-state-chip--dimmed' : ''}`}
+                          className={`workspace-state-chip ${isOn ? 'workspace-state-chip--on' : 'workspace-state-chip--off'}${outOfScope ? ' workspace-state-chip--dimmed' : ''}${pathwaysInactive ? ' workspace-state-chip--inactive' : ''}`}
                           onClick={() =>
                             toggleStateEnabled(sub.outputId, state.stateId)
                           }
+                          disabled={pathwaysInactive}
+                          title={pathwaysInactive ? presentation.detail : undefined}
                         >
                           {state.stateLabel}
                         </button>
