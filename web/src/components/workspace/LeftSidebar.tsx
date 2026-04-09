@@ -14,7 +14,9 @@ import {
   slugifyConfigurationName,
 } from '../../data/configurationLoader';
 import { PRICE_LEVELS } from '../../data/types';
+import { deriveOutputRunStatusesForConfiguration } from '../../solver/solveScope.ts';
 import type { CommodityPriceSeries, CarbonPricePreset, ScenarioDocument } from '../../data/types';
+import { getCommodityPriceSelectorPresentation } from './leftSidebarCommodityStatus';
 
 function formatUnit(raw: string): string {
   return raw
@@ -40,6 +42,7 @@ function formatCarbonPriceRange(preset: CarbonPricePreset): string {
 
 export default function LeftSidebar() {
   const appConfig = usePackageStore((s) => s.appConfig);
+  const sectorStates = usePackageStore((s) => s.sectorStates);
   const currentConfiguration = usePackageStore((s) => s.currentConfiguration);
   const setDemandPreset = usePackageStore((s) => s.setDemandPreset);
   const setCommodityPriceLevel = usePackageStore((s) => s.setCommodityPriceLevel);
@@ -52,6 +55,13 @@ export default function LeftSidebar() {
 
   const activeDemandPreset = getActiveDemandPreset(currentConfiguration, appConfig);
   const activeCarbonPreset = getActiveCarbonPricePreset(currentConfiguration, appConfig);
+  const outputStatuses = useMemo(
+    () => deriveOutputRunStatusesForConfiguration(
+      { sectorStates, appConfig },
+      currentConfiguration,
+    ),
+    [sectorStates, appConfig, currentConfiguration],
+  );
 
   const builtinConfigs = useMemo(() => loadBuiltinConfigurations(), []);
   const [userConfigs, setUserConfigs] = useState(() => loadUserConfigurations());
@@ -195,17 +205,38 @@ export default function LeftSidebar() {
         <span className="workspace-section-title">Commodity Prices</span>
         {Object.entries(appConfig.commodity_price_presets).map(([commodityId, driver]) => {
           const activeLevel = getCommodityPriceLevel(currentConfiguration, commodityId);
+          const selectorPresentation = getCommodityPriceSelectorPresentation(
+            outputStatuses[commodityId],
+            activeLevel,
+          );
           return (
             <div key={commodityId} className="workspace-subsector-group">
-              <div className="workspace-subsector-title">{driver.label}</div>
+              <div className="workspace-subsector-title">
+                {driver.label}
+                {selectorPresentation.badgeLabel && selectorPresentation.badgeTone && (
+                  <span className={`workspace-mode-badge workspace-mode-badge--${selectorPresentation.badgeTone}`}>
+                    {selectorPresentation.badgeLabel}
+                  </span>
+                )}
+              </div>
+              {selectorPresentation.detail && (
+                <div className="workspace-subsector-detail">
+                  {selectorPresentation.detail}
+                </div>
+              )}
               <div className="workspace-chip-group workspace-chip-group--inline">
                 {PRICE_LEVELS.map((level) => (
                   <button
                     key={level}
                     type="button"
-                    className={`workspace-chip${activeLevel === level ? ' workspace-chip--active' : ''}`}
+                    className={`workspace-chip${selectorPresentation.activeLevel === level ? ' workspace-chip--active' : ''}${selectorPresentation.selectorEnabled ? '' : ' workspace-chip--inactive'}`}
                     onClick={() => setCommodityPriceLevel(commodityId, level)}
-                    title={level}
+                    title={
+                      selectorPresentation.selectorEnabled
+                        ? level
+                        : `${driver.label} is ${selectorPresentation.controlModeLabel} in the current solve, so the exogenous price selector is inactive.`
+                    }
+                    disabled={!selectorPresentation.selectorEnabled}
                   >
                     {formatCommodityPrice(driver.levels[level])}
                   </button>
