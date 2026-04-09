@@ -1,42 +1,62 @@
 import { create } from 'zustand';
 import {
-  clearPersistedScenarioDraft,
-  loadPersistedScenarioDraft,
-  persistScenarioDraft,
-} from './scenarioDraftStorage';
+  clearPersistedConfigurationDraft,
+  loadPersistedConfigurationDraft,
+  persistConfigurationDraft,
+} from './configurationDraftStorage';
+import {
+  cloneConfigurationDocument,
+  getConfigurationId,
+  withIncludedOutputIds,
+} from './configurationLoader';
 import { loadPackage } from './packageLoader';
-import type { PackageData, PriceLevel, ScenarioControlMode, ScenarioDocument, ScenarioServiceControl } from './types';
-import type { SolveConfiguration } from './configurationTypes';
-import { applyConfigurationToScenario } from './configurationLoader';
+import type {
+  ConfigurationControlMode,
+  ConfigurationDocument,
+  ConfigurationServiceControl,
+  PackageData,
+  PriceLevel,
+} from './types';
 
-export type ScenarioDraftSource = 'reference' | 'local_draft' | 'imported' | 'draft' | 'configuration';
+export type ConfigurationDraftSource = 'reference' | 'local_draft' | 'imported' | 'draft' | 'configuration';
 
 interface PackageStore extends PackageData {
   loaded: boolean;
-  currentScenario: ScenarioDocument;
-  currentScenarioSource: ScenarioDraftSource;
+  currentConfiguration: ConfigurationDocument;
+  currentConfigurationSource: ConfigurationDraftSource;
   activeConfigurationId: string | null;
-  includedOutputIds: string[] | undefined;
   persistenceNotice: string | null;
   persistenceError: string | null;
-  replaceCurrentScenario: (
-    scenario: ScenarioDocument,
-    source?: Exclude<ScenarioDraftSource, 'reference'>,
+  replaceCurrentConfiguration: (
+    configuration: ConfigurationDocument,
+    source?: Exclude<ConfigurationDraftSource, 'reference'>,
     notice?: string | null,
   ) => void;
-  updateScenarioMetadata: (updates: { name?: string; description?: string }) => void;
-  resetCurrentScenario: () => void;
+  updateConfigurationMetadata: (updates: { name?: string; description?: string }) => void;
+  resetCurrentConfiguration: () => void;
   setCommodityPriceLevel: (commodityId: string, level: PriceLevel) => void;
   setCarbonPricePreset: (presetId: string) => void;
   toggleStateEnabled: (outputId: string, stateId: string) => void;
-  setOutputControlMode: (outputId: string, mode: ScenarioControlMode) => void;
+  setOutputControlMode: (outputId: string, mode: ConfigurationControlMode) => void;
   setDemandPreset: (presetId: string) => void;
-  loadConfiguration: (config: SolveConfiguration) => void;
+  loadConfiguration: (configuration: ConfigurationDocument) => void;
   setIncludedOutputIds: (outputIds: string[] | undefined) => void;
 }
 
-function cloneScenario(scenario: ScenarioDocument): ScenarioDocument {
-  return structuredClone(scenario);
+function cloneConfiguration(configuration: ConfigurationDocument): ConfigurationDocument {
+  return cloneConfigurationDocument(configuration);
+}
+
+function detachSavedConfigurationIdentity(configuration: ConfigurationDocument): ConfigurationDocument {
+  const draft = cloneConfiguration(configuration);
+
+  if (!draft.app_metadata) {
+    return draft;
+  }
+
+  const { included_output_ids } = draft.app_metadata;
+  draft.app_metadata = included_output_ids ? { included_output_ids } : undefined;
+  return draft;
 }
 
 function normalizeDescription(description: string | undefined): string | undefined {
@@ -45,105 +65,106 @@ function normalizeDescription(description: string | undefined): string | undefin
 
 export const usePackageStore = create<PackageStore>((set, get) => {
   const pkg = loadPackage();
-  const persistedDraft = loadPersistedScenarioDraft(pkg.appConfig);
-  const initialScenario = persistedDraft.scenario
-    ? cloneScenario(persistedDraft.scenario)
-    : cloneScenario(pkg.defaultScenario);
+  const persistedDraft = loadPersistedConfigurationDraft(pkg.appConfig);
+  const initialConfiguration = persistedDraft.configuration
+    ? cloneConfiguration(persistedDraft.configuration)
+    : cloneConfiguration(pkg.defaultConfiguration);
+
+  function persistDraftConfiguration(
+    configuration: ConfigurationDocument,
+    source: ConfigurationDraftSource,
+    notice?: string | null,
+  ): void {
+    const persistenceError = persistConfigurationDraft(configuration);
+
+    set({
+      currentConfiguration: configuration,
+      currentConfigurationSource: source,
+      activeConfigurationId: source === 'configuration' ? getConfigurationId(configuration) : null,
+      ...(notice !== undefined ? { persistenceNotice: notice } : {}),
+      persistenceError,
+    });
+  }
 
   return {
     ...pkg,
     loaded: true,
-    currentScenario: initialScenario,
-    currentScenarioSource: persistedDraft.scenario ? 'local_draft' : 'reference',
+    currentConfiguration: initialConfiguration,
+    currentConfigurationSource: persistedDraft.configuration ? 'local_draft' : 'reference',
     activeConfigurationId: null,
-    includedOutputIds: undefined,
     persistenceNotice: persistedDraft.notice,
     persistenceError: persistedDraft.error,
-    replaceCurrentScenario: (scenario, source = 'draft', notice = null) => {
-      const nextScenario = cloneScenario(scenario);
-      const persistenceError = persistScenarioDraft(nextScenario);
+    replaceCurrentConfiguration: (configuration, source = 'draft', notice = null) => {
+      const nextConfiguration = source === 'configuration'
+        ? cloneConfiguration(configuration)
+        : detachSavedConfigurationIdentity(configuration);
 
-      set({
-        currentScenario: nextScenario,
-        currentScenarioSource: source,
-        persistenceNotice: notice ?? 'Scenario draft autosaved in this browser.',
-        persistenceError,
-      });
+      persistDraftConfiguration(
+        nextConfiguration,
+        source,
+        notice ?? 'Configuration draft autosaved in this browser.',
+      );
     },
-    updateScenarioMetadata: (updates) => {
-      const nextScenario = cloneScenario(get().currentScenario);
+    updateConfigurationMetadata: (updates) => {
+      const nextConfiguration = detachSavedConfigurationIdentity(get().currentConfiguration);
 
       if (updates.name !== undefined) {
-        nextScenario.name = updates.name;
+        nextConfiguration.name = updates.name;
       }
 
       if (updates.description !== undefined) {
         const description = normalizeDescription(updates.description);
 
         if (description) {
-          nextScenario.description = description;
+          nextConfiguration.description = description;
         } else {
-          delete nextScenario.description;
+          delete nextConfiguration.description;
         }
       }
 
-      const persistenceError = persistScenarioDraft(nextScenario);
-
-      set({
-        currentScenario: nextScenario,
-        currentScenarioSource: 'draft',
-        activeConfigurationId: null,
-        persistenceNotice: 'Scenario draft autosaves in this browser as you edit it.',
-        persistenceError,
-      });
+      persistDraftConfiguration(
+        nextConfiguration,
+        'draft',
+        'Configuration drafts autosave in this browser as you edit them.',
+      );
     },
-    resetCurrentScenario: () => {
-      const nextScenario = cloneScenario(get().defaultScenario);
-      const persistenceError = clearPersistedScenarioDraft();
+    resetCurrentConfiguration: () => {
+      const nextConfiguration = cloneConfiguration(get().defaultConfiguration);
+      const persistenceError = clearPersistedConfigurationDraft();
 
       set({
-        currentScenario: nextScenario,
-        currentScenarioSource: 'reference',
+        currentConfiguration: nextConfiguration,
+        currentConfigurationSource: 'reference',
         activeConfigurationId: null,
-        includedOutputIds: undefined,
-        persistenceNotice: 'Reset to the packaged reference scenario and cleared the local draft.',
+        persistenceNotice: 'Reset to the packaged reference configuration and cleared the local draft.',
         persistenceError,
       });
     },
     setCommodityPriceLevel: (commodityId, level) => {
-      const nextScenario = cloneScenario(get().currentScenario);
-      nextScenario.commodity_pricing.selections_by_commodity = {
-        ...nextScenario.commodity_pricing.selections_by_commodity,
+      const nextConfiguration = detachSavedConfigurationIdentity(get().currentConfiguration);
+      nextConfiguration.commodity_pricing.selections_by_commodity = {
+        ...nextConfiguration.commodity_pricing.selections_by_commodity,
         [commodityId]: level,
       };
-      delete nextScenario.commodity_pricing.overrides[commodityId];
-      const persistenceError = persistScenarioDraft(nextScenario);
+      delete nextConfiguration.commodity_pricing.overrides[commodityId];
 
-      set({
-        currentScenario: nextScenario,
-        currentScenarioSource: 'draft',
-        activeConfigurationId: null,
-        persistenceError,
-      });
+      persistDraftConfiguration(nextConfiguration, 'draft');
     },
     setCarbonPricePreset: (presetId) => {
       const preset = get().appConfig.carbon_price_presets[presetId];
-      if (!preset) return;
-      const nextScenario = cloneScenario(get().currentScenario);
-      nextScenario.carbon_price = { ...preset.values_by_year };
-      const persistenceError = persistScenarioDraft(nextScenario);
+      if (!preset) {
+        return;
+      }
 
-      set({
-        currentScenario: nextScenario,
-        currentScenarioSource: 'draft',
-        activeConfigurationId: null,
-        persistenceError,
-      });
+      const nextConfiguration = detachSavedConfigurationIdentity(get().currentConfiguration);
+      nextConfiguration.carbon_price = { ...preset.values_by_year };
+
+      persistDraftConfiguration(nextConfiguration, 'draft');
     },
     toggleStateEnabled: (outputId, stateId) => {
-      const nextScenario = cloneScenario(get().currentScenario);
+      const nextConfiguration = detachSavedConfigurationIdentity(get().currentConfiguration);
 
-      let control: ScenarioServiceControl = nextScenario.service_controls[outputId] ?? {
+      let control: ConfigurationServiceControl = nextConfiguration.service_controls[outputId] ?? {
         mode: 'optimize',
         disabled_state_ids: [],
       };
@@ -157,7 +178,6 @@ export const usePackageStore = create<PackageStore>((set, get) => {
         disabled.add(stateId);
       }
 
-      // Collect all state IDs for this output from sector states
       const allStateIds = new Set<string>();
       for (const row of get().sectorStates) {
         if (row.service_or_output_name === outputId) {
@@ -166,14 +186,12 @@ export const usePackageStore = create<PackageStore>((set, get) => {
       }
 
       const enabledIds = Array.from(allStateIds).filter((id) => !disabled.has(id));
-
       control.disabled_state_ids = disabled.size > 0 ? Array.from(disabled) : [];
 
       const metadata = get().appConfig.output_roles[outputId];
       const allowed = new Set(metadata?.allowed_control_modes ?? []);
 
       if (enabledIds.length === 0) {
-        // All states disabled → turn the subsector off
         control.mode = 'off';
         control.state_id = null;
         control.fixed_shares = null;
@@ -191,26 +209,17 @@ export const usePackageStore = create<PackageStore>((set, get) => {
           control.state_id = null;
         }
       } else {
-        if (allowed.has('optimize')) {
-          control.mode = 'optimize';
-        } else {
-          control.mode = metadata?.default_control_mode ?? 'optimize';
-        }
+        control.mode = allowed.has('optimize')
+          ? 'optimize'
+          : (metadata?.default_control_mode ?? 'optimize');
         control.state_id = null;
         if (control.mode !== 'fixed_shares') {
           control.fixed_shares = null;
         }
       }
 
-      nextScenario.service_controls[outputId] = control;
-      const persistenceError = persistScenarioDraft(nextScenario);
-
-      set({
-        currentScenario: nextScenario,
-        currentScenarioSource: 'draft',
-        activeConfigurationId: null,
-        persistenceError,
-      });
+      nextConfiguration.service_controls[outputId] = control;
+      persistDraftConfiguration(nextConfiguration, 'draft');
     },
     setOutputControlMode: (outputId, mode) => {
       const metadata = get().appConfig.output_roles[outputId];
@@ -219,61 +228,44 @@ export const usePackageStore = create<PackageStore>((set, get) => {
         return;
       }
 
-      const nextScenario = cloneScenario(get().currentScenario);
-
-      const control: ScenarioServiceControl = nextScenario.service_controls[outputId] ?? {
+      const nextConfiguration = detachSavedConfigurationIdentity(get().currentConfiguration);
+      const control: ConfigurationServiceControl = nextConfiguration.service_controls[outputId] ?? {
         mode: 'optimize',
         disabled_state_ids: [],
       };
 
-      nextScenario.service_controls[outputId] = { ...control, mode };
-      const persistenceError = persistScenarioDraft(nextScenario);
-
-      set({
-        currentScenario: nextScenario,
-        currentScenarioSource: 'draft',
-        activeConfigurationId: null,
-        persistenceError,
-      });
+      nextConfiguration.service_controls[outputId] = { ...control, mode };
+      persistDraftConfiguration(nextConfiguration, 'draft');
     },
     setDemandPreset: (presetId) => {
-      const nextScenario = cloneScenario(get().currentScenario);
-      nextScenario.demand_generation.preset_id = presetId;
+      const nextConfiguration = detachSavedConfigurationIdentity(get().currentConfiguration);
+      nextConfiguration.demand_generation.preset_id = presetId;
 
-      if (nextScenario.demand_generation.mode === 'manual_table') {
-        nextScenario.demand_generation.mode = 'anchor_plus_preset';
+      if (nextConfiguration.demand_generation.mode === 'manual_table') {
+        nextConfiguration.demand_generation.mode = 'anchor_plus_preset';
       }
 
-      nextScenario.demand_generation.service_growth_rates_pct_per_year = null;
-      nextScenario.demand_generation.external_commodity_growth_rates_pct_per_year = null;
-      const persistenceError = persistScenarioDraft(nextScenario);
+      nextConfiguration.demand_generation.service_growth_rates_pct_per_year = null;
+      nextConfiguration.demand_generation.external_commodity_growth_rates_pct_per_year = null;
 
-      set({
-        currentScenario: nextScenario,
-        currentScenarioSource: 'draft',
-        activeConfigurationId: null,
-        persistenceError,
-      });
+      persistDraftConfiguration(nextConfiguration, 'draft');
     },
-    loadConfiguration: (config) => {
-      const { scenario, includedOutputIds } = applyConfigurationToScenario(
-        config,
-        get().defaultScenario,
-      );
-      const nextScenario = cloneScenario(scenario);
-      const persistenceError = persistScenarioDraft(nextScenario);
+    loadConfiguration: (configuration) => {
+      const nextConfiguration = cloneConfiguration(configuration);
 
-      set({
-        currentScenario: nextScenario,
-        currentScenarioSource: 'configuration',
-        activeConfigurationId: config.id,
-        includedOutputIds,
-        persistenceNotice: `Loaded configuration "${config.name}".`,
-        persistenceError,
-      });
+      persistDraftConfiguration(
+        nextConfiguration,
+        'configuration',
+        `Loaded configuration "${nextConfiguration.name}".`,
+      );
     },
     setIncludedOutputIds: (outputIds) => {
-      set({ includedOutputIds: outputIds });
+      const nextConfiguration = withIncludedOutputIds(
+        detachSavedConfigurationIdentity(get().currentConfiguration),
+        outputIds,
+      );
+
+      persistDraftConfiguration(nextConfiguration, 'draft');
     },
   };
 });

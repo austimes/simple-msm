@@ -1,7 +1,7 @@
 import type {
   AppConfigRegistry,
   PriceLevel,
-  ScenarioDocument,
+  ConfigurationDocument,
   SectorState,
 } from './types';
 
@@ -77,7 +77,7 @@ export function buildStateCatalog(
 }
 
 export function getEnabledStateIds(
-  scenario: ScenarioDocument,
+  scenario: ConfigurationDocument,
   outputId: string,
   allStateIds: string[],
 ): string[] {
@@ -87,7 +87,7 @@ export function getEnabledStateIds(
 }
 
 export function getActiveDemandPreset(
-  scenario: ScenarioDocument,
+  scenario: ConfigurationDocument,
   appConfig: AppConfigRegistry,
 ): string | null {
   const { mode, preset_id } = scenario.demand_generation;
@@ -104,19 +104,19 @@ export function getActiveDemandPreset(
 }
 
 export function getCommodityPriceLevel(
-  scenario: ScenarioDocument,
+  scenario: ConfigurationDocument,
   commodityId: string,
 ): PriceLevel {
   return scenario.commodity_pricing.selections_by_commodity?.[commodityId] ?? 'medium';
 }
 
 export function getActiveCarbonPricePreset(
-  scenario: ScenarioDocument,
+  scenario: ConfigurationDocument,
   appConfig: AppConfigRegistry,
 ): string | null {
   for (const [presetId, preset] of Object.entries(appConfig.carbon_price_presets)) {
     const match = Object.entries(preset.values_by_year).every(
-      ([year, value]) => scenario.carbon_price[year] === value,
+      ([year, value]) => scenario.carbon_price[year as keyof typeof scenario.carbon_price] === value,
     );
     if (match) return presetId;
   }

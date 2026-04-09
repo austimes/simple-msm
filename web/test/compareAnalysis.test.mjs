@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { buildComparisonReport, buildComparisonScenarioPlan } from '../src/compare/compareAnalysis.ts';
-import { resolveScenarioDocument } from '../src/data/demandResolution.ts';
+import { resolveConfigurationDocument } from '../src/data/demandResolution.ts';
 import { parseCsv } from '../src/data/parseCsv.ts';
 import { SOLVER_CONTRACT_VERSION } from '../src/solver/contract.ts';
 import { solveWithLpAdapter } from '../src/solver/lpAdapter.ts';
@@ -149,7 +149,7 @@ function resolveCommodityPriceSeries(baseSeries, overrideSeries, years) {
   };
 }
 
-function resolveScenarioForSolve(scenario, appConfig) {
+function resolveConfigurationForSolve(scenario, appConfig) {
   const years = [...scenario.years];
   const controlsByOutput = Object.entries(appConfig.output_roles).reduce((resolved, [outputId, metadata]) => {
     resolved[outputId] = years.reduce((controlsByYear, year) => {
@@ -240,13 +240,13 @@ function buildSolveRequestForTest(pkg, scenario) {
     contractVersion: SOLVER_CONTRACT_VERSION,
     requestId: `compare-test-${scenario.name.replaceAll(/\s+/g, '-').toLowerCase()}`,
     rows: normalizeSolverRows(pkg.sectorStates, pkg.appConfig),
-    scenario: resolveScenarioForSolve(scenario, pkg.appConfig),
+    configuration: resolveConfigurationForSolve(scenario, pkg.appConfig),
   };
 }
 
 test('packaged reference scenario solves as a stable baseline on the Results path', () => {
   const appConfig = loadAppConfig();
-  const referenceScenario = resolveScenarioDocument(
+  const referenceScenario = resolveConfigurationDocument(
     readJson('../public/app_config/reference_scenario.json'),
     appConfig,
     'reference_scenario.json',
@@ -256,7 +256,7 @@ test('packaged reference scenario solves as a stable baseline on the Results pat
   const pkg = {
     sectorStates,
     appConfig,
-    defaultScenario: referenceScenario,
+    defaultConfiguration: referenceScenario,
   };
 
   const request = buildSolveRequestForTest(pkg, referenceScenario);
@@ -271,7 +271,7 @@ test('packaged reference scenario solves as a stable baseline on the Results pat
 
 test('compare analysis builds heuristic decomposition and narratives from the built-in transition pair', () => {
   const appConfig = loadAppConfig();
-  const referenceScenario = resolveScenarioDocument(
+  const referenceScenario = resolveConfigurationDocument(
     readJson('../public/app_config/reference_scenario.json'),
     appConfig,
     'reference_scenario.json',
@@ -281,7 +281,7 @@ test('compare analysis builds heuristic decomposition and narratives from the bu
   const pkg = {
     sectorStates,
     appConfig,
-    defaultScenario: referenceScenario,
+    defaultConfiguration: referenceScenario,
   };
 
   const plan = buildComparisonScenarioPlan(referenceScenario, appConfig);

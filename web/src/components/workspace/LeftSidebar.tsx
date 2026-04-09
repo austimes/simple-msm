@@ -1,17 +1,20 @@
 import { useMemo, useState, useCallback } from 'react';
 import { usePackageStore } from '../../data/packageStore';
-import { getActiveDemandPreset, getCommodityPriceLevel, getActiveCarbonPricePreset } from '../../data/scenarioWorkspaceModel';
+import { getActiveDemandPreset, getCommodityPriceLevel, getActiveCarbonPricePreset } from '../../data/configurationWorkspaceModel';
 import {
+  cloneConfigurationDocument,
+  getConfigurationId,
+  getIncludedOutputIds,
+  isReadonlyConfiguration,
   loadBuiltinConfigurations,
   loadUserConfigurations,
   fetchUserConfigurations,
   saveUserConfiguration,
   deleteUserConfiguration,
-  createConfigurationFromScenario,
+  slugifyConfigurationName,
 } from '../../data/configurationLoader';
 import { PRICE_LEVELS } from '../../data/types';
-import type { CommodityPriceSeries, CarbonPricePreset } from '../../data/types';
-import type { SolveConfiguration } from '../../data/configurationTypes';
+import type { CarbonPricePreset, CommodityPriceSeries, ConfigurationDocument } from '../../data/types';
 
 function formatUnit(raw: string): string {
   return raw
@@ -35,29 +38,17 @@ function formatCarbonPriceRange(preset: CarbonPricePreset): string {
   return `${unit.replace('$/', `$${first}–${last}/`)}`;
 }
 
-function slugify(name: string): string {
-  return (
-    name
-      .trim()
-      .toLowerCase()
-      .replaceAll(/[^a-z0-9]+/g, '-')
-      .replaceAll(/^-+|-+$/g, '') || `config-${Date.now()}`
-  );
-}
-
 export default function LeftSidebar() {
   const appConfig = usePackageStore((s) => s.appConfig);
-  const currentScenario = usePackageStore((s) => s.currentScenario);
-  const defaultScenario = usePackageStore((s) => s.defaultScenario);
-  const includedOutputIds = usePackageStore((s) => s.includedOutputIds);
+  const currentConfiguration = usePackageStore((s) => s.currentConfiguration);
   const setDemandPreset = usePackageStore((s) => s.setDemandPreset);
   const setCommodityPriceLevel = usePackageStore((s) => s.setCommodityPriceLevel);
   const setCarbonPricePreset = usePackageStore((s) => s.setCarbonPricePreset);
   const loadConfiguration = usePackageStore((s) => s.loadConfiguration);
   const activeConfigurationId = usePackageStore((s) => s.activeConfigurationId);
 
-  const activeDemandPreset = getActiveDemandPreset(currentScenario, appConfig);
-  const activeCarbonPreset = getActiveCarbonPricePreset(currentScenario, appConfig);
+  const activeDemandPreset = getActiveDemandPreset(currentConfiguration, appConfig);
+  const activeCarbonPreset = getActiveCarbonPricePreset(currentConfiguration, appConfig);
 
   const builtinConfigs = useMemo(() => loadBuiltinConfigurations(), []);
   const [userConfigs, setUserConfigs] = useState(() => loadUserConfigurations());
@@ -74,26 +65,34 @@ export default function LeftSidebar() {
   }, []);
 
   const activeUserConfig = activeConfigurationId
-    ? userConfigs.find((c) => c.id === activeConfigurationId)
+    ? userConfigs.find((configuration) => getConfigurationId(configuration) === activeConfigurationId)
     : null;
+
+  function buildUserConfiguration(name: string, configurationId: string): ConfigurationDocument {
+    const configuration = cloneConfigurationDocument(currentConfiguration);
+    configuration.name = name;
+    configuration.app_metadata = {
+      ...(configuration.app_metadata ?? {}),
+      id: configurationId,
+      readonly: false,
+      included_output_ids: getIncludedOutputIds(currentConfiguration),
+    };
+    return configuration;
+  }
 
   async function handleSaveAs() {
     const name = prompt('Configuration name:');
     if (!name?.trim()) return;
 
-    const config = createConfigurationFromScenario(
-      currentScenario,
-      defaultScenario,
-      includedOutputIds,
-      appConfig,
-    );
-    config.name = name.trim();
-    config.id = slugify(name.trim());
+    const trimmedName = name.trim();
+    let configurationId = slugifyConfigurationName(trimmedName);
 
-    const builtinIds = new Set(builtinConfigs.map((c) => c.id));
-    if (builtinIds.has(config.id)) {
-      config.id = `${config.id}-custom`;
+    const builtinIds = new Set(builtinConfigs.map((configuration) => getConfigurationId(configuration)));
+    if (builtinIds.has(configurationId)) {
+      configurationId = `${configurationId}-custom`;
     }
+
+    const config = buildUserConfiguration(trimmedName, configurationId);
 
     const error = await saveUserConfiguration(config);
     if (error) {
@@ -105,15 +104,9 @@ export default function LeftSidebar() {
     }
   }
 
-  async function handleOverwrite(existing: SolveConfiguration) {
-    const config = createConfigurationFromScenario(
-      currentScenario,
-      defaultScenario,
-      includedOutputIds,
-      appConfig,
-    );
-    config.id = existing.id;
-    config.name = existing.name;
+  async function handleOverwrite(existing: ConfigurationDocument) {
+    const existingId = getConfigurationId(existing) ?? slugifyConfigurationName(existing.name);
+    const config = buildUserConfiguration(existing.name, existingId);
 
     const error = await saveUserConfiguration(config);
     if (error) {
@@ -158,7 +151,7 @@ export default function LeftSidebar() {
       <div className="workspace-section">
         <span className="workspace-section-title">Commodity Prices</span>
         {Object.entries(appConfig.commodity_price_presets).map(([commodityId, driver]) => {
-          const activeLevel = getCommodityPriceLevel(currentScenario, commodityId);
+          const activeLevel = getCommodityPriceLevel(currentConfiguration, commodityId);
           return (
             <div key={commodityId} className="workspace-subsector-group">
               <div className="workspace-subsector-title">{driver.label}</div>
@@ -219,27 +212,32 @@ export default function LeftSidebar() {
 
         {configs.length > 0 && (
           <div className="workspace-chip-group">
-            {configs.map((config) => (
-              <span key={config.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
-                <button
-                  className={`workspace-chip${activeConfigurationId === config.id ? ' workspace-chip--active' : ''}`}
-                  onClick={() => loadConfiguration(config)}
-                  title={config.description}
-                >
-                  {config.name}
-                </button>
-                {!config.readonly && (
+            {configs.map((config) => {
+              const configId = getConfigurationId(config) ?? config.name;
+              const readonly = isReadonlyConfiguration(config);
+
+              return (
+                <span key={configId} style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
                   <button
-                    className="workspace-chip"
-                    style={{ padding: '2px 6px', fontSize: 11, color: '#b91c1c' }}
-                    onClick={() => handleDelete(config.id)}
-                    title="Delete configuration"
+                    className={`workspace-chip${activeConfigurationId === configId ? ' workspace-chip--active' : ''}`}
+                    onClick={() => loadConfiguration(config)}
+                    title={config.description}
                   >
-                    ×
+                    {config.name}
                   </button>
-                )}
-              </span>
-            ))}
+                  {!readonly && (
+                    <button
+                      className="workspace-chip"
+                      style={{ padding: '2px 6px', fontSize: 11, color: '#b91c1c' }}
+                      onClick={() => handleDelete(configId)}
+                      title="Delete configuration"
+                    >
+                      ×
+                    </button>
+                  )}
+                </span>
+              );
+            })}
           </div>
         )}
 

@@ -2,18 +2,18 @@ import type {
   AppConfigRegistry,
   CommodityPriceSeries,
   PackageData,
-  ScenarioDocument,
-  ScenarioServiceControl,
+  ConfigurationDocument,
+  ConfigurationServiceControl,
 } from '../data/types';
-import { resolveScenarioDocument } from '../data/demandResolution.ts';
+import { resolveConfigurationDocument } from '../data/demandResolution.ts';
 import {
   SOLVER_CONTRACT_VERSION,
   type NormalizedSolverRow,
+  type ResolvedConfigurationForSolve,
   type ResolvedCommodityPriceSeries,
-  type ResolvedScenarioForSolve,
   type ResolvedSolveControl,
   type SolveRequest,
-} from './contract';
+} from './contract.ts';
 
 function createRequestId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -33,11 +33,11 @@ function resolveYearValue(table: Record<string, number> | undefined, year: numbe
 }
 
 function resolveControlForYear(
-  control: ScenarioServiceControl | undefined,
+  control: ConfigurationServiceControl | undefined,
   defaultMode: AppConfigRegistry['output_roles'][string]['default_control_mode'],
   year: number,
 ): ResolvedSolveControl {
-  const overrideKey = yearKey(year) as keyof NonNullable<ScenarioServiceControl['year_overrides']>;
+  const overrideKey = yearKey(year) as keyof NonNullable<ConfigurationServiceControl['year_overrides']>;
   const override = control?.year_overrides?.[overrideKey] ?? null;
 
   return {
@@ -123,11 +123,11 @@ export function normalizeSolverRows(
   });
 }
 
-export function resolveScenarioForSolve(
-  scenario: ScenarioDocument,
+export function resolveConfigurationForSolve(
+  scenario: ConfigurationDocument,
   appConfig: AppConfigRegistry,
-): ResolvedScenarioForSolve {
-  const resolvedScenario = resolveScenarioDocument(scenario, appConfig);
+): ResolvedConfigurationForSolve {
+  const resolvedScenario = resolveConfigurationDocument(scenario, appConfig);
   const years = [...resolvedScenario.years];
   const controlsByOutput = Object.entries(appConfig.output_roles).reduce<
     Record<string, Record<string, ResolvedSolveControl>>
@@ -254,7 +254,7 @@ function rowMayBeActive(
 
 function expandIncludedOutputsForDependencies(
   rows: NormalizedSolverRow[],
-  scenario: ResolvedScenarioForSolve,
+  configuration: ResolvedConfigurationForSolve,
   appConfig: AppConfigRegistry,
   seedOutputIds: Set<string>,
 ): Set<string> {
@@ -269,12 +269,12 @@ function expandIncludedOutputsForDependencies(
         continue;
       }
 
-      for (const year of scenario.years) {
+      for (const year of configuration.years) {
         if (row.year !== year) {
           continue;
         }
 
-        const control = scenario.controlsByOutput[row.outputId]?.[yearKey(year)];
+        const control = configuration.controlsByOutput[row.outputId]?.[yearKey(year)];
         if (!rowMayBeActive(row, control)) {
           continue;
         }
@@ -299,37 +299,37 @@ function expandIncludedOutputsForDependencies(
 
 function filterSolveRequestForOutputs(
   rows: NormalizedSolverRow[],
-  scenario: ResolvedScenarioForSolve,
+  configuration: ResolvedConfigurationForSolve,
   includedOutputIds: Set<string>,
   seedOutputIds: Set<string>,
-): { rows: NormalizedSolverRow[]; scenario: ResolvedScenarioForSolve } {
+): { rows: NormalizedSolverRow[]; configuration: ResolvedConfigurationForSolve } {
   const filteredRows = rows.filter((row) => includedOutputIds.has(row.outputId));
 
   const filteredControlsByOutput: Record<string, Record<string, ResolvedSolveControl>> = {};
   for (const outputId of includedOutputIds) {
-    if (scenario.controlsByOutput[outputId]) {
-      filteredControlsByOutput[outputId] = scenario.controlsByOutput[outputId];
+    if (configuration.controlsByOutput[outputId]) {
+      filteredControlsByOutput[outputId] = configuration.controlsByOutput[outputId];
     }
   }
 
   const filteredServiceDemandByOutput: Record<string, Record<string, number>> = {};
   for (const outputId of includedOutputIds) {
-    if (scenario.serviceDemandByOutput[outputId]) {
-      filteredServiceDemandByOutput[outputId] = scenario.serviceDemandByOutput[outputId];
+    if (configuration.serviceDemandByOutput[outputId]) {
+      filteredServiceDemandByOutput[outputId] = configuration.serviceDemandByOutput[outputId];
     }
   }
 
   const filteredExternalCommodityDemandByCommodity: Record<string, Record<string, number>> = {};
   for (const outputId of seedOutputIds) {
-    if (scenario.externalCommodityDemandByCommodity[outputId]) {
-      filteredExternalCommodityDemandByCommodity[outputId] = scenario.externalCommodityDemandByCommodity[outputId];
+    if (configuration.externalCommodityDemandByCommodity[outputId]) {
+      filteredExternalCommodityDemandByCommodity[outputId] = configuration.externalCommodityDemandByCommodity[outputId];
     }
   }
 
   return {
     rows: filteredRows,
-    scenario: {
-      ...scenario,
+    configuration: {
+      ...configuration,
       controlsByOutput: filteredControlsByOutput,
       serviceDemandByOutput: filteredServiceDemandByOutput,
       externalCommodityDemandByCommodity: filteredExternalCommodityDemandByCommodity,
@@ -371,35 +371,40 @@ export function collectOutputIdsForSelection(
 }
 
 export function buildSolveRequest(
-  pkg: Pick<PackageData, 'sectorStates' | 'appConfig' | 'defaultScenario'>,
-  scenario = pkg.defaultScenario,
+  pkg: Pick<PackageData, 'sectorStates' | 'appConfig' | 'defaultConfiguration'>,
+  scenario = pkg.defaultConfiguration,
   options: BuildSolveRequestOptions = {},
 ): SolveRequest {
   const allRows = normalizeSolverRows(pkg);
-  const resolvedScenario = resolveScenarioForSolve(scenario, pkg.appConfig);
+  const resolvedConfiguration = resolveConfigurationForSolve(scenario, pkg.appConfig);
 
   if (!options.includedOutputIds || options.includedOutputIds.length === 0) {
     return {
       contractVersion: SOLVER_CONTRACT_VERSION,
       requestId: createRequestId(),
       rows: allRows,
-      scenario: resolvedScenario,
+      configuration: resolvedConfiguration,
     };
   }
 
   const seedOutputIds = new Set(options.includedOutputIds);
   const expandedOutputIds = expandIncludedOutputsForDependencies(
     allRows,
-    resolvedScenario,
+    resolvedConfiguration,
     pkg.appConfig,
     seedOutputIds,
   );
-  const filtered = filterSolveRequestForOutputs(allRows, resolvedScenario, expandedOutputIds, seedOutputIds);
+  const filtered = filterSolveRequestForOutputs(
+    allRows,
+    resolvedConfiguration,
+    expandedOutputIds,
+    seedOutputIds,
+  );
 
   return {
     contractVersion: SOLVER_CONTRACT_VERSION,
     requestId: createRequestId(),
     rows: filtered.rows,
-    scenario: filtered.scenario,
+    configuration: filtered.configuration,
   };
 }

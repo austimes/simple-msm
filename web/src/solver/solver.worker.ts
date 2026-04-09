@@ -5,7 +5,7 @@ import {
   type SolveResult,
   type SolverWorkerRequestMessage,
   type SolverWorkerResponseMessage,
-} from './contract';
+} from './contract.ts';
 import { solveWithLpAdapter } from './lpAdapter';
 
 const workerScope = self as unknown as {
@@ -21,10 +21,10 @@ function buildErrorResult(request: SolveRequest, diagnostics: SolveDiagnostic[])
     engine: { name: 'yalps', worker: true },
     summary: {
       rowCount: request.rows.length,
-      yearCount: request.scenario.years.length,
+      yearCount: request.configuration.years.length,
       outputCount: new Set(request.rows.map((row) => row.outputId)).size,
-      serviceDemandOutputCount: Object.keys(request.scenario.serviceDemandByOutput).length,
-      externalCommodityCount: Object.keys(request.scenario.externalCommodityDemandByCommodity).length,
+      serviceDemandOutputCount: Object.keys(request.configuration.serviceDemandByOutput).length,
+      externalCommodityCount: Object.keys(request.configuration.externalCommodityDemandByCommodity).length,
     },
     reporting: {
       commodityBalances: [],

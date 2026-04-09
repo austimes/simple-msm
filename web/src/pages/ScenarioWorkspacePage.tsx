@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { getIncludedOutputIds } from '../data/configurationLoader';
 import { useScenarioSolve } from '../hooks/useScenarioSolve';
 import { usePackageStore } from '../data/packageStore';
 import LeftSidebar from '../components/workspace/LeftSidebar';
@@ -19,7 +20,8 @@ export default function ScenarioWorkspacePage() {
 
 
   const activeConfigurationId = usePackageStore((state) => state.activeConfigurationId);
-  const includedOutputIds = usePackageStore((state) => state.includedOutputIds);
+  const currentConfiguration = usePackageStore((state) => state.currentConfiguration);
+  const includedOutputIds = getIncludedOutputIds(currentConfiguration);
 
   const isSolving = phase === 'solving';
 
