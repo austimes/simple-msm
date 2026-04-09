@@ -1,6 +1,6 @@
 {
-  "name": "Reference central-growth scenario",
-  "description": "Full-model baseline: library-aligned reference scenario with no overrides. All outputs included, incumbents pinned, electricity externalized.",
+  "name": "Reference central-growth configuration",
+  "description": "Full-model baseline: library-aligned reference configuration with no overrides. All outputs included, incumbents pinned, electricity externalized.",
   "years": [
     2025,
     2030,

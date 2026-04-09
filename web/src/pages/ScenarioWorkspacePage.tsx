@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useScenarioSolve } from '../hooks/useScenarioSolve';
 import { usePackageStore } from '../data/packageStore';
 import { getIncludedOutputIds } from '../data/configurationLoader';
+import ConfigurationDocumentPanel from '../components/workspace/ConfigurationDocumentPanel';
 import LeftSidebar from '../components/workspace/LeftSidebar';
 import RightSidebar from '../components/workspace/RightSidebar';
 import StackedAreaChart from '../components/charts/StackedAreaChart';
@@ -16,7 +17,6 @@ import type { SolveRequest, SolveResult } from '../solver/contract';
 
 export default function ScenarioWorkspacePage() {
   const { phase, result, request, error } = useScenarioSolve();
-
 
   const activeConfigurationId = usePackageStore((state) => state.activeConfigurationId);
   const currentConfiguration = usePackageStore((state) => state.currentConfiguration);
@@ -56,30 +56,41 @@ export default function ScenarioWorkspacePage() {
       </aside>
 
       <section className="workspace-center">
-        <h2>Solve &amp; Results</h2>
+        <div className="page">
+          <h1>Configuration Workspace</h1>
+          <p>
+            Work from one active configuration document throughout the app. Import, edit,
+            save, scope, solve, and compare without switching into a separate workflow.
+          </p>
 
-        <div className="workspace-solve-bar">
-          {isSolving && <span className="workspace-solve-status">Solving…</span>}
-          {activeConfigurationId && (
-            <span className="workspace-solve-status">
-              Config: <strong>{activeConfigurationId}</strong>
-              {includedOutputIds && ` (${includedOutputIds.length} outputs scoped)`}
-            </span>
-          )}
-
+          <ConfigurationDocumentPanel />
         </div>
 
-        {phase === 'error' && error && (
-          <p className="workspace-solve-status workspace-solve-error">
-            {error}
-          </p>
-        )}
+        <section className="scenario-panel">
+          <h2>Solve &amp; Results</h2>
 
-        {phase === 'solved' && result && (
-          <p className="workspace-solve-status">
-            Solved in {result.timingsMs.total.toFixed(2)} ms
-          </p>
-        )}
+          <div className="workspace-solve-bar">
+            {isSolving && <span className="workspace-solve-status">Solving…</span>}
+            {activeConfigurationId && (
+              <span className="workspace-solve-status">
+                Configuration: <strong>{activeConfigurationId}</strong>
+                {includedOutputIds && ` (${includedOutputIds.length} outputs scoped)`}
+              </span>
+            )}
+          </div>
+
+          {phase === 'error' && error && (
+            <p className="workspace-solve-status workspace-solve-error">
+              {error}
+            </p>
+          )}
+
+          {phase === 'solved' && result && (
+            <p className="workspace-solve-status">
+              Solved in {result.timingsMs.total.toFixed(2)} ms
+            </p>
+          )}
+        </section>
 
         {phase === 'solved' && result && request && (
           <>

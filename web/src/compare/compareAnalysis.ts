@@ -165,9 +165,9 @@ export interface ComparisonReport {
 function controlLabelForKey(key: ComparisonSolveKey): string {
   switch (key) {
     case 'base':
-      return 'Reference scenario';
+      return 'Reference configuration';
     case 'compare':
-      return 'Transition counterfactual';
+      return 'Transition configuration';
     case 'noDemandDelta':
       return 'Counterfactual without demand delta';
     case 'noPriceDelta':
@@ -483,9 +483,9 @@ export function buildComparisonScenarioPlan(
 ): ComparisonScenarioPlan {
   const base = makeManualScenario(
     baseScenario,
-    'Compare mode locks the reference scenario into explicit milestone-year tables and relaxes caps in the primary baseline so state-choice deltas remain solvable.',
+    'Compare mode locks the reference configuration into explicit milestone-year tables and relaxes caps in the primary baseline so state-choice deltas remain solvable.',
     `${baseScenario.name} (compare baseline)`,
-    `${baseScenario.description ?? 'Reference scenario.'} Compare mode relaxes max-share and max-activity caps in the primary baseline, then re-imposes them in a shadow run when it explains constraint effects.`,
+    `${baseScenario.description ?? 'Reference configuration.'} Compare mode relaxes max-share and max-activity caps in the primary baseline, then re-imposes them in a shadow run when it explains constraint effects.`,
   );
   base.solver_options = {
     ...base.solver_options,
@@ -501,7 +501,7 @@ export function buildComparisonScenarioPlan(
     compare,
     'Transition counterfactual without demand delta',
     'Matches the transition counterfactual but restores the reference demand tables so demand-growth effects can be isolated heuristically.',
-    'Demand tables restored to the reference scenario for heuristic compare attribution.',
+    'Demand tables restored to the reference configuration for heuristic compare attribution.',
   );
   noDemandDelta.service_demands = structuredClone(base.service_demands);
   noDemandDelta.external_commodity_demands = structuredClone(base.external_commodity_demands ?? {});
@@ -510,7 +510,7 @@ export function buildComparisonScenarioPlan(
     compare,
     'Transition counterfactual without price delta',
     'Matches the transition counterfactual but restores the reference commodity and carbon prices.',
-    'Commodity-price and carbon-price deltas restored to the reference scenario for heuristic compare attribution.',
+    'Commodity-price and carbon-price deltas restored to the reference configuration for heuristic compare attribution.',
   );
   noPriceDelta.commodity_pricing = structuredClone(base.commodity_pricing);
   noPriceDelta.carbon_price = structuredClone(base.carbon_price);
@@ -519,7 +519,7 @@ export function buildComparisonScenarioPlan(
     compare,
     'Transition counterfactual without electricity-mode delta',
     'Matches the transition counterfactual but restores the reference electricity control mode.',
-    'Electricity control restored to the reference scenario for heuristic compare attribution.',
+    'Electricity control restored to the reference configuration for heuristic compare attribution.',
   );
   noElectricityModeDelta.service_controls.electricity = structuredClone(base.service_controls.electricity);
 
@@ -527,7 +527,7 @@ export function buildComparisonScenarioPlan(
     compare,
     'Transition counterfactual without state-choice delta',
     'Matches the transition counterfactual but keeps all required-service controls at their reference settings.',
-    'Required-service controls restored to the reference scenario for heuristic compare attribution.',
+    'Required-service controls restored to the reference configuration for heuristic compare attribution.',
   );
   applyRequiredServiceControls(noStateChoiceDelta, base, appConfig);
   noStateChoiceDelta.service_controls.electricity = structuredClone(base.service_controls.electricity);
@@ -536,7 +536,7 @@ export function buildComparisonScenarioPlan(
     compare,
     'Transition counterfactual without removals activation',
     'Matches the transition counterfactual but restores the reference removals controls.',
-    'Optional-removals controls restored to the reference scenario for heuristic compare attribution.',
+    'Optional-removals controls restored to the reference configuration for heuristic compare attribution.',
   );
   applyOptionalRemovalsControls(noRemovalsDelta, base, appConfig);
 
@@ -1218,14 +1218,14 @@ function buildNarratives(
       id: 'price',
       title: 'Price Effect',
       summary: `Changing the commodity-price preset and carbon-price path ${describeSigned(compare.metrics.totalEmissions - noPrice.metrics.totalEmissions, 'pushes emissions up', 'pulls emissions down')} while ${describeSigned(diff(compare.metrics.totalCost, noPrice.metrics.totalCost) ?? 0, 'raising modeled cost', 'lowering modeled cost')}. The explanation stays heuristic because price shifts also alter which states become attractive.`,
-      evidence: `Reference and compare scenarios use per-commodity price selections with carbon moving from ${base.scenario.carbon_price['2050'] ?? 0} to ${compare.scenario.carbon_price['2050'] ?? 0} by 2050.`,
+      evidence: `Reference and compare configurations use per-commodity price selections with carbon moving from ${base.scenario.carbon_price['2050'] ?? 0} to ${compare.scenario.carbon_price['2050'] ?? 0} by 2050.`,
     },
     {
       id: 'state-choice',
       title: 'State Choice',
       summary: dominantShifts.length > 0
-        ? `The most material state-choice changes are ${joinList(dominantShifts.map((entry) => `${entry.outputLabel} ${entry.year}`))}, which means the scenario delta is not just about exogenous prices or demand.`
-        : 'The dominant modeled states barely move, so the scenario delta is being driven more by exogenous prices and demand than by state-choice reallocation.',
+        ? `The most material state-choice changes are ${joinList(dominantShifts.map((entry) => `${entry.outputLabel} ${entry.year}`))}, which means the configuration delta is not just about exogenous prices or demand.`
+        : 'The dominant modeled states barely move, so the configuration delta is being driven more by exogenous prices and demand than by state-choice reallocation.',
       evidence: dominantShifts.length > 0
         ? dominantShifts[0].narrative
         : undefined,
@@ -1243,9 +1243,9 @@ function buildNarratives(
       title: 'Removals',
       summary: removalsChanged
         ? removalsNote
-          ? 'The compare scenario turns removals on, but the current LP still treats optional removals as pending rows. The page therefore reports removals activation as a transparent heuristic flag rather than fake modeled abatement.'
-          : 'The compare scenario turns removals on and the solver picks up a modeled change.'
-        : 'Removals settings do not materially change between the two scenarios, so there is no removals activation story here.',
+          ? 'The compare configuration turns removals on, but the current LP still treats optional removals as pending rows. The page therefore reports removals activation as a transparent heuristic flag rather than fake modeled abatement.'
+          : 'The compare configuration turns removals on and the solver picks up a modeled change.'
+        : 'Removals settings do not materially change between the two configurations, so there is no removals activation story here.',
       evidence: removalsChanged
         ? `Removals-only effect against its withheld counterfactual changes emissions by ${(compare.metrics.totalEmissions - noRemovals.metrics.totalEmissions).toFixed(2)} tCO2e, with diagnostics still reporting optional-removal rows as pending.`
         : undefined,
@@ -1421,7 +1421,7 @@ export function buildComparisonReport(
         scenarios.noRemovalsDelta,
         'Restores reference removals controls. Because optional removals are still outside the LP core, this effect is expected to be small and heavily caveated.',
         compare.result.diagnostics.some((diagnostic) => diagnostic.code === 'optional_rows_pending')
-          ? 'Optional-removal rows remain outside the active LP core, so this row is a scenario-activation signal more than a modeled delta.'
+          ? 'Optional-removal rows remain outside the active LP core, so this row is a configuration-activation signal more than a modeled delta.'
           : undefined,
       ),
       {

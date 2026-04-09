@@ -1,6 +1,6 @@
 {
-  "name": "Reference central-growth scenario",
-  "description": "Library-aligned baseline scenario using 2025 activity anchors, the simple built-in sector growth preset, and conservative state controls.",
+  "name": "Reference central-growth configuration",
+  "description": "Library-aligned baseline configuration using 2025 activity anchors, the simple built-in sector growth preset, and conservative state controls.",
   "years": [
     2025,
     2030,

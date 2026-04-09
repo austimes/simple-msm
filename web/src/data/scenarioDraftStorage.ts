@@ -53,7 +53,7 @@ function resolveStorage(storage: StorageLike | null | undefined): StorageLike | 
 
 function formatStorageError(action: string, error: unknown): string {
   const detail = error instanceof Error ? error.message : 'Unknown browser storage failure.';
-  return `Could not ${action} the browser-local scenario draft: ${detail}`;
+  return `Could not ${action} the browser-local configuration document: ${detail}`;
 }
 
 export function loadPersistedScenarioDraft(
@@ -66,7 +66,7 @@ export function loadPersistedScenarioDraft(
     return {
       scenario: null,
       configMeta: null,
-      notice: 'Scenario drafts stay in memory only when browser-local storage is unavailable.',
+      notice: 'Configuration documents stay in memory only when browser-local storage is unavailable.',
       error: null,
     };
   }
@@ -79,7 +79,7 @@ export function loadPersistedScenarioDraft(
     return {
       scenario: null,
       configMeta: null,
-      notice: 'Scenario drafts autosave in this browser when local storage is available.',
+      notice: 'Configuration documents autosave in this browser when local storage is available.',
       error: formatStorageError('read', error),
     };
   }
@@ -88,18 +88,18 @@ export function loadPersistedScenarioDraft(
     return {
       scenario: null,
       configMeta: null,
-      notice: 'Scenario drafts autosave in this browser after you import or edit them.',
+      notice: 'Configuration documents autosave in this browser after you import or edit them.',
       error: null,
     };
   }
 
   try {
-    const scenario = parseScenarioDocument(raw, appConfig, 'browser-local scenario draft');
+    const scenario = parseScenarioDocument(raw, appConfig, 'browser-local configuration document');
     const configMeta = loadPersistedConfigMeta(resolvedStorage);
     return {
       scenario,
       configMeta,
-      notice: 'Restored the most recent scenario draft from this browser.',
+      notice: 'Restored the most recent configuration document from this browser.',
       error: null,
     };
   } catch {
@@ -107,13 +107,13 @@ export function loadPersistedScenarioDraft(
       resolvedStorage.removeItem(SCENARIO_DRAFT_STORAGE_KEY);
       resolvedStorage.removeItem(CONFIG_META_STORAGE_KEY);
     } catch {
-      // Ignore cleanup errors and fall back to the packaged reference scenario.
+      // Ignore cleanup errors and fall back to the packaged reference configuration.
     }
 
     return {
       scenario: null,
       configMeta: null,
-      notice: 'Ignored an invalid saved draft and fell back to the packaged reference scenario.',
+      notice: 'Ignored an invalid saved document and fell back to the packaged reference configuration.',
       error: null,
     };
   }

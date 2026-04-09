@@ -1,6 +1,6 @@
 import { useRef, useState, type ChangeEvent } from 'react';
-import { usePackageStore } from '../data/packageStore';
-import { parseScenarioDocument } from '../data/scenarioLoader';
+import { usePackageStore } from '../../data/packageStore';
+import { parseScenarioDocument } from '../../data/scenarioLoader';
 
 const numberFormatter = new Intl.NumberFormat('en-AU', {
   maximumFractionDigits: 2,
@@ -10,32 +10,34 @@ function formatModeLabel(mode: string): string {
   return mode.replaceAll('_', ' ');
 }
 
-function formatScenarioSource(source: string): string {
+function formatConfigurationSource(source: string): string {
   switch (source) {
     case 'reference':
-      return 'Packaged reference scenario';
+      return 'Packaged reference configuration';
     case 'local_draft':
-      return 'Restored local draft';
+      return 'Restored browser-local document';
     case 'imported':
-      return 'Imported JSON draft';
+      return 'Imported JSON document';
     case 'draft':
-      return 'Edited browser draft';
+      return 'Edited browser-local document';
+    case 'configuration':
+      return 'Loaded saved configuration';
     default:
       return source.replaceAll('_', ' ');
   }
 }
 
-function slugifyScenarioName(name: string): string {
+function slugifyConfigurationName(name: string): string {
   const slug = name
     .trim()
     .toLowerCase()
     .replaceAll(/[^a-z0-9]+/g, '-')
     .replaceAll(/^-+|-+$/g, '');
 
-  return slug || 'scenario-draft';
+  return slug || 'configuration-draft';
 }
 
-export default function ScenarioPage() {
+export default function ConfigurationDocumentPanel() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const appConfig = usePackageStore((state) => state.appConfig);
   const currentConfiguration = usePackageStore((state) => state.currentConfiguration);
@@ -43,6 +45,7 @@ export default function ScenarioPage() {
   const persistenceNotice = usePackageStore((state) => state.persistenceNotice);
   const persistenceError = usePackageStore((state) => state.persistenceError);
   const replaceCurrentConfiguration = usePackageStore((state) => state.replaceCurrentConfiguration);
+  const resetCurrentConfiguration = usePackageStore((state) => state.resetCurrentConfiguration);
   const updateConfigurationMetadata = usePackageStore((state) => state.updateConfigurationMetadata);
 
   const [importError, setImportError] = useState<string | null>(null);
@@ -70,7 +73,7 @@ export default function ScenarioPage() {
     const link = document.createElement('a');
 
     link.href = url;
-    link.download = `${slugifyScenarioName(currentConfiguration.name)}.json`;
+    link.download = `${slugifyConfigurationName(currentConfiguration.name)}.json`;
     link.click();
 
     URL.revokeObjectURL(url);
@@ -84,40 +87,38 @@ export default function ScenarioPage() {
     }
 
     try {
-      const importedScenario = parseScenarioDocument(await file.text(), appConfig, file.name);
+      const importedConfiguration = parseScenarioDocument(await file.text(), appConfig, file.name);
 
       replaceCurrentConfiguration(
-        importedScenario,
+        importedConfiguration,
         'imported',
-        `Imported ${file.name} and saved it as the active browser draft.`,
+        `Imported ${file.name} and saved it as the active browser-local configuration.`,
       );
       setImportError(null);
     } catch (error) {
-      setImportError(error instanceof Error ? error.message : 'Failed to import the selected scenario file.');
+      setImportError(
+        error instanceof Error ? error.message : 'Failed to import the selected configuration file.',
+      );
     } finally {
       event.currentTarget.value = '';
     }
   }
 
   return (
-    <div className="page">
-      <h1>Scenario</h1>
-      <p>
-        The current scenario now lives as a browser draft: you can import a validated JSON
-        scenario, export the active draft back to disk, and restore the latest local copy
-        without changing the solver semantics underneath it.
-      </p>
-
+    <>
       <section className="scenario-overview-grid">
         <article className="scenario-panel scenario-panel--hero">
-          <span className="scenario-badge">Active draft</span>
-          <h2>{currentConfiguration.name || 'Untitled scenario'}</h2>
-          <p>{currentConfiguration.description ?? 'No description yet. Imported or edited drafts autosave in this browser.'}</p>
+          <span className="scenario-badge">Working document</span>
+          <h2>{currentConfiguration.name || 'Untitled configuration'}</h2>
+          <p>
+            {currentConfiguration.description
+              ?? 'No description yet. Imported or edited configurations autosave in this browser.'}
+          </p>
 
           <dl className="scenario-key-value-list">
             <div>
-              <dt>Draft source</dt>
-              <dd>{formatScenarioSource(currentConfigurationSource)}</dd>
+              <dt>Document source</dt>
+              <dd>{formatConfigurationSource(currentConfigurationSource)}</dd>
             </div>
             <div>
               <dt>Milestone years</dt>
@@ -143,7 +144,7 @@ export default function ScenarioPage() {
         </article>
 
         <article className="scenario-panel">
-          <h2>Save, Load, Restore</h2>
+          <h2>Import, Export, Restore</h2>
           {persistenceNotice ? (
             <p className="scenario-status scenario-status--info">{persistenceNotice}</p>
           ) : null}
@@ -165,7 +166,13 @@ export default function ScenarioPage() {
             >
               Import JSON
             </button>
-
+            <button
+              type="button"
+              className="scenario-button scenario-button--ghost"
+              onClick={resetCurrentConfiguration}
+            >
+              Reset to Reference
+            </button>
           </div>
 
           <input
@@ -178,7 +185,7 @@ export default function ScenarioPage() {
         </article>
 
         <article className="scenario-panel">
-          <h2>Draft metadata</h2>
+          <h2>Document Metadata</h2>
           <div className="scenario-form-grid">
             <label className="scenario-field">
               <span>Name</span>
@@ -203,12 +210,12 @@ export default function ScenarioPage() {
 
           <p className="scenario-inline-note">
             Name and description edits autosave immediately, while the resolved demand and control
-            tables remain the same unless you import a new scenario document.
+            tables remain the same unless you import a new configuration document.
           </p>
         </article>
 
         <article className="scenario-panel">
-          <h2>Control modes</h2>
+          <h2>Control Modes</h2>
           <div className="scenario-stat-grid">
             {Object.entries(controlsByMode).map(([mode, count]) => (
               <div key={mode} className="scenario-stat-card">
@@ -220,7 +227,7 @@ export default function ScenarioPage() {
         </article>
 
         <article className="scenario-panel">
-          <h2>Resolved demand inputs</h2>
+          <h2>Resolved Demand Inputs</h2>
           <div className="scenario-stat-grid">
             <div className="scenario-stat-card">
               <span>Services with explicit demand</span>
@@ -239,7 +246,7 @@ export default function ScenarioPage() {
       </section>
 
       <section className="scenario-panel">
-        <h2>Service demand sample</h2>
+        <h2>Service Demand Sample</h2>
         <div className="scenario-demand-grid">
           {serviceDemandEntries.slice(0, 6).map(([service, demandByYear]) => (
             <article key={service} className="scenario-demand-card">
@@ -259,6 +266,6 @@ export default function ScenarioPage() {
           ))}
         </div>
       </section>
-    </div>
+    </>
   );
 }

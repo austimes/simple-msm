@@ -201,9 +201,9 @@ export default function ComparePage() {
     <div className="page page--compare">
       <h1>Compare</h1>
       <p>
-        Compare mode now solves a built-in transition counterfactual alongside targeted
-        one-change counterfactuals so the app can summarize KPI deltas, state-share shifts,
-        and plain-language explanations without pretending the attribution is exact.
+        Compare mode solves the active configuration alongside targeted transition
+        counterfactuals so the app can summarize KPI deltas, state-share shifts, and
+        plain-language explanations without pretending the attribution is exact.
       </p>
 
       <section className="scenario-overview-grid">
@@ -227,7 +227,7 @@ export default function ComparePage() {
 
           <dl className="scenario-key-value-list">
             <div>
-              <dt>Scenario solves</dt>
+              <dt>Configuration solves</dt>
               <dd>{comparisonBuild.solves?.length ?? 0}</dd>
             </div>
             <div>
@@ -266,7 +266,7 @@ export default function ComparePage() {
         </article>
 
         <article className="scenario-panel">
-          <h2>Reference scenario</h2>
+          <h2>Reference Configuration</h2>
           <dl className="scenario-key-value-list">
             <div>
               <dt>Name</dt>
@@ -299,7 +299,7 @@ export default function ComparePage() {
         </article>
 
         <article className="scenario-panel">
-          <h2>Transition counterfactual</h2>
+          <h2>Transition Configuration</h2>
           <dl className="scenario-key-value-list">
             <div>
               <dt>Name</dt>
@@ -353,7 +353,7 @@ export default function ComparePage() {
         <h2>Heuristic Delta Decomposition</h2>
         <p>
           Each card compares the full transition counterfactual against a withheld version of
-          that same scenario, so the numbers are intentionally local heuristics rather than a
+          that same configuration, so the numbers are intentionally local heuristics rather than a
           perfect additive accounting identity.
         </p>
         <div className="results-raw-grid">

@@ -147,7 +147,7 @@ export const usePackageStore = create<PackageStore>((set, get) => {
       currentConfiguration: nextConfiguration,
       currentConfigurationSource: 'draft',
       isConfigurationDirty: dirty,
-      persistenceNotice: 'Scenario draft autosaves in this browser as you edit it.',
+      persistenceNotice: 'The active configuration autosaves in this browser as you edit it.',
       persistenceError,
     });
   }
@@ -175,7 +175,7 @@ export const usePackageStore = create<PackageStore>((set, get) => {
         activeConfigurationReadonly: false,
         baseConfiguration: null,
         isConfigurationDirty: false,
-        persistenceNotice: notice ?? 'Scenario draft autosaved in this browser.',
+        persistenceNotice: notice ?? 'The active configuration autosaved in this browser.',
         persistenceError,
       });
     },
@@ -210,7 +210,7 @@ export const usePackageStore = create<PackageStore>((set, get) => {
         activeConfigurationReadonly: false,
         baseConfiguration: null,
         isConfigurationDirty: false,
-        persistenceNotice: 'Reset to the packaged reference scenario and cleared the local draft.',
+        persistenceNotice: 'Reset to the packaged reference configuration and cleared the browser-local document.',
         persistenceError,
       });
     },
