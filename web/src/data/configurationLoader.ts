@@ -16,6 +16,11 @@ const builtinConfigModules = import.meta.glob<string>(
   { eager: true, import: 'default', query: '?raw' },
 );
 
+interface ConfigurationCollectionEntry {
+  source: string;
+  configuration: ConfigurationDocument;
+}
+
 function normalizeConfigurationMetadata(configuration: ConfigurationDocument): ConfigurationDocument {
   const configurationWithoutMetadata = { ...configuration };
   delete configurationWithoutMetadata.app_metadata;
@@ -54,24 +59,64 @@ function withConfigurationMetadata(
   });
 }
 
+function isCanonicalConfigurationSource(source: string, id: string | undefined): boolean {
+  if (!id) {
+    return false;
+  }
+
+  const filename = source.split('/').pop()?.toLowerCase();
+  return filename === `${id.toLowerCase()}.json`;
+}
+
+function dedupeConfigurationEntries(
+  entries: ConfigurationCollectionEntry[],
+): ConfigurationDocument[] {
+  const deduped = new Map<string, ConfigurationCollectionEntry>();
+
+  for (const entry of entries) {
+    const id = entry.configuration.app_metadata?.id;
+    const key = id ? `id:${id}` : `source:${entry.source}`;
+    const existing = deduped.get(key);
+
+    if (!existing) {
+      deduped.set(key, entry);
+      continue;
+    }
+
+    const candidateIsCanonical = isCanonicalConfigurationSource(entry.source, id);
+    const existingIsCanonical = isCanonicalConfigurationSource(existing.source, id);
+
+    if (candidateIsCanonical && !existingIsCanonical) {
+      deduped.set(key, entry);
+    }
+  }
+
+  return Array.from(deduped.values())
+    .map((entry) => entry.configuration)
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
 export function parseConfigurationCollection(
   modules: Record<string, string>,
   readonly: boolean,
 ): ConfigurationDocument[] {
-  const configs: ConfigurationDocument[] = [];
+  const entries: ConfigurationCollectionEntry[] = [];
 
   for (const [path, raw] of Object.entries(modules)) {
     if (path.includes('_index.json')) continue;
 
     try {
       const parsed = parseConfigurationDocument(raw, undefined, path);
-      configs.push(withConfigurationMetadata(parsed, { readonly }));
+      entries.push({
+        source: path,
+        configuration: withConfigurationMetadata(parsed, { readonly }),
+      });
     } catch {
       console.warn(`Failed to parse configuration document: ${path}`);
     }
   }
 
-  return configs.sort((a, b) => a.name.localeCompare(b.name));
+  return dedupeConfigurationEntries(entries);
 }
 
 let cachedBuiltinConfigs: ConfigurationDocument[] | null = null;
@@ -127,7 +172,12 @@ export async function fetchUserConfigurations(): Promise<ConfigurationDocument[]
     const res = await fetch('/api/user-configurations');
     if (!res.ok) return loadUserConfigurations();
     const configs = (await res.json()) as ConfigurationDocument[];
-    return configs.map((config) => withConfigurationMetadata(config, { readonly: false }));
+    return dedupeConfigurationEntries(
+      configs.map((config, index) => ({
+        source: `remote:${index}`,
+        configuration: withConfigurationMetadata(config, { readonly: false }),
+      })),
+    );
   } catch {
     return loadUserConfigurations();
   }
