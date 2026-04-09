@@ -5,8 +5,10 @@ import {
   type NormalizedSolverRow,
   type ResolvedConfigurationForSolve,
   type ResolvedSolveControl,
+  type SolveDiagnostic,
   type SolveRequest,
 } from './contract.ts';
+import { validateFixedShareControl } from './fixedShareValidation.ts';
 import {
   deriveOutputRunStatuses,
   expandIncludedOutputsForDependencies,
@@ -47,6 +49,71 @@ function buildDemandValidationMessage(
   });
 
   return `Cannot solve because required-service outputs have positive in-run demand but no available pathways: ${details.join(', ')}.`;
+}
+
+function buildFixedShareValidationMessage(diagnostics: SolveDiagnostic[]): string {
+  const details = diagnostics.map((diagnostic) => {
+    const yearLabel = diagnostic.year == null ? '' : ` (${diagnostic.year})`;
+    return `- ${diagnostic.outputId}${yearLabel}: ${diagnostic.message}`;
+  });
+
+  return ['Cannot solve because exact-share controls are malformed:', ...details].join('\n');
+}
+
+function collectRowsByOutputYear(
+  rows: NormalizedSolverRow[],
+): Map<string, Map<number, NormalizedSolverRow[]>> {
+  const grouped = new Map<string, Map<number, NormalizedSolverRow[]>>();
+
+  for (const row of rows) {
+    let rowsByYear = grouped.get(row.outputId);
+    if (!rowsByYear) {
+      rowsByYear = new Map<number, NormalizedSolverRow[]>();
+      grouped.set(row.outputId, rowsByYear);
+    }
+
+    let rowsForYear = rowsByYear.get(row.year);
+    if (!rowsForYear) {
+      rowsForYear = [];
+      rowsByYear.set(row.year, rowsForYear);
+    }
+
+    rowsForYear.push(row);
+  }
+
+  return grouped;
+}
+
+function validateFixedShareControls(
+  rows: NormalizedSolverRow[],
+  configuration: ResolvedConfigurationForSolve,
+): void {
+  const rowsByOutputYear = collectRowsByOutputYear(rows);
+  const diagnostics: SolveDiagnostic[] = [];
+
+  for (const [outputId, controlsByYear] of Object.entries(configuration.controlsByOutput)) {
+    for (const [yearKey, control] of Object.entries(controlsByYear)) {
+      if (control.mode !== 'fixed_shares') {
+        continue;
+      }
+
+      diagnostics.push(
+        ...validateFixedShareControl(
+          outputId,
+          Number(yearKey),
+          rowsByOutputYear.get(outputId)?.get(Number(yearKey)) ?? [],
+          control,
+          'Exact-share control',
+        ),
+      );
+    }
+  }
+
+  if (diagnostics.length === 0) {
+    return;
+  }
+
+  throw new Error(buildFixedShareValidationMessage(diagnostics));
 }
 
 function validateRequiredServiceCoverage(
@@ -162,6 +229,7 @@ export function buildSolveRequest(
   );
 
   if (!seedOutputIds || seedOutputIds.length === 0) {
+    validateFixedShareControls(allRows, resolvedConfiguration);
     return {
       contractVersion: SOLVER_CONTRACT_VERSION,
       requestId: createRequestId(),
@@ -183,6 +251,7 @@ export function buildSolveRequest(
     expandedOutputIds,
     seedOutputIdSet,
   );
+  validateFixedShareControls(filtered.rows, filtered.configuration);
 
   return {
     contractVersion: SOLVER_CONTRACT_VERSION,

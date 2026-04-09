@@ -3,7 +3,9 @@ import { readFileSync } from 'node:fs';
 import { describe, test } from 'node:test';
 import { buildSolveRequest } from '../src/solver/buildSolveRequest.ts';
 import {
+  deriveOutputRunStatuses,
   deriveOutputRunStatusesForConfiguration,
+  expandIncludedOutputsForDependencies,
 } from '../src/solver/solveScope.ts';
 import { buildConfiguration, loadPkg } from './solverTestUtils.mjs';
 
@@ -223,6 +225,193 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
     assert.equal(statuses.residential_building_services.capEligibleStateCount, residentialStateIds.length - 1);
   });
 
+  test('dependency expansion follows active pathways under one-hot exact-share controls', () => {
+    const rows = [
+      {
+        rowId: 'service_electric::2030',
+        outputId: 'service',
+        outputRole: 'required_service',
+        outputLabel: 'Service',
+        year: 2030,
+        stateId: 'service_electric',
+        stateLabel: 'Service Electric',
+        sector: 'test',
+        subsector: 'test',
+        region: 'national',
+        outputUnit: 'PJ',
+        conversionCostPerUnit: 1,
+        inputs: [{ commodityId: 'electricity', coefficient: 1, unit: 'PJ' }],
+        directEmissions: [],
+        bounds: { minShare: null, maxShare: null, maxActivity: null },
+      },
+      {
+        rowId: 'service_hydrogen::2030',
+        outputId: 'service',
+        outputRole: 'required_service',
+        outputLabel: 'Service',
+        year: 2030,
+        stateId: 'service_hydrogen',
+        stateLabel: 'Service Hydrogen',
+        sector: 'test',
+        subsector: 'test',
+        region: 'national',
+        outputUnit: 'PJ',
+        conversionCostPerUnit: 2,
+        inputs: [{ commodityId: 'hydrogen', coefficient: 1, unit: 'PJ' }],
+        directEmissions: [],
+        bounds: { minShare: null, maxShare: null, maxActivity: null },
+      },
+      {
+        rowId: 'electricity_supply::2030',
+        outputId: 'electricity',
+        outputRole: 'endogenous_supply_commodity',
+        outputLabel: 'Electricity',
+        year: 2030,
+        stateId: 'electricity_supply',
+        stateLabel: 'Electricity Supply',
+        sector: 'test',
+        subsector: 'test',
+        region: 'national',
+        outputUnit: 'PJ',
+        conversionCostPerUnit: 1,
+        inputs: [],
+        directEmissions: [],
+        bounds: { minShare: null, maxShare: null, maxActivity: null },
+      },
+      {
+        rowId: 'hydrogen_supply::2030',
+        outputId: 'hydrogen',
+        outputRole: 'endogenous_supply_commodity',
+        outputLabel: 'Hydrogen',
+        year: 2030,
+        stateId: 'hydrogen_supply',
+        stateLabel: 'Hydrogen Supply',
+        sector: 'test',
+        subsector: 'test',
+        region: 'national',
+        outputUnit: 'PJ',
+        conversionCostPerUnit: 1,
+        inputs: [],
+        directEmissions: [],
+        bounds: { minShare: null, maxShare: null, maxActivity: null },
+      },
+    ];
+    const scenario = {
+      service_controls: {
+        service: {
+          mode: 'fixed_shares',
+          fixed_shares: { service_electric: 1 },
+        },
+      },
+    };
+    const resolvedConfiguration = {
+      name: 'Exact-share dependency expansion',
+      description: null,
+      years: [2030],
+      controlsByOutput: {
+        service: {
+          2030: {
+            mode: 'fixed_shares',
+            fixedShares: { service_electric: 1 },
+            disabledStateIds: [],
+            targetValue: null,
+          },
+        },
+        electricity: {
+          2030: {
+            mode: 'optimize',
+            fixedShares: null,
+            disabledStateIds: [],
+            targetValue: null,
+          },
+        },
+        hydrogen: {
+          2030: {
+            mode: 'optimize',
+            fixedShares: null,
+            disabledStateIds: [],
+            targetValue: null,
+          },
+        },
+      },
+      serviceDemandByOutput: {
+        service: { 2030: 100 },
+      },
+      externalCommodityDemandByCommodity: {},
+      commodityPriceByCommodity: {},
+      carbonPriceByYear: { 2030: 0 },
+      options: {
+        respectMaxShare: true,
+        respectMaxActivity: true,
+        softConstraints: false,
+        allowRemovalsCredit: false,
+        shareSmoothing: {
+          enabled: false,
+          maxDeltaPp: null,
+        },
+      },
+    };
+    const appConfig = {
+      output_roles: {
+        service: {
+          output_role: 'required_service',
+          display_label: 'Service',
+          display_group: 'Test',
+          display_group_order: 0,
+          display_order: 0,
+          participates_in_commodity_balance: false,
+          demand_required: true,
+          default_control_mode: 'optimize',
+          allowed_control_modes: ['fixed_shares', 'optimize', 'off', 'target'],
+          explanation_group: 'test',
+        },
+        electricity: {
+          output_role: 'endogenous_supply_commodity',
+          display_label: 'Electricity',
+          display_group: 'Test',
+          display_group_order: 0,
+          display_order: 1,
+          participates_in_commodity_balance: true,
+          demand_required: false,
+          default_control_mode: 'optimize',
+          allowed_control_modes: ['fixed_shares', 'optimize', 'externalized'],
+          explanation_group: 'test',
+        },
+        hydrogen: {
+          output_role: 'endogenous_supply_commodity',
+          display_label: 'Hydrogen',
+          display_group: 'Test',
+          display_group_order: 0,
+          display_order: 2,
+          participates_in_commodity_balance: true,
+          demand_required: false,
+          default_control_mode: 'optimize',
+          allowed_control_modes: ['fixed_shares', 'optimize', 'externalized'],
+          explanation_group: 'test',
+        },
+      },
+    };
+
+    const expandedOutputIds = expandIncludedOutputsForDependencies(
+      rows,
+      resolvedConfiguration,
+      appConfig,
+      new Set(['service']),
+    );
+    const statuses = deriveOutputRunStatuses(
+      rows,
+      scenario,
+      resolvedConfiguration,
+      appConfig,
+      ['service'],
+    );
+
+    assert.deepEqual(new Set(expandedOutputIds), new Set(['service', 'electricity']));
+    assert.deepEqual(statuses.service.activeStateIds, ['service_electric']);
+    assert.equal(statuses.electricity.runParticipation, 'auto_included_dependency');
+    assert.equal(statuses.hydrogen.runParticipation, 'excluded_from_run');
+  });
+
   test('buildSolveRequest blocks positive required-service demand with no available pathways', () => {
     const allPassengerStateIds = Array.from(
       new Set(
@@ -243,6 +432,36 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
     });
 
     assert.throws(() => buildSolveRequest(pkg, configuration), /no available pathways: passenger_road_transport/i);
+  });
+
+  test('buildSolveRequest rejects malformed exact-share controls before solving', () => {
+    const residentialStateIds = Array.from(
+      new Set(
+        pkg.sectorStates
+          .filter((row) => row.service_or_output_name === 'residential_building_services')
+          .map((row) => row.state_id),
+      ),
+    );
+
+    assert.ok(residentialStateIds.length >= 1, 'expected at least one residential pathway');
+
+    const configuration = buildConfiguration(pkg.appConfig, {
+      name: 'Malformed residential exact-share control',
+      serviceControls: {
+        residential_building_services: {
+          mode: 'fixed_shares',
+          fixed_shares: {
+            [residentialStateIds[0]]: 0.6,
+            unknown_exact_share_state: 0.1,
+          },
+        },
+      },
+    });
+
+    assert.throws(
+      () => buildSolveRequest(pkg, configuration),
+      /exact-share controls are malformed[\s\S]*unknown_exact_share_state[\s\S]*sum to 0\.700000 instead of 1/i,
+    );
   });
 
   test('marks unscoped configurations as full-model runs', () => {
