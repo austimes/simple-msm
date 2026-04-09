@@ -241,3 +241,28 @@ test('configuration loader rejects partial overlay documents instead of merging 
 
   assert.deepEqual(warnings, ['Failed to parse configuration document: /src/configurations/overlay-like.json']);
 });
+
+test('editing a loaded user configuration marks the workspace dirty for Save overwrite', async () => {
+  const { usePackageStore } = await loadViteModule('/src/data/packageStore.ts');
+  const { loadUserConfigurations } = await loadViteModule('/src/data/configurationLoader.ts');
+  const userConfiguration = loadUserConfigurations()[0];
+
+  assert.ok(userConfiguration, 'expected at least one bundled user configuration fixture');
+
+  usePackageStore.getState().loadConfiguration(userConfiguration);
+
+  assert.equal(usePackageStore.getState().activeConfigurationReadonly, false);
+  assert.equal(usePackageStore.getState().isConfigurationDirty, false);
+
+  const currentPresetId = usePackageStore.getState().currentConfiguration.demand_generation.preset_id;
+  const nextPresetId = Object.keys(appConfig.demand_growth_presets)
+    .find((presetId) => presetId !== currentPresetId);
+
+  assert.ok(nextPresetId, 'expected an alternate demand preset for the dirty-state regression test');
+
+  usePackageStore.getState().setDemandPreset(nextPresetId);
+
+  assert.equal(usePackageStore.getState().isConfigurationDirty, true);
+  assert.equal(usePackageStore.getState().activeConfigurationId, userConfiguration.app_metadata.id);
+  assert.equal(usePackageStore.getState().activeConfigurationReadonly, false);
+});
