@@ -69,6 +69,11 @@ interface TrackedConstraint {
   softConstraint?: SoftConstraintMetadata;
 }
 
+interface ResolvedMaxShareBounds {
+  rawMaxShare: number | null;
+  effectiveMaxShare: number | null;
+}
+
 interface RowShareProfile {
   row: NormalizedSolverRow;
   disabled: boolean;
@@ -76,6 +81,8 @@ interface RowShareProfile {
   upperShare: number;
   upperShareIgnoringActivity: number;
   exactShare: number | null;
+  rawMaxShare: number | null;
+  effectiveMaxShare: number | null;
   maxShareLimit: number | null;
   maxActivityLimit: number | null;
   commodityCoefficient: number;
@@ -636,6 +643,46 @@ function clampShare(value: number): number {
   return Math.max(0, Math.min(1, value));
 }
 
+function buildEffectiveMaxShareLookup(
+  rows: NormalizedSolverRow[],
+  control: ResolvedSolveControl,
+): Map<string, ResolvedMaxShareBounds> {
+  const lookup = new Map<string, ResolvedMaxShareBounds>();
+  const disabledStateIds = new Set(control.disabledStateIds);
+  const enabledRows = rows.filter((row) => !disabledStateIds.has(row.stateId));
+
+  for (const row of rows) {
+    lookup.set(row.rowId, {
+      rawMaxShare: row.bounds.maxShare == null ? null : clampShare(row.bounds.maxShare),
+      effectiveMaxShare: null,
+    });
+  }
+
+  if (enabledRows.length === 0) {
+    return lookup;
+  }
+
+  const weights = enabledRows.map((row) => ({
+    rowId: row.rowId,
+    weight: clampShare(row.bounds.maxShare ?? 1),
+  }));
+  const totalWeight = weights.reduce((sum, entry) => sum + entry.weight, 0);
+  const fallbackShare = 1 / enabledRows.length;
+
+  for (const { rowId, weight } of weights) {
+    const existing = lookup.get(rowId);
+    if (!existing) {
+      continue;
+    }
+
+    existing.effectiveMaxShare = totalWeight <= SHARE_TOLERANCE
+      ? fallbackShare
+      : weight / totalWeight;
+  }
+
+  return lookup;
+}
+
 function resolveExactShare(control: ResolvedSolveControl, row: NormalizedSolverRow): number | null {
   if (control.mode === 'pinned_single') {
     return row.stateId === control.stateId ? 1 : 0;
@@ -656,12 +703,19 @@ function buildRowShareProfiles(
   commodityId?: string,
 ): RowShareProfile[] {
   const disabledStateIds = new Set(control.disabledStateIds);
+  const maxShareLookup = buildEffectiveMaxShareLookup(rows, control);
 
   return [...rows]
     .sort((left, right) => left.stateLabel.localeCompare(right.stateLabel))
     .map((row) => {
       const disabled = disabledStateIds.has(row.stateId);
-      const maxShareLimit = request.configuration.options.respectMaxShare ? row.bounds.maxShare : null;
+      const resolvedMaxShare = maxShareLookup.get(row.rowId) ?? {
+        rawMaxShare: row.bounds.maxShare == null ? null : clampShare(row.bounds.maxShare),
+        effectiveMaxShare: null,
+      };
+      const maxShareLimit = request.configuration.options.respectMaxShare
+        ? resolvedMaxShare.effectiveMaxShare
+        : null;
       const maxActivityLimit = request.configuration.options.respectMaxActivity ? row.bounds.maxActivity : null;
       const upperShareIgnoringActivity = disabled
         ? 0
@@ -682,6 +736,8 @@ function buildRowShareProfiles(
         upperShare,
         upperShareIgnoringActivity,
         exactShare: resolveExactShare(control, row),
+        rawMaxShare: resolvedMaxShare.rawMaxShare,
+        effectiveMaxShare: resolvedMaxShare.effectiveMaxShare,
         maxShareLimit,
         maxActivityLimit,
         commodityCoefficient: commodityId ? sumInputCoefficient(row, commodityId) : 0,
@@ -1256,6 +1312,7 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
     const demandId = demandConstraintId(group.outputId, group.year);
     const disabledStateIds = new Set(group.control.disabledStateIds);
     const fixedShares = group.control.fixedShares ?? {};
+    const maxShareLookup = buildEffectiveMaxShareLookup(group.rows, group.control);
 
     trackConstraint(
       constraints,
@@ -1363,7 +1420,8 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
         );
       }
 
-      if (request.configuration.options.respectMaxShare && row.bounds.maxShare != null) {
+      const maxShareLimit = maxShareLookup.get(row.rowId)?.effectiveMaxShare ?? null;
+      if (request.configuration.options.respectMaxShare && maxShareLimit != null) {
         const constraintId = stateConstraintId('max_share', row);
         addConstraint(
           constraints,
@@ -1371,7 +1429,7 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
           variables,
           variableId,
           constraintId,
-          scaleConstraintBounds({ max: row.bounds.maxShare * group.demand }, activityScale),
+          scaleConstraintBounds({ max: maxShareLimit * group.demand }, activityScale),
           {
             kind: 'max_share',
             outputId: row.outputId,
@@ -1435,6 +1493,7 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
     const variableIds = group.rows.map((row) => activityVariableId(row));
     const disabledStateIds = new Set(group.control.disabledStateIds);
     const fixedShares = group.control.fixedShares ?? {};
+    const maxShareLookup = buildEffectiveMaxShareLookup(group.rows, group.control);
 
     if (group.control.mode === 'externalized') {
       for (const row of group.rows) {
@@ -1569,7 +1628,8 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
         );
       }
 
-      if (request.configuration.options.respectMaxShare && row.bounds.maxShare != null) {
+      const maxShareLimit = maxShareLookup.get(row.rowId)?.effectiveMaxShare ?? null;
+      if (request.configuration.options.respectMaxShare && maxShareLimit != null) {
         const constraintId = stateConstraintId('max_share', row);
         addShareConstraint(
           constraints,
@@ -1577,7 +1637,7 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
           variables,
           variableIds,
           variableId,
-          row.bounds.maxShare,
+          maxShareLimit,
           constraintId,
           { max: 0 },
           {
@@ -1786,6 +1846,7 @@ function buildVariableValueMap(solution: Solution<string>, activityScale: number
 }
 
 function buildStateShareSummary(
+  request: SolveRequest,
   rows: NormalizedSolverRow[],
   variableValues: Map<string, number>,
 ): SolveStateShareSummary[] {
@@ -1817,6 +1878,12 @@ function buildStateShareSummary(
       return left.outputId.localeCompare(right.outputId);
     })
     .flatMap((group) => {
+      const control = request.configuration.controlsByOutput[group.outputId]?.[yearKey(group.year)];
+      if (!control) {
+        throw new Error(`Missing resolved control for ${JSON.stringify(group.outputId)} in ${group.year}.`);
+      }
+
+      const maxShareLookup = buildEffectiveMaxShareLookup(group.rows, control);
       const totalActivity = group.rows.reduce((total, row) => {
         return total + (variableValues.get(activityVariableId(row)) ?? 0);
       }, 0);
@@ -1825,6 +1892,10 @@ function buildStateShareSummary(
         .sort((left, right) => left.stateLabel.localeCompare(right.stateLabel))
         .map((row) => {
           const activity = variableValues.get(activityVariableId(row)) ?? 0;
+          const resolvedMaxShare = maxShareLookup.get(row.rowId) ?? {
+            rawMaxShare: row.bounds.maxShare == null ? null : clampShare(row.bounds.maxShare),
+            effectiveMaxShare: null,
+          };
           return {
             outputId: group.outputId,
             outputLabel: group.outputLabel,
@@ -1833,6 +1904,8 @@ function buildStateShareSummary(
             stateLabel: row.stateLabel,
             activity,
             share: totalActivity > 0 ? activity / totalActivity : null,
+            rawMaxShare: resolvedMaxShare.rawMaxShare,
+            effectiveMaxShare: resolvedMaxShare.effectiveMaxShare,
           } satisfies SolveStateShareSummary;
         });
     });
@@ -2024,7 +2097,7 @@ function buildReportingSummary(
 
   return {
     commodityBalances: buildCommodityBalanceSummary(request, build, variableValues),
-    stateShares: buildStateShareSummary(build.activeRows, variableValues),
+    stateShares: buildStateShareSummary(request, build.activeRows, variableValues),
     bindingConstraints: buildBindingConstraintSummary(solution, build),
     softConstraintViolations: buildSoftConstraintViolationSummary(solution, build),
   };

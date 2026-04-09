@@ -1977,6 +1977,73 @@ body {
   min-width: 0;
 }
 
+.workspace-chart-section--pathway {
+  display: grid;
+  gap: 12px;
+}
+
+.workspace-chart-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.workspace-chart-card-title {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.workspace-chart-card-subtitle {
+  margin-top: 4px;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.workspace-chart-toggle {
+  display: inline-flex;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: #f8fafc;
+}
+
+.workspace-chart-toggle-button {
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text-muted);
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.workspace-chart-toggle-button--active {
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.workspace-chart-note {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(43, 108, 176, 0.16);
+  background: rgba(43, 108, 176, 0.06);
+  color: #234e7d;
+  font-size: 12px;
+}
+
+.workspace-chart-note--warning {
+  border-color: rgba(180, 83, 9, 0.18);
+  background: rgba(251, 191, 36, 0.14);
+  color: #92400e;
+}
+
 .workspace-active-states {
   margin-top: 24px;
   padding: 12px 14px;

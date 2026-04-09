@@ -31,6 +31,15 @@ export interface LineChartData {
   series: StackedSeries[];
 }
 
+export interface PathwayChartCardData {
+  outputId: string;
+  outputLabel: string;
+  note: string;
+  respectMaxShare: boolean;
+  outputChart: StackedChartData;
+  capChart: LineChartData;
+}
+
 type ShareLookupKey = string;
 
 function shareKey(outputId: string, year: number, stateId: string): ShareLookupKey {
@@ -362,4 +371,89 @@ export function buildCostByComponentChart(
     years,
     series: buildSeries(grouped, years, (key) => key),
   };
+}
+
+export function buildPathwayChartCards(
+  request: SolveRequest,
+  result: SolveResult,
+): PathwayChartCardData[] {
+  const years = request.configuration.years;
+  const respectMaxShare = request.configuration.options.respectMaxShare;
+  const outputRows = new Map<string, { outputLabel: string; outputUnit: string; stateIds: Set<string> }>();
+
+  for (const row of request.rows) {
+    const existing = outputRows.get(row.outputId);
+    if (existing) {
+      existing.stateIds.add(row.stateId);
+      continue;
+    }
+
+    outputRows.set(row.outputId, {
+      outputLabel: row.outputLabel,
+      outputUnit: row.outputUnit,
+      stateIds: new Set([row.stateId]),
+    });
+  }
+
+  return Array.from(outputRows.entries())
+    .filter(([, metadata]) => metadata.stateIds.size > 1)
+    .map(([outputId, metadata]) => {
+      const outputGrouped = new Map<string, Map<number, number>>();
+      const capGrouped = new Map<string, Map<number, number>>();
+      let hasNormalizedCaps = false;
+
+      for (const share of result.reporting.stateShares) {
+        if (share.outputId !== outputId) {
+          continue;
+        }
+
+        let outputYearMap = outputGrouped.get(share.stateLabel);
+        if (!outputYearMap) {
+          outputYearMap = new Map<number, number>();
+          outputGrouped.set(share.stateLabel, outputYearMap);
+        }
+        outputYearMap.set(share.year, share.activity);
+
+        const effectiveMaxShare = share.effectiveMaxShare ?? 0;
+        let capYearMap = capGrouped.get(share.stateLabel);
+        if (!capYearMap) {
+          capYearMap = new Map<number, number>();
+          capGrouped.set(share.stateLabel, capYearMap);
+        }
+        capYearMap.set(share.year, effectiveMaxShare * 100);
+
+        if (
+          share.rawMaxShare != null
+          && share.effectiveMaxShare != null
+          && Math.abs(share.rawMaxShare - share.effectiveMaxShare) > 1e-9
+        ) {
+          hasNormalizedCaps = true;
+        }
+      }
+
+      const note = !respectMaxShare
+        ? 'Max-share caps were ignored in this solve. Cap view shows the normalized enabled-pathway caps for context only.'
+        : hasNormalizedCaps
+          ? 'Cap view shows effective max shares after normalizing the enabled pathways within each year.'
+          : 'Cap view shows the effective max shares applied to each enabled pathway.';
+
+      return {
+        outputId,
+        outputLabel: metadata.outputLabel,
+        note,
+        respectMaxShare,
+        outputChart: {
+          title: `${metadata.outputLabel} Pathway Output`,
+          yAxisLabel: metadata.outputUnit,
+          years,
+          series: buildSeries(outputGrouped, years, (key) => key),
+        },
+        capChart: {
+          title: `${metadata.outputLabel} Pathway Cap`,
+          yAxisLabel: 'Share of enabled output',
+          years,
+          series: buildSeries(capGrouped, years, (key) => key),
+        },
+      } satisfies PathwayChartCardData;
+    });
 }

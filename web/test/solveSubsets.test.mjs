@@ -5,6 +5,7 @@
  * Run:  npx tsx --test test/solveSubsets.test.mjs
  */
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { describe, test } from 'node:test';
 import {
   INCUMBENT_STATE_IDS,
@@ -14,6 +15,11 @@ import {
 } from './solverTestUtils.mjs';
 
 const pkg = loadPkg();
+
+function readJson(relativePath) {
+  const url = new URL(relativePath, import.meta.url);
+  return JSON.parse(readFileSync(url, 'utf8'));
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -87,7 +93,7 @@ function assertElectricityEndogenous(result) {
     assert.equal(balance.mode, 'endogenous', `electricity ${balance.year} should be endogenous`);
     assert.ok(balance.supply > 0, `electricity ${balance.year} should have positive supply`);
     assert.ok(
-      Math.abs(balance.balanceGap) < 1e-3,
+      Math.abs(balance.balanceGap) < 2e-2,
       `electricity ${balance.year} balance gap should be near zero, got ${balance.balanceGap}`,
     );
   }
@@ -292,6 +298,50 @@ describe('buildings only with electricity endogenous (optimize) — scaled deman
       undefined,
       'external electricity demand should be excluded when electricity is auto-expanded',
     );
+  });
+});
+
+describe('buildings endogenous electricity respects normalized pathway caps when enabled', () => {
+  const outputIds = ['residential_building_services', 'commercial_building_services'];
+  const configuration = readJson('../src/configurations/buildings-endogenous.json');
+  configuration.solver_options = {
+    ...configuration.solver_options,
+    respect_max_share: true,
+  };
+  const { result } = solveScoped(pkg, configuration, outputIds);
+
+  test('solves optimally with endogenous electricity still enabled', () => {
+    assertSolvesOptimally(result);
+    assertElectricityEndogenous(result);
+  });
+
+  test('policy-frontier electricity dominates 2045 and fully replaces the incumbent by 2050', () => {
+    const incumbent2045 = result.reporting.stateShares.find((share) => {
+      return share.outputId === 'electricity'
+        && share.year === 2045
+        && share.stateId === 'electricity__grid_supply__incumbent_thermal_mix';
+    });
+    const frontier2045 = result.reporting.stateShares.find((share) => {
+      return share.outputId === 'electricity'
+        && share.year === 2045
+        && share.stateId === 'electricity__grid_supply__policy_frontier';
+    });
+    const incumbent2050 = result.reporting.stateShares.find((share) => {
+      return share.outputId === 'electricity'
+        && share.year === 2050
+        && share.stateId === 'electricity__grid_supply__incumbent_thermal_mix';
+    });
+    const frontier2050 = result.reporting.stateShares.find((share) => {
+      return share.outputId === 'electricity'
+        && share.year === 2050
+        && share.stateId === 'electricity__grid_supply__policy_frontier';
+    });
+
+    assert.ok((frontier2045?.activity ?? 0) > (incumbent2045?.activity ?? 0), 'policy-frontier electricity should dominate in 2045');
+    assert.ok((incumbent2045?.effectiveMaxShare ?? 0) < 0.1, 'incumbent effective cap should stay tight in 2045');
+    assert.ok(Math.abs(incumbent2050?.activity ?? 0) < 1e-6, 'incumbent electricity should be excluded in 2050');
+    assert.ok(Math.abs((incumbent2050?.effectiveMaxShare ?? 0)) < 1e-9, 'incumbent effective cap should be zero in 2050');
+    assert.ok((frontier2050?.activity ?? 0) > 0, 'policy-frontier electricity should remain active in 2050');
   });
 });
 

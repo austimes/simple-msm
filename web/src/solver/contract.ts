@@ -1,6 +1,6 @@
 import type { OutputRole, ScenarioControlMode } from '../data/types.ts';
 
-export const SOLVER_CONTRACT_VERSION = 2 as const;
+export const SOLVER_CONTRACT_VERSION = 3 as const;
 
 export type SolverContractVersion = typeof SOLVER_CONTRACT_VERSION;
 export type SolveStatus = 'partial' | 'solved' | 'error';
@@ -170,6 +170,8 @@ export interface SolveStateShareSummary {
   stateLabel: string;
   activity: number;
   share: number | null;
+  rawMaxShare: number | null;
+  effectiveMaxShare: number | null;
 }
 
 export interface SolveBindingConstraintSummary {

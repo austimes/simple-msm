@@ -59,6 +59,12 @@ function findSoftConstraint(result, constraintId) {
   return result.reporting.softConstraintViolations.find((constraint) => constraint.constraintId === constraintId);
 }
 
+function findStateShare(result, outputId, year, stateId) {
+  return result.reporting.stateShares.find((share) => {
+    return share.outputId === outputId && share.year === year && share.stateId === stateId;
+  });
+}
+
 test('required-service LP solves pinned, fixed-share, and optimize controls generically', () => {
   const request = {
     contractVersion: SOLVER_CONTRACT_VERSION,
@@ -84,6 +90,7 @@ test('required-service LP solves pinned, fixed-share, and optimize controls gene
         year: 2030,
         stateId: 'heat_fossil',
         cost: 5,
+        maxShare: 0.25,
       }),
       createRow({
         rowId: 'heat_electric::2030',
@@ -91,6 +98,7 @@ test('required-service LP solves pinned, fixed-share, and optimize controls gene
         year: 2030,
         stateId: 'heat_electric',
         cost: 2,
+        maxShare: 0.75,
       }),
       createRow({
         rowId: 'transport_diesel::2025',
@@ -174,7 +182,7 @@ test('required-service LP solves pinned, fixed-share, and optimize controls gene
             mode: 'pinned_single',
             stateId: 'heat_fossil',
             fixedShares: null,
-            disabledStateIds: [],
+            disabledStateIds: ['heat_electric'],
             targetValue: null,
           },
           2030: {
@@ -193,14 +201,14 @@ test('required-service LP solves pinned, fixed-share, and optimize controls gene
             mode: 'pinned_single',
             stateId: 'transport_diesel',
             fixedShares: null,
-            disabledStateIds: [],
+            disabledStateIds: ['transport_ev'],
             targetValue: null,
           },
           2030: {
             mode: 'pinned_single',
             stateId: 'transport_ev',
             fixedShares: null,
-            disabledStateIds: [],
+            disabledStateIds: ['transport_diesel'],
             targetValue: null,
           },
         },
@@ -209,7 +217,7 @@ test('required-service LP solves pinned, fixed-share, and optimize controls gene
             mode: 'pinned_single',
             stateId: 'process_transition',
             fixedShares: null,
-            disabledStateIds: [],
+            disabledStateIds: ['process_incumbent', 'process_hydrogen'],
             targetValue: null,
           },
           2030: {
@@ -262,9 +270,16 @@ test('required-service LP solves pinned, fixed-share, and optimize controls gene
   assertClose(variables.get('activity:heat_electric::2030'), 60, '2030 heat fixed-share electric row');
   assertClose(variables.get('activity:transport_diesel::2030'), 0, '2030 transport non-pinned row');
   assertClose(variables.get('activity:transport_ev::2030'), 50, '2030 transport pinned row');
-  assertClose(variables.get('activity:process_incumbent::2030'), 60, '2030 process optimize low-cost capped row');
-  assertClose(variables.get('activity:process_transition::2030'), 40, '2030 process optimize residual row');
+  assertClose(variables.get('activity:process_incumbent::2030'), 37.5, '2030 process optimize low-cost capped row');
+  assertClose(variables.get('activity:process_transition::2030'), 62.5, '2030 process optimize residual row');
   assertClose(variables.get('activity:process_hydrogen::2030'), 0, '2030 process disabled row');
+
+  const incumbentShare = findStateShare(result, 'process', 2030, 'process_incumbent');
+  const transitionShare = findStateShare(result, 'process', 2030, 'process_transition');
+  assertClose(incumbentShare?.rawMaxShare, 0.6, 'raw incumbent max share is reported');
+  assertClose(incumbentShare?.effectiveMaxShare, 0.375, 'effective incumbent max share is normalized');
+  assert.equal(transitionShare?.rawMaxShare, null);
+  assertClose(transitionShare?.effectiveMaxShare, 0.625, 'null raw max share contributes weight 1.0');
 
   const bindingConstraintIds = new Set(
     result.reporting.bindingConstraints.map((constraint) => constraint.constraintId),
@@ -287,6 +302,7 @@ test('endogenous electricity enforces balance and removes exogenous electricity 
         year: 2030,
         stateId: 'process_fossil',
         cost: 5,
+        maxShare: 0,
       }),
       createRow({
         rowId: 'process_electric::2030',
@@ -294,6 +310,7 @@ test('endogenous electricity enforces balance and removes exogenous electricity 
         year: 2030,
         stateId: 'process_electric',
         cost: 1,
+        maxShare: 1,
         inputs: [
           {
             commodityId: 'electricity',
@@ -309,6 +326,7 @@ test('endogenous electricity enforces balance and removes exogenous electricity 
         year: 2030,
         stateId: 'grid_clean',
         cost: 1,
+        maxShare: 0.25,
       }),
       createRow({
         rowId: 'grid_firmed::2030',
@@ -317,6 +335,7 @@ test('endogenous electricity enforces balance and removes exogenous electricity 
         year: 2030,
         stateId: 'grid_firmed',
         cost: 1,
+        maxShare: 0.75,
       }),
     ],
     configuration: {
@@ -405,6 +424,7 @@ test('externalized electricity bypasses supply states and prices electricity exo
         year: 2030,
         stateId: 'process_fossil',
         cost: 5,
+        maxShare: 1,
       }),
       createRow({
         rowId: 'process_electric::2030',
@@ -412,6 +432,7 @@ test('externalized electricity bypasses supply states and prices electricity exo
         year: 2030,
         stateId: 'process_electric',
         cost: 1,
+        maxShare: 0,
         inputs: [
           {
             commodityId: 'electricity',
@@ -536,7 +557,7 @@ test('infeasible runs report deterministic service-year and electricity diagnost
         year: 2030,
         stateId: 'share_a',
         cost: 1,
-        maxShare: 0.4,
+        minShare: 0.6,
       }),
       createRow({
         rowId: 'share_b::2030',
@@ -544,7 +565,7 @@ test('infeasible runs report deterministic service-year and electricity diagnost
         year: 2030,
         stateId: 'share_b',
         cost: 2,
-        maxShare: 0.4,
+        minShare: 0.6,
       }),
       createRow({
         rowId: 'activity_a::2030',
@@ -552,6 +573,7 @@ test('infeasible runs report deterministic service-year and electricity diagnost
         year: 2030,
         stateId: 'activity_a',
         cost: 1,
+        maxShare: 0.8,
         maxActivity: 30,
       }),
       createRow({
@@ -560,6 +582,7 @@ test('infeasible runs report deterministic service-year and electricity diagnost
         year: 2030,
         stateId: 'activity_b',
         cost: 2,
+        maxShare: 0.2,
         maxActivity: 20,
       }),
       createRow({
@@ -703,7 +726,7 @@ test('infeasible runs report deterministic service-year and electricity diagnost
   );
   assert.equal(findDiagnostic(result, 'exact_control_share_conflict', 'pin_service')?.year, 2030);
   assert.equal(
-    findDiagnostic(result, 'service_max_share_exhaustion', 'share_service')?.reason,
+    findDiagnostic(result, 'service_min_share_exhaustion', 'share_service')?.reason,
     'share_exhaustion',
   );
   assert.equal(
@@ -743,7 +766,6 @@ test('soft-constraint mode restores feasibility and reports slack penalties', ()
         year: 2030,
         stateId: 'share_b',
         cost: 2,
-        maxShare: 0.4,
       }),
       createRow({
         rowId: 'activity_a::2030',
@@ -751,6 +773,7 @@ test('soft-constraint mode restores feasibility and reports slack penalties', ()
         year: 2030,
         stateId: 'activity_a',
         cost: 1,
+        maxShare: 0.8,
         maxActivity: 30,
       }),
       createRow({
@@ -759,6 +782,7 @@ test('soft-constraint mode restores feasibility and reports slack penalties', ()
         year: 2030,
         stateId: 'activity_b',
         cost: 2,
+        maxShare: 0.2,
         maxActivity: 20,
       }),
       createRow({
@@ -792,9 +816,12 @@ test('soft-constraint mode restores feasibility and reports slack penalties', ()
       controlsByOutput: {
         share_service: {
           2030: {
-            mode: 'optimize',
+            mode: 'fixed_shares',
             stateId: null,
-            fixedShares: null,
+            fixedShares: {
+              share_a: 1,
+              share_b: 0,
+            },
             disabledStateIds: [],
             targetValue: null,
           },
@@ -868,21 +895,22 @@ test('soft-constraint mode restores feasibility and reports slack penalties', ()
   assert.equal(result.raw?.solutionStatus, 'optimal');
   assert.ok(result.diagnostics.every((diagnostic) => diagnostic.severity !== 'error'));
 
-  assertClose(variables.get('activity:share_a::2030'), 60, 'soft share service chooses cheapest excess state');
-  assertClose(variables.get('activity:share_b::2030'), 40, 'soft share service residual activity');
+  assertClose(variables.get('activity:share_a::2030'), 100, 'soft share service follows the exact control');
+  assertClose(variables.get('activity:share_b::2030'), 0, 'soft share service keeps the residual state at zero');
   assertClose(variables.get('activity:activity_a::2030'), 80, 'soft activity service exceeds cheapest cap');
   assertClose(variables.get('activity:activity_b::2030'), 20, 'soft activity service stays on expensive capped row');
   assertClose(variables.get('activity:grid_limited::2030'), 60, 'soft electricity supply covers modeled and external demand');
 
   assert.equal(result.reporting.softConstraintViolations.length, 3);
-  assertClose(shareSlack?.slack, 20, 'share slack');
-  assertClose(shareSlack?.actualValue, 60, 'share actual activity');
+  assertClose(shareSlack?.boundValue, 28.57142857142857, 'share bound reflects normalized effective cap');
+  assertClose(shareSlack?.slack, 71.42857143, 'share slack');
+  assertClose(shareSlack?.actualValue, 100, 'share actual activity');
   assertClose(activitySlack?.slack, 50, 'activity slack');
   assertClose(activitySlack?.actualValue, 80, 'activity actual output');
   assertClose(electricitySlack?.slack, 20, 'electricity slack');
   assertClose(electricitySlack?.actualValue, 60, 'electricity actual output');
   assert.ok((shareSlack?.penaltyPerUnit ?? 0) > 0);
-  assertClose(shareSlack?.totalPenalty, (shareSlack?.penaltyPerUnit ?? 0) * 20, 'share total penalty');
+  assertClose(shareSlack?.totalPenalty, (shareSlack?.penaltyPerUnit ?? 0) * (shareSlack?.slack ?? 0), 'share total penalty');
   assertClose(activitySlack?.totalPenalty, (activitySlack?.penaltyPerUnit ?? 0) * 50, 'activity total penalty');
   assertClose(electricitySlack?.totalPenalty, (electricitySlack?.penaltyPerUnit ?? 0) * 20, 'electricity total penalty');
 
@@ -893,4 +921,149 @@ test('soft-constraint mode restores feasibility and reports slack penalties', ()
   assertClose(electricitySummary?.supply, 60, 'soft electricity supply');
   assertClose(electricitySummary?.totalDemand, 60, 'soft electricity demand');
   assertClose(electricitySummary?.balanceGap, 0, 'soft electricity balance');
+});
+
+test('max-share normalization keeps subset runs feasible and reports raw versus effective caps', () => {
+  const request = {
+    contractVersion: SOLVER_CONTRACT_VERSION,
+    requestId: 'lp-adapter-max-share-normalization',
+    rows: [
+      createRow({
+        rowId: 'subset_enabled::2030',
+        outputId: 'subset_service',
+        year: 2030,
+        stateId: 'subset_enabled',
+        cost: 1,
+        maxShare: 0.03,
+      }),
+      createRow({
+        rowId: 'subset_disabled::2030',
+        outputId: 'subset_service',
+        year: 2030,
+        stateId: 'subset_disabled',
+        cost: 2,
+        maxShare: 0.97,
+      }),
+    ],
+    configuration: {
+      name: 'Max-share normalization regression',
+      description: null,
+      years: [2030],
+      controlsByOutput: {
+        subset_service: {
+          2030: {
+            mode: 'optimize',
+            stateId: null,
+            fixedShares: null,
+            disabledStateIds: ['subset_disabled'],
+            targetValue: null,
+          },
+        },
+      },
+      serviceDemandByOutput: {
+        subset_service: { 2030: 100 },
+      },
+      externalCommodityDemandByCommodity: {},
+      commodityPriceByCommodity: {},
+      carbonPriceByYear: { 2030: 0 },
+      options: {
+        respectMaxShare: true,
+        respectMaxActivity: true,
+        softConstraints: false,
+        allowRemovalsCredit: false,
+        shareSmoothing: {
+          enabled: false,
+          maxDeltaPp: null,
+        },
+      },
+    },
+  };
+
+  const result = solveWithLpAdapter(request);
+  const variables = getVariableMap(result);
+  const enabledShare = findStateShare(result, 'subset_service', 2030, 'subset_enabled');
+  const disabledShare = findStateShare(result, 'subset_service', 2030, 'subset_disabled');
+  const maxConstraint = result.reporting.bindingConstraints.find(
+    (constraint) => constraint.constraintId === 'max_share:subset_enabled::2030',
+  );
+
+  assert.equal(result.status, 'solved');
+  assertClose(variables.get('activity:subset_enabled::2030'), 100, 'single enabled pathway can cover the full demand');
+  assertClose(variables.get('activity:subset_disabled::2030'), 0, 'disabled pathway stays inactive');
+  assertClose(enabledShare?.rawMaxShare, 0.03, 'raw enabled max share is reported');
+  assertClose(enabledShare?.effectiveMaxShare, 1, 'effective enabled max share is normalized to 100%');
+  assertClose(disabledShare?.rawMaxShare, 0.97, 'raw disabled max share is still reported');
+  assert.equal(disabledShare?.effectiveMaxShare, null, 'disabled pathways are excluded from normalization');
+  assertClose(maxConstraint?.boundValue, 100, 'hard max-share constraint uses the normalized effective cap');
+});
+
+test('zero raw max shares fall back to equal effective shares across enabled pathways', () => {
+  const request = {
+    contractVersion: SOLVER_CONTRACT_VERSION,
+    requestId: 'lp-adapter-zero-max-share-fallback',
+    rows: [
+      createRow({
+        rowId: 'equal_a::2030',
+        outputId: 'equal_service',
+        year: 2030,
+        stateId: 'equal_a',
+        cost: 1,
+        maxShare: 0,
+      }),
+      createRow({
+        rowId: 'equal_b::2030',
+        outputId: 'equal_service',
+        year: 2030,
+        stateId: 'equal_b',
+        cost: 2,
+        maxShare: 0,
+      }),
+    ],
+    configuration: {
+      name: 'Zero max-share fallback regression',
+      description: null,
+      years: [2030],
+      controlsByOutput: {
+        equal_service: {
+          2030: {
+            mode: 'fixed_shares',
+            stateId: null,
+            fixedShares: {
+              equal_a: 0.5,
+              equal_b: 0.5,
+            },
+            disabledStateIds: [],
+            targetValue: null,
+          },
+        },
+      },
+      serviceDemandByOutput: {
+        equal_service: { 2030: 80 },
+      },
+      externalCommodityDemandByCommodity: {},
+      commodityPriceByCommodity: {},
+      carbonPriceByYear: { 2030: 0 },
+      options: {
+        respectMaxShare: true,
+        respectMaxActivity: true,
+        softConstraints: false,
+        allowRemovalsCredit: false,
+        shareSmoothing: {
+          enabled: false,
+          maxDeltaPp: null,
+        },
+      },
+    },
+  };
+
+  const result = solveWithLpAdapter(request);
+  const variables = getVariableMap(result);
+  const shareA = findStateShare(result, 'equal_service', 2030, 'equal_a');
+  const shareB = findStateShare(result, 'equal_service', 2030, 'equal_b');
+
+  assert.equal(result.status, 'solved');
+  assertClose(variables.get('activity:equal_a::2030'), 40, 'equal_a activity');
+  assertClose(variables.get('activity:equal_b::2030'), 40, 'equal_b activity');
+  assertClose(shareA?.effectiveMaxShare, 0.5, 'equal_a effective max share falls back to 50%');
+  assertClose(shareB?.effectiveMaxShare, 0.5, 'equal_b effective max share falls back to 50%');
 });
