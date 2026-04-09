@@ -118,7 +118,8 @@ describe('getRightSidebarStatusPresentation', () => {
     assert.ok(
       lowTemperatureHeat.badges.some((badge) => badge.label === '3 enabled pathways'),
     );
-    assert.match(lowTemperatureHeat.detail, /pins activity to the selected pathway/i);
+    assert.match(lowTemperatureHeat.detail, /pins activity to 1 active pathway/i);
+    assert.match(lowTemperatureHeat.detail, /remain available for cap context/i);
   });
 
   test('documents the legend statuses shown in the sidebar', () => {

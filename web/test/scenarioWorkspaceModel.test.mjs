@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
-import { getEnabledStateIds } from '../src/data/scenarioWorkspaceModel.ts';
+import { getAvailableStateIds } from '../src/data/scenarioWorkspaceModel.ts';
 import { buildConfiguration, loadPkg } from './solverTestUtils.mjs';
 
 const pkg = loadPkg();
 
-describe('getEnabledStateIds', () => {
-  test('fixed-share controls keep all non-disabled pathways enabled for denominator semantics', () => {
+describe('getAvailableStateIds', () => {
+  test('fixed-share controls keep all non-disabled pathways available for denominator semantics', () => {
     const electricityStateIds = Array.from(
       new Set(
         pkg.sectorStates
@@ -29,14 +29,14 @@ describe('getEnabledStateIds', () => {
       },
     });
 
-    const enabledStateIds = getEnabledStateIds(configuration, 'electricity', electricityStateIds);
+    const availableStateIds = getAvailableStateIds(configuration, 'electricity', electricityStateIds);
 
-    assert.ok(enabledStateIds.includes(primaryStateId));
-    assert.ok(!enabledStateIds.includes(disabledStateId));
-    assert.equal(enabledStateIds.length, electricityStateIds.length - 1);
+    assert.ok(availableStateIds.includes(primaryStateId));
+    assert.ok(!availableStateIds.includes(disabledStateId));
+    assert.equal(availableStateIds.length, electricityStateIds.length - 1);
   });
 
-  test('pinned-single controls still expose all non-disabled pathways as enabled candidates', () => {
+  test('pinned-single controls still expose all non-disabled pathways as available candidates', () => {
     const residentialStateIds = Array.from(
       new Set(
         pkg.sectorStates
@@ -59,14 +59,14 @@ describe('getEnabledStateIds', () => {
       },
     });
 
-    const enabledStateIds = getEnabledStateIds(
+    const availableStateIds = getAvailableStateIds(
       configuration,
       'residential_building_services',
       residentialStateIds,
     );
 
-    assert.ok(enabledStateIds.includes(selectedStateId));
-    assert.ok(!enabledStateIds.includes(disabledStateId));
-    assert.equal(enabledStateIds.length, residentialStateIds.length - 1);
+    assert.ok(availableStateIds.includes(selectedStateId));
+    assert.ok(!availableStateIds.includes(disabledStateId));
+    assert.equal(availableStateIds.length, residentialStateIds.length - 1);
   });
 });

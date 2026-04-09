@@ -310,7 +310,7 @@ export default function LeftSidebar() {
           );
           const control = currentConfiguration.service_controls[outputId];
           const currentMode = outputStatuses[outputId]?.controlMode ?? allowedModes[0];
-          const enabledStateIds = new Set(outputStatuses[outputId]?.enabledStateIds ?? []);
+          const availableStateIds = new Set(outputStatuses[outputId]?.availableStateIds ?? []);
           const fixedShareTotal = sumFixedShares(control?.fixed_shares);
           const fixedShareTotalIsValid = Math.abs(fixedShareTotal - 1) < 1e-6;
 
@@ -346,8 +346,8 @@ export default function LeftSidebar() {
                 <div className="workspace-fixed-share-panel">
                   <div className="workspace-fixed-share-summary">
                     <div className="workspace-subsector-detail">
-                      Fixed shares apply across the enabled pathways for this commodity in the current run.
-                      Disabled pathways are excluded from the denominator.
+                      Fixed shares apply across the active pathways for this commodity in the current run.
+                      Non-disabled pathways remain in the cap denominator for context.
                     </div>
                     <span className={`workspace-mode-badge workspace-mode-badge--${fixedShareTotalIsValid ? 'success' : 'warning'}`}>
                       Total {formatSharePercent(fixedShareTotal)}
@@ -355,22 +355,22 @@ export default function LeftSidebar() {
                   </div>
                   <div className="workspace-fixed-share-list">
                     {states.map((state) => {
-                      const isEnabled = enabledStateIds.has(state.stateId);
+                      const isAvailable = availableStateIds.has(state.stateId);
                       const share = (control?.fixed_shares?.[state.stateId] ?? 0) * 100;
                       return (
                         <div
                           key={state.stateId}
-                          className={`workspace-fixed-share-row${isEnabled ? '' : ' workspace-fixed-share-row--disabled'}`}
+                          className={`workspace-fixed-share-row${isAvailable ? '' : ' workspace-fixed-share-row--disabled'}`}
                         >
                           <div className="workspace-fixed-share-copy">
                             <div className="workspace-fixed-share-label">{state.stateLabel}</div>
                             <div className="workspace-fixed-share-note">
-                              {isEnabled
-                                ? 'Enabled in the current run denominator.'
-                                : 'Disabled in the current run and excluded from the denominator.'}
+                              {isAvailable
+                                ? 'Available for cap context; positive shares decide whether it is active.'
+                                : 'Disabled and excluded from both the active mix and cap denominator.'}
                             </div>
                           </div>
-                          {isEnabled ? (
+                          {isAvailable ? (
                             <label className="workspace-fixed-share-input">
                               <input
                                 type="number"

@@ -1,4 +1,5 @@
 import { solve, type Model, type Solution } from 'yalps';
+import { derivePathwayStateIds } from '../data/pathwaySemantics.ts';
 import type {
   CommoditySolveMode,
   NormalizedSolverRow,
@@ -77,6 +78,8 @@ interface ResolvedMaxShareBounds {
 interface RowShareProfile {
   row: NormalizedSolverRow;
   disabled: boolean;
+  active: boolean;
+  capEligible: boolean;
   lowerShare: number;
   upperShare: number;
   upperShareIgnoringActivity: number;
@@ -648,8 +651,12 @@ function buildEffectiveMaxShareLookup(
   control: ResolvedSolveControl,
 ): Map<string, ResolvedMaxShareBounds> {
   const lookup = new Map<string, ResolvedMaxShareBounds>();
-  const disabledStateIds = new Set(control.disabledStateIds);
-  const enabledRows = rows.filter((row) => !disabledStateIds.has(row.stateId));
+  const pathwayStateIds = derivePathwayStateIds(
+    rows.map((row) => row.stateId),
+    control,
+  );
+  const capEligibleStateIds = new Set(pathwayStateIds.capEligibleStateIds);
+  const capEligibleRows = rows.filter((row) => capEligibleStateIds.has(row.stateId));
 
   for (const row of rows) {
     lookup.set(row.rowId, {
@@ -658,16 +665,16 @@ function buildEffectiveMaxShareLookup(
     });
   }
 
-  if (enabledRows.length === 0) {
+  if (capEligibleRows.length === 0) {
     return lookup;
   }
 
-  const weights = enabledRows.map((row) => ({
+  const weights = capEligibleRows.map((row) => ({
     rowId: row.rowId,
     weight: clampShare(row.bounds.maxShare ?? 1),
   }));
   const totalWeight = weights.reduce((sum, entry) => sum + entry.weight, 0);
-  const fallbackShare = 1 / enabledRows.length;
+  const fallbackShare = 1 / capEligibleRows.length;
 
   for (const { rowId, weight } of weights) {
     const existing = lookup.get(rowId);
@@ -702,13 +709,19 @@ function buildRowShareProfiles(
   request: SolveRequest,
   commodityId?: string,
 ): RowShareProfile[] {
-  const disabledStateIds = new Set(control.disabledStateIds);
+  const pathwayStateIds = derivePathwayStateIds(
+    rows.map((row) => row.stateId),
+    control,
+  );
+  const availableStateIds = new Set(pathwayStateIds.availableStateIds);
+  const activeStateIds = new Set(pathwayStateIds.activeStateIds);
+  const capEligibleStateIds = new Set(pathwayStateIds.capEligibleStateIds);
   const maxShareLookup = buildEffectiveMaxShareLookup(rows, control);
 
   return [...rows]
     .sort((left, right) => left.stateLabel.localeCompare(right.stateLabel))
     .map((row) => {
-      const disabled = disabledStateIds.has(row.stateId);
+      const disabled = !availableStateIds.has(row.stateId);
       const resolvedMaxShare = maxShareLookup.get(row.rowId) ?? {
         rawMaxShare: row.bounds.maxShare == null ? null : clampShare(row.bounds.maxShare),
         effectiveMaxShare: null,
@@ -732,6 +745,8 @@ function buildRowShareProfiles(
       return {
         row,
         disabled,
+        active: activeStateIds.has(row.stateId),
+        capEligible: capEligibleStateIds.has(row.stateId),
         lowerShare: disabled || referenceDemand <= SHARE_TOLERANCE ? 0 : Math.max(0, row.bounds.minShare ?? 0),
         upperShare,
         upperShareIgnoringActivity,

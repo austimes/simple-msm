@@ -19,7 +19,7 @@ import {
   loadBuiltinConfigurations,
   withSeedOutputIds,
 } from './configurationLoader.ts';
-import { getEnabledStateIds } from './scenarioWorkspaceModel.ts';
+import { getAvailableStateIds } from './scenarioWorkspaceModel.ts';
 
 export type ConfigurationDraftSource = 'reference' | 'local_draft' | 'imported' | 'draft' | 'configuration';
 
@@ -101,14 +101,6 @@ function getAllStateIdsForOutput(
   );
 }
 
-function getAvailableStateIds(
-  control: ConfigurationServiceControl | undefined,
-  allStateIds: string[],
-): string[] {
-  const disabledStateIds = new Set(control?.disabled_state_ids ?? []);
-  return allStateIds.filter((stateId) => !disabledStateIds.has(stateId));
-}
-
 function normalizeFixedShares(
   availableStateIds: string[],
   fixedShares: Record<string, number> | null | undefined,
@@ -134,13 +126,13 @@ function normalizeFixedShares(
   );
 }
 
-function reconcileControlForEnabledStates(
+function reconcileControlForAvailableStates(
   control: ConfigurationServiceControl,
   allowedModes: ConfigurationControlMode[],
   defaultMode: ConfigurationControlMode | undefined,
-  enabledIds: string[],
+  availableStateIds: string[],
 ): ConfigurationServiceControl {
-  if (enabledIds.length === 0) {
+  if (availableStateIds.length === 0) {
     return control.mode === 'off'
       ? {
           ...control,
@@ -152,7 +144,9 @@ function reconcileControlForEnabledStates(
   if (control.mode === 'pinned_single' && allowedModes.includes('pinned_single')) {
     return {
       ...control,
-      state_id: enabledIds.includes(control.state_id ?? '') ? control.state_id : enabledIds[0],
+      state_id: availableStateIds.includes(control.state_id ?? '')
+        ? control.state_id
+        : availableStateIds[0],
       fixed_shares: null,
     };
   }
@@ -161,7 +155,7 @@ function reconcileControlForEnabledStates(
     return {
       ...control,
       state_id: null,
-      fixed_shares: normalizeFixedShares(enabledIds, control.fixed_shares),
+      fixed_shares: normalizeFixedShares(availableStateIds, control.fixed_shares),
     };
   }
 
@@ -173,11 +167,11 @@ function reconcileControlForEnabledStates(
     };
   }
 
-  if (enabledIds.length === 1 && allowedModes.includes('pinned_single')) {
+  if (availableStateIds.length === 1 && allowedModes.includes('pinned_single')) {
     return {
       ...control,
       mode: 'pinned_single',
-      state_id: enabledIds[0],
+      state_id: availableStateIds[0],
       fixed_shares: null,
     };
   }
@@ -187,7 +181,7 @@ function reconcileControlForEnabledStates(
       ...control,
       mode: 'fixed_shares',
       state_id: null,
-      fixed_shares: normalizeFixedShares(enabledIds, control.fixed_shares),
+      fixed_shares: normalizeFixedShares(availableStateIds, control.fixed_shares),
     };
   }
 
@@ -370,16 +364,18 @@ export const usePackageStore = create<PackageStore>((set, get) => {
     toggleStateEnabled: (outputId, stateId) => {
       const nextConfiguration = cloneConfiguration(get().currentConfiguration);
       const allStateIds = getAllStateIdsForOutput(get().sectorStates, outputId);
-      const enabled = new Set(getEnabledStateIds(nextConfiguration, outputId, allStateIds));
+      const availableStateIdSet = new Set(
+        getAvailableStateIds(nextConfiguration, outputId, allStateIds),
+      );
 
-      if (enabled.has(stateId)) {
-        enabled.delete(stateId);
+      if (availableStateIdSet.has(stateId)) {
+        availableStateIdSet.delete(stateId);
       } else {
-        enabled.add(stateId);
+        availableStateIdSet.add(stateId);
       }
 
-      const enabledIds = allStateIds.filter((id) => enabled.has(id));
-      const disabledStateIds = allStateIds.filter((id) => !enabled.has(id));
+      const availableStateIds = allStateIds.filter((id) => availableStateIdSet.has(id));
+      const disabledStateIds = allStateIds.filter((id) => !availableStateIdSet.has(id));
 
       const metadata = get().appConfig.output_roles[outputId];
       const allowed = new Set(metadata?.allowed_control_modes ?? []);
@@ -389,10 +385,10 @@ export const usePackageStore = create<PackageStore>((set, get) => {
         disabled_state_ids: [],
       };
 
-      const control = reconcileControlForEnabledStates({
+      const control = reconcileControlForAvailableStates({
         ...existing,
         disabled_state_ids: disabledStateIds.length > 0 ? disabledStateIds : [],
-      }, Array.from(allowed), metadata?.default_control_mode, enabledIds);
+      }, Array.from(allowed), metadata?.default_control_mode, availableStateIds);
 
       nextConfiguration.service_controls[outputId] = control;
       commitConfigurationEdit(nextConfiguration);
@@ -410,7 +406,7 @@ export const usePackageStore = create<PackageStore>((set, get) => {
         disabled_state_ids: [],
       };
       const allStateIds = getAllStateIdsForOutput(get().sectorStates, outputId);
-      const availableStateIds = getAvailableStateIds(control, allStateIds);
+      const availableStateIds = getAvailableStateIds(nextConfiguration, outputId, allStateIds);
 
       nextConfiguration.service_controls[outputId] = mode === 'fixed_shares'
         ? {
@@ -449,7 +445,7 @@ export const usePackageStore = create<PackageStore>((set, get) => {
         disabled_state_ids: [],
       };
       const allStateIds = getAllStateIdsForOutput(get().sectorStates, outputId);
-      const availableStateIds = getAvailableStateIds(existing, allStateIds);
+      const availableStateIds = getAvailableStateIds(nextConfiguration, outputId, allStateIds);
 
       if (!availableStateIds.includes(stateId)) {
         return;

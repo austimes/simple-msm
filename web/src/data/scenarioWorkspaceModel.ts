@@ -5,6 +5,7 @@ import type {
   PriceLevel,
   SectorState,
 } from './types.ts';
+import { derivePathwayStateIdsForOutput } from './pathwaySemantics.ts';
 
 export interface StateCatalogEntry {
   stateId: string;
@@ -77,19 +78,15 @@ export function buildStateCatalog(
   return catalog;
 }
 
-export function getEnabledStateIds(
+export function getAvailableStateIds(
   configuration: ConfigurationDocument,
   outputId: string,
   allStateIds: string[],
 ): string[] {
-  const control = configuration.service_controls[outputId];
-
-  if (!control) return allStateIds;
-
-  const disabledSet = new Set(control.disabled_state_ids ?? []);
-  const availableStateIds = allStateIds.filter((id) => !disabledSet.has(id));
-  return availableStateIds;
+  return derivePathwayStateIdsForOutput(configuration, outputId, allStateIds).availableStateIds;
 }
+
+export const getEnabledStateIds = getAvailableStateIds;
 
 export function getActiveDemandPreset(
   configuration: ConfigurationDocument,

@@ -3,17 +3,21 @@ import { describe, test } from 'node:test';
 import { deriveRightSidebarTree } from '../src/components/workspace/rightSidebarTree.ts';
 
 function buildStatus(outputId, overrides = {}) {
-  const enabledStateIds = overrides.enabledStateIds ?? ['pathway-a'];
+  const availableStateIds = overrides.availableStateIds ?? ['pathway-a'];
   const isExcludedFromRun = overrides.isExcludedFromRun ?? false;
   const inRun = overrides.inRun ?? !isExcludedFromRun;
-  const isDisabled = overrides.isDisabled ?? enabledStateIds.length === 0;
+  const isDisabled = overrides.isDisabled ?? availableStateIds.length === 0;
 
   return {
     outputId,
     outputRole: overrides.outputRole ?? 'required_service',
     controlMode: overrides.controlMode ?? 'optimize',
-    enabledStateIds,
-    enabledStateCount: overrides.enabledStateCount ?? enabledStateIds.length,
+    availableStateIds,
+    availableStateCount: overrides.availableStateCount ?? availableStateIds.length,
+    activeStateIds: overrides.activeStateIds ?? availableStateIds,
+    activeStateCount: overrides.activeStateCount ?? (overrides.activeStateIds ?? availableStateIds).length,
+    capEligibleStateIds: overrides.capEligibleStateIds ?? availableStateIds,
+    capEligibleStateCount: overrides.capEligibleStateCount ?? (overrides.capEligibleStateIds ?? availableStateIds).length,
     isDisabled,
     inRun,
     runParticipation: overrides.runParticipation ?? (isExcludedFromRun ? 'excluded_from_run' : 'full_model'),
@@ -107,8 +111,8 @@ describe('deriveRightSidebarTree', () => {
     ];
     const statuses = {
       land_sequestration: buildStatus('land_sequestration', {
-        enabledStateIds: [],
-        enabledStateCount: 0,
+        availableStateIds: [],
+        availableStateCount: 0,
         isDisabled: true,
         demandParticipation: 'not_applicable',
         outputRole: 'optional_removals',

@@ -1,5 +1,5 @@
 import { getSeedOutputIds } from '../data/configurationMetadata.ts';
-import { getEnabledStateIds } from '../data/scenarioWorkspaceModel.ts';
+import { derivePathwayStateIds } from '../data/pathwaySemantics.ts';
 import type {
   AppConfigRegistry,
   OutputRole,
@@ -36,8 +36,12 @@ export interface DerivedOutputRunStatus {
   outputId: string;
   outputRole: OutputRole;
   controlMode: ScenarioControlMode;
-  enabledStateIds: string[];
-  enabledStateCount: number;
+  availableStateIds: string[];
+  availableStateCount: number;
+  activeStateIds: string[];
+  activeStateCount: number;
+  capEligibleStateIds: string[];
+  capEligibleStateCount: number;
   isDisabled: boolean;
   inRun: boolean;
   runParticipation: OutputRunParticipation;
@@ -80,32 +84,89 @@ function getControlMode(
   );
 }
 
-export function rowMayBeActive(
+function filterOrderedStateIds(allStateIds: string[], includedStateIds: ReadonlySet<string>): string[] {
+  return allStateIds.filter((stateId) => includedStateIds.has(stateId));
+}
+
+function collectStateIdsByOutputYear(rows: NormalizedSolverRow[]): Map<string, Map<number, string[]>> {
+  const byOutputYear = new Map<string, Map<number, Set<string>>>();
+
+  for (const row of rows) {
+    let byYear = byOutputYear.get(row.outputId);
+    if (!byYear) {
+      byYear = new Map<number, Set<string>>();
+      byOutputYear.set(row.outputId, byYear);
+    }
+
+    let stateIds = byYear.get(row.year);
+    if (!stateIds) {
+      stateIds = new Set<string>();
+      byYear.set(row.year, stateIds);
+    }
+
+    stateIds.add(row.stateId);
+  }
+
+  return new Map(
+    Array.from(byOutputYear.entries()).map(([outputId, byYear]) => [
+      outputId,
+      new Map(
+        Array.from(byYear.entries()).map(([year, stateIds]) => [year, Array.from(stateIds)]),
+      ),
+    ]),
+  );
+}
+
+function isRowActiveInSolveControl(
   row: NormalizedSolverRow,
   control: ResolvedSolveControl | undefined,
+  stateIdsForOutputYear: string[],
 ): boolean {
-  if (!control) {
-    return true;
+  return derivePathwayStateIds(stateIdsForOutputYear, control).activeStateIds.includes(row.stateId);
+}
+
+function deriveOutputPathwayStateIds(
+  outputId: string,
+  allStateIds: string[],
+  resolvedConfiguration: ResolvedConfigurationForSolve,
+): Pick<
+  DerivedOutputRunStatus,
+  | 'availableStateIds'
+  | 'availableStateCount'
+  | 'activeStateIds'
+  | 'activeStateCount'
+  | 'capEligibleStateIds'
+  | 'capEligibleStateCount'
+> {
+  const baselineControl = resolvedConfiguration.years.length > 0
+    ? resolvedConfiguration.controlsByOutput[outputId]?.[yearKey(resolvedConfiguration.years[0])]
+    : undefined;
+  const availableStateIds = derivePathwayStateIds(allStateIds, baselineControl).availableStateIds;
+  const activeStateIdSet = new Set<string>();
+  const capEligibleStateIdSet = new Set<string>();
+
+  for (const year of resolvedConfiguration.years) {
+    const control = resolvedConfiguration.controlsByOutput[outputId]?.[yearKey(year)];
+    const pathwayStateIds = derivePathwayStateIds(allStateIds, control);
+    for (const stateId of pathwayStateIds.activeStateIds) {
+      activeStateIdSet.add(stateId);
+    }
+    for (const stateId of pathwayStateIds.capEligibleStateIds) {
+      capEligibleStateIdSet.add(stateId);
+    }
   }
 
-  if (control.mode === 'externalized') {
-    return false;
-  }
+  const activeStateIds = filterOrderedStateIds(allStateIds, activeStateIdSet);
+  const capEligibleStateIds = filterOrderedStateIds(allStateIds, capEligibleStateIdSet);
 
-  if (control.disabledStateIds.includes(row.stateId)) {
-    return false;
-  }
-
-  if (control.mode === 'pinned_single') {
-    return row.stateId === control.stateId;
-  }
-
-  if (control.mode === 'fixed_shares') {
-    const share = control.fixedShares?.[row.stateId] ?? 0;
-    return share > 0;
-  }
-
-  return true;
+  return {
+    availableStateIds,
+    availableStateCount: availableStateIds.length,
+    activeStateIds,
+    activeStateCount: activeStateIds.length,
+    capEligibleStateIds,
+    capEligibleStateCount: capEligibleStateIds.length,
+  };
 }
 
 export function expandIncludedOutputsForDependencies(
@@ -115,6 +176,7 @@ export function expandIncludedOutputsForDependencies(
   seedOutputIds: Set<string>,
 ): Set<string> {
   const included = new Set(seedOutputIds);
+  const stateIdsByOutputYear = collectStateIdsByOutputYear(rows);
   let changed = true;
 
   while (changed) {
@@ -131,7 +193,8 @@ export function expandIncludedOutputsForDependencies(
         }
 
         const control = configuration.controlsByOutput[row.outputId]?.[yearKey(year)];
-        if (!rowMayBeActive(row, control)) {
+        const stateIdsForOutputYear = stateIdsByOutputYear.get(row.outputId)?.get(year) ?? [];
+        if (!isRowActiveInSolveControl(row, control, stateIdsForOutputYear)) {
           continue;
         }
 
@@ -172,8 +235,11 @@ export function deriveOutputRunStatuses(
   return Array.from(stateIdsByOutput.entries()).reduce<Record<string, DerivedOutputRunStatus>>(
     (statuses, [outputId, allStateIds]) => {
       const outputMetadata = appConfig.output_roles[outputId];
-      const enabledStateIds = getEnabledStateIds(scenario, outputId, allStateIds);
-      const enabledStateCount = enabledStateIds.length;
+      const pathwayStateIds = deriveOutputPathwayStateIds(
+        outputId,
+        allStateIds,
+        resolvedConfiguration,
+      );
       const isFullModel = !hasScopedRun;
       const isSeedScoped = hasScopedRun && seedOutputIds.has(outputId);
       const isAutoIncludedDependency = hasScopedRun
@@ -186,7 +252,7 @@ export function deriveOutputRunStatuses(
           .some((value) => value > 0);
       const hasDemandValidationError = outputMetadata.demand_required
         && hasPositiveDemandInRun
-        && enabledStateCount === 0;
+        && pathwayStateIds.availableStateCount === 0;
       const runParticipation: OutputRunParticipation = isFullModel
         ? 'full_model'
         : isSeedScoped
@@ -199,14 +265,13 @@ export function deriveOutputRunStatuses(
         outputId,
         outputRole: outputMetadata.output_role,
         controlMode: getControlMode(scenario, appConfig, outputId),
-        enabledStateIds,
-        enabledStateCount,
-        isDisabled: enabledStateCount === 0,
+        ...pathwayStateIds,
+        isDisabled: pathwayStateIds.availableStateCount === 0,
         inRun,
         runParticipation,
         demandParticipation: outputMetadata.demand_required
           ? (inRun
-              ? (enabledStateCount === 0 ? 'no_enabled_pathways' : 'active_in_run')
+              ? (pathwayStateIds.availableStateCount === 0 ? 'no_enabled_pathways' : 'active_in_run')
               : 'excluded_from_run')
           : 'not_applicable',
         supplyParticipation: outputMetadata.output_role === 'endogenous_supply_commodity'

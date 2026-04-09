@@ -79,7 +79,7 @@ function buildPathwayBadge(status: DerivedOutputRunStatus): RightSidebarBadge | 
     return null;
   }
 
-  if (status.enabledStateCount === 0) {
+  if (status.availableStateCount === 0) {
     return {
       key: 'no-pathways',
       label: 'No enabled pathways',
@@ -89,7 +89,7 @@ function buildPathwayBadge(status: DerivedOutputRunStatus): RightSidebarBadge | 
 
   return {
     key: 'enabled-pathways',
-    label: `${status.enabledStateCount} enabled ${status.enabledStateCount === 1 ? 'pathway' : 'pathways'}`,
+    label: `${status.availableStateCount} enabled ${status.availableStateCount === 1 ? 'pathway' : 'pathways'}`,
     tone: 'success',
   };
 }
@@ -195,7 +195,11 @@ function buildDetail(status: DerivedOutputRunStatus): string {
   }
 
   if (status.controlMode === 'pinned_single') {
-    return `${detail} Exact control pins activity to the selected pathway, even when other non-disabled pathways remain enabled for cap context and future edits.`;
+    return `${detail} Exact control pins activity to ${status.activeStateCount} active pathway, while ${status.capEligibleStateCount} non-disabled pathways remain available for cap context and future edits.`;
+  }
+
+  if (status.controlMode === 'fixed_shares' && status.activeStateCount < status.availableStateCount) {
+    return `${detail} Only pathways with positive fixed shares are active in the solve, while ${status.capEligibleStateCount} non-disabled pathways still define cap context in this phase.`;
   }
 
   return detail;

@@ -54,8 +54,8 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
       'excluded_from_run',
     );
     assert.equal(statuses.electricity.supplyParticipation, 'endogenous_in_run');
-    assert.ok(statuses.residential_building_services.enabledStateCount > 0);
-    assert.ok(statuses.commercial_building_services.enabledStateCount > 0);
+    assert.ok(statuses.residential_building_services.availableStateCount > 0);
+    assert.ok(statuses.commercial_building_services.availableStateCount > 0);
     assert.equal(statuses.electricity.isDisabled, false);
     assert.deepEqual(
       outputSetFromStatuses(statuses),
@@ -116,8 +116,8 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
 
     const statuses = deriveOutputRunStatusesForConfiguration(pkg, configuration);
 
-    assert.deepEqual(statuses.passenger_road_transport.enabledStateIds, []);
-    assert.equal(statuses.passenger_road_transport.enabledStateCount, 0);
+    assert.deepEqual(statuses.passenger_road_transport.availableStateIds, []);
+    assert.equal(statuses.passenger_road_transport.availableStateCount, 0);
     assert.equal(statuses.passenger_road_transport.isDisabled, true);
     assert.equal(statuses.passenger_road_transport.controlMode, 'optimize');
     assert.equal(
@@ -140,6 +140,8 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
 
     assert.equal(statuses.electricity.supplyParticipation, 'externalized_in_run');
     assert.equal(statuses.electricity.isDisabled, false);
+    assert.ok(statuses.electricity.availableStateCount > 0);
+    assert.equal(statuses.electricity.activeStateCount, 0);
     assert.equal(statuses.electricity.demandParticipation, 'not_applicable');
   });
 
@@ -168,7 +170,13 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
 
     assert.equal(statuses.electricity.controlMode, 'fixed_shares');
     assert.equal(statuses.electricity.isDisabled, false);
-    assert.equal(statuses.electricity.enabledStateCount, electricityStateIds.length);
+    assert.equal(statuses.electricity.availableStateCount, electricityStateIds.length);
+    assert.equal(statuses.electricity.activeStateCount, 1);
+    assert.equal(statuses.electricity.capEligibleStateCount, electricityStateIds.length);
+    assert.deepEqual(
+      statuses.electricity.availableStateIds,
+      statuses.electricity.capEligibleStateIds,
+    );
   });
 
   test('keeps non-disabled pathways enabled in status output for pinned-single controls', () => {
@@ -198,16 +206,21 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
 
     assert.equal(statuses.residential_building_services.controlMode, 'pinned_single');
     assert.equal(statuses.residential_building_services.isDisabled, false);
-    assert.ok(
-      statuses.residential_building_services.enabledStateIds.includes(selectedStateId),
+    assert.deepEqual(
+      statuses.residential_building_services.activeStateIds,
+      [selectedStateId],
     );
     assert.ok(
-      !statuses.residential_building_services.enabledStateIds.includes(disabledStateId),
+      statuses.residential_building_services.availableStateIds.includes(selectedStateId),
+    );
+    assert.ok(
+      !statuses.residential_building_services.availableStateIds.includes(disabledStateId),
     );
     assert.equal(
-      statuses.residential_building_services.enabledStateCount,
+      statuses.residential_building_services.availableStateCount,
       residentialStateIds.length - 1,
     );
+    assert.equal(statuses.residential_building_services.capEligibleStateCount, residentialStateIds.length - 1);
   });
 
   test('buildSolveRequest blocks positive required-service demand with no enabled pathways', () => {

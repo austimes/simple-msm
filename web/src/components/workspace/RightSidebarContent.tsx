@@ -52,7 +52,7 @@ export default function RightSidebarContent({
             )}
           </div>
           {!sectorEntry.isCollapsed && sectorEntry.subsectors.map((sub) => {
-            const enabledIds = new Set(sub.enabledStateIds);
+            const availableStateIds = new Set(sub.availableStateIds);
             const pathwaysInactive = sub.pathwaysInactive;
             const outOfScope = sub.outOfScope;
             const isCollapsed = sub.isCollapsed;
@@ -97,7 +97,7 @@ export default function RightSidebarContent({
                 {!isCollapsed && (
                   <div className="workspace-state-chips">
                     {sub.states.map((state) => {
-                      const isOn = !pathwaysInactive && enabledIds.has(state.stateId);
+                      const isOn = !pathwaysInactive && availableStateIds.has(state.stateId);
                       return (
                         <button
                           key={state.stateId}

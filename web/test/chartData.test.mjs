@@ -229,7 +229,7 @@ test('buildPathwayChartCards returns output and cap views for selectable outputs
       { year: 2035, value: 16.666666666666668 },
     ],
   );
-  assert.match(cards[0].note, /normalizing the enabled pathways/i);
+  assert.match(cards[0].note, /normalizing the available pathways/i);
 });
 
 test('buildPathwayChartCards keeps cap context visible when max-share enforcement is off', () => {

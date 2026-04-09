@@ -13,7 +13,7 @@ export interface RightSidebarSubsectorNode extends SubsectorCatalogEntry {
   status: DerivedOutputRunStatus | undefined;
   presentation: RightSidebarStatusPresentation;
   badges: RightSidebarBadge[];
-  enabledStateIds: string[];
+  availableStateIds: string[];
   allDisabled: boolean;
   pathwaysInactive: boolean;
   outOfScope: boolean;
@@ -46,7 +46,7 @@ export function deriveRightSidebarTree(
         status,
         presentation,
         badges: presentation.badges,
-        enabledStateIds: status?.enabledStateIds ?? [],
+        availableStateIds: status?.availableStateIds ?? [],
         allDisabled,
         pathwaysInactive: presentation.arePathwaysInactive,
         outOfScope,

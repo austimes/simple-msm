@@ -1067,3 +1067,70 @@ test('zero raw max shares fall back to equal effective shares across enabled pat
   assertClose(shareA?.effectiveMaxShare, 0.5, 'equal_a effective max share falls back to 50%');
   assertClose(shareB?.effectiveMaxShare, 0.5, 'equal_b effective max share falls back to 50%');
 });
+
+test('pinned-single controls do not narrow the cap-normalization denominator', () => {
+  const request = {
+    contractVersion: SOLVER_CONTRACT_VERSION,
+    requestId: 'lp-adapter-pinned-cap-denominator',
+    rows: [
+      createRow({
+        rowId: 'pinned_a::2030',
+        outputId: 'pinned_service',
+        year: 2030,
+        stateId: 'pinned_a',
+        cost: 1,
+        maxShare: 0.2,
+      }),
+      createRow({
+        rowId: 'pinned_b::2030',
+        outputId: 'pinned_service',
+        year: 2030,
+        stateId: 'pinned_b',
+        cost: 3,
+      }),
+    ],
+    configuration: {
+      name: 'Pinned denominator regression',
+      description: null,
+      years: [2030],
+      controlsByOutput: {
+        pinned_service: {
+          2030: {
+            mode: 'pinned_single',
+            stateId: 'pinned_a',
+            fixedShares: null,
+            disabledStateIds: [],
+            targetValue: null,
+          },
+        },
+      },
+      serviceDemandByOutput: {
+        pinned_service: { 2030: 100 },
+      },
+      externalCommodityDemandByCommodity: {},
+      commodityPriceByCommodity: {},
+      carbonPriceByYear: { 2030: 0 },
+      options: {
+        respectMaxShare: false,
+        respectMaxActivity: true,
+        softConstraints: false,
+        allowRemovalsCredit: false,
+        shareSmoothing: {
+          enabled: false,
+          maxDeltaPp: null,
+        },
+      },
+    },
+  };
+
+  const result = solveWithLpAdapter(request);
+  const variables = getVariableMap(result);
+  const pinnedShare = findStateShare(result, 'pinned_service', 2030, 'pinned_a');
+  const availableShare = findStateShare(result, 'pinned_service', 2030, 'pinned_b');
+
+  assert.equal(result.status, 'solved');
+  assertClose(variables.get('activity:pinned_a::2030'), 100, 'pinned state carries the full demand');
+  assertClose(variables.get('activity:pinned_b::2030'), 0, 'non-pinned state stays inactive');
+  assertClose(pinnedShare?.effectiveMaxShare, 0.16666666666666669, 'pinned state cap stays normalized against all available pathways');
+  assertClose(availableShare?.effectiveMaxShare, 0.8333333333333334, 'non-pinned available pathways remain in the cap denominator');
+});
