@@ -2,6 +2,8 @@ import { parseScenarioDocument } from './scenarioLoader';
 import type { AppConfigRegistry, ScenarioDocument } from './types';
 import { withSeedOutputIds } from './configurationLoader';
 
+// Keep this legacy key stable until a future additive migration can read old
+// drafts into a configuration-named key without dropping browser-local state.
 export const SCENARIO_DRAFT_STORAGE_KEY = 'simple-msm.scenario-draft.v2';
 export const CONFIG_META_STORAGE_KEY = 'simple-msm.config-meta.v1';
 
@@ -20,6 +22,7 @@ export interface PersistedConfigMeta {
 interface LegacyPersistedConfigMeta {
   activeConfigurationId: string;
   activeConfigurationReadonly: boolean;
+  // Read-only compatibility shim for older browser-local metadata.
   baseConfigurationScenario: ScenarioDocument;
   baseIncludedOutputIds?: string[];
 }

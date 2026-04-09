@@ -44,3 +44,17 @@ npx tsx --test test/*.test.mjs
 - `public/app_config/` contains app-owned registries and defaults such as output roles, demand presets, commodity-price presets, and explanation rules.
 - `src/app_config/reference_scenario.json` and `src/data/scenarioLoader.ts` still use the historical `scenario` name for the JSON schema and shared TypeScript model. In user-facing docs and product language, treat that document as a configuration.
 - If you add a built-in configuration, keep it as a complete document with explicit demand tables and metadata. Do not rely on reference-document inheritance or overlays.
+
+## Scenario Compatibility Policy
+
+Use configuration terminology in product copy, docs, and new code. The remaining `scenario` names below are compatibility boundaries, not permission to keep expanding the old term.
+
+| Surface | Current examples | Policy | Follow-up expectation |
+| --- | --- | --- | --- |
+| Public app-owned asset filenames | `public/app_config/reference_scenario.json`, `public/app_config/scenario_schema.json`, versioned `*_v02` copies | Temporary compatibility shim. Treat these filenames as published asset paths that may already be referenced by tests, docs, or external consumers. Do not rename them in place. | Issue `1iw.6` should dual-ship configuration-named aliases first, update internal callers, then remove the old filenames only after the compatibility window is intentionally closed. |
+| Browser-local draft storage keys | `simple-msm.scenario-draft.v2` | Temporary compatibility shim. Existing browser drafts must survive terminology cleanup. Do not replace this key with a configuration-named key without an additive read-old/write-new migration. | A future migration may introduce a configuration-named key, but it must continue reading the old key and clear it only after a successful transfer. |
+| Legacy persisted fields | `baseConfigurationScenario`, `app_metadata.included_output_ids` | Read-only compatibility shim. Keep accepting these legacy fields when loading saved data, but do not emit them from canonical documents or new saves. | Downstream cleanup can delete the shim only after persisted documents and browser state are known to have been migrated. |
+| Internal raw solver artifact naming | `raw.kind = "scenario_lp"` | Not an external compatibility boundary. This is an internal diagnostic label with in-repo test coverage, not a user-facing persistence surface. | Safe to rename directly when solver terminology cleanup happens, as long as the contract, producer, and tests move together in one change. |
+| Archival PRD documents | `docs/prd/**` | Exempt from bulk terminology cleanup. Those files are historical artifacts and may intentionally preserve older language. | Only edit archival PRDs when doing substantive document maintenance, and preserve historical wording where accuracy matters. |
+
+Practical rule: if a `scenario` name crosses a browser-storage boundary, a checked-in public asset path, or a backward-compatibility parser, treat it as a migration. Otherwise, treat it as an internal rename target.

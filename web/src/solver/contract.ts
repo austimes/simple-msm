@@ -11,6 +11,8 @@ export type SolveDiagnosticReason =
   | 'activity_exhaustion'
   | 'disabled_states'
   | 'electricity_balance_conflict';
+// `scenario_lp` is an internal artifact label, so it can move with the solver
+// contract when the broader terminology cleanup reaches this boundary.
 export type RawSolveArtifactKind = 'engine_probe' | 'scenario_lp';
 export type RawSolveSolutionStatus =
   | 'optimal'
