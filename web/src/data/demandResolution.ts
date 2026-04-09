@@ -1,15 +1,15 @@
 import type {
   AppConfigRegistry,
   BaselineActivityAnchor,
+  ConfigurationDemandGeneration,
+  ConfigurationDocument,
+  ConfigurationYearKey,
+  ConfigurationYearValueTable,
   DemandGrowthPreset,
-  ScenarioDocument,
-  ScenarioDemandGeneration,
-  ScenarioYearKey,
-  ScenarioYearValueTable,
 } from './types.ts';
 
-function yearKey(year: number): ScenarioYearKey {
-  return String(year) as ScenarioYearKey;
+function yearKey(year: number): ConfigurationYearKey {
+  return String(year) as ConfigurationYearKey;
 }
 
 function countDecimalPlaces(value: number): number {
@@ -36,7 +36,7 @@ function roundToPlaces(value: number, decimalPlaces: number): number {
 }
 
 function normalizeValueTable(
-  table: ScenarioYearValueTable | undefined,
+  table: ConfigurationYearValueTable | undefined,
   years: readonly number[],
 ): Record<string, number> {
   return years.reduce<Record<string, number>>((resolved, year) => {
@@ -62,7 +62,7 @@ function getBaselineAnchor(
 function resolveAnchorValue(
   explicitAnchor: number | undefined,
   baselineAnchor: BaselineActivityAnchor | null,
-  explicitTable: ScenarioYearValueTable | undefined,
+  explicitTable: ConfigurationYearValueTable | undefined,
   anchorYear: number,
   itemKind: string,
   itemId: string,
@@ -102,7 +102,7 @@ function generateValueTable(
   annualGrowthRatePctPerYear: number,
   years: readonly number[],
   anchorYear: number,
-  yearOverrides: ScenarioDemandGeneration['year_overrides'],
+  yearOverrides: ConfigurationDemandGeneration['year_overrides'],
   id: string,
 ): Record<string, number> {
   const decimalPlaces = countDecimalPlaces(anchor);
@@ -125,7 +125,7 @@ function generateValueTable(
 }
 
 function assertCompatibleResolvedTables(
-  rawTables: Record<string, ScenarioYearValueTable> | undefined,
+  rawTables: Record<string, ConfigurationYearValueTable> | undefined,
   resolvedTables: Record<string, Record<string, number>>,
   label: string,
 ): void {
@@ -146,7 +146,7 @@ function assertCompatibleResolvedTables(
 }
 
 function resolveAnchorPreset(
-  demandGeneration: ScenarioDemandGeneration,
+  demandGeneration: ConfigurationDemandGeneration,
   appConfig: AppConfigRegistry,
 ): DemandGrowthPreset {
   const presetId = demandGeneration.preset_id;
@@ -163,7 +163,7 @@ function resolveAnchorPreset(
 }
 
 function resolveServiceDemandTables(
-  scenario: ScenarioDocument,
+  configuration: ConfigurationDocument,
   appConfig: AppConfigRegistry,
   preset: DemandGrowthPreset,
 ): {
@@ -177,10 +177,10 @@ function resolveServiceDemandTables(
 
   const anchors = serviceIds.reduce<Record<string, number>>((resolved, outputId) => {
     resolved[outputId] = resolveAnchorValue(
-      scenario.demand_generation.service_anchors[outputId],
+      configuration.demand_generation.service_anchors[outputId],
       getBaselineAnchor(appConfig, outputId, 'service_demand'),
-      scenario.service_demands[outputId],
-      scenario.demand_generation.anchor_year,
+      configuration.service_demands[outputId],
+      configuration.demand_generation.anchor_year,
       'service demand',
       outputId,
     );
@@ -191,7 +191,7 @@ function resolveServiceDemandTables(
     resolved[outputId] = resolveGrowthRate(
       outputId,
       preset.annual_growth_rates_pct_per_year,
-      scenario.demand_generation.service_growth_rates_pct_per_year,
+      configuration.demand_generation.service_growth_rates_pct_per_year,
     );
     return resolved;
   }, {});
@@ -200,9 +200,9 @@ function resolveServiceDemandTables(
     resolved[outputId] = generateValueTable(
       anchors[outputId],
       growthRates[outputId],
-      scenario.years,
-      scenario.demand_generation.anchor_year,
-      scenario.demand_generation.year_overrides,
+      configuration.years,
+      configuration.demand_generation.anchor_year,
+      configuration.demand_generation.year_overrides,
       outputId,
     );
     return resolved;
@@ -212,7 +212,7 @@ function resolveServiceDemandTables(
 }
 
 function resolveExternalCommodityDemandTables(
-  scenario: ScenarioDocument,
+  configuration: ConfigurationDocument,
   appConfig: AppConfigRegistry,
   preset: DemandGrowthPreset,
 ): {
@@ -229,19 +229,19 @@ function resolveExternalCommodityDemandTables(
     ...Object.entries(appConfig.baseline_activity_anchors)
       .filter(([, anchor]) => anchor.anchor_kind === 'external_commodity_demand')
       .map(([commodityId]) => commodityId),
-    ...Object.keys(scenario.external_commodity_demands ?? {}),
-    ...Object.keys(scenario.demand_generation.external_commodity_anchors ?? {}),
-    ...Object.keys(scenario.demand_generation.external_commodity_growth_rates_pct_per_year ?? {}),
+    ...Object.keys(configuration.external_commodity_demands ?? {}),
+    ...Object.keys(configuration.demand_generation.external_commodity_anchors ?? {}),
+    ...Object.keys(configuration.demand_generation.external_commodity_growth_rates_pct_per_year ?? {}),
     ...Object.keys(preset.external_commodity_growth_rates_pct_per_year),
   ]);
 
   const externalCommodityIds = Array.from(candidateIds).filter((commodityId) => !serviceIds.has(commodityId));
   const anchors = externalCommodityIds.reduce<Record<string, number>>((resolved, commodityId) => {
     resolved[commodityId] = resolveAnchorValue(
-      scenario.demand_generation.external_commodity_anchors?.[commodityId],
+      configuration.demand_generation.external_commodity_anchors?.[commodityId],
       getBaselineAnchor(appConfig, commodityId, 'external_commodity_demand'),
-      scenario.external_commodity_demands?.[commodityId],
-      scenario.demand_generation.anchor_year,
+      configuration.external_commodity_demands?.[commodityId],
+      configuration.demand_generation.anchor_year,
       'external commodity',
       commodityId,
     );
@@ -252,7 +252,7 @@ function resolveExternalCommodityDemandTables(
     resolved[commodityId] = resolveGrowthRate(
       commodityId,
       preset.external_commodity_growth_rates_pct_per_year,
-      scenario.demand_generation.external_commodity_growth_rates_pct_per_year,
+      configuration.demand_generation.external_commodity_growth_rates_pct_per_year,
     );
     return resolved;
   }, {});
@@ -261,9 +261,9 @@ function resolveExternalCommodityDemandTables(
     resolved[commodityId] = generateValueTable(
       anchors[commodityId],
       growthRates[commodityId],
-      scenario.years,
-      scenario.demand_generation.anchor_year,
-      scenario.demand_generation.year_overrides,
+      configuration.years,
+      configuration.demand_generation.anchor_year,
+      configuration.demand_generation.year_overrides,
       commodityId,
     );
     return resolved;
@@ -273,7 +273,7 @@ function resolveExternalCommodityDemandTables(
 }
 
 function normalizeManualServiceDemandTables(
-  scenario: ScenarioDocument,
+  configuration: ConfigurationDocument,
   appConfig: AppConfigRegistry,
 ): Record<string, Record<string, number>> {
   return Object.entries(appConfig.output_roles).reduce<Record<string, Record<string, number>>>(
@@ -282,7 +282,7 @@ function normalizeManualServiceDemandTables(
         return resolved;
       }
 
-      resolved[outputId] = normalizeValueTable(scenario.service_demands[outputId], scenario.years);
+      resolved[outputId] = normalizeValueTable(configuration.service_demands[outputId], configuration.years);
       return resolved;
     },
     {},
@@ -290,49 +290,49 @@ function normalizeManualServiceDemandTables(
 }
 
 function normalizeManualExternalCommodityDemandTables(
-  scenario: ScenarioDocument,
+  configuration: ConfigurationDocument,
 ): Record<string, Record<string, number>> {
-  return Object.entries(scenario.external_commodity_demands ?? {}).reduce<
+  return Object.entries(configuration.external_commodity_demands ?? {}).reduce<
     Record<string, Record<string, number>>
   >((resolved, [commodityId, table]) => {
-    resolved[commodityId] = normalizeValueTable(table, scenario.years);
+    resolved[commodityId] = normalizeValueTable(table, configuration.years);
     return resolved;
   }, {});
 }
 
-export function resolveScenarioDocument(
-  scenario: ScenarioDocument,
+export function resolveConfigurationDocument(
+  configuration: ConfigurationDocument,
   appConfig: AppConfigRegistry,
-  label = 'scenario document',
-): ScenarioDocument {
-  if (scenario.demand_generation.mode === 'manual_table') {
+  label = 'configuration document',
+): ConfigurationDocument {
+  if (configuration.demand_generation.mode === 'manual_table') {
     return {
-      ...scenario,
-      service_demands: normalizeManualServiceDemandTables(scenario, appConfig),
-      external_commodity_demands: normalizeManualExternalCommodityDemandTables(scenario),
+      ...configuration,
+      service_demands: normalizeManualServiceDemandTables(configuration, appConfig),
+      external_commodity_demands: normalizeManualExternalCommodityDemandTables(configuration),
     };
   }
 
-  const preset = resolveAnchorPreset(scenario.demand_generation, appConfig);
-  const serviceResolution = resolveServiceDemandTables(scenario, appConfig, preset);
-  const externalResolution = resolveExternalCommodityDemandTables(scenario, appConfig, preset);
+  const preset = resolveAnchorPreset(configuration.demand_generation, appConfig);
+  const serviceResolution = resolveServiceDemandTables(configuration, appConfig, preset);
+  const externalResolution = resolveExternalCommodityDemandTables(configuration, appConfig, preset);
 
   assertCompatibleResolvedTables(
-    scenario.service_demands,
+    configuration.service_demands,
     serviceResolution.tables,
     `${label} service_demands`,
   );
   assertCompatibleResolvedTables(
-    scenario.external_commodity_demands,
+    configuration.external_commodity_demands,
     externalResolution.tables,
     `${label} external_commodity_demands`,
   );
 
   return {
-    ...scenario,
+    ...configuration,
     service_demands: serviceResolution.tables,
     demand_generation: {
-      ...scenario.demand_generation,
+      ...configuration.demand_generation,
       service_anchors: serviceResolution.anchors,
       service_growth_rates_pct_per_year: serviceResolution.growthRates,
       external_commodity_anchors: Object.keys(externalResolution.anchors).length > 0
@@ -344,4 +344,12 @@ export function resolveScenarioDocument(
     },
     external_commodity_demands: externalResolution.tables,
   };
+}
+
+export function resolveScenarioDocument(
+  scenario: ConfigurationDocument,
+  appConfig: AppConfigRegistry,
+  label = 'scenario document',
+): ConfigurationDocument {
+  return resolveConfigurationDocument(scenario, appConfig, label);
 }

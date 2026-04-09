@@ -15,7 +15,7 @@ import type {
   SolveResult,
   SolveStateShareSummary,
   SolveSoftConstraintViolationSummary,
-} from './contract';
+} from './contract.ts';
 
 const SCENARIO_OBJECTIVE_KEY = 'total_cost';
 const SCENARIO_DIRECTION = 'minimize' as const;

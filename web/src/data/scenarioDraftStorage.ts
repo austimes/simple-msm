@@ -1,6 +1,6 @@
-import { parseScenarioDocument } from './scenarioLoader';
-import type { AppConfigRegistry, ScenarioDocument } from './types';
-import { withSeedOutputIds } from './configurationLoader';
+import { parseConfigurationDocument } from './scenarioLoader.ts';
+import type { AppConfigRegistry, ConfigurationDocument } from './types.ts';
+import { withSeedOutputIds } from './configurationLoader.ts';
 
 // Keep this legacy key stable until a future additive migration can read old
 // drafts into a configuration-named key without dropping browser-local state.
@@ -16,19 +16,21 @@ export interface StorageLike {
 export interface PersistedConfigMeta {
   activeConfigurationId: string;
   activeConfigurationReadonly: boolean;
-  baseConfiguration: ScenarioDocument;
+  baseConfiguration: ConfigurationDocument;
 }
 
 interface LegacyPersistedConfigMeta {
   activeConfigurationId: string;
   activeConfigurationReadonly: boolean;
   // Read-only compatibility shim for older browser-local metadata.
-  baseConfigurationScenario: ScenarioDocument;
+  baseConfigurationScenario: ConfigurationDocument;
   baseIncludedOutputIds?: string[];
 }
 
-export interface ScenarioDraftLoadResult {
-  scenario: ScenarioDocument | null;
+export interface ConfigurationDraftLoadResult {
+  configuration: ConfigurationDocument | null;
+  // Backward-compatible alias for older callers.
+  scenario: ConfigurationDocument | null;
   configMeta: PersistedConfigMeta | null;
   notice: string | null;
   error: string | null;
@@ -59,14 +61,15 @@ function formatStorageError(action: string, error: unknown): string {
   return `Could not ${action} the browser-local configuration document: ${detail}`;
 }
 
-export function loadPersistedScenarioDraft(
+export function loadPersistedConfigurationDraft(
   appConfig: AppConfigRegistry,
   storage?: StorageLike | null,
-): ScenarioDraftLoadResult {
+): ConfigurationDraftLoadResult {
   const resolvedStorage = resolveStorage(storage);
 
   if (!resolvedStorage) {
     return {
+      configuration: null,
       scenario: null,
       configMeta: null,
       notice: 'Configuration documents stay in memory only when browser-local storage is unavailable.',
@@ -80,6 +83,7 @@ export function loadPersistedScenarioDraft(
     raw = resolvedStorage.getItem(SCENARIO_DRAFT_STORAGE_KEY);
   } catch (error) {
     return {
+      configuration: null,
       scenario: null,
       configMeta: null,
       notice: 'Configuration documents autosave in this browser when local storage is available.',
@@ -89,6 +93,7 @@ export function loadPersistedScenarioDraft(
 
   if (!raw) {
     return {
+      configuration: null,
       scenario: null,
       configMeta: null,
       notice: 'Configuration documents autosave in this browser after you import or edit them.',
@@ -97,10 +102,11 @@ export function loadPersistedScenarioDraft(
   }
 
   try {
-    const scenario = parseScenarioDocument(raw, appConfig, 'browser-local configuration document');
+    const configuration = parseConfigurationDocument(raw, appConfig, 'browser-local configuration document');
     const configMeta = loadPersistedConfigMeta(resolvedStorage);
     return {
-      scenario,
+      configuration,
+      scenario: configuration,
       configMeta,
       notice: 'Restored the most recent configuration document from this browser.',
       error: null,
@@ -114,6 +120,7 @@ export function loadPersistedScenarioDraft(
     }
 
     return {
+      configuration: null,
       scenario: null,
       configMeta: null,
       notice: 'Ignored an invalid saved document and fell back to the packaged reference configuration.',
@@ -122,8 +129,8 @@ export function loadPersistedScenarioDraft(
   }
 }
 
-export function persistScenarioDraft(
-  scenario: ScenarioDocument,
+export function persistConfigurationDraft(
+  configuration: ConfigurationDocument,
   storage?: StorageLike | null,
 ): string | null {
   const resolvedStorage = resolveStorage(storage);
@@ -133,7 +140,7 @@ export function persistScenarioDraft(
   }
 
   try {
-    resolvedStorage.setItem(SCENARIO_DRAFT_STORAGE_KEY, JSON.stringify(scenario));
+    resolvedStorage.setItem(SCENARIO_DRAFT_STORAGE_KEY, JSON.stringify(configuration));
     return null;
   } catch (error) {
     return formatStorageError('save', error);
@@ -192,6 +199,10 @@ function loadPersistedConfigMeta(
 }
 
 export function clearPersistedScenarioDraft(storage?: StorageLike | null): string | null {
+  return clearPersistedConfigurationDraft(storage);
+}
+
+export function clearPersistedConfigurationDraft(storage?: StorageLike | null): string | null {
   const resolvedStorage = resolveStorage(storage);
 
   if (!resolvedStorage) {
@@ -206,3 +217,7 @@ export function clearPersistedScenarioDraft(storage?: StorageLike | null): strin
     return formatStorageError('clear', error);
   }
 }
+
+export const loadPersistedScenarioDraft = loadPersistedConfigurationDraft;
+export const persistScenarioDraft = persistConfigurationDraft;
+export type ScenarioDraftLoadResult = ConfigurationDraftLoadResult;

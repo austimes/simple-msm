@@ -4,7 +4,7 @@ import type {
   PackageData,
   ScenarioDocument,
   ScenarioServiceControl,
-} from '../data/types';
+} from '../data/types.ts';
 import { resolveScenarioDocument } from '../data/demandResolution.ts';
 import type {
   NormalizedSolverRow,

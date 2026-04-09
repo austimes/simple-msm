@@ -2,17 +2,17 @@ import Ajv2020 from 'ajv/dist/2020';
 import type { ErrorObject } from 'ajv';
 import referenceScenarioText from '@root/web/src/app_config/reference_scenario.json?raw';
 import scenarioSchemaText from '@root/web/src/app_config/scenario_schema.json?raw';
-import { resolveScenarioDocument } from './demandResolution.ts';
-import type { AppConfigRegistry, ScenarioDocument } from './types';
+import { resolveConfigurationDocument } from './demandResolution.ts';
+import type { AppConfigRegistry, ConfigurationDocument } from './types.ts';
 
 type JsonObject = Record<string, unknown>;
 
-class ScenarioValidationError extends Error {
+class ConfigurationValidationError extends Error {
   readonly details: string[];
 
   constructor(label: string, details: string[]) {
     super(`Invalid ${label}:\n- ${details.join('\n- ')}`);
-    this.name = 'ScenarioValidationError';
+    this.name = 'ConfigurationValidationError';
     this.details = details;
   }
 }
@@ -88,33 +88,52 @@ function formatValidationError(error: ErrorObject): string {
 const scenarioSchema = parseJsonObject<JsonObject>(scenarioSchemaText, 'scenario_schema.json');
 const validator = new Ajv2020({ allErrors: true, strict: false }).compile(scenarioSchema);
 
-export function loadScenarioSchema(): JsonObject {
+export function loadConfigurationSchema(): JsonObject {
   return scenarioSchema;
 }
+
+export function validateConfigurationDocument(
+  configuration: unknown,
+  label = 'configuration document',
+): ConfigurationDocument {
+  if (!validator(configuration)) {
+    const details = Array.from(
+      new Set((validator.errors ?? []).map(formatValidationError)),
+    );
+    throw new ConfigurationValidationError(label, details);
+  }
+
+  return configuration as ConfigurationDocument;
+}
+
+export function parseConfigurationDocument(
+  raw: string,
+  appConfig?: AppConfigRegistry,
+  label = 'configuration document',
+): ConfigurationDocument {
+  const configuration = validateConfigurationDocument(parseJsonObject<unknown>(raw, label), label);
+  return appConfig ? resolveConfigurationDocument(configuration, appConfig, label) : configuration;
+}
+
+export function loadDefaultConfiguration(appConfig: AppConfigRegistry): ConfigurationDocument {
+  return parseConfigurationDocument(referenceScenarioText, appConfig, 'reference_scenario.json');
+}
+
+export const loadScenarioSchema = loadConfigurationSchema;
 
 export function validateScenarioDocument(
   scenario: unknown,
   label = 'scenario document',
-): ScenarioDocument {
-  if (!validator(scenario)) {
-    const details = Array.from(
-      new Set((validator.errors ?? []).map(formatValidationError)),
-    );
-    throw new ScenarioValidationError(label, details);
-  }
-
-  return scenario as ScenarioDocument;
+): ConfigurationDocument {
+  return validateConfigurationDocument(scenario, label);
 }
 
 export function parseScenarioDocument(
   raw: string,
   appConfig?: AppConfigRegistry,
   label = 'scenario document',
-): ScenarioDocument {
-  const scenario = validateScenarioDocument(parseJsonObject<unknown>(raw, label), label);
-  return appConfig ? resolveScenarioDocument(scenario, appConfig, label) : scenario;
+): ConfigurationDocument {
+  return parseConfigurationDocument(raw, appConfig, label);
 }
 
-export function loadDefaultScenario(appConfig: AppConfigRegistry): ScenarioDocument {
-  return parseScenarioDocument(referenceScenarioText, appConfig, 'reference_scenario.json');
-}
+export const loadDefaultScenario = loadDefaultConfiguration;

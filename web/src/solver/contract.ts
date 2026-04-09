@@ -1,4 +1,4 @@
-import type { OutputRole, ScenarioControlMode } from '../data/types';
+import type { OutputRole, ScenarioControlMode } from '../data/types.ts';
 
 export const SOLVER_CONTRACT_VERSION = 2 as const;
 

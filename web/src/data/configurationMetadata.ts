@@ -1,4 +1,4 @@
-import type { ScenarioDocument } from './types';
+import type { ConfigurationDocument } from './types.ts';
 
 export function normalizeSeedOutputIds(value: string[] | undefined): string[] | undefined {
   if (!Array.isArray(value)) {
@@ -12,7 +12,7 @@ export function normalizeSeedOutputIds(value: string[] | undefined): string[] | 
   return normalized.length > 0 ? normalized : undefined;
 }
 
-export function getSeedOutputIds(configuration: ScenarioDocument): string[] | undefined {
+export function getSeedOutputIds(configuration: ConfigurationDocument): string[] | undefined {
   return normalizeSeedOutputIds(
     configuration.app_metadata?.seed_output_ids
     ?? configuration.app_metadata?.included_output_ids,

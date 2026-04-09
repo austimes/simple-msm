@@ -1,10 +1,10 @@
 import type {
   AppConfigRegistry,
+  ConfigurationDocument,
+  ConfigurationYearKey,
   PriceLevel,
-  ScenarioDocument,
-  ScenarioYearKey,
   SectorState,
-} from './types';
+} from './types.ts';
 
 export interface StateCatalogEntry {
   stateId: string;
@@ -78,11 +78,11 @@ export function buildStateCatalog(
 }
 
 export function getEnabledStateIds(
-  scenario: ScenarioDocument,
+  configuration: ConfigurationDocument,
   outputId: string,
   allStateIds: string[],
 ): string[] {
-  const control = scenario.service_controls[outputId];
+  const control = configuration.service_controls[outputId];
 
   if (!control) return allStateIds;
 
@@ -108,10 +108,10 @@ export function getEnabledStateIds(
 }
 
 export function getActiveDemandPreset(
-  scenario: ScenarioDocument,
+  configuration: ConfigurationDocument,
   appConfig: AppConfigRegistry,
 ): string | null {
-  const { mode, preset_id } = scenario.demand_generation;
+  const { mode, preset_id } = configuration.demand_generation;
 
   if (mode === 'manual_table' || !preset_id) {
     return null;
@@ -125,19 +125,19 @@ export function getActiveDemandPreset(
 }
 
 export function getCommodityPriceLevel(
-  scenario: ScenarioDocument,
+  configuration: ConfigurationDocument,
   commodityId: string,
 ): PriceLevel {
-  return scenario.commodity_pricing.selections_by_commodity?.[commodityId] ?? 'medium';
+  return configuration.commodity_pricing.selections_by_commodity?.[commodityId] ?? 'medium';
 }
 
 export function getActiveCarbonPricePreset(
-  scenario: ScenarioDocument,
+  configuration: ConfigurationDocument,
   appConfig: AppConfigRegistry,
 ): string | null {
   for (const [presetId, preset] of Object.entries(appConfig.carbon_price_presets)) {
     const match = Object.entries(preset.values_by_year).every(
-      ([year, value]) => scenario.carbon_price[year as ScenarioYearKey] === value,
+      ([year, value]) => configuration.carbon_price[year as ConfigurationYearKey] === value,
     );
     if (match) return presetId;
   }
