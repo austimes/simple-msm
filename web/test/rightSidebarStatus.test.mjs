@@ -110,6 +110,17 @@ describe('getRightSidebarStatusPresentation', () => {
     assert.match(electricity.detail, /commodity price selection is used instead/i);
   });
 
+  test('explains that pinned-single controls still keep other non-disabled pathways enabled', () => {
+    const scenario = readJson('../src/configurations/industrial-heat-fossil.json');
+    const statuses = deriveOutputRunStatusesForConfiguration(pkg, scenario);
+    const lowTemperatureHeat = getRightSidebarStatusPresentation(statuses.low_temperature_heat);
+
+    assert.ok(
+      lowTemperatureHeat.badges.some((badge) => badge.label === '3 enabled pathways'),
+    );
+    assert.match(lowTemperatureHeat.detail, /pins activity to the selected pathway/i);
+  });
+
   test('documents the legend statuses shown in the sidebar', () => {
     assert.deepEqual(
       RIGHT_SIDEBAR_STATUS_LEGEND.map((item) => item.label),

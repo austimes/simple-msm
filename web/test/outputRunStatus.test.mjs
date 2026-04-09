@@ -171,6 +171,45 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
     assert.equal(statuses.electricity.enabledStateCount, electricityStateIds.length);
   });
 
+  test('keeps non-disabled pathways enabled in status output for pinned-single controls', () => {
+    const residentialStateIds = Array.from(
+      new Set(
+        pkg.sectorStates
+          .filter((row) => row.service_or_output_name === 'residential_building_services')
+          .map((row) => row.state_id),
+      ),
+    );
+
+    assert.ok(residentialStateIds.length >= 2, 'expected multiple residential pathways');
+
+    const [selectedStateId, disabledStateId] = residentialStateIds;
+    const configuration = buildConfiguration(pkg.appConfig, {
+      name: 'Residential pinned-single status semantics',
+      serviceControls: {
+        residential_building_services: {
+          mode: 'pinned_single',
+          state_id: selectedStateId,
+          disabled_state_ids: [disabledStateId],
+        },
+      },
+    });
+
+    const statuses = deriveOutputRunStatusesForConfiguration(pkg, configuration);
+
+    assert.equal(statuses.residential_building_services.controlMode, 'pinned_single');
+    assert.equal(statuses.residential_building_services.isDisabled, false);
+    assert.ok(
+      statuses.residential_building_services.enabledStateIds.includes(selectedStateId),
+    );
+    assert.ok(
+      !statuses.residential_building_services.enabledStateIds.includes(disabledStateId),
+    );
+    assert.equal(
+      statuses.residential_building_services.enabledStateCount,
+      residentialStateIds.length - 1,
+    );
+  });
+
   test('buildSolveRequest blocks positive required-service demand with no enabled pathways', () => {
     const allPassengerStateIds = Array.from(
       new Set(

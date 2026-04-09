@@ -35,4 +35,38 @@ describe('getEnabledStateIds', () => {
     assert.ok(!enabledStateIds.includes(disabledStateId));
     assert.equal(enabledStateIds.length, electricityStateIds.length - 1);
   });
+
+  test('pinned-single controls still expose all non-disabled pathways as enabled candidates', () => {
+    const residentialStateIds = Array.from(
+      new Set(
+        pkg.sectorStates
+          .filter((row) => row.service_or_output_name === 'residential_building_services')
+          .map((row) => row.state_id),
+      ),
+    );
+
+    assert.ok(residentialStateIds.length >= 2, 'expected multiple residential pathways');
+
+    const [selectedStateId, disabledStateId] = residentialStateIds;
+    const configuration = buildConfiguration(pkg.appConfig, {
+      name: 'Residential pinned-single availability semantics',
+      serviceControls: {
+        residential_building_services: {
+          mode: 'pinned_single',
+          state_id: selectedStateId,
+          disabled_state_ids: [disabledStateId],
+        },
+      },
+    });
+
+    const enabledStateIds = getEnabledStateIds(
+      configuration,
+      'residential_building_services',
+      residentialStateIds,
+    );
+
+    assert.ok(enabledStateIds.includes(selectedStateId));
+    assert.ok(!enabledStateIds.includes(disabledStateId));
+    assert.equal(enabledStateIds.length, residentialStateIds.length - 1);
+  });
 });

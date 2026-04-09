@@ -194,6 +194,10 @@ function buildDetail(status: DerivedOutputRunStatus): string {
     return `${detail} No pathways are currently enabled.`;
   }
 
+  if (status.controlMode === 'pinned_single') {
+    return `${detail} Exact control pins activity to the selected pathway, even when other non-disabled pathways remain enabled for cap context and future edits.`;
+  }
+
   return detail;
 }
 

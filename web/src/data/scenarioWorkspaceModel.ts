@@ -88,11 +88,6 @@ export function getEnabledStateIds(
 
   const disabledSet = new Set(control.disabled_state_ids ?? []);
   const availableStateIds = allStateIds.filter((id) => !disabledSet.has(id));
-
-  if (control.mode === 'pinned_single' && control.state_id) {
-    return availableStateIds.filter((id) => id === control.state_id);
-  }
-
   return availableStateIds;
 }
 
