@@ -1548,6 +1548,22 @@ body {
   color: var(--color-primary);
 }
 
+.workspace-chip:disabled,
+.workspace-chip--inactive {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.workspace-chip:disabled:hover,
+.workspace-chip--inactive:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: var(--color-text-muted);
+}
+
 .workspace-chip--active {
   background: var(--color-primary-bg);
   border-color: var(--color-primary);
@@ -1717,9 +1733,19 @@ body {
   color: #1d4ed8;
 }
 
+.workspace-mode-badge--externalized {
+  background: #ebf8ff;
+  color: #1d4ed8;
+}
+
 .workspace-mode-badge--dependency {
   background: #ecfeff;
   color: #0f766e;
+}
+
+.workspace-mode-badge--modeled {
+  background: #ecfdf5;
+  color: #047857;
 }
 
 .workspace-mode-badge--excluded {

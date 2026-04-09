@@ -16,6 +16,11 @@ import {
   resolveScenarioForSolve,
 } from './solveRequestModel.ts';
 
+export {
+  normalizeSolverRows,
+  resolveScenarioForSolve,
+} from './solveRequestModel.ts';
+
 function createRequestId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
