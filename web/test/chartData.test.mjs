@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { SOLVER_CONTRACT_VERSION } from '../src/solver/contract.ts';
+import { solveWithLpAdapter } from '../src/solver/lpAdapter.ts';
 import { buildPathwayChartCards } from '../src/results/chartData.ts';
 
 function buildRequest(respectMaxShare) {
@@ -246,4 +247,102 @@ test('buildPathwayChartCards keeps cap context visible when max-share enforcemen
       { year: 2035, value: 83.33333333333334 },
     ],
   );
+});
+
+test('buildPathwayChartCards matches solver-reported effective caps for exact-share runs', () => {
+  const request = {
+    contractVersion: SOLVER_CONTRACT_VERSION,
+    requestId: 'chart-data-exact-share-cap-alignment',
+    rows: [
+      {
+        rowId: 'selected_a::2030',
+        outputId: 'exact_share_service',
+        outputRole: 'required_service',
+        outputLabel: 'Exact Share Service',
+        year: 2030,
+        stateId: 'selected_a',
+        stateLabel: 'Selected A',
+        sector: 'test',
+        subsector: 'test',
+        region: 'national',
+        outputUnit: 'PJ',
+        conversionCostPerUnit: 1,
+        inputs: [],
+        directEmissions: [],
+        bounds: {
+          minShare: null,
+          maxShare: 0.2,
+          maxActivity: null,
+        },
+      },
+      {
+        rowId: 'available_b::2030',
+        outputId: 'exact_share_service',
+        outputRole: 'required_service',
+        outputLabel: 'Exact Share Service',
+        year: 2030,
+        stateId: 'available_b',
+        stateLabel: 'Available B',
+        sector: 'test',
+        subsector: 'test',
+        region: 'national',
+        outputUnit: 'PJ',
+        conversionCostPerUnit: 2,
+        inputs: [],
+        directEmissions: [],
+        bounds: {
+          minShare: null,
+          maxShare: null,
+          maxActivity: null,
+        },
+      },
+    ],
+    configuration: {
+      name: 'Exact-share CAP alignment',
+      description: null,
+      years: [2030],
+      controlsByOutput: {
+        exact_share_service: {
+          2030: {
+            mode: 'fixed_shares',
+            fixedShares: { selected_a: 1 },
+            disabledStateIds: [],
+            targetValue: null,
+          },
+        },
+      },
+      serviceDemandByOutput: {
+        exact_share_service: { 2030: 100 },
+      },
+      externalCommodityDemandByCommodity: {},
+      commodityPriceByCommodity: {},
+      carbonPriceByYear: { 2030: 0 },
+      options: {
+        respectMaxShare: false,
+        respectMaxActivity: true,
+        softConstraints: false,
+        allowRemovalsCredit: false,
+        shareSmoothing: {
+          enabled: false,
+          maxDeltaPp: null,
+        },
+      },
+    },
+  };
+
+  const result = solveWithLpAdapter(request);
+  const cards = buildPathwayChartCards(request, result);
+  const selectedShare = result.reporting.stateShares.find((share) => share.stateId === 'selected_a');
+  const availableShare = result.reporting.stateShares.find((share) => share.stateId === 'available_b');
+  const card = cards[0];
+  const selectedCap = card.capChart.series.find((series) => series.label === 'Selected A')?.values[0]?.value;
+  const availableCap = card.capChart.series.find((series) => series.label === 'Available B')?.values[0]?.value;
+
+  assert.equal(result.status, 'solved');
+  assert.equal(cards.length, 1);
+  assert.ok(selectedShare?.effectiveMaxShare != null, 'expected selected exact-share cap');
+  assert.ok(availableShare?.effectiveMaxShare != null, 'expected available exact-share cap');
+  assert.ok(Math.abs(selectedCap - (selectedShare.effectiveMaxShare * 100)) < 1e-9);
+  assert.ok(Math.abs(availableCap - (availableShare.effectiveMaxShare * 100)) < 1e-9);
+  assert.match(card.note, /available \(non-disabled\) pathways/i);
 });
