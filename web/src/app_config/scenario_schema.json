@@ -45,18 +45,11 @@
           "mode": {
             "type": "string",
             "enum": [
-              "pinned_single",
               "fixed_shares",
               "optimize",
               "externalized",
               "off",
               "target"
-            ]
-          },
-          "state_id": {
-            "type": [
-              "string",
-              "null"
             ]
           },
           "fixed_shares": {
@@ -96,12 +89,6 @@
               "properties": {
                 "mode": {
                   "type": "string"
-                },
-                "state_id": {
-                  "type": [
-                    "string",
-                    "null"
-                  ]
                 },
                 "fixed_shares": {
                   "type": [
@@ -242,7 +229,11 @@
           "type": "object",
           "additionalProperties": {
             "type": "string",
-            "enum": ["low", "medium", "high"]
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ]
           }
         },
         "preset_id": {

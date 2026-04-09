@@ -1,6 +1,6 @@
 {
   "name": "Buildings only — electricity externalized",
-  "description": "Residential and commercial building services pinned to incumbent mixed fuels with electricity externalized.",
+  "description": "Residential and commercial building services held at 100% on incumbent mixed fuels with electricity externalized.",
   "years": [
     2025,
     2030,
@@ -14,48 +14,70 @@
       "mode": "externalized"
     },
     "residential_building_services": {
-      "mode": "pinned_single",
-      "state_id": "buildings__residential__incumbent_mixed_fuels"
+      "mode": "fixed_shares",
+      "fixed_shares": {
+        "buildings__residential__incumbent_mixed_fuels": 1
+      }
     },
     "commercial_building_services": {
-      "mode": "pinned_single",
-      "state_id": "buildings__commercial__incumbent_mixed_fuels"
+      "mode": "fixed_shares",
+      "fixed_shares": {
+        "buildings__commercial__incumbent_mixed_fuels": 1
+      }
     },
     "passenger_road_transport": {
-      "mode": "pinned_single",
-      "state_id": "road_transport__passenger_road__ice_fleet"
+      "mode": "fixed_shares",
+      "fixed_shares": {
+        "road_transport__passenger_road__ice_fleet": 1
+      }
     },
     "freight_road_transport": {
-      "mode": "pinned_single",
-      "state_id": "road_transport__freight_road__diesel"
+      "mode": "fixed_shares",
+      "fixed_shares": {
+        "road_transport__freight_road__diesel": 1
+      }
     },
     "low_temperature_heat": {
-      "mode": "pinned_single",
-      "state_id": "generic_industrial_heat__low_temperature_heat__fossil"
+      "mode": "fixed_shares",
+      "fixed_shares": {
+        "generic_industrial_heat__low_temperature_heat__fossil": 1
+      }
     },
     "medium_temperature_heat": {
-      "mode": "pinned_single",
-      "state_id": "generic_industrial_heat__medium_temperature_heat__fossil"
+      "mode": "fixed_shares",
+      "fixed_shares": {
+        "generic_industrial_heat__medium_temperature_heat__fossil": 1
+      }
     },
     "high_temperature_heat": {
-      "mode": "pinned_single",
-      "state_id": "generic_industrial_heat__high_temperature_heat__fossil"
+      "mode": "fixed_shares",
+      "fixed_shares": {
+        "generic_industrial_heat__high_temperature_heat__fossil": 1
+      }
     },
     "crude_steel": {
-      "mode": "pinned_single",
-      "state_id": "steel__crude_steel__bf_bof_conventional"
+      "mode": "fixed_shares",
+      "fixed_shares": {
+        "steel__crude_steel__bf_bof_conventional": 1
+      }
     },
     "cement_equivalent": {
-      "mode": "pinned_single",
-      "state_id": "cement_clinker__cement_equivalent__conventional"
+      "mode": "fixed_shares",
+      "fixed_shares": {
+        "cement_clinker__cement_equivalent__conventional": 1
+      }
     },
     "livestock_output_bundle": {
-      "mode": "pinned_single",
-      "state_id": "agriculture__livestock__conventional"
+      "mode": "fixed_shares",
+      "fixed_shares": {
+        "agriculture__livestock__conventional": 1
+      }
     },
     "cropping_horticulture_output_bundle": {
-      "mode": "pinned_single",
-      "state_id": "agriculture__cropping_horticulture__conventional"
+      "mode": "fixed_shares",
+      "fixed_shares": {
+        "agriculture__cropping_horticulture__conventional": 1
+      }
     },
     "land_sequestration": {
       "mode": "optimize",

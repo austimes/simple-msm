@@ -6,7 +6,7 @@ export type SolverContractVersion = typeof SOLVER_CONTRACT_VERSION;
 export type SolveStatus = 'partial' | 'solved' | 'error';
 export type SolveDiagnosticSeverity = 'info' | 'warning' | 'error';
 export type SolveDiagnosticReason =
-  | 'pinned_fixed_share_conflict'
+  | 'exact_share_conflict'
   | 'share_exhaustion'
   | 'activity_exhaustion'
   | 'disabled_states'
@@ -57,7 +57,6 @@ export interface NormalizedSolverRow {
 
 export interface ResolvedSolveControl {
   mode: ScenarioControlMode;
-  stateId: string | null;
   fixedShares: Record<string, number> | null;
   disabledStateIds: string[];
   targetValue: number | null;
@@ -139,7 +138,6 @@ export type SolveConstraintBoundType = 'equal' | 'min' | 'max';
 export type SolveConstraintKind =
   | 'service_demand'
   | 'commodity_balance'
-  | 'pinned_state'
   | 'fixed_share'
   | 'min_share'
   | 'max_share'

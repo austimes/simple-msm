@@ -25,12 +25,12 @@ function readJson(relativePath) {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function buildServiceControls(pinnedOutputIds, extras = {}) {
+function buildServiceControls(singlePathOutputIds, extras = {}) {
   const controls = {};
-  for (const outputId of pinnedOutputIds) {
+  for (const outputId of singlePathOutputIds) {
     const stateId = INCUMBENT_STATE_IDS[outputId];
     if (stateId) {
-      controls[outputId] = { mode: 'pinned_single', state_id: stateId };
+      controls[outputId] = { mode: 'fixed_shares', fixed_shares: { [stateId]: 1 } };
     }
   }
   controls.electricity = extras.electricity ?? { mode: 'externalized' };
@@ -99,10 +99,10 @@ function assertElectricityEndogenous(result) {
   }
 }
 
-function assertPinnedStatesMatch(result, pinnedMap, years) {
+function assertExactSingleStateMatches(result, singleStateMap, years) {
   const activeShares = result.reporting.stateShares.filter((s) => s.activity > 1e-6);
 
-  for (const [outputId, stateId] of Object.entries(pinnedMap)) {
+  for (const [outputId, stateId] of Object.entries(singleStateMap)) {
     for (const year of years) {
       const matches = activeShares.filter((s) => s.outputId === outputId && s.year === year);
       assert.equal(matches.length, 1, `${outputId} in ${year}: expected 1 active state, got ${matches.length}`);
@@ -130,7 +130,7 @@ const DEFAULT_SOLVER_OPTIONS = {
 
 describe('agriculture only (uses electricity — auto-included)', () => {
   const outputIds = ['livestock_output_bundle', 'cropping_horticulture_output_bundle'];
-  const pinnedMap = {
+  const singleStateMap = {
     livestock_output_bundle: INCUMBENT_STATE_IDS.livestock_output_bundle,
     cropping_horticulture_output_bundle: INCUMBENT_STATE_IDS.cropping_horticulture_output_bundle,
   };
@@ -155,12 +155,12 @@ describe('agriculture only (uses electricity — auto-included)', () => {
 
   test('electricity is externalized', () => assertElectricityExternalized(result));
 
-  test('pinned states match', () => assertPinnedStatesMatch(result, pinnedMap, CONFIGURATION_YEARS));
+  test('single-state exact shares match', () => assertExactSingleStateMatches(result, singleStateMap, CONFIGURATION_YEARS));
 });
 
 describe('cement only (conventional uses electricity — auto-included)', () => {
   const outputIds = ['cement_equivalent'];
-  const pinnedMap = { cement_equivalent: INCUMBENT_STATE_IDS.cement_equivalent };
+  const singleStateMap = { cement_equivalent: INCUMBENT_STATE_IDS.cement_equivalent };
   const serviceControls = buildServiceControls(outputIds, {
     electricity: { mode: 'externalized' },
   });
@@ -181,12 +181,12 @@ describe('cement only (conventional uses electricity — auto-included)', () => 
 
   test('electricity is externalized', () => assertElectricityExternalized(result));
 
-  test('pinned state matches', () => assertPinnedStatesMatch(result, pinnedMap, CONFIGURATION_YEARS));
+  test('single-state exact share matches', () => assertExactSingleStateMatches(result, singleStateMap, CONFIGURATION_YEARS));
 });
 
 describe('steel incumbent only (BF-BOF uses electricity — auto-included)', () => {
   const outputIds = ['crude_steel'];
-  const pinnedMap = { crude_steel: INCUMBENT_STATE_IDS.crude_steel };
+  const singleStateMap = { crude_steel: INCUMBENT_STATE_IDS.crude_steel };
   const serviceControls = buildServiceControls(outputIds, {
     electricity: { mode: 'externalized' },
   });
@@ -207,7 +207,7 @@ describe('steel incumbent only (BF-BOF uses electricity — auto-included)', () 
 
   test('electricity is externalized', () => assertElectricityExternalized(result));
 
-  test('pinned state matches', () => assertPinnedStatesMatch(result, pinnedMap, CONFIGURATION_YEARS));
+  test('single-state exact share matches', () => assertExactSingleStateMatches(result, singleStateMap, CONFIGURATION_YEARS));
 });
 
 describe('steel optimize (auto-includes electricity)', () => {
@@ -238,7 +238,7 @@ describe('steel optimize (auto-includes electricity)', () => {
 
 describe('buildings only with electricity externalized', () => {
   const outputIds = ['residential_building_services', 'commercial_building_services'];
-  const pinnedMap = {
+  const singleStateMap = {
     residential_building_services: INCUMBENT_STATE_IDS.residential_building_services,
     commercial_building_services: INCUMBENT_STATE_IDS.commercial_building_services,
   };
@@ -263,7 +263,7 @@ describe('buildings only with electricity externalized', () => {
 
   test('electricity is externalized', () => assertElectricityExternalized(result));
 
-  test('pinned states match', () => assertPinnedStatesMatch(result, pinnedMap, CONFIGURATION_YEARS));
+  test('single-state exact shares match', () => assertExactSingleStateMatches(result, singleStateMap, CONFIGURATION_YEARS));
 });
 
 describe('buildings only with electricity endogenous (optimize) — scaled demand', () => {
@@ -351,8 +351,8 @@ describe('road transport with BEV (needs electricity)', () => {
     electricity: { mode: 'externalized' },
     additional: {
       passenger_road_transport: {
-        mode: 'pinned_single',
-        state_id: 'road_transport__passenger_road__bev',
+        mode: 'fixed_shares',
+        fixed_shares: { 'road_transport__passenger_road__bev': 1 },
       },
     },
   });
@@ -387,7 +387,7 @@ describe('road transport with BEV (needs electricity)', () => {
 
 describe('industrial heat only (fossil, no electricity dependency)', () => {
   const outputIds = ['low_temperature_heat', 'medium_temperature_heat', 'high_temperature_heat'];
-  const pinnedMap = {
+  const singleStateMap = {
     low_temperature_heat: INCUMBENT_STATE_IDS.low_temperature_heat,
     medium_temperature_heat: INCUMBENT_STATE_IDS.medium_temperature_heat,
     high_temperature_heat: INCUMBENT_STATE_IDS.high_temperature_heat,
@@ -410,7 +410,7 @@ describe('industrial heat only (fossil, no electricity dependency)', () => {
     assertElectricityAbsent(request);
   });
 
-  test('pinned states match', () => assertPinnedStatesMatch(result, pinnedMap, CONFIGURATION_YEARS));
+  test('single-state exact shares match', () => assertExactSingleStateMatches(result, singleStateMap, CONFIGURATION_YEARS));
 });
 
 describe('industrial heat electrified (auto-includes electricity)', () => {
@@ -419,16 +419,16 @@ describe('industrial heat electrified (auto-includes electricity)', () => {
     electricity: { mode: 'externalized' },
     additional: {
       low_temperature_heat: {
-        mode: 'pinned_single',
-        state_id: 'generic_industrial_heat__low_temperature_heat__electrified',
+        mode: 'fixed_shares',
+        fixed_shares: { 'generic_industrial_heat__low_temperature_heat__electrified': 1 },
       },
       medium_temperature_heat: {
-        mode: 'pinned_single',
-        state_id: 'generic_industrial_heat__medium_temperature_heat__electrified',
+        mode: 'fixed_shares',
+        fixed_shares: { 'generic_industrial_heat__medium_temperature_heat__electrified': 1 },
       },
       high_temperature_heat: {
-        mode: 'pinned_single',
-        state_id: 'generic_industrial_heat__high_temperature_heat__electrified',
+        mode: 'fixed_shares',
+        fixed_shares: { 'generic_industrial_heat__high_temperature_heat__electrified': 1 },
       },
     },
   });
@@ -451,7 +451,7 @@ describe('industrial heat electrified (auto-includes electricity)', () => {
 
 describe('freight transport only (diesel incumbent, no electricity)', () => {
   const outputIds = ['freight_road_transport'];
-  const pinnedMap = { freight_road_transport: INCUMBENT_STATE_IDS.freight_road_transport };
+  const singleStateMap = { freight_road_transport: INCUMBENT_STATE_IDS.freight_road_transport };
   const serviceControls = buildServiceControls(outputIds);
   const configuration = buildConfiguration(pkg.appConfig, {
     name: 'Freight transport only (diesel)',
@@ -466,7 +466,7 @@ describe('freight transport only (diesel incumbent, no electricity)', () => {
     assertElectricityAbsent(request);
   });
 
-  test('pinned state matches', () => assertPinnedStatesMatch(result, pinnedMap, CONFIGURATION_YEARS));
+  test('single-state exact share matches', () => assertExactSingleStateMatches(result, singleStateMap, CONFIGURATION_YEARS));
 });
 
 describe('full model subset (all required services + electricity externalized)', () => {
@@ -483,8 +483,8 @@ describe('full model subset (all required services + electricity externalized)',
 
   test('solves optimally', () => assertSolvesOptimally(result));
 
-  test('all incumbent pinned states match', () => {
-    assertPinnedStatesMatch(result, INCUMBENT_STATE_IDS, CONFIGURATION_YEARS);
+  test('all incumbent single-state exact shares match', () => {
+    assertExactSingleStateMatches(result, INCUMBENT_STATE_IDS, CONFIGURATION_YEARS);
   });
 
   test('electricity is externalized', () => assertElectricityExternalized(result));

@@ -7,7 +7,6 @@ import type {
 
 export interface PathwayControlInput {
   mode?: ConfigurationControlMode | null;
-  stateId?: string | null;
   fixedShares?: Record<string, number> | null;
   disabledStateIds?: readonly string[] | null;
 }
@@ -39,12 +38,10 @@ export function toPathwayControlInput(
 
   if (
     'disabledStateIds' in control
-    || 'stateId' in control
     || 'fixedShares' in control
   ) {
     return {
       mode: control.mode ?? null,
-      stateId: control.stateId ?? null,
       fixedShares: control.fixedShares ?? null,
       disabledStateIds: control.disabledStateIds ?? [],
     };
@@ -52,12 +49,10 @@ export function toPathwayControlInput(
 
   if (
     'disabled_state_ids' in control
-    || 'state_id' in control
     || 'fixed_shares' in control
   ) {
     return {
       mode: control.mode,
-      stateId: control.state_id ?? null,
       fixedShares: control.fixed_shares ?? null,
       disabledStateIds: control.disabled_state_ids ?? [],
     };
@@ -78,10 +73,6 @@ function deriveActiveStateIds(
     case 'externalized':
     case 'off':
       return [];
-    case 'pinned_single':
-      return control.stateId && availableStateIds.includes(control.stateId)
-        ? [control.stateId]
-        : [];
     case 'fixed_shares':
       return availableStateIds.filter((stateId) => (control.fixedShares?.[stateId] ?? 0) > 0);
     default:

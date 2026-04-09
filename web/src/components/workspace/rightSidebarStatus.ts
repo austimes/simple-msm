@@ -194,12 +194,12 @@ function buildDetail(status: DerivedOutputRunStatus): string {
     return `${detail} No pathways are currently enabled.`;
   }
 
-  if (status.controlMode === 'pinned_single') {
+  if (status.controlMode === 'fixed_shares' && status.activeStateCount === 1) {
     return `${detail} Exact control pins activity to ${status.activeStateCount} active pathway, while ${status.capEligibleStateCount} non-disabled pathways remain available for cap context and future edits.`;
   }
 
   if (status.controlMode === 'fixed_shares' && status.activeStateCount < status.availableStateCount) {
-    return `${detail} Only pathways with positive fixed shares are active in the solve, while ${status.capEligibleStateCount} non-disabled pathways still define cap context in this phase.`;
+    return `${detail} Only pathways with positive exact shares are active in the solve, while ${status.capEligibleStateCount} non-disabled pathways still define cap context in this phase.`;
   }
 
   return detail;

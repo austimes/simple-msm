@@ -15,9 +15,7 @@ export interface CommodityPriceSelectorPresentation {
 export function formatControlModeLabel(mode: ScenarioControlMode): string {
   switch (mode) {
     case 'fixed_shares':
-      return 'fixed shares';
-    case 'pinned_single':
-      return 'pinned single';
+      return 'exact shares';
     default:
       return mode.replaceAll('_', ' ');
   }

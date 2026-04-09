@@ -51,7 +51,7 @@ describe('getCommodityPriceSelectorPresentation', () => {
     assert.match(presentation.detail, /price selection is active/i);
   });
 
-  test('reports fixed-share endogenous supply as in model', () => {
+  test('reports exact-share endogenous supply as in model', () => {
     const electricityStateId = pkg.sectorStates.find(
       (row) => row.service_or_output_name === 'electricity',
     )?.state_id;
@@ -59,7 +59,7 @@ describe('getCommodityPriceSelectorPresentation', () => {
     assert.ok(electricityStateId, 'expected an electricity state');
 
     const configuration = buildConfiguration(pkg.appConfig, {
-      name: 'Electricity fixed shares',
+      name: 'Electricity exact shares',
       serviceControls: {
         electricity: {
           mode: 'fixed_shares',
@@ -74,7 +74,7 @@ describe('getCommodityPriceSelectorPresentation', () => {
     );
 
     assert.equal(presentation.badgeLabel, 'in model');
-    assert.equal(presentation.controlModeLabel, 'fixed shares');
+    assert.equal(presentation.controlModeLabel, 'exact shares');
     assert.equal(presentation.selectorEnabled, false);
   });
 
