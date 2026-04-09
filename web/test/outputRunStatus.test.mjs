@@ -154,7 +154,7 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
 
     assert.ok(electricityStateIds.length >= 2, 'expected multiple electricity pathways');
 
-    const scenario = buildScenario(pkg.appConfig, {
+    const configuration = buildConfiguration(pkg.appConfig, {
       name: 'Electricity fixed-share status semantics',
       serviceControls: {
         electricity: {
@@ -164,7 +164,7 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
       },
     });
 
-    const statuses = deriveOutputRunStatusesForConfiguration(pkg, scenario);
+    const statuses = deriveOutputRunStatusesForConfiguration(pkg, configuration);
 
     assert.equal(statuses.electricity.controlMode, 'fixed_shares');
     assert.equal(statuses.electricity.isDisabled, false);

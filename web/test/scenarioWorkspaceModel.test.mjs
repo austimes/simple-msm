@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import { getEnabledStateIds } from '../src/data/scenarioWorkspaceModel.ts';
-import { buildScenario, loadPkg } from './solverTestUtils.mjs';
+import { buildConfiguration, loadPkg } from './solverTestUtils.mjs';
 
 const pkg = loadPkg();
 
@@ -18,7 +18,7 @@ describe('getEnabledStateIds', () => {
     assert.ok(electricityStateIds.length >= 2, 'expected multiple electricity pathways');
 
     const [primaryStateId, disabledStateId] = electricityStateIds;
-    const scenario = buildScenario(pkg.appConfig, {
+    const configuration = buildConfiguration(pkg.appConfig, {
       name: 'Electricity fixed-share denominator semantics',
       serviceControls: {
         electricity: {
@@ -29,7 +29,7 @@ describe('getEnabledStateIds', () => {
       },
     });
 
-    const enabledStateIds = getEnabledStateIds(scenario, 'electricity', electricityStateIds);
+    const enabledStateIds = getEnabledStateIds(configuration, 'electricity', electricityStateIds);
 
     assert.ok(enabledStateIds.includes(primaryStateId));
     assert.ok(!enabledStateIds.includes(disabledStateId));
