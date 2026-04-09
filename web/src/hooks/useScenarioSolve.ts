@@ -76,7 +76,13 @@ export function useScenarioSolve(): SolveState {
 
   // Auto-solve whenever the scenario changes
   useEffect(() => {
-    solve();
+    const timeoutId = window.setTimeout(() => {
+      solve();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
   }, [solve]);
 
   return {
