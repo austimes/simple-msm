@@ -295,11 +295,11 @@ test('compare analysis builds heuristic decomposition and narratives from the bu
   });
 
   assert.ok(
-    solves
-      .filter((solve) => solve.key !== 'relaxedConstraints')
-      .every((solve) => solve.result.status !== 'error'),
+    solves.every((solve) => solve.result.status !== 'error'),
   );
-  assert.equal(solves.find((solve) => solve.key === 'relaxedConstraints')?.result.status, 'error');
+  assert.ok(
+    !solves.some((solve) => solve.result.diagnostics.some((diagnostic) => diagnostic.code === 'service_and_supply_lp_not_optimal')),
+  );
 
   const report = buildComparisonReport(appConfig, sectorStates, solves);
 

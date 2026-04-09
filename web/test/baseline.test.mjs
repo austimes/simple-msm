@@ -27,6 +27,7 @@ const INCUMBENT_STATE_IDS = {
   livestock_output_bundle: 'agriculture__livestock__conventional',
   cropping_horticulture_output_bundle: 'agriculture__cropping_horticulture__conventional',
 };
+const INCUMBENT_ELECTRICITY_STATE_ID = 'electricity__grid_supply__incumbent_thermal_mix';
 
 // --- Data loading ---
 
@@ -114,14 +115,14 @@ function loadPkg() {
   return { sectorStates, appConfig };
 }
 
-function buildBaselineScenario(appConfig) {
+function buildBaselineScenario(appConfig, electricityControl = { mode: 'externalized' }) {
   const referenceScenario = readJson('../public/app_config/reference_scenario.json');
 
   const serviceControls = {};
   for (const [outputId, stateId] of Object.entries(INCUMBENT_STATE_IDS)) {
     serviceControls[outputId] = { mode: 'pinned_single', state_id: stateId };
   }
-  serviceControls.electricity = { mode: 'externalized' };
+  serviceControls.electricity = electricityControl;
   serviceControls.land_sequestration = { mode: 'optimize', disabled_state_ids: ['removals_negative_emissions__land_sequestration__biological_sink'] };
   serviceControls.engineered_removals = { mode: 'optimize', disabled_state_ids: ['removals_negative_emissions__engineered_removals__daccs'] };
 
@@ -146,6 +147,10 @@ function buildBaselineScenario(appConfig) {
 
 const pkg = loadPkg();
 const scenario = buildBaselineScenario(pkg.appConfig);
+const endogenousElectricityScenario = buildBaselineScenario(pkg.appConfig, {
+  mode: 'fixed_shares',
+  fixed_shares: { [INCUMBENT_ELECTRICITY_STATE_ID]: 1 },
+});
 
 test('baseline incumbent scenario solves optimally', () => {
   const request = buildSolveRequest({
@@ -227,5 +232,25 @@ test('demand is met for all service outputs in every year', () => {
         `${outputId} in ${year}: activity ${totalActivity} should match demand ${demand}`,
       );
     }
+  }
+});
+
+test('baseline incumbent scenario also solves with endogenous fixed-share electricity', () => {
+  const request = buildSolveRequest({
+    sectorStates: pkg.sectorStates,
+    appConfig: pkg.appConfig,
+  }, endogenousElectricityScenario);
+
+  const result = solveWithLpAdapter(request);
+
+  assert.equal(result.status, 'solved', `expected solved, got ${result.status}`);
+  assert.equal(result.raw.solutionStatus, 'optimal');
+  assert.ok(result.diagnostics.every((d) => d.severity !== 'error'), 'no error diagnostics');
+
+  for (const balance of result.reporting.commodityBalances) {
+    if (balance.commodityId !== 'electricity') continue;
+    assert.equal(balance.mode, 'endogenous', `electricity ${balance.year} should stay endogenous`);
+    assert.ok(balance.supply > 0, `electricity ${balance.year} should have positive supply`);
+    assert.ok(Math.abs(balance.balanceGap ?? 0) < 1e-2, `electricity ${balance.year} should balance`);
   }
 });

@@ -84,6 +84,7 @@ interface RowShareProfile {
 interface ScenarioLpBuild {
   request: SolveRequest;
   model: Model<string, string>;
+  activityScale: number;
   diagnostics: SolveDiagnostic[];
   notes: string[];
   hasUnmodeledFeatures: boolean;
@@ -147,8 +148,11 @@ function emptyReporting(): SolveReportingSummary {
   };
 }
 
-function toRawVariables(solution: Solution<string>): RawSolveVariableValue[] {
-  return solution.variables.map(([id, value]) => ({ id, value }));
+function toRawVariables(solution: Solution<string>, activityScale: number): RawSolveVariableValue[] {
+  return solution.variables.map(([id, value]) => ({
+    id,
+    value: unscaleActivityValue(value, activityScale),
+  }));
 }
 
 function sumDirectEmissionsPerUnit(row: NormalizedSolverRow): number {
@@ -181,6 +185,51 @@ function resolveRowObjectiveCost(
   const carbonCost = sumDirectEmissionsPerUnit(row) * (request.scenario.carbonPriceByYear[yearKey(row.year)] ?? 0);
 
   return conversionCost + commodityCost + carbonCost;
+}
+
+function resolveActivityScale(request: SolveRequest): number {
+  let maxMagnitude = 0;
+
+  for (const table of Object.values(request.scenario.serviceDemandByOutput)) {
+    for (const value of Object.values(table)) {
+      maxMagnitude = Math.max(maxMagnitude, Math.abs(value));
+    }
+  }
+
+  for (const table of Object.values(request.scenario.externalCommodityDemandByCommodity)) {
+    for (const value of Object.values(table)) {
+      maxMagnitude = Math.max(maxMagnitude, Math.abs(value));
+    }
+  }
+
+  for (const row of request.rows) {
+    if (row.bounds.maxActivity != null) {
+      maxMagnitude = Math.max(maxMagnitude, Math.abs(row.bounds.maxActivity));
+    }
+  }
+
+  if (!Number.isFinite(maxMagnitude) || maxMagnitude < 1_000) {
+    return 1;
+  }
+
+  const exponent = Math.max(0, Math.floor(Math.log10(maxMagnitude)) - 2);
+  return Math.min(1_000_000, 10 ** exponent);
+}
+
+function scaleActivityValue(value: number, activityScale: number): number {
+  return activityScale === 1 ? value : value / activityScale;
+}
+
+function unscaleActivityValue(value: number, activityScale: number): number {
+  return activityScale === 1 ? value : value * activityScale;
+}
+
+function scaleConstraintBounds(constraint: ConstraintBounds, activityScale: number): ConstraintBounds {
+  return {
+    equal: constraint.equal == null ? undefined : scaleActivityValue(constraint.equal, activityScale),
+    min: constraint.min == null ? undefined : scaleActivityValue(constraint.min, activityScale),
+    max: constraint.max == null ? undefined : scaleActivityValue(constraint.max, activityScale),
+  };
 }
 
 function resolveConstraintBound(constraint: ConstraintBounds): {
@@ -1123,6 +1172,7 @@ function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
   const notes: string[] = [];
   const requiredServiceGroups = collectRequiredServiceGroups(request);
   const supplyGroups = collectSupplyCommodityGroups(request);
+  const activityScale = resolveActivityScale(request);
 
   if (requiredServiceGroups.length === 0) {
     throw new Error('Solve request does not include any required-service rows to optimize.');
@@ -1188,6 +1238,7 @@ function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
         constraints: {},
         variables: {},
       },
+      activityScale,
       diagnostics: dedupeAndSortDiagnostics(diagnostics),
       notes,
       hasUnmodeledFeatures,
@@ -1206,14 +1257,20 @@ function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
     const disabledStateIds = new Set(group.control.disabledStateIds);
     const fixedShares = group.control.fixedShares ?? {};
 
-    trackConstraint(constraints, trackedConstraints, demandId, { equal: group.demand }, {
+    trackConstraint(
+      constraints,
+      trackedConstraints,
+      demandId,
+      scaleConstraintBounds({ equal: group.demand }, activityScale),
+      {
       kind: 'service_demand',
       outputId: group.outputId,
       outputLabel: group.outputLabel,
       year: group.year,
       mode: group.control.mode,
       message: `Meet required demand for ${group.outputLabel} in ${group.year}.`,
-    });
+      },
+    );
 
     for (const row of group.rows) {
       const variableId = activityVariableId(row);
@@ -1226,7 +1283,7 @@ function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
           variables,
           variableId,
           stateConstraintId('disabled', row),
-          { equal: 0 },
+          scaleConstraintBounds({ equal: 0 }, activityScale),
           {
             kind: 'disabled_state',
             outputId: row.outputId,
@@ -1249,7 +1306,7 @@ function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
           variables,
           variableId,
           stateConstraintId('pinned', row),
-          { equal: row.stateId === group.control.stateId ? group.demand : 0 },
+          scaleConstraintBounds({ equal: row.stateId === group.control.stateId ? group.demand : 0 }, activityScale),
           {
             kind: 'pinned_state',
             outputId: row.outputId,
@@ -1269,7 +1326,7 @@ function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
           variables,
           variableId,
           stateConstraintId('fixed_share', row),
-          { equal: (fixedShares[row.stateId] ?? 0) * group.demand },
+          scaleConstraintBounds({ equal: (fixedShares[row.stateId] ?? 0) * group.demand }, activityScale),
           {
             kind: 'fixed_share',
             outputId: row.outputId,
@@ -1291,7 +1348,7 @@ function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
           variables,
           variableId,
           stateConstraintId('min_share', row),
-          { min: row.bounds.minShare * group.demand },
+          scaleConstraintBounds({ min: row.bounds.minShare * group.demand }, activityScale),
           {
             kind: 'min_share',
             outputId: row.outputId,
@@ -1314,7 +1371,7 @@ function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
           variables,
           variableId,
           constraintId,
-          { max: row.bounds.maxShare * group.demand },
+          scaleConstraintBounds({ max: row.bounds.maxShare * group.demand }, activityScale),
           {
             kind: 'max_share',
             outputId: row.outputId,
@@ -1347,7 +1404,7 @@ function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
           variables,
           variableId,
           constraintId,
-          { max: row.bounds.maxActivity },
+          scaleConstraintBounds({ max: row.bounds.maxActivity }, activityScale),
           {
             kind: 'max_activity',
             outputId: row.outputId,
@@ -1387,7 +1444,7 @@ function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
           variables,
           activityVariableId(row),
           stateConstraintId('externalized', row),
-          { equal: 0 },
+          scaleConstraintBounds({ equal: 0 }, activityScale),
           {
             kind: 'externalized_supply',
             outputId: row.outputId,
@@ -1407,7 +1464,12 @@ function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
     }
 
     const balanceId = commodityBalanceConstraintId(group.commodityId, group.year);
-    trackConstraint(constraints, trackedConstraints, balanceId, { equal: group.externalDemand }, {
+    trackConstraint(
+      constraints,
+      trackedConstraints,
+      balanceId,
+      scaleConstraintBounds({ equal: group.externalDemand }, activityScale),
+      {
       kind: 'commodity_balance',
       outputId: group.commodityId,
       outputLabel: group.commodityLabel,
@@ -1415,7 +1477,8 @@ function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
       commodityId: group.commodityId,
       mode: group.control.mode,
       message: `${group.commodityLabel} balances modeled and external demand in ${group.year}.`,
-    });
+      },
+    );
 
     for (const row of activeRows) {
       if (row.year !== group.year || row.outputId === group.commodityId) {
@@ -1439,7 +1502,7 @@ function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
           variables,
           variableId,
           stateConstraintId('disabled', row),
-          { equal: 0 },
+          scaleConstraintBounds({ equal: 0 }, activityScale),
           {
             kind: 'disabled_state',
             outputId: row.outputId,
@@ -1550,7 +1613,7 @@ function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
           variables,
           variableId,
           constraintId,
-          { max: row.bounds.maxActivity },
+          scaleConstraintBounds({ max: row.bounds.maxActivity }, activityScale),
           {
             kind: 'max_activity',
             outputId: row.outputId,
@@ -1592,6 +1655,11 @@ function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
   notes.push(
     `Electricity-style supply commodities enforce balance when they stay in-model; ${externalizedSupplyGroupCount} supply-year groups are externalized and fixed to zero activity.`,
   );
+  if (activityScale > 1) {
+    notes.push(
+      `Activity variables are internally scaled by ${formatNumber(activityScale)} for numerical stability before solving, then rescaled in the reported results.`,
+    );
+  }
   if (softConstraintPenaltyPerUnit != null) {
     notes.push(
       `Soft-constraint mode relaxes ${softConstraintCount} max-share and max-activity bounds with a penalty of ${formatNumber(softConstraintPenaltyPerUnit)} per slack unit.`,
@@ -1606,6 +1674,7 @@ function buildScenarioLpModel(request: SolveRequest): ScenarioLpBuild {
       constraints,
       variables,
     },
+    activityScale,
     diagnostics: dedupeAndSortDiagnostics(diagnostics),
     notes,
     hasUnmodeledFeatures,
@@ -1708,8 +1777,12 @@ function buildSoftConstraintDiagnostics(
   return diagnostics;
 }
 
-function buildVariableValueMap(solution: Solution<string>): Map<string, number> {
+function buildScaledVariableValueMap(solution: Solution<string>): Map<string, number> {
   return new Map(solution.variables);
+}
+
+function buildVariableValueMap(solution: Solution<string>, activityScale: number): Map<string, number> {
+  return new Map(solution.variables.map(([id, value]) => [id, unscaleActivityValue(value, activityScale)]));
 }
 
 function buildStateShareSummary(
@@ -1847,30 +1920,30 @@ function buildBindingConstraintSummary(
   solution: Solution<string>,
   build: ScenarioLpBuild,
 ): SolveBindingConstraintSummary[] {
-  const variableValues = buildVariableValueMap(solution);
+  const variableValues = buildScaledVariableValueMap(solution);
 
   return Object.values(build.trackedConstraints)
     .filter((constraint) => constraint.kind !== 'service_demand')
     .map((constraint) => {
-      const actualValue = computeConstraintActualValue(
+      const scaledActualValue = computeConstraintActualValue(
         constraint.constraintId,
         build.model,
         variableValues,
         build.softConstraintVariableIds,
       );
-      const slack = constraint.boundType === 'equal'
-        ? Math.abs(actualValue - constraint.boundValue)
+      const scaledSlack = constraint.boundType === 'equal'
+        ? Math.abs(scaledActualValue - constraint.boundValue)
         : constraint.boundType === 'min'
-          ? actualValue - constraint.boundValue
-          : constraint.boundValue - actualValue;
+          ? scaledActualValue - constraint.boundValue
+          : constraint.boundValue - scaledActualValue;
 
       return {
         constraintId: constraint.constraintId,
         kind: constraint.kind,
         boundType: constraint.boundType,
-        boundValue: constraint.boundValue,
-        actualValue,
-        slack,
+        boundValue: unscaleActivityValue(constraint.boundValue, build.activityScale),
+        actualValue: unscaleActivityValue(scaledActualValue, build.activityScale),
+        slack: unscaleActivityValue(scaledSlack, build.activityScale),
         outputId: constraint.outputId,
         outputLabel: constraint.outputLabel,
         year: constraint.year,
@@ -1896,27 +1969,28 @@ function buildSoftConstraintViolationSummary(
   solution: Solution<string>,
   build: ScenarioLpBuild,
 ): SolveSoftConstraintViolationSummary[] {
-  const variableValues = buildVariableValueMap(solution);
+  const variableValues = buildScaledVariableValueMap(solution);
 
   return Object.values(build.trackedConstraints)
     .filter((constraint): constraint is TrackedConstraint & { softConstraint: SoftConstraintMetadata } => {
       return constraint.softConstraint != null;
     })
     .map((constraint) => {
-      const slack = variableValues.get(constraint.softConstraint.variableId) ?? 0;
-      const actualValue = computeConstraintActualValue(
+      const scaledSlack = variableValues.get(constraint.softConstraint.variableId) ?? 0;
+      const scaledActualValue = computeConstraintActualValue(
         constraint.constraintId,
         build.model,
         variableValues,
         build.softConstraintVariableIds,
       );
+      const slack = unscaleActivityValue(scaledSlack, build.activityScale);
 
       return {
         constraintId: constraint.constraintId,
         kind: constraint.kind as SoftConstraintKind,
         boundType: constraint.boundType,
-        boundValue: constraint.boundValue,
-        actualValue,
+        boundValue: unscaleActivityValue(constraint.boundValue, build.activityScale),
+        actualValue: unscaleActivityValue(scaledActualValue, build.activityScale),
         slack,
         penaltyPerUnit: constraint.softConstraint.penaltyPerUnit,
         totalPenalty: slack * constraint.softConstraint.penaltyPerUnit,
@@ -1946,7 +2020,7 @@ function buildReportingSummary(
   solution: Solution<string>,
   build: ScenarioLpBuild,
 ): SolveReportingSummary {
-  const variableValues = buildVariableValueMap(solution);
+  const variableValues = buildVariableValueMap(solution, build.activityScale);
 
   return {
     commodityBalances: buildCommodityBalanceSummary(request, build, variableValues),
@@ -2054,8 +2128,10 @@ export function solveWithLpAdapter(request: SolveRequest): SolveResult {
       constraintCount: Object.keys(build.model.constraints).length,
       notes: build.notes,
       solutionStatus: solution.status,
-      objectiveValue: Number.isFinite(solution.result) ? solution.result : null,
-      variables: toRawVariables(solution),
+      objectiveValue: Number.isFinite(solution.result)
+        ? unscaleActivityValue(solution.result, build.activityScale)
+        : null,
+      variables: toRawVariables(solution, build.activityScale),
     },
     diagnostics,
     timingsMs: {
