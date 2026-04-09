@@ -1,0 +1,42 @@
+{
+  "id": "full-model-incumbents",
+  "name": "Full model — all incumbents",
+  "description": "All required service outputs pinned to incumbent states with electricity externalized. Equivalent to the baseline test.",
+  "readonly": true,
+  "includedOutputIds": [
+    "residential_building_services",
+    "commercial_building_services",
+    "passenger_road_transport",
+    "freight_road_transport",
+    "low_temperature_heat",
+    "medium_temperature_heat",
+    "high_temperature_heat",
+    "crude_steel",
+    "cement_equivalent",
+    "livestock_output_bundle",
+    "cropping_horticulture_output_bundle"
+  ],
+  "serviceControls": {
+    "residential_building_services": { "mode": "pinned_single", "state_id": "buildings__residential__incumbent_mixed_fuels" },
+    "commercial_building_services": { "mode": "pinned_single", "state_id": "buildings__commercial__incumbent_mixed_fuels" },
+    "passenger_road_transport": { "mode": "pinned_single", "state_id": "road_transport__passenger_road__ice_fleet" },
+    "freight_road_transport": { "mode": "pinned_single", "state_id": "road_transport__freight_road__diesel" },
+    "low_temperature_heat": { "mode": "pinned_single", "state_id": "generic_industrial_heat__low_temperature_heat__fossil" },
+    "medium_temperature_heat": { "mode": "pinned_single", "state_id": "generic_industrial_heat__medium_temperature_heat__fossil" },
+    "high_temperature_heat": { "mode": "pinned_single", "state_id": "generic_industrial_heat__high_temperature_heat__fossil" },
+    "crude_steel": { "mode": "pinned_single", "state_id": "steel__crude_steel__bf_bof_conventional" },
+    "cement_equivalent": { "mode": "pinned_single", "state_id": "cement_clinker__cement_equivalent__conventional" },
+    "livestock_output_bundle": { "mode": "pinned_single", "state_id": "agriculture__livestock__conventional" },
+    "cropping_horticulture_output_bundle": { "mode": "pinned_single", "state_id": "agriculture__cropping_horticulture__conventional" },
+    "electricity": { "mode": "externalized" },
+    "land_sequestration": { "mode": "optimize", "disabled_state_ids": ["removals_negative_emissions__land_sequestration__biological_sink"] },
+    "engineered_removals": { "mode": "optimize", "disabled_state_ids": ["removals_negative_emissions__engineered_removals__daccs"] }
+  },
+  "solverOptions": {
+    "respect_max_share": false,
+    "respect_max_activity": true,
+    "soft_constraints": false,
+    "allow_removals_credit": false,
+    "share_smoothing": { "enabled": false }
+  }
+}

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Phase 1 Sector State Explorer Configuration Schema v0.3",
+  "title": "Phase 1 Sector State Explorer Scenario Schema v0.2",
   "type": "object",
   "required": [
     "name",
@@ -298,24 +298,6 @@
                 "null"
               ]
             }
-          }
-        }
-      }
-    },
-    "app_metadata": {
-      "type": "object",
-      "description": "App-owned persistence metadata that travels with the full configuration document.",
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "readonly": {
-          "type": "boolean"
-        },
-        "included_output_ids": {
-          "type": "array",
-          "items": {
-            "type": "string"
           }
         }
       }

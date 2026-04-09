@@ -1,4 +1,4 @@
-import type { SolveRequest, SolveResult, SolverWorkerResponseMessage } from './contract.ts';
+import type { SolveRequest, SolveResult, SolverWorkerResponseMessage } from './contract';
 
 interface PendingSolve {
   resolve: (result: SolveResult) => void;

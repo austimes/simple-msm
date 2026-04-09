@@ -1,0 +1,22 @@
+{
+  "id": "industrial-heat-fossil",
+  "name": "Industrial heat only (fossil)",
+  "description": "Low, medium, and high temperature heat pinned to fossil incumbent. No electricity dependency.",
+  "readonly": true,
+  "includedOutputIds": ["low_temperature_heat", "medium_temperature_heat", "high_temperature_heat"],
+  "serviceControls": {
+    "low_temperature_heat": { "mode": "pinned_single", "state_id": "generic_industrial_heat__low_temperature_heat__fossil" },
+    "medium_temperature_heat": { "mode": "pinned_single", "state_id": "generic_industrial_heat__medium_temperature_heat__fossil" },
+    "high_temperature_heat": { "mode": "pinned_single", "state_id": "generic_industrial_heat__high_temperature_heat__fossil" },
+    "electricity": { "mode": "externalized" },
+    "land_sequestration": { "mode": "optimize", "disabled_state_ids": ["removals_negative_emissions__land_sequestration__biological_sink"] },
+    "engineered_removals": { "mode": "optimize", "disabled_state_ids": ["removals_negative_emissions__engineered_removals__daccs"] }
+  },
+  "solverOptions": {
+    "respect_max_share": false,
+    "respect_max_activity": true,
+    "soft_constraints": false,
+    "allow_removals_credit": false,
+    "share_smoothing": { "enabled": false }
+  }
+}

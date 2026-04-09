@@ -5,7 +5,7 @@ export interface EmissionEntry {
 
 export type OutputRole = 'required_service' | 'endogenous_supply_commodity' | 'optional_removals';
 
-export type ConfigurationControlMode =
+export type ScenarioControlMode =
   | 'pinned_single'
   | 'fixed_shares'
   | 'optimize'
@@ -13,38 +13,38 @@ export type ConfigurationControlMode =
   | 'off'
   | 'target';
 
-export const CONFIGURATION_YEARS = [2025, 2030, 2035, 2040, 2045, 2050] as const;
+export const SCENARIO_YEARS = [2025, 2030, 2035, 2040, 2045, 2050] as const;
 
-export type ConfigurationYear = (typeof CONFIGURATION_YEARS)[number];
-export type ConfigurationYearKey = `${ConfigurationYear}`;
-export type ConfigurationYearValueTable = Partial<Record<ConfigurationYearKey, number>>;
+export type ScenarioYear = (typeof SCENARIO_YEARS)[number];
+export type ScenarioYearKey = `${ScenarioYear}`;
+export type ScenarioYearValueTable = Partial<Record<ScenarioYearKey, number>>;
 
 export const PRICE_LEVELS = ['low', 'medium', 'high'] as const;
 export type PriceLevel = (typeof PRICE_LEVELS)[number];
 
-export interface ConfigurationServiceControlYearOverride {
-  mode?: ConfigurationControlMode;
+export interface ScenarioServiceControlYearOverride {
+  mode?: ScenarioControlMode;
   state_id?: string | null;
   fixed_shares?: Record<string, number> | null;
   target_value?: number | null;
 }
 
-export interface ConfigurationServiceControl {
-  mode: ConfigurationControlMode;
+export interface ScenarioServiceControl {
+  mode: ScenarioControlMode;
   state_id?: string | null;
   fixed_shares?: Record<string, number> | null;
   target_value?: number | null;
   disabled_state_ids?: string[] | null;
-  year_overrides?: Partial<Record<ConfigurationYearKey, ConfigurationServiceControlYearOverride>> | null;
+  year_overrides?: Partial<Record<ScenarioYearKey, ScenarioServiceControlYearOverride>> | null;
 }
 
-export type ConfigurationDemandGenerationMode =
+export type ScenarioDemandGenerationMode =
   | 'manual_table'
   | 'anchor_plus_preset'
   | 'anchor_plus_preset_with_overrides';
 
-export interface ConfigurationDemandGeneration {
-  mode: ConfigurationDemandGenerationMode;
+export interface ScenarioDemandGeneration {
+  mode: ScenarioDemandGenerationMode;
   anchor_year: 2025;
   preset_id: string | null;
   service_anchors: Record<string, number>;
@@ -55,43 +55,36 @@ export interface ConfigurationDemandGeneration {
   notes?: string | null;
 }
 
-export interface ConfigurationCommodityPricing {
+export interface ScenarioCommodityPricing {
   selections_by_commodity: Partial<Record<string, PriceLevel>>;
   overrides: Record<string, Record<string, number>>;
 }
 
-export interface ConfigurationShareSmoothing {
+export interface ScenarioShareSmoothing {
   enabled?: boolean;
   max_delta_pp?: number;
   notes?: string | null;
 }
 
-export interface ConfigurationSolverOptions {
+export interface ScenarioSolverOptions {
   respect_max_share?: boolean;
   respect_max_activity?: boolean;
   soft_constraints?: boolean;
   allow_removals_credit?: boolean;
-  share_smoothing?: ConfigurationShareSmoothing;
+  share_smoothing?: ScenarioShareSmoothing;
 }
 
-export interface ConfigurationAppMetadata {
-  id?: string;
-  readonly?: boolean;
-  included_output_ids?: string[];
-}
-
-export interface ConfigurationDocument {
+export interface ScenarioDocument {
   name: string;
   description?: string;
-  years: ConfigurationYear[];
-  service_controls: Record<string, ConfigurationServiceControl>;
-  service_demands: Record<string, ConfigurationYearValueTable>;
-  demand_generation: ConfigurationDemandGeneration;
-  external_commodity_demands?: Record<string, ConfigurationYearValueTable>;
-  commodity_pricing: ConfigurationCommodityPricing;
-  carbon_price: ConfigurationYearValueTable;
-  solver_options?: ConfigurationSolverOptions;
-  app_metadata?: ConfigurationAppMetadata;
+  years: ScenarioYear[];
+  service_controls: Record<string, ScenarioServiceControl>;
+  service_demands: Record<string, ScenarioYearValueTable>;
+  demand_generation: ScenarioDemandGeneration;
+  external_commodity_demands?: Record<string, ScenarioYearValueTable>;
+  commodity_pricing: ScenarioCommodityPricing;
+  carbon_price: ScenarioYearValueTable;
+  solver_options?: ScenarioSolverOptions;
 }
 
 export interface OutputRoleMetadata {
@@ -102,8 +95,8 @@ export interface OutputRoleMetadata {
   display_order: number;
   participates_in_commodity_balance: boolean;
   demand_required: boolean;
-  default_control_mode: ConfigurationControlMode;
-  allowed_control_modes: ConfigurationControlMode[];
+  default_control_mode: ScenarioControlMode;
+  allowed_control_modes: ScenarioControlMode[];
   explanation_group: string;
 }
 
@@ -267,5 +260,5 @@ export interface PackageData {
   phase2Memo: string;
   enrichment: PackageEnrichment;
   appConfig: AppConfigRegistry;
-  defaultConfiguration: ConfigurationDocument;
+  defaultScenario: ScenarioDocument;
 }

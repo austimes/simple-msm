@@ -1,7 +1,8 @@
 import type {
   AppConfigRegistry,
   PriceLevel,
-  ConfigurationDocument,
+  ScenarioDocument,
+  ScenarioYearKey,
   SectorState,
 } from './types';
 
@@ -77,17 +78,37 @@ export function buildStateCatalog(
 }
 
 export function getEnabledStateIds(
-  scenario: ConfigurationDocument,
+  scenario: ScenarioDocument,
   outputId: string,
   allStateIds: string[],
 ): string[] {
   const control = scenario.service_controls[outputId];
-  const disabledSet = new Set(control?.disabled_state_ids ?? []);
-  return allStateIds.filter((id) => !disabledSet.has(id));
+
+  if (!control) return allStateIds;
+
+  const disabledSet = new Set(control.disabled_state_ids ?? []);
+
+  // Determine mode-specific candidate set, then filter out disabled states
+  let candidates: string[];
+
+  if (control.mode === 'pinned_single' && control.state_id) {
+    candidates = allStateIds.filter((id) => id === control.state_id);
+  } else if (control.mode === 'fixed_shares' && control.fixed_shares) {
+    const fixedIds = new Set(
+      Object.entries(control.fixed_shares)
+        .filter(([, share]) => share > 0)
+        .map(([id]) => id),
+    );
+    candidates = allStateIds.filter((id) => fixedIds.has(id));
+  } else {
+    candidates = allStateIds;
+  }
+
+  return candidates.filter((id) => !disabledSet.has(id));
 }
 
 export function getActiveDemandPreset(
-  scenario: ConfigurationDocument,
+  scenario: ScenarioDocument,
   appConfig: AppConfigRegistry,
 ): string | null {
   const { mode, preset_id } = scenario.demand_generation;
@@ -104,19 +125,19 @@ export function getActiveDemandPreset(
 }
 
 export function getCommodityPriceLevel(
-  scenario: ConfigurationDocument,
+  scenario: ScenarioDocument,
   commodityId: string,
 ): PriceLevel {
   return scenario.commodity_pricing.selections_by_commodity?.[commodityId] ?? 'medium';
 }
 
 export function getActiveCarbonPricePreset(
-  scenario: ConfigurationDocument,
+  scenario: ScenarioDocument,
   appConfig: AppConfigRegistry,
 ): string | null {
   for (const [presetId, preset] of Object.entries(appConfig.carbon_price_presets)) {
     const match = Object.entries(preset.values_by_year).every(
-      ([year, value]) => scenario.carbon_price[year as keyof typeof scenario.carbon_price] === value,
+      ([year, value]) => scenario.carbon_price[year as ScenarioYearKey] === value,
     );
     if (match) return presetId;
   }

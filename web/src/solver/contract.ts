@@ -1,4 +1,4 @@
-import type { OutputRole, ConfigurationControlMode } from '../data/types';
+import type { OutputRole, ScenarioControlMode } from '../data/types';
 
 export const SOLVER_CONTRACT_VERSION = 2 as const;
 
@@ -11,7 +11,7 @@ export type SolveDiagnosticReason =
   | 'activity_exhaustion'
   | 'disabled_states'
   | 'electricity_balance_conflict';
-export type RawSolveArtifactKind = 'engine_probe' | 'configuration_lp';
+export type RawSolveArtifactKind = 'engine_probe' | 'scenario_lp';
 export type RawSolveSolutionStatus =
   | 'optimal'
   | 'infeasible'
@@ -54,7 +54,7 @@ export interface NormalizedSolverRow {
 }
 
 export interface ResolvedSolveControl {
-  mode: ConfigurationControlMode;
+  mode: ScenarioControlMode;
   stateId: string | null;
   fixedShares: Record<string, number> | null;
   disabledStateIds: string[];
@@ -66,7 +66,7 @@ export interface ResolvedCommodityPriceSeries {
   valuesByYear: Record<string, number>;
 }
 
-export interface ResolvedConfigurationForSolve {
+export interface ResolvedScenarioForSolve {
   name: string;
   description: string | null;
   years: number[];
@@ -91,7 +91,7 @@ export interface SolveRequest {
   contractVersion: SolverContractVersion;
   requestId: string;
   rows: NormalizedSolverRow[];
-  configuration: ResolvedConfigurationForSolve;
+  scenario: ResolvedScenarioForSolve;
 }
 
 export interface SolveDiagnostic {
@@ -184,7 +184,7 @@ export interface SolveBindingConstraintSummary {
   stateLabel?: string;
   rowId?: string;
   commodityId?: string;
-  mode?: ConfigurationControlMode;
+  mode?: ScenarioControlMode;
   message: string;
 }
 
@@ -204,7 +204,7 @@ export interface SolveSoftConstraintViolationSummary {
   stateLabel?: string;
   rowId?: string;
   commodityId?: string;
-  mode?: ConfigurationControlMode;
+  mode?: ScenarioControlMode;
   message: string;
 }
 

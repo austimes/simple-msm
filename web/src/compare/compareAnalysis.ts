@@ -1,8 +1,8 @@
-import { resolveConfigurationDocument } from '../data/demandResolution.ts';
+import { resolveScenarioDocument } from '../data/demandResolution.ts';
 import type {
   AppConfigRegistry,
   OutputRole,
-  ConfigurationDocument,
+  ScenarioDocument,
   SectorState,
 } from '../data/types';
 import type {
@@ -63,13 +63,13 @@ interface ScenarioMetrics {
 
 export interface ComparisonScenarioPlan {
   order: ComparisonSolveKey[];
-  scenarios: Record<ComparisonSolveKey, ConfigurationDocument>;
+  scenarios: Record<ComparisonSolveKey, ScenarioDocument>;
 }
 
 export interface ComparisonScenarioSolve {
   key: ComparisonSolveKey;
   label: string;
-  scenario: ConfigurationDocument;
+  scenario: ScenarioDocument;
   request: SolveRequest;
   result: SolveResult;
   metrics: ScenarioMetrics;
@@ -247,11 +247,11 @@ function sumDirectEmissions(row: NormalizedSolverRow, source?: 'energy' | 'proce
 }
 
 function resolveCommodityPrice(request: SolveRequest, commodityId: string, year: number): number {
-  return request.configuration.commodityPriceByCommodity[commodityId]?.valuesByYear[String(year)] ?? 0;
+  return request.scenario.commodityPriceByCommodity[commodityId]?.valuesByYear[String(year)] ?? 0;
 }
 
 function resolveCarbonPrice(request: SolveRequest, year: number): number {
-  return request.configuration.carbonPriceByYear[String(year)] ?? 0;
+  return request.scenario.carbonPriceByYear[String(year)] ?? 0;
 }
 
 function buildBalancedCommodityKeys(request: SolveRequest): Set<string> {
@@ -262,7 +262,7 @@ function buildBalancedCommodityKeys(request: SolveRequest): Set<string> {
       continue;
     }
 
-    const control = request.configuration.controlsByOutput[row.outputId]?.[String(row.year)];
+    const control = request.scenario.controlsByOutput[row.outputId]?.[String(row.year)];
     if (control?.mode === 'externalized') {
       continue;
     }
@@ -348,11 +348,11 @@ function ratingKey(value: string | undefined): string {
 }
 
 function makeManualScenario(
-  scenario: ConfigurationDocument,
+  scenario: ScenarioDocument,
   notes: string,
   name = scenario.name,
   description = scenario.description ?? undefined,
-): ConfigurationDocument {
+): ScenarioDocument {
   return {
     ...structuredClone(scenario),
     name,
@@ -370,17 +370,17 @@ function makeManualScenario(
 }
 
 function cloneScenarioWithLabel(
-  scenario: ConfigurationDocument,
+  scenario: ScenarioDocument,
   name: string,
   description: string,
   notes: string,
-): ConfigurationDocument {
+): ScenarioDocument {
   return makeManualScenario(scenario, notes, name, description);
 }
 
 function applyRequiredServiceControls(
-  target: ConfigurationDocument,
-  source: ConfigurationDocument,
+  target: ScenarioDocument,
+  source: ScenarioDocument,
   appConfig: AppConfigRegistry,
 ): void {
   for (const [outputId, metadata] of Object.entries(appConfig.output_roles)) {
@@ -393,8 +393,8 @@ function applyRequiredServiceControls(
 }
 
 function applyOptionalRemovalsControls(
-  target: ConfigurationDocument,
-  source: ConfigurationDocument,
+  target: ScenarioDocument,
+  source: ScenarioDocument,
   appConfig: AppConfigRegistry,
 ): void {
   for (const [outputId, metadata] of Object.entries(appConfig.output_roles)) {
@@ -407,9 +407,9 @@ function applyOptionalRemovalsControls(
 }
 
 export function buildTransitionCounterfactual(
-  baseScenario: ConfigurationDocument,
+  baseScenario: ScenarioDocument,
   appConfig: AppConfigRegistry,
-): ConfigurationDocument {
+): ScenarioDocument {
   const draft = structuredClone(baseScenario);
   draft.name = 'Transition counterfactual';
   draft.description = 'Built-in compare run with stronger demand growth, cleaner input prices, non-zero carbon prices, optimized state choices, electricity optimization, and removals switched on for transparent heuristic attribution.';
@@ -470,7 +470,7 @@ export function buildTransitionCounterfactual(
     },
   };
 
-  const resolved = resolveConfigurationDocument(draft, appConfig, 'transition counterfactual');
+  const resolved = resolveScenarioDocument(draft, appConfig, 'transition counterfactual');
   return makeManualScenario(
     resolved,
     'Compare mode locks this counterfactual into explicit milestone-year tables so partial counterfactual solves can swap one driver at a time.',
@@ -478,7 +478,7 @@ export function buildTransitionCounterfactual(
 }
 
 export function buildComparisonScenarioPlan(
-  baseScenario: ConfigurationDocument,
+  baseScenario: ScenarioDocument,
   appConfig: AppConfigRegistry,
 ): ComparisonScenarioPlan {
   const base = makeManualScenario(
@@ -653,7 +653,7 @@ function calculateScenarioMetrics(
   }
 
   for (const [commodityId, valuesByYear] of Object.entries(
-    request.configuration.externalCommodityDemandByCommodity,
+    request.scenario.externalCommodityDemandByCommodity,
   )) {
     for (const [year, value] of Object.entries(valuesByYear)) {
       if (Math.abs(value) <= FLOW_DELTA_THRESHOLD) {
@@ -1270,7 +1270,7 @@ function buildNarratives(
 export function buildComparisonReport(
   appConfig: AppConfigRegistry,
   sectorStates: SectorState[],
-  solves: Array<{ key: ComparisonSolveKey; scenario: ConfigurationDocument; request: SolveRequest; result: SolveResult }>,
+  solves: Array<{ key: ComparisonSolveKey; scenario: ScenarioDocument; request: SolveRequest; result: SolveResult }>,
 ): ComparisonReport {
   const sectorStateByRowId = new Map(sectorStates.map((row) => [`${row.state_id}::${row.year}`, row]));
   const scenarios = solves.reduce<Record<ComparisonSolveKey, ComparisonScenarioSolve>>((accumulator, solve) => {
@@ -1462,7 +1462,7 @@ export function buildComparisonReport(
 }
 
 export function scenarioRoleSummary(
-  scenario: ConfigurationDocument,
+  scenario: ScenarioDocument,
   appConfig: AppConfigRegistry,
 ): Array<{ role: OutputRole; count: number }> {
   const counts = new Map<OutputRole, number>();

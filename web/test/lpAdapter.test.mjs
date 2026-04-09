@@ -164,7 +164,7 @@ test('required-service LP solves pinned, fixed-share, and optimize controls gene
         cost: 0.5,
       }),
     ],
-    configuration: {
+    scenario: {
       name: 'LP adapter regression',
       description: null,
       years: [2025, 2030],
@@ -246,7 +246,7 @@ test('required-service LP solves pinned, fixed-share, and optimize controls gene
   const variables = getVariableMap(result);
 
   assert.equal(result.status, 'solved');
-  assert.equal(result.raw.kind, 'configuration_lp');
+  assert.equal(result.raw.kind, 'scenario_lp');
   assert.equal(result.raw.solutionStatus, 'optimal');
   assert.ok(result.diagnostics.every((diagnostic) => diagnostic.severity !== 'error'));
 
@@ -319,7 +319,7 @@ test('endogenous electricity enforces balance and removes exogenous electricity 
         cost: 1,
       }),
     ],
-    configuration: {
+    scenario: {
       name: 'Endogenous electricity regression',
       description: null,
       years: [2030],
@@ -437,7 +437,7 @@ test('externalized electricity bypasses supply states and prices electricity exo
         cost: 1,
       }),
     ],
-    configuration: {
+    scenario: {
       name: 'Externalized electricity regression',
       description: null,
       years: [2030],
@@ -600,7 +600,7 @@ test('infeasible runs report deterministic service-year and electricity diagnost
         maxActivity: 40,
       }),
     ],
-    configuration: {
+    scenario: {
       name: 'Infeasibility diagnostics regression',
       description: null,
       years: [2030],
@@ -785,7 +785,7 @@ test('soft-constraint mode restores feasibility and reports slack penalties', ()
         maxActivity: 40,
       }),
     ],
-    configuration: {
+    scenario: {
       name: 'Soft constraints regression',
       description: null,
       years: [2030],

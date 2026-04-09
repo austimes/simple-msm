@@ -1,17 +1,15 @@
 import { useMemo } from 'react';
-import { getIncludedOutputIds } from '../data/configurationLoader';
 import { useScenarioSolve } from '../hooks/useScenarioSolve';
 import { usePackageStore } from '../data/packageStore';
 import LeftSidebar from '../components/workspace/LeftSidebar';
 import RightSidebar from '../components/workspace/RightSidebar';
 import StackedAreaChart from '../components/charts/StackedAreaChart';
+import LineChart from '../components/charts/LineChart';
 import {
   buildEmissionsBySectorChart,
-  buildEmissionsBySubsectorChart,
   buildCommodityConsumptionChart,
-  buildDemandOverTimeChart,
-  buildDemandBySubsectorChart,
-  buildConversionCostBySubsectorChart,
+  buildDemandBySectorChart,
+  buildCostByComponentChart,
 } from '../results/chartData';
 import type { SolveRequest, SolveResult } from '../solver/contract';
 
@@ -20,33 +18,24 @@ export default function ScenarioWorkspacePage() {
 
 
   const activeConfigurationId = usePackageStore((state) => state.activeConfigurationId);
-  const currentConfiguration = usePackageStore((state) => state.currentConfiguration);
-  const includedOutputIds = getIncludedOutputIds(currentConfiguration);
+  const includedOutputIds = usePackageStore((state) => state.includedOutputIds);
 
   const isSolving = phase === 'solving';
 
-  const demandChart = useMemo(
-    () => (request ? buildDemandOverTimeChart(request) : null),
-    [request],
-  );
-  const demandBySubsectorChart = useMemo(
-    () => (request ? buildDemandBySubsectorChart(request) : null),
+  const demandBySectorChart = useMemo(
+    () => (request ? buildDemandBySectorChart(request) : null),
     [request],
   );
   const emissionsChart = useMemo(
     () => (request && result ? buildEmissionsBySectorChart(request, result) : null),
     [request, result],
   );
-  const emissionsBySubsectorChart = useMemo(
-    () => (request && result ? buildEmissionsBySubsectorChart(request, result) : null),
-    [request, result],
-  );
   const consumptionChart = useMemo(
     () => (request && result ? buildCommodityConsumptionChart(request, result) : null),
     [request, result],
   );
-  const conversionCostChart = useMemo(
-    () => (request && result ? buildConversionCostBySubsectorChart(request, result) : null),
+  const costByComponentChart = useMemo(
+    () => (request && result ? buildCostByComponentChart(request, result) : null),
     [request, result],
   );
 
@@ -93,14 +82,9 @@ export default function ScenarioWorkspacePage() {
         {phase === 'solved' && result && request && (
           <>
             <div className="workspace-chart-grid">
-              {demandChart && (
+              {demandBySectorChart && (
                 <div className="workspace-chart-section">
-                  <StackedAreaChart data={demandChart} />
-                </div>
-              )}
-              {demandBySubsectorChart && (
-                <div className="workspace-chart-section">
-                  <StackedAreaChart data={demandBySubsectorChart} />
+                  <LineChart data={demandBySectorChart} />
                 </div>
               )}
               {emissionsChart && (
@@ -108,19 +92,14 @@ export default function ScenarioWorkspacePage() {
                   <StackedAreaChart data={emissionsChart} />
                 </div>
               )}
-              {emissionsBySubsectorChart && (
-                <div className="workspace-chart-section">
-                  <StackedAreaChart data={emissionsBySubsectorChart} />
-                </div>
-              )}
               {consumptionChart && (
                 <div className="workspace-chart-section">
                   <StackedAreaChart data={consumptionChart} />
                 </div>
               )}
-              {conversionCostChart && (
+              {costByComponentChart && (
                 <div className="workspace-chart-section">
-                  <StackedAreaChart data={conversionCostChart} />
+                  <StackedAreaChart data={costByComponentChart} />
                 </div>
               )}
             </div>

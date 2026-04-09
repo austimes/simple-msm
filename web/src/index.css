@@ -1555,6 +1555,12 @@ body {
   font-weight: 600;
 }
 
+.workspace-chip--modified {
+  background: var(--color-primary-bg);
+  color: var(--color-primary);
+  border-style: dashed;
+}
+
 /* ── Right sidebar: state selector tree ───────────────── */
 
 .workspace-sector-group {
@@ -1648,6 +1654,10 @@ body {
   background: var(--color-primary-bg);
   border-color: rgba(43, 108, 176, 0.18);
   color: var(--color-primary);
+}
+
+.workspace-state-chip--dimmed {
+  opacity: 0.5;
 }
 
 .workspace-chart-grid {

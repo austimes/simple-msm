@@ -83,7 +83,7 @@ function formatConstraintLocation(constraint: {
 export default function ResultsPage() {
   const sectorStates = usePackageStore((state) => state.sectorStates);
   const appConfig = usePackageStore((state) => state.appConfig);
-  const currentConfiguration = usePackageStore((state) => state.currentConfiguration);
+  const currentScenario = usePackageStore((state) => state.currentScenario);
   const [completedSolve, setCompletedSolve] = useState<CompletedSolveState | null>(null);
 
   const requestBuild = useMemo(() => {
@@ -92,7 +92,7 @@ export default function ResultsPage() {
         request: buildSolveRequest({
           sectorStates,
           appConfig,
-          defaultConfiguration: currentConfiguration,
+          defaultScenario: currentScenario,
         }),
         error: null,
       };
@@ -102,7 +102,7 @@ export default function ResultsPage() {
         error: error instanceof Error ? error.message : 'Failed to build solve request.',
       };
     }
-  }, [appConfig, currentConfiguration, sectorStates]);
+  }, [appConfig, currentScenario, sectorStates]);
 
   const request = requestBuild.request;
   const activeSolve = request && completedSolve?.request.requestId === request.requestId
@@ -118,8 +118,8 @@ export default function ResultsPage() {
   ) ?? [];
   const bindingConstraints = result?.reporting.bindingConstraints ?? [];
   const softConstraintViolations = result?.reporting.softConstraintViolations ?? [];
-  const softConstraintModeEnabled = request?.configuration.options.softConstraints
-    ?? currentConfiguration.solver_options?.soft_constraints
+  const softConstraintModeEnabled = request?.scenario.options.softConstraints
+    ?? currentScenario.solver_options?.soft_constraints
     ?? false;
 
   useEffect(() => {
@@ -169,7 +169,7 @@ export default function ResultsPage() {
 
       <section className="scenario-overview-grid">
         <article className="scenario-panel scenario-panel--hero">
-          <span className="scenario-badge">Configuration LP</span>
+          <span className="scenario-badge">Scenario LP</span>
           <h2>
             {requestBuild.error
               ? 'error'
@@ -190,7 +190,7 @@ export default function ResultsPage() {
           <dl className="scenario-key-value-list">
             <div>
               <dt>Scenario</dt>
-              <dd>{request?.configuration.name ?? currentConfiguration.name}</dd>
+              <dd>{request?.scenario.name ?? currentScenario.name}</dd>
             </div>
             <div>
               <dt>Contract version</dt>
@@ -198,7 +198,7 @@ export default function ResultsPage() {
             </div>
             <div>
               <dt>Milestone years</dt>
-              <dd>{request?.configuration.years.join(', ') ?? currentConfiguration.years.join(', ')}</dd>
+              <dd>{request?.scenario.years.join(', ') ?? currentScenario.years.join(', ')}</dd>
             </div>
             <div>
               <dt>Request ID</dt>
@@ -222,8 +222,8 @@ export default function ResultsPage() {
               <span>External commodity tables</span>
               <strong>
                 {request
-                  ? Object.keys(request.configuration.externalCommodityDemandByCommodity).length
-                  : Object.keys(currentConfiguration.external_commodity_demands ?? {}).length}
+                  ? Object.keys(request.scenario.externalCommodityDemandByCommodity).length
+                  : Object.keys(currentScenario.external_commodity_demands ?? {}).length}
               </strong>
             </div>
             <div className="scenario-stat-card">

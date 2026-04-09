@@ -5,7 +5,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { parseCsv } from '../src/data/parseCsv.ts';
-import { resolveConfigurationDocument } from '../src/data/demandResolution.ts';
+import { resolveScenarioDocument } from '../src/data/demandResolution.ts';
 import { buildSolveRequest } from '../src/solver/buildSolveRequest.ts';
 import { solveWithLpAdapter } from '../src/solver/lpAdapter.ts';
 
@@ -135,7 +135,7 @@ export function buildScenario(appConfig, overrides = {}) {
     },
   };
 
-  return resolveConfigurationDocument(scenario, appConfig, overrides.name ?? 'test scenario');
+  return resolveScenarioDocument(scenario, appConfig, overrides.name ?? 'test scenario');
 }
 
 /**
@@ -143,7 +143,7 @@ export function buildScenario(appConfig, overrides = {}) {
  */
 export function solveScoped(pkg, scenario, includedOutputIds) {
   const request = buildSolveRequest(
-    { sectorStates: pkg.sectorStates, appConfig: pkg.appConfig, defaultConfiguration: scenario },
+    { sectorStates: pkg.sectorStates, appConfig: pkg.appConfig, defaultScenario: scenario },
     scenario,
     includedOutputIds ? { includedOutputIds } : {},
   );

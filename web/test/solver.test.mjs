@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { parseCsv } from '../src/data/parseCsv.ts';
-import { resolveConfigurationDocument } from '../src/data/demandResolution.ts';
-import { buildSolveRequest, normalizeSolverRows, resolveConfigurationForSolve } from '../src/solver/buildSolveRequest.ts';
+import { resolveScenarioDocument } from '../src/data/demandResolution.ts';
+import { buildSolveRequest, normalizeSolverRows, resolveScenarioForSolve } from '../src/solver/buildSolveRequest.ts';
 import { solveWithLpAdapter, inspectScenarioLpBuild } from '../src/solver/lpAdapter.ts';
 
 // --- Data loading (mirrors demandResolution.test.mjs + packageLoader.ts) ---
@@ -89,9 +89,9 @@ function loadPkg() {
   const sectorStates = csvRows.map(toSectorState);
   const appConfig = loadAppConfig();
   const referenceScenario = readJson('../public/app_config/reference_scenario.json');
-  const defaultConfiguration = resolveConfigurationDocument(referenceScenario, appConfig, 'reference_scenario.json');
+  const defaultScenario = resolveScenarioDocument(referenceScenario, appConfig, 'reference_scenario.json');
 
-  return { sectorStates, appConfig, defaultConfiguration };
+  return { sectorStates, appConfig, defaultScenario };
 }
 
 // --- Formatting helpers ---
@@ -110,7 +110,7 @@ function summarizeDiagnostics(diagnostics) {
 
 function flattenResolvedControls(request) {
   const rows = [];
-  for (const [outputId, yearTable] of Object.entries(request.configuration.controlsByOutput)) {
+  for (const [outputId, yearTable] of Object.entries(request.scenario.controlsByOutput)) {
     for (const [year, control] of Object.entries(yearTable)) {
       if (control.mode === 'optimize' && !control.stateId && control.disabledStateIds.length === 0) {
         continue;

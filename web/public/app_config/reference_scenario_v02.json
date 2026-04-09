@@ -62,10 +62,12 @@
       "state_id": "agriculture__cropping_horticulture__conventional"
     },
     "land_sequestration": {
-      "mode": "off"
+      "mode": "optimize",
+      "disabled_state_ids": ["removals_negative_emissions__land_sequestration__biological_sink"]
     },
     "engineered_removals": {
-      "mode": "off"
+      "mode": "optimize",
+      "disabled_state_ids": ["removals_negative_emissions__engineered_removals__daccs"]
     }
   },
   "service_demands": {

@@ -2,14 +2,14 @@ import type {
   AppConfigRegistry,
   BaselineActivityAnchor,
   DemandGrowthPreset,
-  ConfigurationDocument,
-  ConfigurationDemandGeneration,
-  ConfigurationYearKey,
-  ConfigurationYearValueTable,
+  ScenarioDocument,
+  ScenarioDemandGeneration,
+  ScenarioYearKey,
+  ScenarioYearValueTable,
 } from './types.ts';
 
-function yearKey(year: number): ConfigurationYearKey {
-  return String(year) as ConfigurationYearKey;
+function yearKey(year: number): ScenarioYearKey {
+  return String(year) as ScenarioYearKey;
 }
 
 function countDecimalPlaces(value: number): number {
@@ -36,7 +36,7 @@ function roundToPlaces(value: number, decimalPlaces: number): number {
 }
 
 function normalizeValueTable(
-  table: ConfigurationYearValueTable | undefined,
+  table: ScenarioYearValueTable | undefined,
   years: readonly number[],
 ): Record<string, number> {
   return years.reduce<Record<string, number>>((resolved, year) => {
@@ -62,7 +62,7 @@ function getBaselineAnchor(
 function resolveAnchorValue(
   explicitAnchor: number | undefined,
   baselineAnchor: BaselineActivityAnchor | null,
-  explicitTable: ConfigurationYearValueTable | undefined,
+  explicitTable: ScenarioYearValueTable | undefined,
   anchorYear: number,
   itemKind: string,
   itemId: string,
@@ -102,7 +102,7 @@ function generateValueTable(
   annualGrowthRatePctPerYear: number,
   years: readonly number[],
   anchorYear: number,
-  yearOverrides: ConfigurationDemandGeneration['year_overrides'],
+  yearOverrides: ScenarioDemandGeneration['year_overrides'],
   id: string,
 ): Record<string, number> {
   const decimalPlaces = countDecimalPlaces(anchor);
@@ -125,7 +125,7 @@ function generateValueTable(
 }
 
 function assertCompatibleResolvedTables(
-  rawTables: Record<string, ConfigurationYearValueTable> | undefined,
+  rawTables: Record<string, ScenarioYearValueTable> | undefined,
   resolvedTables: Record<string, Record<string, number>>,
   label: string,
 ): void {
@@ -146,7 +146,7 @@ function assertCompatibleResolvedTables(
 }
 
 function resolveAnchorPreset(
-  demandGeneration: ConfigurationDemandGeneration,
+  demandGeneration: ScenarioDemandGeneration,
   appConfig: AppConfigRegistry,
 ): DemandGrowthPreset {
   const presetId = demandGeneration.preset_id;
@@ -163,7 +163,7 @@ function resolveAnchorPreset(
 }
 
 function resolveServiceDemandTables(
-  scenario: ConfigurationDocument,
+  scenario: ScenarioDocument,
   appConfig: AppConfigRegistry,
   preset: DemandGrowthPreset,
 ): {
@@ -212,7 +212,7 @@ function resolveServiceDemandTables(
 }
 
 function resolveExternalCommodityDemandTables(
-  scenario: ConfigurationDocument,
+  scenario: ScenarioDocument,
   appConfig: AppConfigRegistry,
   preset: DemandGrowthPreset,
 ): {
@@ -273,7 +273,7 @@ function resolveExternalCommodityDemandTables(
 }
 
 function normalizeManualServiceDemandTables(
-  scenario: ConfigurationDocument,
+  scenario: ScenarioDocument,
   appConfig: AppConfigRegistry,
 ): Record<string, Record<string, number>> {
   return Object.entries(appConfig.output_roles).reduce<Record<string, Record<string, number>>>(
@@ -290,7 +290,7 @@ function normalizeManualServiceDemandTables(
 }
 
 function normalizeManualExternalCommodityDemandTables(
-  scenario: ConfigurationDocument,
+  scenario: ScenarioDocument,
 ): Record<string, Record<string, number>> {
   return Object.entries(scenario.external_commodity_demands ?? {}).reduce<
     Record<string, Record<string, number>>
@@ -300,11 +300,11 @@ function normalizeManualExternalCommodityDemandTables(
   }, {});
 }
 
-export function resolveConfigurationDocument(
-  scenario: ConfigurationDocument,
+export function resolveScenarioDocument(
+  scenario: ScenarioDocument,
   appConfig: AppConfigRegistry,
   label = 'scenario document',
-): ConfigurationDocument {
+): ScenarioDocument {
   if (scenario.demand_generation.mode === 'manual_table') {
     return {
       ...scenario,

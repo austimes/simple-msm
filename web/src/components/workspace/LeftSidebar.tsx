@@ -1,20 +1,17 @@
 import { useMemo, useState, useCallback } from 'react';
 import { usePackageStore } from '../../data/packageStore';
-import { getActiveDemandPreset, getCommodityPriceLevel, getActiveCarbonPricePreset } from '../../data/configurationWorkspaceModel';
+import { getActiveDemandPreset, getCommodityPriceLevel, getActiveCarbonPricePreset } from '../../data/scenarioWorkspaceModel';
 import {
-  cloneConfigurationDocument,
-  getConfigurationId,
-  getIncludedOutputIds,
-  isReadonlyConfiguration,
   loadBuiltinConfigurations,
   loadUserConfigurations,
   fetchUserConfigurations,
   saveUserConfiguration,
   deleteUserConfiguration,
-  slugifyConfigurationName,
+  createConfigurationFromScenario,
 } from '../../data/configurationLoader';
 import { PRICE_LEVELS } from '../../data/types';
-import type { CarbonPricePreset, CommodityPriceSeries, ConfigurationDocument } from '../../data/types';
+import type { CommodityPriceSeries, CarbonPricePreset } from '../../data/types';
+import type { SolveConfiguration } from '../../data/configurationTypes';
 
 function formatUnit(raw: string): string {
   return raw
@@ -38,17 +35,31 @@ function formatCarbonPriceRange(preset: CarbonPricePreset): string {
   return `${unit.replace('$/', `$${first}–${last}/`)}`;
 }
 
+function slugify(name: string): string {
+  return (
+    name
+      .trim()
+      .toLowerCase()
+      .replaceAll(/[^a-z0-9]+/g, '-')
+      .replaceAll(/^-+|-+$/g, '') || `config-${Date.now()}`
+  );
+}
+
 export default function LeftSidebar() {
   const appConfig = usePackageStore((s) => s.appConfig);
-  const currentConfiguration = usePackageStore((s) => s.currentConfiguration);
+  const currentScenario = usePackageStore((s) => s.currentScenario);
+  const defaultScenario = usePackageStore((s) => s.defaultScenario);
+  const includedOutputIds = usePackageStore((s) => s.includedOutputIds);
   const setDemandPreset = usePackageStore((s) => s.setDemandPreset);
   const setCommodityPriceLevel = usePackageStore((s) => s.setCommodityPriceLevel);
   const setCarbonPricePreset = usePackageStore((s) => s.setCarbonPricePreset);
   const loadConfiguration = usePackageStore((s) => s.loadConfiguration);
   const activeConfigurationId = usePackageStore((s) => s.activeConfigurationId);
+  const activeConfigurationReadonly = usePackageStore((s) => s.activeConfigurationReadonly);
+  const isConfigurationDirty = usePackageStore((s) => s.isConfigurationDirty);
 
-  const activeDemandPreset = getActiveDemandPreset(currentConfiguration, appConfig);
-  const activeCarbonPreset = getActiveCarbonPricePreset(currentConfiguration, appConfig);
+  const activeDemandPreset = getActiveDemandPreset(currentScenario, appConfig);
+  const activeCarbonPreset = getActiveCarbonPricePreset(currentScenario, appConfig);
 
   const builtinConfigs = useMemo(() => loadBuiltinConfigurations(), []);
   const [userConfigs, setUserConfigs] = useState(() => loadUserConfigurations());
@@ -64,35 +75,28 @@ export default function LeftSidebar() {
     setUserConfigs(configs);
   }, []);
 
-  const activeUserConfig = activeConfigurationId
-    ? userConfigs.find((configuration) => getConfigurationId(configuration) === activeConfigurationId)
-    : null;
-
-  function buildUserConfiguration(name: string, configurationId: string): ConfigurationDocument {
-    const configuration = cloneConfigurationDocument(currentConfiguration);
-    configuration.name = name;
-    configuration.app_metadata = {
-      ...(configuration.app_metadata ?? {}),
-      id: configurationId,
-      readonly: false,
-      included_output_ids: getIncludedOutputIds(currentConfiguration),
-    };
-    return configuration;
-  }
+  const activeUserConfig =
+    activeConfigurationId && !activeConfigurationReadonly
+      ? userConfigs.find((c) => c.id === activeConfigurationId) ?? null
+      : null;
 
   async function handleSaveAs() {
     const name = prompt('Configuration name:');
     if (!name?.trim()) return;
 
-    const trimmedName = name.trim();
-    let configurationId = slugifyConfigurationName(trimmedName);
+    const config = createConfigurationFromScenario(
+      currentScenario,
+      defaultScenario,
+      includedOutputIds,
+      appConfig,
+    );
+    config.name = name.trim();
+    config.id = slugify(name.trim());
 
-    const builtinIds = new Set(builtinConfigs.map((configuration) => getConfigurationId(configuration)));
-    if (builtinIds.has(configurationId)) {
-      configurationId = `${configurationId}-custom`;
+    const builtinIds = new Set(builtinConfigs.map((c) => c.id));
+    if (builtinIds.has(config.id)) {
+      config.id = `${config.id}-custom`;
     }
-
-    const config = buildUserConfiguration(trimmedName, configurationId);
 
     const error = await saveUserConfiguration(config);
     if (error) {
@@ -104,9 +108,15 @@ export default function LeftSidebar() {
     }
   }
 
-  async function handleOverwrite(existing: ConfigurationDocument) {
-    const existingId = getConfigurationId(existing) ?? slugifyConfigurationName(existing.name);
-    const config = buildUserConfiguration(existing.name, existingId);
+  async function handleOverwrite(existing: SolveConfiguration) {
+    const config = createConfigurationFromScenario(
+      currentScenario,
+      defaultScenario,
+      includedOutputIds,
+      appConfig,
+    );
+    config.id = existing.id;
+    config.name = existing.name;
 
     const error = await saveUserConfiguration(config);
     if (error) {
@@ -151,7 +161,7 @@ export default function LeftSidebar() {
       <div className="workspace-section">
         <span className="workspace-section-title">Commodity Prices</span>
         {Object.entries(appConfig.commodity_price_presets).map(([commodityId, driver]) => {
-          const activeLevel = getCommodityPriceLevel(currentConfiguration, commodityId);
+          const activeLevel = getCommodityPriceLevel(currentScenario, commodityId);
           return (
             <div key={commodityId} className="workspace-subsector-group">
               <div className="workspace-subsector-title">{driver.label}</div>
@@ -213,23 +223,22 @@ export default function LeftSidebar() {
         {configs.length > 0 && (
           <div className="workspace-chip-group">
             {configs.map((config) => {
-              const configId = getConfigurationId(config) ?? config.name;
-              const readonly = isReadonlyConfiguration(config);
-
+              const isActiveBase = activeConfigurationId === config.id;
+              const isModified = isActiveBase && isConfigurationDirty;
               return (
-                <span key={configId} style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+                <span key={config.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
                   <button
-                    className={`workspace-chip${activeConfigurationId === configId ? ' workspace-chip--active' : ''}`}
+                    className={`workspace-chip${isActiveBase ? ' workspace-chip--active' : ''}${isModified ? ' workspace-chip--modified' : ''}`}
                     onClick={() => loadConfiguration(config)}
                     title={config.description}
                   >
-                    {config.name}
+                    {config.name}{isModified ? ' (modified)' : ''}
                   </button>
-                  {!readonly && (
+                  {!config.readonly && (
                     <button
                       className="workspace-chip"
                       style={{ padding: '2px 6px', fontSize: 11, color: '#b91c1c' }}
-                      onClick={() => handleDelete(configId)}
+                      onClick={() => handleDelete(config.id)}
                       title="Delete configuration"
                     >
                       ×
@@ -249,7 +258,7 @@ export default function LeftSidebar() {
           >
             Save as…
           </button>
-          {activeUserConfig && (
+          {activeUserConfig && isConfigurationDirty && (
             <button
               type="button"
               className="workspace-chip"

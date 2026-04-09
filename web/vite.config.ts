@@ -4,7 +4,7 @@ import path from 'path';
 import fs from 'fs';
 
 function userConfigApi(): Plugin {
-  const configDir = path.resolve(__dirname, 'public/configurations/user');
+  const configDir = path.resolve(__dirname, 'src/configurations/user');
 
   return {
     name: 'user-config-api',

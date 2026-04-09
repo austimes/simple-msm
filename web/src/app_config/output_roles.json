@@ -151,8 +151,8 @@
     "display_order": 10,
     "participates_in_commodity_balance": false,
     "demand_required": false,
-    "default_control_mode": "off",
-    "allowed_control_modes": ["off", "target", "optimize"],
+    "default_control_mode": "optimize",
+    "allowed_control_modes": ["target", "optimize"],
     "explanation_group": "removals"
   },
   "engineered_removals": {
@@ -163,8 +163,8 @@
     "display_order": 20,
     "participates_in_commodity_balance": false,
     "demand_required": false,
-    "default_control_mode": "off",
-    "allowed_control_modes": ["off", "target", "optimize"],
+    "default_control_mode": "optimize",
+    "allowed_control_modes": ["target", "optimize"],
     "explanation_group": "removals"
   }
 }

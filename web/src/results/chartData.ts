@@ -24,6 +24,13 @@ export interface StackedChartData {
   series: StackedSeries[];
 }
 
+export interface LineChartData {
+  title: string;
+  yAxisLabel: string;
+  years: number[];
+  series: StackedSeries[];
+}
+
 type ShareLookupKey = string;
 
 function shareKey(outputId: string, year: number, stateId: string): ShareLookupKey {
@@ -73,7 +80,7 @@ export function buildEmissionsBySectorChart(
   request: SolveRequest,
   result: SolveResult,
 ): StackedChartData {
-  const years = request.configuration.years;
+  const years = request.scenario.years;
   const lookup = buildShareLookup(result.reporting.stateShares);
   const grouped = new Map<string, Map<number, number>>();
 
@@ -106,7 +113,7 @@ export function buildCommodityConsumptionChart(
   request: SolveRequest,
   result: SolveResult,
 ): StackedChartData {
-  const years = request.configuration.years;
+  const years = request.scenario.years;
   const lookup = buildShareLookup(result.reporting.stateShares);
   const grouped = new Map<string, Map<number, number>>();
 
@@ -136,8 +143,8 @@ export function buildCommodityConsumptionChart(
 }
 
 export function buildDemandOverTimeChart(request: SolveRequest): StackedChartData {
-  const years = request.configuration.years;
-  const demandByOutput = request.configuration.serviceDemandByOutput;
+  const years = request.scenario.years;
+  const demandByOutput = request.scenario.serviceDemandByOutput;
   const grouped = new Map<string, Map<number, number>>();
 
   for (const [outputId, yearTable] of Object.entries(demandByOutput)) {
@@ -171,9 +178,65 @@ function resolveOutputSubsector(
   return first?.outputLabel ?? outputId;
 }
 
+function resolveOutputSector(
+  request: SolveRequest,
+  outputId: string,
+): string {
+  const sectors = new Set<string>();
+  for (const row of request.rows) {
+    if (row.outputId === outputId) sectors.add(row.sector);
+  }
+  if (sectors.size === 1) return [...sectors][0];
+  const first = request.rows.find((r) => r.outputId === outputId);
+  return first?.sector ?? outputId;
+}
+
+export function buildDemandBySectorChart(request: SolveRequest): LineChartData {
+  const years = request.scenario.years;
+  const demandByOutput = request.scenario.serviceDemandByOutput;
+
+  const outputToSector = new Map<string, string>();
+  for (const outputId of Object.keys(demandByOutput)) {
+    outputToSector.set(outputId, resolveOutputSector(request, outputId));
+  }
+
+  // Aggregate absolute demand by sector
+  const grouped = new Map<string, Map<number, number>>();
+  for (const [outputId, yearTable] of Object.entries(demandByOutput)) {
+    const sector = outputToSector.get(outputId)!;
+    let yearMap = grouped.get(sector);
+    if (!yearMap) {
+      yearMap = new Map<number, number>();
+      grouped.set(sector, yearMap);
+    }
+    for (const year of years) {
+      const value = yearTable[String(year)] ?? 0;
+      yearMap.set(year, (yearMap.get(year) ?? 0) + value);
+    }
+  }
+
+  // Convert to percentage relative to the first year
+  const baseYear = years[0];
+  for (const [, yearMap] of grouped) {
+    const baseValue = yearMap.get(baseYear) ?? 0;
+    if (baseValue === 0) continue;
+    for (const year of years) {
+      const raw = yearMap.get(year) ?? 0;
+      yearMap.set(year, (raw / baseValue) * 100);
+    }
+  }
+
+  return {
+    title: 'Demand by Sector',
+    yAxisLabel: `% of ${baseYear}`,
+    years,
+    series: buildSeries(grouped, years, (key) => key),
+  };
+}
+
 export function buildDemandBySubsectorChart(request: SolveRequest): StackedChartData {
-  const years = request.configuration.years;
-  const demandByOutput = request.configuration.serviceDemandByOutput;
+  const years = request.scenario.years;
+  const demandByOutput = request.scenario.serviceDemandByOutput;
 
   // Map each outputId to its subsector
   const outputToSubsector = new Map<string, string>();
@@ -207,7 +270,7 @@ export function buildEmissionsBySubsectorChart(
   request: SolveRequest,
   result: SolveResult,
 ): StackedChartData {
-  const years = request.configuration.years;
+  const years = request.scenario.years;
   const lookup = buildShareLookup(result.reporting.stateShares);
   const grouped = new Map<string, Map<number, number>>();
 
@@ -236,32 +299,66 @@ export function buildEmissionsBySubsectorChart(
   };
 }
 
-export function buildConversionCostBySubsectorChart(
+export function buildCostByComponentChart(
   request: SolveRequest,
   result: SolveResult,
 ): StackedChartData {
-  const years = request.configuration.years;
+  const years = request.scenario.years;
   const lookup = buildShareLookup(result.reporting.stateShares);
-  const grouped = new Map<string, Map<number, number>>();
+
+  const conversionMap = new Map<number, number>();
+  const commodityMap = new Map<number, number>();
+  const carbonMap = new Map<number, number>();
+
+  const balancedCommodityKeys = new Set(
+    result.reporting.commodityBalances
+      .filter((cb) => cb.mode !== 'externalized')
+      .map((cb) => `${cb.commodityId}::${cb.year}`),
+  );
 
   for (const row of request.rows) {
     const ss = lookup.get(shareKey(row.outputId, row.year, row.stateId));
     if (!ss || ss.activity === 0) continue;
 
-    const cost = ss.activity * (row.conversionCostPerUnit ?? 0);
-    if (cost === 0) continue;
-
-    let yearMap = grouped.get(row.subsector);
-    if (!yearMap) {
-      yearMap = new Map<number, number>();
-      grouped.set(row.subsector, yearMap);
+    const conversion = ss.activity * (row.conversionCostPerUnit ?? 0);
+    if (conversion !== 0) {
+      conversionMap.set(row.year, (conversionMap.get(row.year) ?? 0) + conversion);
     }
-    yearMap.set(row.year, (yearMap.get(row.year) ?? 0) + cost);
+
+    const commodity = ss.activity * row.inputs.reduce((total, input) => {
+      if (balancedCommodityKeys.has(`${input.commodityId}::${row.year}`)) {
+        return total;
+      }
+      const price =
+        request.scenario.commodityPriceByCommodity[input.commodityId]
+          ?.valuesByYear[String(row.year)] ?? 0;
+      return total + input.coefficient * price;
+    }, 0);
+    if (commodity !== 0) {
+      commodityMap.set(row.year, (commodityMap.get(row.year) ?? 0) + commodity);
+    }
+
+    const emissionsPerUnit = row.directEmissions.reduce(
+      (total, emission) => total + emission.value,
+      0,
+    );
+    const carbon =
+      ss.activity *
+      emissionsPerUnit *
+      (request.scenario.carbonPriceByYear[String(row.year)] ?? 0);
+    if (carbon !== 0) {
+      carbonMap.set(row.year, (carbonMap.get(row.year) ?? 0) + carbon);
+    }
   }
 
+  const grouped = new Map<string, Map<number, number>>();
+  grouped.set('Conversion', conversionMap);
+  grouped.set('Commodity', commodityMap);
+  grouped.set('Carbon', carbonMap);
+
   return {
-    title: 'Conversion Cost by Sub-sector',
-    yAxisLabel: 'Conversion Cost',
+    title: 'Cost by Component',
+    yAxisLabel: 'Cost',
     years,
     series: buildSeries(grouped, years, (key) => key),
   };
