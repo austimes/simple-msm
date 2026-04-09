@@ -12,24 +12,13 @@ bd close <id>         # Complete work
 bd dolt push          # Push beads data to remote
 ```
 
-## Issue Worktree And Merge-Slot Workflow
+## Issue Workflow
 
-When an agent is asked to work on a specific beads issue, it must always do that work in a dedicated git worktree and land it onto `main` through the beads merge slot.
+When an agent is asked to work on a specific issue, it must always do that work in a dedicated git worktree and land it onto `main` through the acquisition of the beads merge-slot issue to prevent more than one agent at a time merging into `main`.
 
-### Starting issue work
+### Work in a worktree
 
-1. Inspect the issue with `bd show <id>`.
-2. Attempt to claim it with `bd update <id> --claim`.
-   If the claim fails because another agent already holds it, continue carefully if explicitly asked to help on that issue, because concurrent agents are the reason the merge slot exists.
-3. Create or reuse a dedicated worktree for that issue from `main`. Use a sibling worktree path and a dedicated branch name:
-   ```bash
-   git worktree add ../simple-msm-<id> -b codex/<id>-<short-slug> main
-   ```
-   If the branch already exists, reuse it instead of creating a new one:
-   ```bash
-   git worktree add ../simple-msm-<id> codex/<id>-<short-slug>
-   ```
-4. Perform all code changes, tests, commits, and issue updates inside that worktree. Do not develop issue work directly in the primary `main` checkout.
+Claim the issue, then do the work in a git worktree.
 
 ### Landing issue work onto `main`
 
@@ -54,13 +43,7 @@ When an agent is asked to work on a specific beads issue, it must always do that
    ```bash
    bd merge-slot acquire
    ```
-7. While holding the slot, update `main`, merge the issue branch, resolve conflicts if needed, run the relevant verification, and push the result:
-   ```bash
-   git pull --rebase
-   git merge --no-ff codex/<id>-<short-slug>
-   bd dolt push
-   git push
-   ```
+7. While holding the slot, update `main`, merge the issue branch, resolve conflicts if needed, run the relevant verification, and push the result.
 8. Release the merge slot immediately after the merge completes:
    ```bash
    bd merge-slot release
