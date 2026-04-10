@@ -22,7 +22,7 @@ export type OutputRunParticipation =
 
 export type OutputDemandParticipation =
   | 'active_in_run'
-  | 'no_enabled_pathways'
+  | 'no_active_pathways'
   | 'excluded_from_run'
   | 'not_applicable';
 
@@ -36,12 +36,8 @@ export interface DerivedOutputRunStatus {
   outputId: string;
   outputRole: OutputRole;
   controlMode: ConfigurationControlMode;
-  availableStateIds: string[];
-  availableStateCount: number;
   activeStateIds: string[];
   activeStateCount: number;
-  capEligibleStateIds: string[];
-  capEligibleStateCount: number;
   isDisabled: boolean;
   inRun: boolean;
   runParticipation: OutputRunParticipation;
@@ -129,21 +125,8 @@ function deriveOutputPathwayStateIds(
   outputId: string,
   allStateIds: string[],
   resolvedConfiguration: ResolvedConfigurationForSolve,
-): Pick<
-  DerivedOutputRunStatus,
-  | 'availableStateIds'
-  | 'availableStateCount'
-  | 'activeStateIds'
-  | 'activeStateCount'
-  | 'capEligibleStateIds'
-  | 'capEligibleStateCount'
-> {
-  const baselineControl = resolvedConfiguration.years.length > 0
-    ? resolvedConfiguration.controlsByOutput[outputId]?.[yearKey(resolvedConfiguration.years[0])]
-    : undefined;
-  const availableStateIds = derivePathwayStateIds(allStateIds, baselineControl).availableStateIds;
+): Pick<DerivedOutputRunStatus, 'activeStateIds' | 'activeStateCount'> {
   const activeStateIdSet = new Set<string>();
-  const capEligibleStateIdSet = new Set<string>();
 
   for (const year of resolvedConfiguration.years) {
     const control = resolvedConfiguration.controlsByOutput[outputId]?.[yearKey(year)];
@@ -151,21 +134,13 @@ function deriveOutputPathwayStateIds(
     for (const stateId of pathwayStateIds.activeStateIds) {
       activeStateIdSet.add(stateId);
     }
-    for (const stateId of pathwayStateIds.capEligibleStateIds) {
-      capEligibleStateIdSet.add(stateId);
-    }
   }
 
   const activeStateIds = filterOrderedStateIds(allStateIds, activeStateIdSet);
-  const capEligibleStateIds = filterOrderedStateIds(allStateIds, capEligibleStateIdSet);
 
   return {
-    availableStateIds,
-    availableStateCount: availableStateIds.length,
     activeStateIds,
     activeStateCount: activeStateIds.length,
-    capEligibleStateIds,
-    capEligibleStateCount: capEligibleStateIds.length,
   };
 }
 
@@ -252,7 +227,7 @@ export function deriveOutputRunStatuses(
           .some((value) => value > 0);
       const hasDemandValidationError = outputMetadata.demand_required
         && hasPositiveDemandInRun
-        && pathwayStateIds.availableStateCount === 0;
+        && pathwayStateIds.activeStateCount === 0;
       const runParticipation: OutputRunParticipation = isFullModel
         ? 'full_model'
         : isSeedScoped
@@ -266,12 +241,12 @@ export function deriveOutputRunStatuses(
         outputRole: outputMetadata.output_role,
         controlMode: getControlMode(configuration, appConfig, outputId),
         ...pathwayStateIds,
-        isDisabled: pathwayStateIds.availableStateCount === 0,
+        isDisabled: pathwayStateIds.activeStateCount === 0,
         inRun,
         runParticipation,
         demandParticipation: outputMetadata.demand_required
           ? (inRun
-              ? (pathwayStateIds.availableStateCount === 0 ? 'no_enabled_pathways' : 'active_in_run')
+              ? (pathwayStateIds.activeStateCount === 0 ? 'no_active_pathways' : 'active_in_run')
               : 'excluded_from_run')
           : 'not_applicable',
         supplyParticipation: outputMetadata.output_role === 'endogenous_supply_commodity'

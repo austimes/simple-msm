@@ -9,7 +9,7 @@ export type SolveDiagnosticReason =
   | 'exact_share_conflict'
   | 'share_exhaustion'
   | 'activity_exhaustion'
-  | 'disabled_states'
+  | 'inactive_states'
   | 'electricity_balance_conflict';
 // `configuration_lp` is an internal artifact label, so it can move with the solver
 // contract when the broader terminology cleanup reaches this boundary.
@@ -58,7 +58,7 @@ export interface NormalizedSolverRow {
 export interface ResolvedSolveControl {
   mode: ConfigurationControlMode;
   fixedShares: Record<string, number> | null;
-  disabledStateIds: string[];
+  activeStateIds: string[] | null;
   targetValue: number | null;
 }
 
@@ -142,7 +142,7 @@ export type SolveConstraintKind =
   | 'min_share'
   | 'max_share'
   | 'max_activity'
-  | 'disabled_state'
+  | 'inactive_state'
   | 'externalized_supply';
 export type SolveSoftConstraintKind = Extract<SolveConstraintKind, 'max_share' | 'max_activity'>;
 
