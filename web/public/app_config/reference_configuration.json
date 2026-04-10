@@ -81,15 +81,11 @@
     },
     "land_sequestration": {
       "mode": "optimize",
-      "disabled_state_ids": [
-        "removals_negative_emissions__land_sequestration__biological_sink"
-      ]
+      "active_state_ids": []
     },
     "engineered_removals": {
       "mode": "optimize",
-      "disabled_state_ids": [
-        "removals_negative_emissions__engineered_removals__daccs"
-      ]
+      "active_state_ids": []
     }
   },
   "service_demands": {

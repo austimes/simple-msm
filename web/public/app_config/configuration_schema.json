@@ -48,7 +48,6 @@
               "fixed_shares",
               "optimize",
               "externalized",
-              "off",
               "target"
             ]
           },
@@ -70,7 +69,7 @@
             ],
             "minimum": 0
           },
-          "disabled_state_ids": {
+          "active_state_ids": {
             "type": [
               "array",
               "null"
