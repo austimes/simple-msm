@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { buildComparisonReport, buildComparisonConfigurationPlan } from '../src/compare/compareAnalysis.ts';
-import { resolveScenarioDocument as resolveConfigurationDocument } from '../src/data/demandResolution.ts';
+import { resolveConfigurationDocument as resolveConfigurationDocument } from '../src/data/demandResolution.ts';
 import { parseCsv } from '../src/data/parseCsv.ts';
 import { SOLVER_CONTRACT_VERSION } from '../src/solver/contract.ts';
 import { solveWithLpAdapter } from '../src/solver/lpAdapter.ts';
@@ -256,14 +256,14 @@ test('packaged reference configuration solves as a stable baseline on the Result
   const pkg = {
     sectorStates,
     appConfig,
-    defaultScenario: referenceConfiguration,
+    defaultConfiguration: referenceConfiguration,
   };
 
   const request = buildSolveRequestForTest(pkg, referenceConfiguration);
   const result = solveWithLpAdapter(request);
 
   assert.equal(referenceConfiguration.service_controls.electricity.mode, 'externalized');
-  assert.equal(referenceConfiguration.solver_options?.respect_max_share, false);
+  assert.equal(referenceConfiguration.solver_options?.respect_max_share, true);
   assert.ok(result.status === 'solved' || result.status === 'partial');
   assert.equal(result.raw?.solutionStatus, 'optimal');
   assert.ok(!result.diagnostics.some((diagnostic) => diagnostic.code === 'service_and_supply_lp_not_optimal'));
@@ -281,7 +281,7 @@ test('compare analysis builds heuristic decomposition and narratives from the bu
   const pkg = {
     sectorStates,
     appConfig,
-    defaultScenario: referenceConfiguration,
+    defaultConfiguration: referenceConfiguration,
   };
 
   const plan = buildComparisonConfigurationPlan(referenceConfiguration, appConfig);

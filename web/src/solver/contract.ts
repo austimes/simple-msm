@@ -1,4 +1,4 @@
-import type { OutputRole, ScenarioControlMode } from '../data/types.ts';
+import type { OutputRole, ConfigurationControlMode } from '../data/types.ts';
 
 export const SOLVER_CONTRACT_VERSION = 3 as const;
 
@@ -56,7 +56,7 @@ export interface NormalizedSolverRow {
 }
 
 export interface ResolvedSolveControl {
-  mode: ScenarioControlMode;
+  mode: ConfigurationControlMode;
   fixedShares: Record<string, number> | null;
   disabledStateIds: string[];
   targetValue: number | null;
@@ -186,7 +186,7 @@ export interface SolveBindingConstraintSummary {
   stateLabel?: string;
   rowId?: string;
   commodityId?: string;
-  mode?: ScenarioControlMode;
+  mode?: ConfigurationControlMode;
   message: string;
 }
 
@@ -206,7 +206,7 @@ export interface SolveSoftConstraintViolationSummary {
   stateLabel?: string;
   rowId?: string;
   commodityId?: string;
-  mode?: ScenarioControlMode;
+  mode?: ConfigurationControlMode;
   message: string;
 }
 

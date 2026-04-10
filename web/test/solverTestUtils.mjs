@@ -5,7 +5,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { parseCsv } from '../src/data/parseCsv.ts';
-import { resolveScenarioDocument as resolveConfigurationDocument } from '../src/data/demandResolution.ts';
+import { resolveConfigurationDocument as resolveConfigurationDocument } from '../src/data/demandResolution.ts';
 import { buildSolveRequest } from '../src/solver/buildSolveRequest.ts';
 import { solveWithLpAdapter } from '../src/solver/lpAdapter.ts';
 

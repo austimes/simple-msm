@@ -1,5 +1,5 @@
 import { getSeedOutputIds } from '../data/configurationMetadata.ts';
-import type { PackageData, ScenarioDocument } from '../data/types.ts';
+import type { PackageData, ConfigurationDocument } from '../data/types.ts';
 import {
   SOLVER_CONTRACT_VERSION,
   type NormalizedSolverRow,
@@ -118,7 +118,7 @@ function validateFixedShareControls(
 
 function validateRequiredServiceCoverage(
   rows: NormalizedSolverRow[],
-  configuration: ScenarioDocument,
+  configuration: ConfigurationDocument,
   resolvedConfiguration: ResolvedConfigurationForSolve,
   appConfig: PackageData['appConfig'],
   seedOutputIds: string[] | undefined,
@@ -212,7 +212,7 @@ export function collectOutputIdsForSelection(
 
 export function buildSolveRequest(
   pkg: Pick<PackageData, 'sectorStates' | 'appConfig'>,
-  configuration: ScenarioDocument,
+  configuration: ConfigurationDocument,
   options: BuildSolveRequestOptions = {},
 ): SolveRequest {
   const allRows = normalizeSolverRows(pkg);

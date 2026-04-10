@@ -3,7 +3,7 @@
  * 1. Built-in configs shipped in src/configurations/ (readonly)
  * 2. User configs persisted to localStorage (editable)
  */
-import { parseConfigurationDocument } from './scenarioLoader.ts';
+import { parseConfigurationDocument } from './configurationDocumentLoader.ts';
 import {
   getConfigurationDocumentId,
   normalizeSeedOutputIds,
@@ -241,8 +241,6 @@ export function createConfigurationFromDocument(
     seed_output_ids: seedOutputIds,
   });
 }
-
-export const createConfigurationFromScenario = createConfigurationFromDocument;
 
 export function slugifyConfigurationName(name: string): string {
   return (

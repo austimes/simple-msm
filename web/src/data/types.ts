@@ -96,23 +96,6 @@ export interface ConfigurationDocument {
   app_metadata?: ConfigurationAppMetadata;
 }
 
-// Backward-compatible aliases for downstream modules that still use the
-// historical scenario terminology.
-export type ScenarioControlMode = ConfigurationControlMode;
-export const SCENARIO_YEARS = CONFIGURATION_YEARS;
-export type ScenarioYear = ConfigurationYear;
-export type ScenarioYearKey = ConfigurationYearKey;
-export type ScenarioYearValueTable = ConfigurationYearValueTable;
-export type ScenarioServiceControlYearOverride = ConfigurationServiceControlYearOverride;
-export type ScenarioServiceControl = ConfigurationServiceControl;
-export type ScenarioDemandGenerationMode = ConfigurationDemandGenerationMode;
-export type ScenarioDemandGeneration = ConfigurationDemandGeneration;
-export type ScenarioCommodityPricing = ConfigurationCommodityPricing;
-export type ScenarioShareSmoothing = ConfigurationShareSmoothing;
-export type ScenarioSolverOptions = ConfigurationSolverOptions;
-export type ScenarioAppMetadata = ConfigurationAppMetadata;
-export type ScenarioDocument = ConfigurationDocument;
-
 export interface OutputRoleMetadata {
   output_role: OutputRole;
   display_label: string;
@@ -287,5 +270,4 @@ export interface PackageData {
   enrichment: PackageEnrichment;
   appConfig: AppConfigRegistry;
   defaultConfiguration: ConfigurationDocument;
-  defaultScenario: ConfigurationDocument;
 }

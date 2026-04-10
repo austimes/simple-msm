@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 /**
  * CLI solver — runs the model outside the browser using the same code paths
- * as the web app: parseCsv -> resolveScenarioDocument -> buildSolveRequest -> solveWithLpAdapter
+ * as the web app: parseCsv -> resolveConfigurationDocument -> buildSolveRequest -> solveWithLpAdapter
  *
  * Usage:
  *   npx msm <config>                           # solve one config
@@ -27,7 +27,7 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { basename, isAbsolute, relative as relativePath, resolve as resolvePath } from 'node:path';
 import { parseCsv } from './src/data/parseCsv.ts';
-import { resolveScenarioDocument } from './src/data/demandResolution.ts';
+import { resolveConfigurationDocument } from './src/data/demandResolution.ts';
 import {
   buildSolveRequest,
   normalizeSolverRows,
@@ -335,11 +335,11 @@ function executeConfig(pkg, configPath) {
   const config = loadConfig(configPath);
   const configId = getConfigId(config, basename(configPath, '.json'));
   const includedOutputIds = getConfigIncludedOutputIds(config);
-  const scenario = resolveScenarioDocument(config, pkg.appConfig, config.name);
+  const configuration = resolveConfigurationDocument(config, pkg.appConfig, config.name);
 
   const request = buildSolveRequest(
     { sectorStates: pkg.sectorStates, appConfig: pkg.appConfig },
-    scenario,
+    configuration,
     includedOutputIds ? { includedOutputIds } : {},
   );
 
@@ -347,8 +347,8 @@ function executeConfig(pkg, configPath) {
   const run = {
     ok: true, label: configId, configId,
     source: displayPath(configPath),
-    scenarioName: config.name,
-    scenarioDescription: config.description ?? null,
+    configurationName: config.name,
+    configurationDescription: config.description ?? null,
     includedOutputIds: includedOutputIds ?? null,
     request, result,
   };
@@ -454,11 +454,11 @@ function printSingleRun(run, pkg, { quiet = false } = {}) {
     return;
   }
 
-  console.log(`\n${statusIcon(m.status)} ${run.scenarioName}`);
+  console.log(`\n${statusIcon(m.status)} ${run.configurationName}`);
   console.log(`  Source:        ${run.source}`);
   console.log(`  Status:        ${m.status} (LP: ${m.lpStatus ?? 'N/A'})`);
   console.log(`  Objective:     ${fmtNumber(m.objectiveValue)}`);
-  console.log(`  Years:         ${run.request.scenario.years.join(', ')}`);
+  console.log(`  Years:         ${run.request.configuration.years.join(', ')}`);
   if (run.includedOutputIds) {
     console.log(`  Scope:         ${run.includedOutputIds.length} seed outputs -> ${m.outputCount} resolved`);
     console.log(`  Seed outputs:  ${formatIdList(run.includedOutputIds)}`);
@@ -580,7 +580,7 @@ function printBatch(runs, { quiet = false } = {}) {
       outputs: String(run.metrics.outputCount), rows: String(run.metrics.rowCount),
       objective: fmtNumber(run.metrics.objectiveValue), time: fmtMs(run.metrics.timingsMs.total),
       warn: String(run.metrics.diagnostics.warning), err: String(run.metrics.diagnostics.error),
-      name: run.scenarioName,
+      name: run.configurationName,
     };
   })));
   console.log();

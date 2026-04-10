@@ -1,8 +1,8 @@
-import { resolveScenarioDocument } from '../data/demandResolution.ts';
+import { resolveConfigurationDocument } from '../data/demandResolution.ts';
 import type {
   AppConfigRegistry,
   OutputRole,
-  ScenarioDocument,
+  ConfigurationDocument,
   SectorState,
 } from '../data/types';
 import type {
@@ -63,13 +63,13 @@ interface ConfigurationMetrics {
 
 export interface ComparisonConfigurationPlan {
   order: ComparisonSolveKey[];
-  configurations: Record<ComparisonSolveKey, ScenarioDocument>;
+  configurations: Record<ComparisonSolveKey, ConfigurationDocument>;
 }
 
 export interface ComparisonConfigurationSolve {
   key: ComparisonSolveKey;
   label: string;
-  configuration: ScenarioDocument;
+  configuration: ConfigurationDocument;
   request: SolveRequest;
   result: SolveResult;
   metrics: ConfigurationMetrics;
@@ -347,18 +347,18 @@ function ratingKey(value: string | undefined): string {
   return (value ?? 'unspecified').trim().toLowerCase() || 'unspecified';
 }
 
-function makeManualScenario(
-  scenario: ScenarioDocument,
+function materializeComparisonConfiguration(
+  configuration: ConfigurationDocument,
   notes: string,
-  name = scenario.name,
-  description = scenario.description ?? undefined,
-): ScenarioDocument {
+  name = configuration.name,
+  description = configuration.description ?? undefined,
+): ConfigurationDocument {
   return {
-    ...structuredClone(scenario),
+    ...structuredClone(configuration),
     name,
     description,
-    service_demands: structuredClone(scenario.service_demands),
-    external_commodity_demands: structuredClone(scenario.external_commodity_demands ?? {}),
+    service_demands: structuredClone(configuration.service_demands),
+    external_commodity_demands: structuredClone(configuration.external_commodity_demands ?? {}),
     demand_generation: {
       mode: 'manual_table',
       anchor_year: 2025,
@@ -369,18 +369,18 @@ function makeManualScenario(
   };
 }
 
-function cloneScenarioWithLabel(
-  scenario: ScenarioDocument,
+function cloneConfigurationVariant(
+  configuration: ConfigurationDocument,
   name: string,
   description: string,
   notes: string,
-): ScenarioDocument {
-  return makeManualScenario(scenario, notes, name, description);
+): ConfigurationDocument {
+  return materializeComparisonConfiguration(configuration, notes, name, description);
 }
 
 function applyRequiredServiceControls(
-  target: ScenarioDocument,
-  source: ScenarioDocument,
+  target: ConfigurationDocument,
+  source: ConfigurationDocument,
   appConfig: AppConfigRegistry,
 ): void {
   for (const [outputId, metadata] of Object.entries(appConfig.output_roles)) {
@@ -393,8 +393,8 @@ function applyRequiredServiceControls(
 }
 
 function applyOptionalRemovalsControls(
-  target: ScenarioDocument,
-  source: ScenarioDocument,
+  target: ConfigurationDocument,
+  source: ConfigurationDocument,
   appConfig: AppConfigRegistry,
 ): void {
   for (const [outputId, metadata] of Object.entries(appConfig.output_roles)) {
@@ -407,9 +407,9 @@ function applyOptionalRemovalsControls(
 }
 
 export function buildTransitionCounterfactual(
-  baseConfiguration: ScenarioDocument,
+  baseConfiguration: ConfigurationDocument,
   appConfig: AppConfigRegistry,
-): ScenarioDocument {
+): ConfigurationDocument {
   const draft = structuredClone(baseConfiguration);
   draft.name = 'Transition counterfactual';
   draft.description = 'Built-in compare run with stronger demand growth, cleaner input prices, non-zero carbon prices, optimized state choices, electricity optimization, and removals switched on for transparent heuristic attribution.';
@@ -470,18 +470,18 @@ export function buildTransitionCounterfactual(
     },
   };
 
-  const resolved = resolveScenarioDocument(draft, appConfig, 'transition counterfactual');
-  return makeManualScenario(
+  const resolved = resolveConfigurationDocument(draft, appConfig, 'transition counterfactual');
+  return materializeComparisonConfiguration(
     resolved,
     'Compare mode locks this counterfactual into explicit milestone-year tables so partial counterfactual solves can swap one driver at a time.',
   );
 }
 
 export function buildComparisonConfigurationPlan(
-  baseConfiguration: ScenarioDocument,
+  baseConfiguration: ConfigurationDocument,
   appConfig: AppConfigRegistry,
 ): ComparisonConfigurationPlan {
-  const base = makeManualScenario(
+  const base = materializeComparisonConfiguration(
     baseConfiguration,
     'Compare mode locks the reference configuration into explicit milestone-year tables and relaxes caps in the primary baseline so state-choice deltas remain solvable.',
     `${baseConfiguration.name} (compare baseline)`,
@@ -497,7 +497,7 @@ export function buildComparisonConfigurationPlan(
   };
   const compare = buildTransitionCounterfactual(baseConfiguration, appConfig);
 
-  const noDemandDelta = cloneScenarioWithLabel(
+  const noDemandDelta = cloneConfigurationVariant(
     compare,
     'Transition counterfactual without demand delta',
     'Matches the transition counterfactual but restores the reference demand tables so demand-growth effects can be isolated heuristically.',
@@ -506,7 +506,7 @@ export function buildComparisonConfigurationPlan(
   noDemandDelta.service_demands = structuredClone(base.service_demands);
   noDemandDelta.external_commodity_demands = structuredClone(base.external_commodity_demands ?? {});
 
-  const noPriceDelta = cloneScenarioWithLabel(
+  const noPriceDelta = cloneConfigurationVariant(
     compare,
     'Transition counterfactual without price delta',
     'Matches the transition counterfactual but restores the reference commodity and carbon prices.',
@@ -515,7 +515,7 @@ export function buildComparisonConfigurationPlan(
   noPriceDelta.commodity_pricing = structuredClone(base.commodity_pricing);
   noPriceDelta.carbon_price = structuredClone(base.carbon_price);
 
-  const noElectricityModeDelta = cloneScenarioWithLabel(
+  const noElectricityModeDelta = cloneConfigurationVariant(
     compare,
     'Transition counterfactual without electricity-mode delta',
     'Matches the transition counterfactual but restores the reference electricity control mode.',
@@ -523,7 +523,7 @@ export function buildComparisonConfigurationPlan(
   );
   noElectricityModeDelta.service_controls.electricity = structuredClone(base.service_controls.electricity);
 
-  const noStateChoiceDelta = cloneScenarioWithLabel(
+  const noStateChoiceDelta = cloneConfigurationVariant(
     compare,
     'Transition counterfactual without state-choice delta',
     'Matches the transition counterfactual but keeps all required-service controls at their reference settings.',
@@ -532,7 +532,7 @@ export function buildComparisonConfigurationPlan(
   applyRequiredServiceControls(noStateChoiceDelta, base, appConfig);
   noStateChoiceDelta.service_controls.electricity = structuredClone(base.service_controls.electricity);
 
-  const noRemovalsDelta = cloneScenarioWithLabel(
+  const noRemovalsDelta = cloneConfigurationVariant(
     compare,
     'Transition counterfactual without removals activation',
     'Matches the transition counterfactual but restores the reference removals controls.',
@@ -540,7 +540,7 @@ export function buildComparisonConfigurationPlan(
   );
   applyOptionalRemovalsControls(noRemovalsDelta, base, appConfig);
 
-  const relaxedConstraints = cloneScenarioWithLabel(
+  const relaxedConstraints = cloneConfigurationVariant(
     compare,
     'Transition counterfactual with constrained caps',
     'Matches the transition counterfactual but re-imposes max-share and max-activity caps to expose the constraint shadow.',
@@ -1270,7 +1270,7 @@ function buildNarratives(
 export function buildComparisonReport(
   appConfig: AppConfigRegistry,
   sectorStates: SectorState[],
-  solves: Array<{ key: ComparisonSolveKey; configuration: ScenarioDocument; request: SolveRequest; result: SolveResult }>,
+  solves: Array<{ key: ComparisonSolveKey; configuration: ConfigurationDocument; request: SolveRequest; result: SolveResult }>,
 ): ComparisonReport {
   const sectorStateByRowId = new Map(sectorStates.map((row) => [`${row.state_id}::${row.year}`, row]));
   const configurations = solves.reduce<Record<ComparisonSolveKey, ComparisonConfigurationSolve>>((accumulator, solve) => {
@@ -1468,13 +1468,13 @@ export function buildComparisonReport(
 }
 
 export function configurationRoleSummary(
-  scenario: ScenarioDocument,
+  configuration: ConfigurationDocument,
   appConfig: AppConfigRegistry,
 ): Array<{ role: OutputRole; count: number }> {
   const counts = new Map<OutputRole, number>();
 
   for (const [outputId, metadata] of Object.entries(appConfig.output_roles)) {
-    const control = scenario.service_controls[outputId];
+    const control = configuration.service_controls[outputId];
     if (!control) {
       continue;
     }

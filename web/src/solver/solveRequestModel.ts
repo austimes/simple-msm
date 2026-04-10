@@ -2,10 +2,10 @@ import type {
   AppConfigRegistry,
   CommodityPriceSeries,
   PackageData,
-  ScenarioDocument,
-  ScenarioServiceControl,
+  ConfigurationDocument,
+  ConfigurationServiceControl,
 } from '../data/types.ts';
-import { resolveScenarioDocument } from '../data/demandResolution.ts';
+import { resolveConfigurationDocument } from '../data/demandResolution.ts';
 import type {
   NormalizedSolverRow,
   ResolvedCommodityPriceSeries,
@@ -23,11 +23,11 @@ function resolveYearValue(table: Record<string, number> | undefined, year: numbe
 }
 
 function resolveControlForYear(
-  control: ScenarioServiceControl | undefined,
+  control: ConfigurationServiceControl | undefined,
   defaultMode: AppConfigRegistry['output_roles'][string]['default_control_mode'],
   year: number,
 ): ResolvedSolveControl {
-  const overrideKey = yearKey(year) as keyof NonNullable<ScenarioServiceControl['year_overrides']>;
+  const overrideKey = yearKey(year) as keyof NonNullable<ConfigurationServiceControl['year_overrides']>;
   const override = control?.year_overrides?.[overrideKey] ?? null;
 
   return {
@@ -113,10 +113,10 @@ export function normalizeSolverRows(
 }
 
 export function resolveConfigurationForSolve(
-  configuration: ScenarioDocument,
+  configuration: ConfigurationDocument,
   appConfig: AppConfigRegistry,
 ): ResolvedConfigurationForSolve {
-  const resolvedConfiguration = resolveScenarioDocument(configuration, appConfig);
+  const resolvedConfiguration = resolveConfigurationDocument(configuration, appConfig);
   const years = [...resolvedConfiguration.years];
   const controlsByOutput = Object.entries(appConfig.output_roles).reduce<
     Record<string, Record<string, ResolvedSolveControl>>

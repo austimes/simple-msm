@@ -300,7 +300,7 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
         bounds: { minShare: null, maxShare: null, maxActivity: null },
       },
     ];
-    const scenario = {
+    const configuration = {
       service_controls: {
         service: {
           mode: 'fixed_shares',
@@ -404,7 +404,7 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
     );
     const statuses = deriveOutputRunStatuses(
       rows,
-      scenario,
+      configuration,
       resolvedConfiguration,
       appConfig,
       ['service'],

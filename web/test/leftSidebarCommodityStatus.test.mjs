@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { describe, test } from 'node:test';
-import { getCommodityPriceLevel } from '../src/data/scenarioWorkspaceModel.ts';
+import { getCommodityPriceLevel } from '../src/data/configurationWorkspaceModel.ts';
 import {
   formatSharePercent,
   getCommodityPriceSelectorPresentation,

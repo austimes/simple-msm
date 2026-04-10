@@ -345,11 +345,3 @@ export function resolveConfigurationDocument(
     external_commodity_demands: externalResolution.tables,
   };
 }
-
-export function resolveScenarioDocument(
-  scenario: ConfigurationDocument,
-  appConfig: AppConfigRegistry,
-  label = 'scenario document',
-): ConfigurationDocument {
-  return resolveConfigurationDocument(scenario, appConfig, label);
-}

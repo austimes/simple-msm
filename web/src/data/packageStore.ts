@@ -4,7 +4,7 @@ import {
   loadPersistedConfigurationDraft,
   persistConfigurationDraft,
   persistConfigMeta,
-} from './scenarioDraftStorage';
+} from './configurationDraftStorage.ts';
 import { loadPackage } from './packageLoader.ts';
 import type {
   ConfigurationControlMode,
@@ -19,7 +19,7 @@ import {
   loadBuiltinConfigurations,
   withSeedOutputIds,
 } from './configurationLoader.ts';
-import { getAvailableStateIds } from './scenarioWorkspaceModel.ts';
+import { getAvailableStateIds } from './configurationWorkspaceModel.ts';
 
 export type ConfigurationDraftSource = 'reference' | 'local_draft' | 'imported' | 'draft' | 'configuration';
 

@@ -92,8 +92,8 @@ describe('getRightSidebarStatusPresentation', () => {
   });
 
   test('greys out pathway status for externalized supply dependencies', () => {
-    const scenario = readJson('../src/configurations/buildings-externalized.json');
-    const statuses = deriveOutputRunStatusesForConfiguration(pkg, scenario);
+    const configuration = readJson('../src/configurations/buildings-externalized.json');
+    const statuses = deriveOutputRunStatusesForConfiguration(pkg, configuration);
     const electricity = getRightSidebarStatusPresentation(statuses.electricity);
 
     assert.ok(
@@ -111,8 +111,8 @@ describe('getRightSidebarStatusPresentation', () => {
   });
 
   test('distinguishes enabled pathways from solve-active pathways under one-hot exact shares', () => {
-    const scenario = readJson('../src/configurations/agriculture-only.json');
-    const statuses = deriveOutputRunStatusesForConfiguration(pkg, scenario);
+    const configuration = readJson('../src/configurations/agriculture-only.json');
+    const statuses = deriveOutputRunStatusesForConfiguration(pkg, configuration);
     const livestock = getRightSidebarStatusPresentation(statuses.livestock_output_bundle);
 
     assert.ok(

@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { parseCsv } from '../src/data/parseCsv.ts';
-import { resolveScenarioDocument as resolveConfigurationDocument } from '../src/data/demandResolution.ts';
+import { resolveConfigurationDocument as resolveConfigurationDocument } from '../src/data/demandResolution.ts';
 import { buildSolveRequest, normalizeSolverRows } from '../src/solver/buildSolveRequest.ts';
 import { solveWithLpAdapter, inspectConfigurationLpBuild } from '../src/solver/lpAdapter.ts';
 
@@ -91,7 +91,7 @@ function loadPkg() {
   const referenceConfiguration = readJson('../public/app_config/reference_configuration.json');
   const defaultConfiguration = resolveConfigurationDocument(referenceConfiguration, appConfig, 'reference_configuration.json');
 
-  return { sectorStates, appConfig, defaultScenario: defaultConfiguration };
+  return { sectorStates, appConfig, defaultConfiguration: defaultConfiguration };
 }
 
 // --- Formatting helpers ---

@@ -1,7 +1,7 @@
 import { loadAppConfig } from './appConfigLoader.ts';
 import { buildPackageEnrichment, normalizePackageTextFiles } from './packageCompanions.ts';
 import { parseCsv } from './parseCsv.ts';
-import { loadDefaultConfiguration } from './scenarioLoader.ts';
+import { loadDefaultConfiguration } from './configurationDocumentLoader.ts';
 import type { EmissionEntry, PackageData, SectorState } from './types.ts';
 
 const packageTextFiles = normalizePackageTextFiles(
@@ -104,6 +104,5 @@ export function loadPackage(): PackageData {
     enrichment,
     appConfig,
     defaultConfiguration,
-    defaultScenario: defaultConfiguration,
   };
 }

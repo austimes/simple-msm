@@ -4,8 +4,8 @@ import type {
   AppConfigRegistry,
   OutputRole,
   PackageData,
-  ScenarioControlMode,
-  ScenarioDocument,
+  ConfigurationControlMode,
+  ConfigurationDocument,
 } from '../data/types.ts';
 import type {
   NormalizedSolverRow,
@@ -35,7 +35,7 @@ export type OutputSupplyParticipation =
 export interface DerivedOutputRunStatus {
   outputId: string;
   outputRole: OutputRole;
-  controlMode: ScenarioControlMode;
+  controlMode: ConfigurationControlMode;
   availableStateIds: string[];
   availableStateCount: number;
   activeStateIds: string[];
@@ -73,12 +73,12 @@ function collectStateIdsByOutput(rows: NormalizedSolverRow[]): Map<string, strin
 }
 
 function getControlMode(
-  scenario: ScenarioDocument,
+  configuration: ConfigurationDocument,
   appConfig: AppConfigRegistry,
   outputId: string,
-): ScenarioControlMode {
+): ConfigurationControlMode {
   return (
-    scenario.service_controls[outputId]?.mode
+    configuration.service_controls[outputId]?.mode
     ?? appConfig.output_roles[outputId]?.default_control_mode
     ?? 'optimize'
   );
@@ -218,7 +218,7 @@ export function expandIncludedOutputsForDependencies(
 
 export function deriveOutputRunStatuses(
   rows: NormalizedSolverRow[],
-  scenario: ScenarioDocument,
+  configuration: ConfigurationDocument,
   resolvedConfiguration: ResolvedConfigurationForSolve,
   appConfig: AppConfigRegistry,
   seedOutputIdsFromMetadata: string[] | undefined,
@@ -264,7 +264,7 @@ export function deriveOutputRunStatuses(
       statuses[outputId] = {
         outputId,
         outputRole: outputMetadata.output_role,
-        controlMode: getControlMode(scenario, appConfig, outputId),
+        controlMode: getControlMode(configuration, appConfig, outputId),
         ...pathwayStateIds,
         isDisabled: pathwayStateIds.availableStateCount === 0,
         inRun,
@@ -276,7 +276,7 @@ export function deriveOutputRunStatuses(
           : 'not_applicable',
         supplyParticipation: outputMetadata.output_role === 'endogenous_supply_commodity'
           ? (inRun
-              ? (getControlMode(scenario, appConfig, outputId) === 'externalized'
+              ? (getControlMode(configuration, appConfig, outputId) === 'externalized'
                   ? 'externalized_in_run'
                   : 'endogenous_in_run')
               : 'excluded_from_run')
@@ -296,15 +296,15 @@ export function deriveOutputRunStatuses(
 
 export function deriveOutputRunStatusesForConfiguration(
   pkg: Pick<PackageData, 'sectorStates' | 'appConfig'>,
-  scenario: ScenarioDocument,
+  configuration: ConfigurationDocument,
 ): Record<string, DerivedOutputRunStatus> {
   const rows = normalizeSolverRows(pkg);
-  const resolvedConfiguration = resolveConfigurationForSolve(scenario, pkg.appConfig);
+  const resolvedConfiguration = resolveConfigurationForSolve(configuration, pkg.appConfig);
   return deriveOutputRunStatuses(
     rows,
-    scenario,
+    configuration,
     resolvedConfiguration,
     pkg.appConfig,
-    getSeedOutputIds(scenario),
+    getSeedOutputIds(configuration),
   );
 }
