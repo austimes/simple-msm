@@ -50,6 +50,8 @@ Claim the issue, then do the work in a git worktree.
    ```
 9. If the merge or push fails after acquiring the slot, resolve the problem or back out as needed, but always release the merge slot before ending the session.
 
+10. Clean up the worktree and branch if merge was successful.
+
 ## Non-Interactive Shell Commands
 
 **ALWAYS use non-interactive flags** with file operations to avoid hanging on confirmation prompts.
