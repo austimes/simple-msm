@@ -621,7 +621,10 @@ test('infeasible runs report deterministic service-year and electricity diagnost
         pin_service: {
           2030: {
             mode: 'fixed_shares',
-            fixedShares: { 'pin_locked': 1 },
+            fixedShares: {
+              pin_locked: 0.8,
+              pin_flexible: 0.2,
+            },
             disabledStateIds: [],
             targetValue: null,
           },
@@ -802,8 +805,8 @@ test('soft-constraint mode restores feasibility and reports slack penalties', ()
           2030: {
             mode: 'fixed_shares',
             fixedShares: {
-              share_a: 1,
-              share_b: 0,
+              share_a: 0.8,
+              share_b: 0.2,
             },
             disabledStateIds: [],
             targetValue: null,
@@ -875,16 +878,16 @@ test('soft-constraint mode restores feasibility and reports slack penalties', ()
   assert.equal(result.raw?.solutionStatus, 'optimal');
   assert.ok(result.diagnostics.every((diagnostic) => diagnostic.severity !== 'error'));
 
-  assertClose(variables.get('activity:share_a::2030'), 100, 'soft share service follows the exact control');
-  assertClose(variables.get('activity:share_b::2030'), 0, 'soft share service keeps the residual state at zero');
+  assertClose(variables.get('activity:share_a::2030'), 80, 'soft share service follows the exact control');
+  assertClose(variables.get('activity:share_b::2030'), 20, 'soft share service keeps the residual state at its exact-share target');
   assertClose(variables.get('activity:activity_a::2030'), 80, 'soft activity service exceeds cheapest cap');
   assertClose(variables.get('activity:activity_b::2030'), 20, 'soft activity service stays on expensive capped row');
   assertClose(variables.get('activity:grid_limited::2030'), 60, 'soft electricity supply covers modeled and external demand');
 
   assert.equal(result.reporting.softConstraintViolations.length, 3);
   assertClose(shareSlack?.boundValue, 28.57142857142857, 'share bound reflects normalized effective cap');
-  assertClose(shareSlack?.slack, 71.42857143, 'share slack');
-  assertClose(shareSlack?.actualValue, 100, 'share actual activity');
+  assertClose(shareSlack?.slack, 51.42857143, 'share slack');
+  assertClose(shareSlack?.actualValue, 80, 'share actual activity');
   assertClose(activitySlack?.slack, 50, 'activity slack');
   assertClose(activitySlack?.actualValue, 80, 'activity actual output');
   assertClose(electricitySlack?.slack, 20, 'electricity slack');
@@ -1046,7 +1049,7 @@ test('zero raw max shares fall back to equal effective shares across enabled pat
   assertClose(shareB?.effectiveMaxShare, 0.5, 'equal_b effective max share falls back to 50%');
 });
 
-test('one-hot exact-share controls do not narrow the cap-normalization denominator', () => {
+test('one-hot exact-share controls normalize caps over active states', () => {
   const request = {
     contractVersion: SOLVER_CONTRACT_VERSION,
     requestId: 'lp-adapter-exact-share-cap-denominator',
@@ -1088,7 +1091,7 @@ test('one-hot exact-share controls do not narrow the cap-normalization denominat
       commodityPriceByCommodity: {},
       carbonPriceByYear: { 2030: 0 },
       options: {
-        respectMaxShare: false,
+        respectMaxShare: true,
         respectMaxActivity: true,
         softConstraints: false,
         allowRemovalsCredit: false,
@@ -1108,6 +1111,6 @@ test('one-hot exact-share controls do not narrow the cap-normalization denominat
   assert.equal(result.status, 'solved');
   assertClose(variables.get('activity:selected_a::2030'), 100, 'selected exact-share state carries the full demand');
   assertClose(variables.get('activity:available_b::2030'), 0, 'other available state stays inactive');
-  assertClose(selectedShare?.effectiveMaxShare, 0.16666666666666669, 'selected exact-share state cap stays normalized against all available pathways');
-  assertClose(availableShare?.effectiveMaxShare, 0.8333333333333334, 'other available pathways remain in the cap denominator');
+  assertClose(selectedShare?.effectiveMaxShare, 1, 'selected exact-share state cap expands to the full active denominator');
+  assert.equal(availableShare?.effectiveMaxShare, null, 'zero-share available pathways drop out of the cap denominator');
 });

@@ -89,13 +89,15 @@ export function derivePathwayStateIds(
   const disabledStateIds = new Set(normalizedControl?.disabledStateIds ?? []);
   const availableStateIds = uniqueStateIds.filter((stateId) => !disabledStateIds.has(stateId));
   const activeStateIds = deriveActiveStateIds(availableStateIds, normalizedControl);
+  const capEligibleStateIds = normalizedControl?.mode === 'fixed_shares' && activeStateIds.length > 0
+    ? activeStateIds
+    : availableStateIds;
 
   return {
     allStateIds: uniqueStateIds,
     availableStateIds,
     activeStateIds,
-    // Exact controls do not redefine the cap denominator in Phase 1.
-    capEligibleStateIds: availableStateIds,
+    capEligibleStateIds,
   };
 }
 
