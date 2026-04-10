@@ -9,7 +9,6 @@ export type ConfigurationControlMode =
   | 'fixed_shares'
   | 'optimize'
   | 'externalized'
-  | 'off'
   | 'target';
 
 export const CONFIGURATION_YEARS = [2025, 2030, 2035, 2040, 2045, 2050] as const;
@@ -25,13 +24,14 @@ export interface ConfigurationServiceControlYearOverride {
   mode?: ConfigurationControlMode;
   fixed_shares?: Record<string, number> | null;
   target_value?: number | null;
+  active_state_ids?: string[] | null;
 }
 
 export interface ConfigurationServiceControl {
   mode: ConfigurationControlMode;
   fixed_shares?: Record<string, number> | null;
   target_value?: number | null;
-  disabled_state_ids?: string[] | null;
+  active_state_ids?: string[] | null;
   year_overrides?: Partial<Record<ConfigurationYearKey, ConfigurationServiceControlYearOverride>> | null;
 }
 
