@@ -16,11 +16,11 @@ bd dolt push          # Push beads data to remote
 
 When an agent is asked to work on a specific issue, it must always do that work in a dedicated git worktree and land it onto `main` through the acquisition of the beads merge-slot issue to prevent more than one agent at a time merging into `main`.
 
-### Work in a worktree
+### A. Work in a worktree
 
 Claim the issue, then do the work in a git worktree.
 
-### Landing issue work onto `main`
+### B. Landing issue work onto `main`
 
 1. Finish the work in the issue worktree and commit it there first.
 2. Return to the primary `main` checkout before merging.
