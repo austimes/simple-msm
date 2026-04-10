@@ -62,21 +62,21 @@ export const RIGHT_SIDEBAR_STATUS_LEGEND: RightSidebarLegendItem[] = [
   },
   {
     key: 'active-pathways',
-    label: 'Solve-active pathways',
+    label: 'Active pathways',
     tone: 'info',
-    description: 'Shown when the current solve mix is narrower than the enabled pathway set.',
+    description: 'Number of pathways active in the current solve.',
   },
   {
     key: 'no-pathways',
-    label: 'No enabled pathways',
+    label: 'No active pathways',
     tone: 'warning',
-    description: 'Pathway enablement is separate from seed scope or effective run inclusion.',
+    description: 'Pathway activity is separate from seed scope or effective run inclusion.',
   },
   {
     key: 'blocked-demand',
-    label: 'Demand active but no enabled pathways',
+    label: 'Demand active but no active pathways',
     tone: 'danger',
-    description: 'The solve is blocked until at least one pathway is enabled again.',
+    description: 'The solve is blocked until at least one pathway is activated.',
   },
 ];
 
@@ -85,34 +85,18 @@ function buildPathwayBadge(status: DerivedOutputRunStatus): RightSidebarBadge | 
     return null;
   }
 
-  if (status.availableStateCount === 0) {
+  if (status.activeStateCount === 0) {
     return {
       key: 'no-pathways',
-      label: 'No enabled pathways',
+      label: 'No active pathways',
       tone: status.hasDemandValidationError ? 'danger' : 'warning',
     };
   }
 
   return {
-    key: 'available-pathways',
-    label: `${status.availableStateCount} enabled ${status.availableStateCount === 1 ? 'pathway' : 'pathways'}`,
-    tone: 'success',
-  };
-}
-
-function buildActivePathwayBadge(status: DerivedOutputRunStatus): RightSidebarBadge | null {
-  if (
-    status.supplyParticipation === 'externalized_in_run'
-    || status.availableStateCount === 0
-    || status.activeStateCount === status.availableStateCount
-  ) {
-    return null;
-  }
-
-  return {
     key: 'active-pathways',
-    label: `${status.activeStateCount} solve-active ${status.activeStateCount === 1 ? 'pathway' : 'pathways'}`,
-    tone: status.activeStateCount > 0 ? 'info' : 'warning',
+    label: `${status.activeStateCount} active ${status.activeStateCount === 1 ? 'pathway' : 'pathways'}`,
+    tone: 'success',
   };
 }
 
@@ -151,10 +135,10 @@ function buildDemandBadge(status: DerivedOutputRunStatus): RightSidebarBadge | n
         label: 'Demand excluded from this run',
         tone: 'muted',
       };
-    case 'no_enabled_pathways':
+    case 'no_active_pathways':
       return {
         key: 'blocked-demand',
-        label: 'Demand active but no enabled pathways',
+        label: 'Demand active but no active pathways',
         tone: 'danger',
       };
     default:
@@ -205,7 +189,7 @@ function buildDetail(status: DerivedOutputRunStatus): string {
   }
 
   if (status.hasDemandValidationError) {
-    return `${detail} Demand is still active, but no pathways are enabled.`;
+    return `${detail} Demand is still active, but no pathways are active.`;
   }
 
   if (status.supplyParticipation === 'externalized_in_run') {
@@ -213,16 +197,7 @@ function buildDetail(status: DerivedOutputRunStatus): string {
   }
 
   if (status.isDisabled) {
-    return `${detail} No pathways are currently enabled.`;
-  }
-
-  if (status.controlMode === 'off') {
-    return `${detail} Pathways can stay enabled for editing, but the current control leaves none solve-active or in the cap denominator.`;
-  }
-
-  if (status.controlMode === 'fixed_shares' && status.activeStateCount < status.availableStateCount) {
-    const inactiveEnabledCount = status.availableStateCount - status.activeStateCount;
-    return `${detail} ${status.activeStateCount} enabled ${status.activeStateCount === 1 ? 'pathway has' : 'pathways have'} positive exact shares, so ${status.activeStateCount === 1 ? 'it stays' : 'they stay'} solve-active and in the cap denominator. The other ${inactiveEnabledCount} enabled ${inactiveEnabledCount === 1 ? 'pathway remains' : 'pathways remain'} editable but ${inactiveEnabledCount === 1 ? 'does' : 'do'} not carry activity until ${inactiveEnabledCount === 1 ? 'its' : 'their'} exact share rises above zero.`;
+    return `${detail} No pathways are currently active.`;
   }
 
   return detail;
@@ -246,7 +221,6 @@ export function getRightSidebarStatusPresentation(
     buildSupplyBadge(status),
     buildRunParticipationBadge(status),
     buildPathwayBadge(status),
-    buildActivePathwayBadge(status),
   ].filter((badge): badge is RightSidebarBadge => badge !== null);
 
   return {

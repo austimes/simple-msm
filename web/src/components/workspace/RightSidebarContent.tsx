@@ -12,14 +12,14 @@ export interface RightSidebarContentProps {
   tree: RightSidebarSectorNode[];
   onToggleExpandedSector: (sector: string) => void;
   onToggleExpandedSubsector: (outputId: string) => void;
-  onToggleStateEnabled: (outputId: string, stateId: string) => void;
+  onToggleStateActive: (outputId: string, stateId: string) => void;
 }
 
 export default function RightSidebarContent({
   tree,
   onToggleExpandedSector,
   onToggleExpandedSubsector,
-  onToggleStateEnabled,
+  onToggleStateActive,
 }: RightSidebarContentProps) {
   return (
     <React.Fragment>
@@ -52,13 +52,11 @@ export default function RightSidebarContent({
             )}
           </div>
           {!sectorEntry.isCollapsed && sectorEntry.subsectors.map((sub) => {
-            const enabledStateIds = new Set(sub.enabledStateIds);
-            const solveActiveStateIds = new Set(sub.solveActiveStateIds);
+            const activeStateIdSet = new Set(sub.activeStateIds);
             const pathwaysInactive = sub.pathwaysInactive;
             const outOfScope = sub.outOfScope;
             const isCollapsed = sub.isCollapsed;
             const badges = sub.badges;
-            const showsSolveActivitySplit = !pathwaysInactive && sub.showsSolveActivitySplit;
 
             return (
               <div
@@ -98,32 +96,13 @@ export default function RightSidebarContent({
                 )}
                 {!isCollapsed && (
                   <div className="workspace-state-chips">
-                    {showsSolveActivitySplit && (
-                      <div className="workspace-subsector-detail">
-                        Enabled pathways stay editable here. Only pathways marked Active are
-                        currently carrying activity and defining the cap denominator.
-                      </div>
-                    )}
                     {sub.states.map((state) => {
-                      const isEnabled = !pathwaysInactive && enabledStateIds.has(state.stateId);
-                      const isSolveActive = !pathwaysInactive && solveActiveStateIds.has(state.stateId);
+                      const isActive = !pathwaysInactive && activeStateIdSet.has(state.stateId);
                       const chipClass = pathwaysInactive
                         ? 'workspace-state-chip--inactive'
-                        : !isEnabled
-                          ? 'workspace-state-chip--off'
-                          : showsSolveActivitySplit && !isSolveActive
-                            ? 'workspace-state-chip--enabled'
-                            : 'workspace-state-chip--on';
-                      const chipStatusLabel = showsSolveActivitySplit && isEnabled
-                        ? (isSolveActive ? 'Active' : 'Enabled')
-                        : null;
-                      const chipTitle = pathwaysInactive
-                        ? sub.presentation.detail
-                        : showsSolveActivitySplit && isEnabled
-                          ? (isSolveActive
-                              ? 'Enabled and solve-active under the current control.'
-                              : 'Enabled, but not solve-active under the current control.')
-                          : undefined;
+                        : isActive
+                          ? 'workspace-state-chip--on'
+                          : 'workspace-state-chip--off';
 
                       return (
                         <button
@@ -131,19 +110,17 @@ export default function RightSidebarContent({
                           type="button"
                           className={`workspace-state-chip ${chipClass}${outOfScope ? ' workspace-state-chip--dimmed' : ''}`}
                           onClick={() =>
-                            onToggleStateEnabled(sub.outputId, state.stateId)
+                            onToggleStateActive(sub.outputId, state.stateId)
                           }
                           disabled={pathwaysInactive}
-                          title={chipTitle}
+                          title={pathwaysInactive ? sub.presentation.detail : undefined}
                         >
                           <span>{state.stateLabel}</span>
-                          {chipStatusLabel && (
-                            <span
-                              className={`workspace-state-chip__status workspace-state-chip__status--${isSolveActive ? 'active' : 'enabled'}`}
-                            >
-                              {chipStatusLabel}
-                            </span>
-                          )}
+                          <span
+                            className={`workspace-state-chip__status workspace-state-chip__status--${isActive ? 'active' : 'inactive'}`}
+                          >
+                            {isActive ? 'Active' : 'Inactive'}
+                          </span>
                         </button>
                       );
                     })}
@@ -157,9 +134,7 @@ export default function RightSidebarContent({
       <div className="workspace-state-legend" role="note" aria-label="State selector status legend">
         <p className="workspace-state-legend-copy">
           Seed scope is shown separately from the effective run, which may auto-include dependencies.
-          Demand or supply participation is shown separately from pathway enablement.
-          When exact-share controls narrow the current mix, enabled pathways and solve-active
-          pathways are called out separately.
+          Pathway activity shows which pathways participate in the current solve.
         </p>
         <div className="workspace-state-legend-items">
           {RIGHT_SIDEBAR_STATUS_LEGEND.map((item) => (
