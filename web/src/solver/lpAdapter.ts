@@ -78,9 +78,7 @@ interface ResolvedMaxShareBounds {
 
 interface RowShareProfile {
   row: NormalizedSolverRow;
-  disabled: boolean;
   active: boolean;
-  capEligible: boolean;
   lowerShare: number;
   upperShare: number;
   upperShareIgnoringActivity: number;
@@ -540,8 +538,8 @@ function buildEffectiveMaxShareLookup(
     rows.map((row) => row.stateId),
     control,
   );
-  const capEligibleStateIds = new Set(pathwayStateIds.capEligibleStateIds);
-  const capEligibleRows = rows.filter((row) => capEligibleStateIds.has(row.stateId));
+  const activeStateIds = new Set(pathwayStateIds.activeStateIds);
+  const activeRows = rows.filter((row) => activeStateIds.has(row.stateId));
 
   for (const row of rows) {
     lookup.set(row.rowId, {
@@ -550,16 +548,16 @@ function buildEffectiveMaxShareLookup(
     });
   }
 
-  if (capEligibleRows.length === 0) {
+  if (activeRows.length === 0) {
     return lookup;
   }
 
-  const weights = capEligibleRows.map((row) => ({
+  const weights = activeRows.map((row) => ({
     rowId: row.rowId,
     weight: clampShare(row.bounds.maxShare ?? 1),
   }));
   const totalWeight = weights.reduce((sum, entry) => sum + entry.weight, 0);
-  const fallbackShare = 1 / capEligibleRows.length;
+  const fallbackShare = 1 / activeRows.length;
 
   for (const { rowId, weight } of weights) {
     const existing = lookup.get(rowId);
@@ -594,15 +592,13 @@ function buildRowShareProfiles(
     rows.map((row) => row.stateId),
     control,
   );
-  const availableStateIds = new Set(pathwayStateIds.availableStateIds);
   const activeStateIds = new Set(pathwayStateIds.activeStateIds);
-  const capEligibleStateIds = new Set(pathwayStateIds.capEligibleStateIds);
   const maxShareLookup = buildEffectiveMaxShareLookup(rows, control);
 
   return [...rows]
     .sort((left, right) => left.stateLabel.localeCompare(right.stateLabel))
     .map((row) => {
-      const disabled = !availableStateIds.has(row.stateId);
+      const inactive = !activeStateIds.has(row.stateId);
       const resolvedMaxShare = maxShareLookup.get(row.rowId) ?? {
         rawMaxShare: row.bounds.maxShare == null ? null : clampShare(row.bounds.maxShare),
         effectiveMaxShare: null,
@@ -611,24 +607,22 @@ function buildRowShareProfiles(
         ? resolvedMaxShare.effectiveMaxShare
         : null;
       const maxActivityLimit = request.configuration.options.respectMaxActivity ? row.bounds.maxActivity : null;
-      const upperShareIgnoringActivity = disabled
+      const upperShareIgnoringActivity = inactive
         ? 0
         : maxShareLimit == null
           ? 1
           : clampShare(maxShareLimit);
-      const upperShareFromActivity = disabled || referenceDemand <= SHARE_TOLERANCE || maxActivityLimit == null
+      const upperShareFromActivity = inactive || referenceDemand <= SHARE_TOLERANCE || maxActivityLimit == null
         ? 1
         : Math.max(0, maxActivityLimit / referenceDemand);
-      const upperShare = disabled
+      const upperShare = inactive
         ? 0
         : clampShare(Math.min(upperShareIgnoringActivity, upperShareFromActivity));
 
       return {
         row,
-        disabled,
-        active: activeStateIds.has(row.stateId),
-        capEligible: capEligibleStateIds.has(row.stateId),
-        lowerShare: disabled || referenceDemand <= SHARE_TOLERANCE ? 0 : Math.max(0, row.bounds.minShare ?? 0),
+        active: !inactive,
+        lowerShare: inactive || referenceDemand <= SHARE_TOLERANCE ? 0 : Math.max(0, row.bounds.minShare ?? 0),
         upperShare,
         upperShareIgnoringActivity,
         exactShare: resolveExactShare(control, row),
@@ -662,7 +656,7 @@ function estimateMinimumCommodityDemandForGroup(
     }, 0);
   }
 
-  const activeProfiles = profiles.filter((profile) => !profile.disabled);
+  const activeProfiles = profiles.filter((profile) => profile.active);
   if (activeProfiles.length === 0) {
     return null;
   }
@@ -741,16 +735,18 @@ function estimateMinimumCommodityDemand(
 function estimateMaximumSupplyActivity(
   group: SupplyCommodityGroup,
   request: SolveRequest,
-  includeDisabledStates = false,
+  includeInactiveStates = false,
 ): number {
   if (group.control.mode === 'externalized') {
     return 0;
   }
 
-  const disabledStateIds = new Set(group.control.disabledStateIds);
-  const rows = includeDisabledStates
+  const activeStateIds = group.control.activeStateIds ? new Set(group.control.activeStateIds) : null;
+  const rows = includeInactiveStates
     ? group.rows
-    : group.rows.filter((row) => !disabledStateIds.has(row.stateId));
+    : activeStateIds
+      ? group.rows.filter((row) => activeStateIds.has(row.stateId))
+      : group.rows;
 
   if (rows.length === 0) {
     return 0;
@@ -796,22 +792,22 @@ function buildRequiredServiceInfeasibilityDiagnostics(build: ConfigurationLpBuil
     }
 
     const profiles = buildRowShareProfiles(group.rows, group.control, group.demand, build.request);
-    const activeProfiles = profiles.filter((profile) => !profile.disabled);
-    const disabledProfiles = profiles.filter((profile) => profile.disabled);
+    const activeProfiles = profiles.filter((profile) => profile.active);
+    const inactiveProfiles = profiles.filter((profile) => !profile.active);
 
     if (group.control.mode === 'fixed_shares') {
       for (const profile of profiles) {
         const exactShare = profile.exactShare ?? 0;
 
-        if (profile.disabled && exactShare > SHARE_TOLERANCE) {
+        if (!profile.active && exactShare > SHARE_TOLERANCE) {
           diagnostics.push({
-            code: 'exact_control_hits_disabled_state',
+            code: 'exact_control_hits_inactive_state',
             severity: 'error',
-            reason: 'disabled_states',
-            message: `${group.outputLabel} in ${group.year} requires disabled state ${profile.row.stateLabel} under the current exact-share control.`,
+            reason: 'inactive_states',
+            message: `${group.outputLabel} in ${group.year} requires inactive state ${profile.row.stateLabel} under the current exact-share control.`,
             ...buildConstraintContext(group.outputId, group.year, profile.row.stateId, profile.row.rowId),
-            relatedConstraintIds: [stateConstraintId('disabled', profile.row), stateConstraintId(controlConstraintPrefix(group.control.mode), profile.row)],
-            suggestion: 'Re-enable the state or relax the exact-share control for this service-year.',
+            relatedConstraintIds: [stateConstraintId('inactive', profile.row), stateConstraintId(controlConstraintPrefix(group.control.mode), profile.row)],
+            suggestion: 'Activate the state or relax the exact-share control for this service-year.',
           });
         }
 
@@ -858,13 +854,13 @@ function buildRequiredServiceInfeasibilityDiagnostics(build: ConfigurationLpBuil
 
     if (activeProfiles.length === 0) {
       diagnostics.push({
-        code: 'service_states_disabled',
+        code: 'service_states_inactive',
         severity: 'error',
-        reason: 'disabled_states',
-        message: `${group.outputLabel} in ${group.year} has positive demand but every available state is disabled.`,
+        reason: 'inactive_states',
+        message: `${group.outputLabel} in ${group.year} has positive demand but every available state is inactive.`,
         ...buildConstraintContext(group.outputId, group.year),
-        relatedConstraintIds: disabledProfiles.map((profile) => stateConstraintId('disabled', profile.row)),
-        suggestion: 'Re-enable at least one state for this service-year or drop the demand to zero.',
+        relatedConstraintIds: inactiveProfiles.map((profile) => stateConstraintId('inactive', profile.row)),
+        suggestion: 'Activate at least one state for this service-year or drop the demand to zero.',
       });
       continue;
     }
@@ -887,17 +883,17 @@ function buildRequiredServiceInfeasibilityDiagnostics(build: ConfigurationLpBuil
     const upperTotal = sumShares(activeProfiles, 'upperShare');
     if (upperTotal < 1 - SHARE_TOLERANCE) {
       const upperIgnoringActivityTotal = sumShares(activeProfiles, 'upperShareIgnoringActivity');
-      const upperWithDisabledStates = sumShares(profiles, 'upperShareIgnoringActivity');
+      const upperWithInactiveStates = sumShares(profiles, 'upperShareIgnoringActivity');
 
-      if (disabledProfiles.length > 0 && upperWithDisabledStates >= 1 - SHARE_TOLERANCE) {
+      if (inactiveProfiles.length > 0 && upperWithInactiveStates >= 1 - SHARE_TOLERANCE) {
         diagnostics.push({
-          code: 'service_disabled_states_exhausted',
+          code: 'service_inactive_states_exhausted',
           severity: 'error',
-          reason: 'disabled_states',
-          message: `${group.outputLabel} in ${group.year} would have enough eligible share if disabled states were re-enabled.`,
+          reason: 'inactive_states',
+          message: `${group.outputLabel} in ${group.year} would have enough eligible share if inactive states were activated.`,
           ...buildConstraintContext(group.outputId, group.year),
-          relatedConstraintIds: disabledProfiles.map((profile) => stateConstraintId('disabled', profile.row)),
-          suggestion: 'Re-enable one or more disabled states for this service-year.',
+          relatedConstraintIds: inactiveProfiles.map((profile) => stateConstraintId('inactive', profile.row)),
+          suggestion: 'Activate one or more inactive states for this service-year.',
         });
       }
 
@@ -923,7 +919,7 @@ function buildRequiredServiceInfeasibilityDiagnostics(build: ConfigurationLpBuil
           relatedConstraintIds: activeProfiles
             .filter((profile) => profile.maxActivityLimit != null)
             .map((profile) => stateConstraintId('max_activity', profile.row)),
-          suggestion: 'Increase max activity, re-enable more states, or lower demand for this service-year.',
+          suggestion: 'Increase max activity, activate more states, or lower demand for this service-year.',
         });
       }
     }
@@ -958,8 +954,8 @@ function buildSupplyCommodityInfeasibilityDiagnostics(build: ConfigurationLpBuil
       build.request,
       group.commodityId,
     );
-    const activeProfiles = profiles.filter((profile) => !profile.disabled);
-    const disabledProfiles = profiles.filter((profile) => profile.disabled);
+    const activeProfiles = profiles.filter((profile) => profile.active);
+    const inactiveProfiles = profiles.filter((profile) => !profile.active);
 
     if (group.control.mode === 'fixed_shares') {
       for (const profile of profiles) {
@@ -1005,13 +1001,13 @@ function buildSupplyCommodityInfeasibilityDiagnostics(build: ConfigurationLpBuil
     } else if (group.control.mode === 'optimize') {
       if (activeProfiles.length === 0) {
         diagnostics.push({
-          code: 'supply_states_disabled',
+          code: 'supply_states_inactive',
           severity: 'error',
-          reason: 'disabled_states',
-          message: `${group.commodityLabel} in ${group.year} is required, but every supply state is disabled.`,
+          reason: 'inactive_states',
+          message: `${group.commodityLabel} in ${group.year} is required, but every supply state is inactive.`,
           ...buildConstraintContext(group.commodityId, group.year),
-          relatedConstraintIds: disabledProfiles.map((profile) => stateConstraintId('disabled', profile.row)),
-          suggestion: 'Re-enable at least one supply state or externalize the commodity for this year.',
+          relatedConstraintIds: inactiveProfiles.map((profile) => stateConstraintId('inactive', profile.row)),
+          suggestion: 'Activate at least one supply state or externalize the commodity for this year.',
         });
         continue;
       }
@@ -1049,20 +1045,20 @@ function buildSupplyCommodityInfeasibilityDiagnostics(build: ConfigurationLpBuil
 
     const maximumSupply = estimateMaximumSupplyActivity(group, build.request);
     if (Number.isFinite(maximumSupply) && maximumSupply + SHARE_TOLERANCE < minimumRequiredSupply) {
-      const maximumSupplyIfReenabled = estimateMaximumSupplyActivity(group, build.request, true);
+      const maximumSupplyIfActivated = estimateMaximumSupplyActivity(group, build.request, true);
       if (
-        disabledProfiles.length > 0
-        && Number.isFinite(maximumSupplyIfReenabled)
-        && maximumSupplyIfReenabled + SHARE_TOLERANCE >= minimumRequiredSupply
+        inactiveProfiles.length > 0
+        && Number.isFinite(maximumSupplyIfActivated)
+        && maximumSupplyIfActivated + SHARE_TOLERANCE >= minimumRequiredSupply
       ) {
         diagnostics.push({
-          code: 'electricity_balance_disabled_supply',
+          code: 'electricity_balance_inactive_supply',
           severity: 'error',
-          reason: 'disabled_states',
-          message: `${group.commodityLabel} in ${group.year} would meet the minimum required ${formatNumber(minimumRequiredSupply)} units if disabled supply states were re-enabled.`,
+          reason: 'inactive_states',
+          message: `${group.commodityLabel} in ${group.year} would meet the minimum required ${formatNumber(minimumRequiredSupply)} units if inactive supply states were activated.`,
           ...buildConstraintContext(group.commodityId, group.year),
-          relatedConstraintIds: disabledProfiles.map((profile) => stateConstraintId('disabled', profile.row)),
-          suggestion: 'Re-enable one or more disabled supply states or externalize the commodity for this year.',
+          relatedConstraintIds: inactiveProfiles.map((profile) => stateConstraintId('inactive', profile.row)),
+          suggestion: 'Activate one or more inactive supply states or externalize the commodity for this year.',
         });
       }
 
@@ -1070,10 +1066,10 @@ function buildSupplyCommodityInfeasibilityDiagnostics(build: ConfigurationLpBuil
         code: 'electricity_balance_shortfall',
         severity: 'error',
         reason: 'electricity_balance_conflict',
-        message: `${group.commodityLabel} in ${group.year} needs at least ${formatNumber(minimumRequiredSupply)} units to cover modeled and external demand, but the enabled supply states can provide at most ${formatNumber(maximumSupply)}.`,
+        message: `${group.commodityLabel} in ${group.year} needs at least ${formatNumber(minimumRequiredSupply)} units to cover modeled and external demand, but the active supply states can provide at most ${formatNumber(maximumSupply)}.`,
         ...buildConstraintContext(group.commodityId, group.year),
         relatedConstraintIds: [commodityBalanceConstraintId(group.commodityId, group.year)],
-        suggestion: 'Raise supply max activity, relax exact supply controls, re-enable supply states, or externalize the commodity for this year.',
+        suggestion: 'Raise supply max activity, relax exact supply controls, activate supply states, or externalize the commodity for this year.',
       });
     }
   }
@@ -1141,7 +1137,7 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
   const ignoredRows = request.rows.filter((row) => row.outputRole === 'optional_removals');
   const activeIgnoredRows = ignoredRows.filter((row) => {
     const control = request.configuration.controlsByOutput[row.outputId]?.[yearKey(row.year)];
-    return !control || !control.disabledStateIds.includes(row.stateId);
+    return !control || !control.activeStateIds || control.activeStateIds.includes(row.stateId);
   });
   const hasUnmodeledFeatures = activeIgnoredRows.length > 0 || request.configuration.options.shareSmoothing.enabled;
 
@@ -1206,7 +1202,7 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
 
   for (const group of requiredServiceGroups) {
     const demandId = demandConstraintId(group.outputId, group.year);
-    const disabledStateIds = new Set(group.control.disabledStateIds);
+    const activeStateIds = group.control.activeStateIds ? new Set(group.control.activeStateIds) : null;
     const fixedShares = group.control.fixedShares ?? {};
     const maxShareLookup = buildEffectiveMaxShareLookup(group.rows, group.control);
 
@@ -1229,16 +1225,16 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
       const variableId = activityVariableId(row);
       setVariableConstraintCoefficient(variables, variableId, demandId, 1);
 
-      if (disabledStateIds.has(row.stateId)) {
+      if (activeStateIds && !activeStateIds.has(row.stateId)) {
         addConstraint(
           constraints,
           trackedConstraints,
           variables,
           variableId,
-          stateConstraintId('disabled', row),
+          stateConstraintId('inactive', row),
           scaleConstraintBounds({ equal: 0 }, activityScale),
           {
-            kind: 'disabled_state',
+            kind: 'inactive_state',
             outputId: row.outputId,
             outputLabel: row.outputLabel,
             year: row.year,
@@ -1246,7 +1242,7 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
             stateLabel: row.stateLabel,
             rowId: row.rowId,
             mode: group.control.mode,
-            message: `${row.stateLabel} is disabled for ${row.outputLabel} in ${row.year}.`,
+            message: `${row.stateLabel} is inactive for ${row.outputLabel} in ${row.year}.`,
           },
         );
         continue;
@@ -1367,7 +1363,7 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
 
   for (const group of supplyGroups) {
     const variableIds = group.rows.map((row) => activityVariableId(row));
-    const disabledStateIds = new Set(group.control.disabledStateIds);
+    const activeStateIds = group.control.activeStateIds ? new Set(group.control.activeStateIds) : null;
     const fixedShares = group.control.fixedShares ?? {};
     const maxShareLookup = buildEffectiveMaxShareLookup(group.rows, group.control);
 
@@ -1430,16 +1426,16 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
       const variableId = activityVariableId(row);
       setVariableConstraintCoefficient(variables, variableId, balanceId, 1);
 
-      if (disabledStateIds.has(row.stateId)) {
+      if (activeStateIds && !activeStateIds.has(row.stateId)) {
         addConstraint(
           constraints,
           trackedConstraints,
           variables,
           variableId,
-          stateConstraintId('disabled', row),
+          stateConstraintId('inactive', row),
           scaleConstraintBounds({ equal: 0 }, activityScale),
           {
-            kind: 'disabled_state',
+            kind: 'inactive_state',
             outputId: row.outputId,
             outputLabel: row.outputLabel,
             year: row.year,
@@ -1448,7 +1444,7 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
             rowId: row.rowId,
             commodityId: group.commodityId,
             mode: group.control.mode,
-            message: `${row.stateLabel} is disabled for ${row.outputLabel} in ${row.year}.`,
+            message: `${row.stateLabel} is inactive for ${row.outputLabel} in ${row.year}.`,
           },
         );
         continue;
@@ -2012,7 +2008,7 @@ export function inspectConfigurationLpBuild(request: SolveRequest) {
       year: group.year,
       demand: group.demand,
       mode: group.control.mode,
-      disabledStateIds: group.control.disabledStateIds,
+      activeStateIds: group.control.activeStateIds,
       rowCount: group.rows.length,
     })),
     supplyGroups: build.supplyGroups.map((group) => ({
@@ -2021,7 +2017,7 @@ export function inspectConfigurationLpBuild(request: SolveRequest) {
       year: group.year,
       externalDemand: group.externalDemand,
       mode: group.control.mode,
-      disabledStateIds: group.control.disabledStateIds,
+      activeStateIds: group.control.activeStateIds,
       rowCount: group.rows.length,
     })),
     variableCount: Object.keys(build.model.variables).length,

@@ -33,7 +33,7 @@ function resolveControlForYear(
   return {
     mode: override?.mode ?? control?.mode ?? defaultMode,
     fixedShares: override?.fixed_shares ?? control?.fixed_shares ?? null,
-    disabledStateIds: control?.disabled_state_ids ?? [],
+    activeStateIds: override?.active_state_ids ?? control?.active_state_ids ?? null,
     targetValue: override?.target_value ?? control?.target_value ?? null,
   };
 }

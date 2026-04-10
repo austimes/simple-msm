@@ -34,17 +34,7 @@ export function toPathwayControlInput(
     return undefined;
   }
 
-  // ResolvedSolveControl (camelCase) — still has disabledStateIds during migration
-  if ('disabledStateIds' in control) {
-    const resolved = control as ResolvedSolveControl;
-    return {
-      mode: resolved.mode ?? null,
-      fixedShares: resolved.fixedShares ?? null,
-      activeStateIds: null,
-    };
-  }
-
-  // PathwayControlInput (already has activeStateIds)
+  // ResolvedSolveControl or PathwayControlInput (camelCase with activeStateIds)
   if ('activeStateIds' in control || 'fixedShares' in control) {
     return {
       mode: control.mode ?? null,
