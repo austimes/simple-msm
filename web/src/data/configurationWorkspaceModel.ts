@@ -78,12 +78,12 @@ export function buildStateCatalog(
   return catalog;
 }
 
-export function getAvailableStateIds(
+export function getActiveStateIds(
   configuration: ConfigurationDocument,
   outputId: string,
   allStateIds: string[],
 ): string[] {
-  return derivePathwayStateIdsForOutput(configuration, outputId, allStateIds).availableStateIds;
+  return derivePathwayStateIdsForOutput(configuration, outputId, allStateIds).activeStateIds;
 }
 
 export function getActiveDemandPreset(

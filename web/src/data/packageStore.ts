@@ -19,7 +19,7 @@ import {
   loadBuiltinConfigurations,
   withSeedOutputIds,
 } from './configurationLoader.ts';
-import { getAvailableStateIds } from './configurationWorkspaceModel.ts';
+import { getActiveStateIds } from './configurationWorkspaceModel.ts';
 
 export type ConfigurationDraftSource = 'reference' | 'local_draft' | 'imported' | 'draft' | 'configuration';
 
@@ -42,7 +42,7 @@ interface PackageStore extends PackageData {
   resetCurrentConfiguration: () => void;
   setCommodityPriceLevel: (commodityId: string, level: PriceLevel) => void;
   setCarbonPricePreset: (presetId: string) => void;
-  toggleStateEnabled: (outputId: string, stateId: string) => void;
+  toggleStateActive: (outputId: string, stateId: string) => void;
   setOutputControlMode: (outputId: string, mode: ConfigurationControlMode) => void;
   setOutputFixedShare: (outputId: string, stateId: string, share: number) => void;
   setDemandPreset: (presetId: string) => void;
@@ -75,8 +75,8 @@ function configurationsEqual(a: ConfigurationDocument, b: ConfigurationDocument)
   const normalize = (configuration: ConfigurationDocument): unknown => {
     const clone = structuredClone(configuration);
     for (const control of Object.values(clone.service_controls ?? {})) {
-      if (control?.disabled_state_ids) {
-        control.disabled_state_ids = [...control.disabled_state_ids].sort();
+      if (control?.active_state_ids) {
+        control.active_state_ids = [...control.active_state_ids].sort();
       }
     }
     return JSON.stringify(sortNestedValue(clone));
@@ -102,14 +102,14 @@ function getAllStateIdsForOutput(
 }
 
 function normalizeFixedShares(
-  availableStateIds: string[],
+  stateIds: string[],
   fixedShares: Record<string, number> | null | undefined,
 ): Record<string, number> | null {
-  if (availableStateIds.length === 0) {
+  if (stateIds.length === 0) {
     return null;
   }
 
-  const filteredEntries = availableStateIds
+  const filteredEntries = stateIds
     .map((stateId) => {
       const share = fixedShares?.[stateId];
       return [stateId, typeof share === 'number' ? Math.max(0, share) : 0] as const;
@@ -120,56 +120,10 @@ function normalizeFixedShares(
     return Object.fromEntries(filteredEntries);
   }
 
-  const equalShare = 1 / availableStateIds.length;
+  const equalShare = 1 / stateIds.length;
   return Object.fromEntries(
-    availableStateIds.map((stateId) => [stateId, equalShare]),
+    stateIds.map((stateId) => [stateId, equalShare]),
   );
-}
-
-function reconcileControlForAvailableStates(
-  control: ConfigurationServiceControl,
-  allowedModes: ConfigurationControlMode[],
-  defaultMode: ConfigurationControlMode | undefined,
-  availableStateIds: string[],
-): ConfigurationServiceControl {
-  if (availableStateIds.length === 0) {
-    return control.mode === 'off'
-      ? {
-          ...control,
-          mode: defaultMode && defaultMode !== 'off' ? defaultMode : 'optimize',
-        }
-      : control;
-  }
-
-  if (control.mode === 'fixed_shares' && allowedModes.includes('fixed_shares')) {
-    return {
-      ...control,
-      fixed_shares: normalizeFixedShares(availableStateIds, control.fixed_shares),
-    };
-  }
-
-  if (control.mode !== 'off' && allowedModes.includes(control.mode)) {
-    return {
-      ...control,
-      fixed_shares: control.mode === 'fixed_shares' ? control.fixed_shares : null,
-    };
-  }
-
-  if (allowedModes.includes('fixed_shares')) {
-    return {
-      ...control,
-      mode: 'fixed_shares',
-      fixed_shares: normalizeFixedShares(availableStateIds, control.fixed_shares),
-    };
-  }
-
-  return {
-    ...control,
-    mode: allowedModes.includes('optimize')
-      ? 'optimize'
-      : (defaultMode && defaultMode !== 'off' ? defaultMode : 'optimize'),
-    fixed_shares: null,
-  };
 }
 
 function persistActiveConfigurationMeta(state: {
@@ -338,36 +292,29 @@ export const usePackageStore = create<PackageStore>((set, get) => {
       nextConfiguration.carbon_price = { ...preset.values_by_year };
       commitConfigurationEdit(nextConfiguration);
     },
-    toggleStateEnabled: (outputId, stateId) => {
+    toggleStateActive: (outputId, stateId) => {
       const nextConfiguration = cloneConfiguration(get().currentConfiguration);
       const allStateIds = getAllStateIdsForOutput(get().sectorStates, outputId);
-      const availableStateIdSet = new Set(
-        getAvailableStateIds(nextConfiguration, outputId, allStateIds),
+      const currentActiveIds = new Set(
+        getActiveStateIds(nextConfiguration, outputId, allStateIds),
       );
 
-      if (availableStateIdSet.has(stateId)) {
-        availableStateIdSet.delete(stateId);
+      if (currentActiveIds.has(stateId)) {
+        currentActiveIds.delete(stateId);
       } else {
-        availableStateIdSet.add(stateId);
+        currentActiveIds.add(stateId);
       }
 
-      const availableStateIds = allStateIds.filter((id) => availableStateIdSet.has(id));
-      const disabledStateIds = allStateIds.filter((id) => !availableStateIdSet.has(id));
-
-      const metadata = get().appConfig.output_roles[outputId];
-      const allowed = new Set(metadata?.allowed_control_modes ?? []);
+      const activeStateIds = allStateIds.filter((id) => currentActiveIds.has(id));
 
       const existing = nextConfiguration.service_controls[outputId] ?? {
         mode: 'optimize',
-        disabled_state_ids: [],
       };
 
-      const control = reconcileControlForAvailableStates({
+      nextConfiguration.service_controls[outputId] = {
         ...existing,
-        disabled_state_ids: disabledStateIds.length > 0 ? disabledStateIds : [],
-      }, Array.from(allowed), metadata?.default_control_mode, availableStateIds);
-
-      nextConfiguration.service_controls[outputId] = control;
+        active_state_ids: activeStateIds.length === allStateIds.length ? null : activeStateIds,
+      };
       commitConfigurationEdit(nextConfiguration);
     },
     setOutputControlMode: (outputId, mode) => {
@@ -380,16 +327,15 @@ export const usePackageStore = create<PackageStore>((set, get) => {
       const nextConfiguration = cloneConfiguration(get().currentConfiguration);
       const control: ConfigurationServiceControl = nextConfiguration.service_controls[outputId] ?? {
         mode: 'optimize',
-        disabled_state_ids: [],
       };
       const allStateIds = getAllStateIdsForOutput(get().sectorStates, outputId);
-      const availableStateIds = getAvailableStateIds(nextConfiguration, outputId, allStateIds);
+      const activeStateIds = getActiveStateIds(nextConfiguration, outputId, allStateIds);
 
       nextConfiguration.service_controls[outputId] = mode === 'fixed_shares'
         ? {
             ...control,
             mode,
-            fixed_shares: normalizeFixedShares(availableStateIds, control.fixed_shares),
+            fixed_shares: normalizeFixedShares(activeStateIds, control.fixed_shares),
           }
         : {
             ...control,
@@ -408,12 +354,10 @@ export const usePackageStore = create<PackageStore>((set, get) => {
       const nextConfiguration = cloneConfiguration(get().currentConfiguration);
       const existing: ConfigurationServiceControl = nextConfiguration.service_controls[outputId] ?? {
         mode: 'fixed_shares',
-        disabled_state_ids: [],
       };
       const allStateIds = getAllStateIdsForOutput(get().sectorStates, outputId);
-      const availableStateIds = getAvailableStateIds(nextConfiguration, outputId, allStateIds);
 
-      if (!availableStateIds.includes(stateId)) {
+      if (!allStateIds.includes(stateId)) {
         return;
       }
 
@@ -434,7 +378,7 @@ export const usePackageStore = create<PackageStore>((set, get) => {
         fixed_shares: Object.keys(nextFixedShares).length > 0
           ? Object.fromEntries(
               Object.entries(nextFixedShares)
-                .filter(([candidateId]) => availableStateIds.includes(candidateId)),
+                .filter(([candidateId]) => allStateIds.includes(candidateId)),
             )
           : null,
       };
