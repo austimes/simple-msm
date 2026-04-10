@@ -8,15 +8,15 @@ Primary input package: `aus_phase1_sector_state_library.zip`
 
 ## 1. Product summary
 
-Build a **stand-alone web application** that turns the Australia Phase 1 sector-state library into a fast, inspectable reduced-form scenario explorer.
+Build a **stand-alone web application** that turns the Australia Phase 1 sector-state library into a fast, inspectable reduced-form configuration explorer.
 
 The app should let a user:
 
 1. inspect every sector state, including provenance, assumptions, confidence, uncertainty, and derivation context,
-2. define scenarios that range from **fully exogenous** state selection to **mixed** and **fully endogenous** state allocation,
+2. define configurations that range from **fully exogenous** state selection to **mixed** and **fully endogenous** state allocation,
 3. set **commodity prices** and a **carbon price**,
 4. run a **generalized solver** that allocates activity across state-year rows subject to demand, share caps, activity caps, and supply balances,
-5. compare scenarios and clearly explain **why** results changed: electrification, fuel switching, efficiency, process-abatement, removals, and constraint effects.
+5. compare configurations and clearly explain **why** results changed: electrification, fuel switching, efficiency, process-abatement, removals, and constraint effects.
 
 The application must be **completely standalone from VedaLang/Vita**. It should be a small, opinionated explorer built only around the data and documentation already present in the Phase 1 package.
 
@@ -29,7 +29,7 @@ Create the smallest useful application that makes the library:
 - explainable,
 - and easy to iterate.
 
-The app is not a dispatch model, not a TIMES clone, and not a facility-level industrial model. It is a **fast scenario workbench** for the Phase 1 reduced-form state library.
+The app is not a dispatch model, not a TIMES clone, and not a facility-level industrial model. It is a **fast configuration workbench** for the Phase 1 reduced-form state library.
 
 ## 3. Inputs the app must consume
 
@@ -55,14 +55,14 @@ The app should load and use the following existing artifacts directly:
 These assumptions are already implicit in the library and should remain explicit in the app:
 
 ### 4.1 Cost convention
-`output_cost_per_unit` is primarily a **real-2024 non-commodity conversion/supply cost**. For most sectors it excludes the purchase cost of explicitly modeled input commodities. The app therefore must calculate **fully loaded cost** by adding commodity purchases and carbon costs at scenario runtime.
+`output_cost_per_unit` is primarily a **real-2024 non-commodity conversion/supply cost**. For most sectors it excludes the purchase cost of explicitly modeled input commodities. The app therefore must calculate **fully loaded cost** by adding commodity purchases and carbon costs at solve runtime.
 
 ### 4.2 Emissions convention
 For end-use sectors, `energy_emissions_by_pollutant` captures **direct on-site emissions only**. Electricity-related emissions are represented in the electricity-supply states, not in end-use rows. The app must preserve that boundary and avoid double counting.
 
 ### 4.3 Endogeneity in v1
 In this spec, “endogenous” means **endogenous allocation of activity across available states**.  
-It does **not** mean endogenous demand for service outputs. Demand remains scenario input.
+It does **not** mean endogenous demand for service outputs. Demand remains a configuration input.
 
 ### 4.4 Library-driven, not sector-coded
 The solver should be **generic**. It should not contain one-off optimization code for buildings vs transport vs steel. The only app-owned metadata outside the library should be:
@@ -76,18 +76,18 @@ The solver should be **generic**. It should not contain one-off optimization cod
 ## 5. Users
 
 ### 5.1 Analyst / modeler
-Wants to run quick national scenarios, inspect fuel and emissions shifts, and identify which assumptions matter.
+Wants to run quick national configurations, inspect fuel and emissions shifts, and identify which assumptions matter.
 
 ### 5.2 Technical reviewer
 Wants to click into each state and inspect sources, assumptions, confidence, calibration context, and derivation notes.
 
 ### 5.3 Decision-maker / sponsor
-Wants simple scenario compare views, big-number results, and plain-language explanations of what drove the differences.
+Wants simple configuration compare views, big-number results, and plain-language explanations of what drove the differences.
 
 ## 6. Goals
 
 ### Must-have
-- Run scenarios from fully pinned sector states to optimized state allocation.
+- Run configurations from fully pinned sector states to optimized state allocation.
 - Support carbon price and editable commodity prices.
 - Show emissions, fuel demand, electricity use/supply, costs, and state shares.
 - Show confidence, uncertainty, sources, assumptions, and derivation context for every state.
@@ -95,8 +95,8 @@ Wants simple scenario compare views, big-number results, and plain-language expl
 - Stay lightweight and standalone.
 
 ### Nice-to-have
-- Save/load scenario JSON files.
-- Share scenario compare reports.
+- Save/load configuration document JSON files.
+- Share configuration compare reports.
 - Soft-constraint mode for testing infeasibility and bound pressure.
 - Sensitivity templates from the uncertainty pack.
 
@@ -140,7 +140,7 @@ An item that appears in `input_commodities`, such as:
 - iron_ore
 - sequestration_service
 
-### 8.4 Scenario
+### 8.4 Configuration
 A bundle of:
 - selected years,
 - demand/activity paths,
@@ -251,9 +251,9 @@ For a selected year/service, show the selected state versus the reference incumb
 - max share delta
 - confidence comparison
 
-## 10.2 Scenario builder
+## 10.2 Configuration workspace
 
-The scenario builder is the heart of the app.
+The configuration workspace is the heart of the app.
 
 ### Required structure
 The builder should present one row per service/output family, grouped by sector.
@@ -333,7 +333,7 @@ The app must show at minimum:
 - cost decomposition over time
 - constraint saturation chart (solved share vs max share)
 - frontier chart: fully loaded cost vs direct emissions for any service/year
-- scenario A vs B delta waterfall for emissions, fuel, and cost
+- configuration A vs B delta waterfall for emissions, fuel, and cost
 
 ### Tables
 - activity by state and year
@@ -347,7 +347,7 @@ The app must show at minimum:
 
 Explainability is a first-class requirement, not decoration.
 
-The app must generate plain-language summaries for both individual states and scenario results.
+The app must generate plain-language summaries for both individual states and configuration results.
 
 ### State-level explanation requirements
 For any state row, provide:
@@ -359,8 +359,8 @@ For any state row, provide:
 - what main assumptions support it
 - what upgrade path is implied
 
-### Scenario-level explanation requirements
-For any solved scenario, provide:
+### Configuration-level explanation requirements
+For any solved configuration, provide:
 - which states were chosen
 - which constraints were binding
 - which sectors drove emissions change
@@ -397,12 +397,12 @@ The app must include a Methods / Trust section that exposes the supporting docum
 
 There should also be a Calibration page that:
 - renders `calibration_summary.csv`,
-- shows the reference baseline scenario used by the app,
+- shows the reference baseline configuration used by the app,
 - and highlights where the baseline is exact, close, or only order-of-magnitude.
 
 ## 10.7 Compare mode
 
-A user must be able to compare two saved scenarios side-by-side.
+A user must be able to compare two saved configurations side-by-side.
 
 ### Required compare outputs
 - KPI deltas
@@ -417,8 +417,8 @@ A user must be able to compare two saved scenarios side-by-side.
 ## 10.8 Export / import
 
 The app must support:
-- export scenario config as JSON
-- import scenario JSON
+- export configuration document as JSON
+- import configuration document JSON
 - export core results as CSV
 - export compare results as CSV
 - export a markdown or HTML summary report
@@ -519,8 +519,8 @@ Should include at minimum:
 
 Important rule: these presets must be clearly labeled as **app defaults**, not research-library evidence.
 
-### 12.4 `app_config/reference_scenarios.json`
-Should ship with a few built-in scenarios:
+### 12.4 `app_config/reference_configurations.json`
+Should ship with a few built-in configurations:
 
 1. **Reference calibration 2025**  
    - uses library-aligned 2025 activities
@@ -561,7 +561,7 @@ Minimize total system cost:
 Where:
 
 - `conversion_cost = Σ x_i * output_cost_per_unit_i`
-- `external_commodity_cost = Σ x_i * coeff(i,c) * external_price(c,y)` for commodities not endogenously supplied in the active scenario
+- `external_commodity_cost = Σ x_i * coeff(i,c) * external_price(c,y)` for commodities not endogenously supplied in the active configuration
 - `carbon_cost = Σ x_i * (energy_emissions_i + process_emissions_i) * carbon_price_y`
 - negative process emissions reduce net emissions and therefore reduce carbon cost if removals are enabled
 - if a commodity is endogenously supplied, its cost is represented by the supplying sector activities, not by an external price term
@@ -695,7 +695,7 @@ The app must calculate and expose the following derived outputs.
 ## 15. Explainability specification
 
 ## 15.1 Fully loaded cost decomposition
-For every state and scenario result, show:
+For every state and configuration result, show:
 
 - non-commodity conversion cost
 - commodity purchase cost
@@ -733,7 +733,7 @@ The sentence should be templated from:
 - explanation tags
 
 ## 15.5 Confidence exposure
-The app must show scenario reliance by confidence class.
+The app must show configuration reliance by confidence class.
 
 At minimum include:
 - activity share by confidence class
@@ -742,12 +742,12 @@ At minimum include:
 
 This avoids hiding dependence on low-confidence and exploratory states.
 
-## 15.6 Scenario-difference narratives
+## 15.6 Configuration-difference narratives
 Compare mode must produce short structured narratives such as:
 
 - “Most of the emissions reduction comes from electrified buildings and passenger-road BEV uptake.”
 - “Electricity demand rises mainly because residential/commercial services and road transport switch from direct fuel use to grid electricity.”
-- “The scenario relies materially on low-confidence industrial heat and steel-hydrogen states after 2040.”
+- “The configuration relies materially on low-confidence industrial heat and steel-hydrogen states after 2040.”
 
 ## 16. Required visualizations
 
@@ -799,16 +799,16 @@ For A vs B, show:
 
 Recommended top-level navigation:
 
-1. **Scenario**
+1. **Run**
 2. **Results**
 3. **Compare**
 4. **Library**
 5. **Methods**
 
-### 17.1 Scenario page layout
+### 17.1 Run page layout
 - left sidebar: years, price preset, carbon price, global toggles
 - main table: one row per service/output family
-- right panel: quick scenario summary and warnings
+- right panel: quick configuration summary and warnings
 
 ### 17.2 Results page tabs
 - Overview
@@ -866,7 +866,7 @@ But that is not required for the first useful version.
 No database is required in v1.  
 Use in-memory dataframes and file-based configs.
 
-Scenario save/load can use:
+Configuration save/load can use:
 - local browser storage, and/or
 - exported JSON files.
 
@@ -876,7 +876,7 @@ Scenario save/load can use:
 app/
   main.py
   pages/
-    scenario.py
+    run.py
     results.py
     compare.py
     library.py
@@ -902,7 +902,7 @@ app/
     output_roles.json
     default_activity_paths.json
     commodity_price_presets.json
-    reference_scenarios.json
+    reference_configurations.json
 ```
 
 ## 19. Acceptance criteria
@@ -919,21 +919,21 @@ The v1 app is acceptable only if all of the following are true.
 - Supports electricity as either endogenous supply or external price.
 - Supports carbon price.
 - Supports max-share and max-activity constraints.
-- Solves all default reference scenarios without error.
+- Solves all default reference configurations without error.
 
 ### Results
 - Displays cost, emissions, commodity demand, and state shares by year.
-- Can compare two scenarios directly.
+- Can compare two configurations directly.
 - Shows at least one plain-language explanation per major changed sector.
 
 ### Explainability
 - Can show fully loaded cost breakdown for any state.
 - Can identify binding caps in optimized runs.
-- Can show confidence exposure for the solved scenario.
+- Can show confidence exposure for the solved configuration.
 
 ### Robustness
 - Infeasible runs produce human-readable diagnostics.
-- Scenario JSON export/import round-trips cleanly.
+- Configuration document JSON export/import round-trips cleanly.
 
 ## 20. Performance targets
 
@@ -942,7 +942,7 @@ Given the library size, v1 should feel instantaneous.
 Targets:
 - initial data load under 2 seconds locally
 - single multi-year solve under 3 seconds
-- scenario compare under 1 second after results are cached
+- configuration compare under 1 second after results are cached
 - state detail open under 0.5 seconds
 
 ## 21. Risks and mitigation
@@ -960,7 +960,7 @@ Mitigation: label clearly that demand is exogenous and only state allocation is 
 Mitigation: enforce a clean electricity mode toggle and never include scope-2 electricity emissions in end-use rows.
 
 ### Risk 5: low-confidence sectors dominate optimization
-Mitigation: show confidence exposure prominently and ship a “review-central” scenario that keeps weak sectors conservative by default.
+Mitigation: show confidence exposure prominently and ship a “review-central” configuration that keeps weak sectors conservative by default.
 
 ## 22. Delivery plan
 
@@ -970,8 +970,8 @@ Mitigation: show confidence exposure prominently and ship a “review-central”
 - build methods/calibration/uncertainty pages
 - no solver yet
 
-### Phase B — scenario builder + core solver
-- implement scenario schema
+### Phase B — configuration workspace + core solver
+- implement configuration schema
 - implement demand inputs, prices, carbon price
 - implement LP solver
 - implement overview results
@@ -979,14 +979,14 @@ Mitigation: show confidence exposure prominently and ship a “review-central”
 ### Phase C — explainability + compare
 - binding-constraint reporting
 - state frontier plot
-- scenario compare
+- configuration compare
 - generated narratives
 - confidence exposure
 
 ### Phase D — polish
 - export/import
 - soft-constraint mode
-- reference scenarios
+- reference configurations
 - residual electricity and default activity helpers
 
 ## 23. Main implementation decision taken in this spec
@@ -1017,6 +1017,6 @@ This app should be a **small, trustable, generalized sector-state explorer**:
 - library-driven rather than sector-coded,
 - simple enough to ship fast,
 - strong on transparency,
-- and good enough to support the first serious reduced-form scenario work around electricity, end-use electrification, industry, emissions, and removals.
+- and good enough to support the first serious reduced-form configuration work around electricity, end-use electrification, industry, emissions, and removals.
 
-If built to this spec, it will make the Phase 1 library immediately usable for review, scenario analysis, and iteration without pulling VedaLang/Vita into the loop.
+If built to this spec, it will make the Phase 1 library immediately usable for review, configuration analysis, and iteration without pulling VedaLang/Vita into the loop.

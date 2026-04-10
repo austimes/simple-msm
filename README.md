@@ -30,8 +30,6 @@ The app now uses one canonical configuration model everywhere.
 
 There is no separate user-facing split between a packaged reference configuration and an overlay. A built-in configuration is already the thing you edit, save, solve, and compare.
 
-Some internal TypeScript types and schema filenames still use the historical `scenario` name because they describe the same JSON shape. Treat that as implementation or compatibility residue, not contributor-facing terminology. The main working page is labeled `Run`, but internal component and file names stay workspace- and configuration-oriented for now so this label change does not force a broad code rename.
-
 ## What Is In The Repo
 
 ### Data package

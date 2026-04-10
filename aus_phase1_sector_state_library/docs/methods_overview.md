@@ -56,7 +56,7 @@ The dataset uses the convention in `A002`:
 
 > `output_cost_per_unit` is primarily a **non-commodity conversion/supply cost** in real 2024 Australian dollars.
 
-This is important for model integration. The expectation is that a reduced-form model can add commodity input costs separately by multiplying the input coefficients by scenario commodity prices.
+This is important for model integration. The expectation is that a reduced-form model can add commodity input costs separately by multiplying the input coefficients by configuration commodity prices.
 
 ### Why this convention was chosen
 
@@ -197,7 +197,7 @@ The ratings reflect:
 
 The package is appropriate for:
 
-- national reduced-form scenario analysis,
+- national reduced-form configuration analysis,
 - commodity-demand and emissions trajectory analysis,
 - fast coupling to electricity-sector decarbonisation.
 

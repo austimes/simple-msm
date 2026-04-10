@@ -48,7 +48,7 @@ DACCS remains highly uncertain in cost, timing and infrastructure treatment in A
 ## Recommended use
 
 - Land sequestration can be kept in the library, but should be used cautiously.
-- DACCS should remain **disabled by default** in core MVP runs unless the scenario explicitly studies engineered removals.
+- DACCS should remain **disabled by default** in core MVP runs unless the configuration explicitly studies engineered removals.
 
 ## Expandability
 

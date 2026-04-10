@@ -7,16 +7,16 @@ Primary input package: `aus_phase1_sector_state_library.zip`
 
 ## 1. Product summary
 
-Build a **small stand-alone web application** that turns the Australia Phase 1 sector-state library into a fast, inspectable reduced-form scenario explorer.
+Build a **small stand-alone web application** that turns the Australia Phase 1 sector-state library into a fast, inspectable reduced-form configuration explorer.
 
 The app must let a user:
 
 1. inspect every sector state and understand its cost basis, input coefficients, emissions, limits, confidence, evidence summary, derivation method, review notes, and expansion path,
-2. define scenarios ranging from **fully exogenous** state picks to **mixed** and **fully endogenous** allocation across one or more sectors,
+2. define configurations ranging from **fully exogenous** state picks to **mixed** and **fully endogenous** allocation across one or more sectors,
 3. set **commodity prices** with sane editable defaults,
 4. set a **carbon price**,
 5. run a **generalized solver** that works from the sector-state data rather than sector-specific hard-coded logic,
-6. compare scenarios and explain the drivers of change in emissions, fuel demand, electrification, fuel switching, process abatement, removals, and cost.
+6. compare configurations and explain the drivers of change in emissions, fuel demand, electrification, fuel switching, process abatement, removals, and cost.
 
 The application must be **completely standalone from VedaLang/Vita**.
 
@@ -34,7 +34,7 @@ The solver chooses activity levels for eligible states subject to demand balance
 
 The app will ship with a **simple built-in growth preset by sector/service**.
 
-That means a scenario can start from 2025 anchor activity levels and automatically materialize milestone-year demand paths through app-owned growth presets.
+That means a configuration can start from 2025 anchor activity levels and automatically materialize milestone-year demand paths through app-owned growth presets.
 
 These presets are convenience defaults only. They are not part of the research library evidence and must be clearly labeled as such.
 
@@ -50,7 +50,7 @@ The app must work with the files that are physically present now:
 
 | File | Mandatory use |
 |---|---|
-| `data/sector_states.csv` | Core state-year rows used by explorer, scenario builder, and solver |
+| `data/sector_states.csv` | Core state-year rows used by explorer, configuration workspace, and solver |
 | `README.md` | High-level methods/about/trust page |
 | `docs/phase2_recommendations.md` | Caveats, maturity notes, and expansion-path page |
 
@@ -97,13 +97,13 @@ Create the smallest useful app that makes the Phase 1 library:
 - explainable,
 - and easy to iterate.
 
-It is not a dispatch model, not a TIMES clone, and not a facility-level industry model. It is a **fast scenario workbench** for the reduced-form Phase 1 library.
+It is not a dispatch model, not a TIMES clone, and not a facility-level industry model. It is a **fast configuration workbench** for the reduced-form Phase 1 library.
 
 ## 5. Users
 
 ### 5.1 Analyst / modeler
 
-Wants to build scenarios quickly, switch sectors between exogenous and endogenous handling, and inspect fuel, cost, and emissions effects.
+Wants to build configurations quickly, switch sectors between exogenous and endogenous handling, and inspect fuel, cost, and emissions effects.
 
 ### 5.2 Technical reviewer
 
@@ -111,7 +111,7 @@ Wants to click into every state and inspect evidence, assumptions, confidence, c
 
 ### 5.3 Sponsor / decision-maker
 
-Wants simple side-by-side scenario compare views and plain-language explanations of what changed.
+Wants simple side-by-side configuration compare views and plain-language explanations of what changed.
 
 ## 6. Core modeling conventions
 
@@ -173,7 +173,7 @@ The only app-owned metadata outside the library should be:
 
 ## 7.1 Must-have
 
-- Run fully pinned, mixed, and optimized state-allocation scenarios.
+- Run fully pinned, mixed, and optimized state-allocation configurations.
 - Support carbon price and editable commodity prices.
 - Support endogenous or externalized electricity.
 - Support optional removals, fixed removal targets, and endogenous removals.
@@ -183,7 +183,7 @@ The only app-owned metadata outside the library should be:
 
 ## 7.2 Nice-to-have
 
-- Save/load scenario JSON.
+- Save/load configuration document JSON.
 - Shareable HTML or Markdown report.
 - Soft-constraint mode for infeasibility diagnosis.
 - Automatic enrichment if missing companion ledgers are added later.
@@ -308,7 +308,7 @@ Maps each service/output to:
 
 ### 10.2 `app_config/baseline_activity_anchors.json`
 
-Contains the 2025 anchor values used for fast scenario setup.
+Contains the 2025 anchor values used for fast configuration setup.
 
 Recommended anchors, derived from the existing package:
 
@@ -352,16 +352,16 @@ Must include at least:
 
 These presets must also be labeled as app-owned defaults.
 
-## 11. Scenario JSON design
+## 11. Configuration document JSON design
 
-The scenario JSON should capture both:
+The configuration document JSON should capture both:
 
 1. the **resolved tables** actually used by the solver, and
 2. the **generation metadata** used by the UI to rebuild those tables.
 
 That keeps runs reproducible while still letting the UI feel high-level.
 
-### 11.1 Top-level scenario components
+### 11.1 Top-level configuration document components
 
 - years
 - service controls
@@ -385,7 +385,7 @@ That keeps runs reproducible while still letting the UI feel high-level.
 
 ### 11.3 Demand generation block
 
-The scenario should keep a `demand_generation` block with:
+The configuration document should keep a `demand_generation` block with:
 
 - `mode`: manual table or anchor-plus-preset,
 - `anchor_year`: 2025,
@@ -460,9 +460,9 @@ For a selected year/service, show the selected state versus a default incumbent/
 - max-share delta
 - confidence comparison
 
-## 12.2 Scenario builder
+## 12.2 Configuration workspace
 
-The scenario builder is the heart of the app.
+The configuration workspace is the heart of the app.
 
 ### Global controls
 
@@ -541,7 +541,7 @@ The app must show at minimum:
 - cost decomposition over time
 - constraint saturation chart
 - frontier chart: fully loaded cost vs direct emissions for any service/year
-- scenario A vs B waterfall for emissions, fuel, and cost
+- configuration A vs B waterfall for emissions, fuel, and cost
 
 ### Tables
 
@@ -566,7 +566,7 @@ Explainability is a first-class requirement.
 - what main assumptions are visible in the row,
 - what upgrade path is implied.
 
-### Scenario-level explanations must answer
+### Configuration-level explanations must answer
 
 - which states were chosen,
 - which constraints were binding,
@@ -612,7 +612,7 @@ If richer docs are later added, the same page can expand.
 
 ## 12.6 Compare mode
 
-A user must be able to compare two saved scenarios side-by-side.
+A user must be able to compare two saved configurations side-by-side.
 
 Required outputs:
 
@@ -629,8 +629,8 @@ Required outputs:
 
 The app must support:
 
-- export scenario config as JSON,
-- import scenario JSON,
+- export configuration document as JSON,
+- import configuration document JSON,
 - export core results as CSV,
 - export compare results as CSV,
 - export a Markdown or HTML summary report.
@@ -751,9 +751,9 @@ For each optimized service/year, compute and show:
 - which non-chosen states were dominated on cost/emissions,
 - which non-chosen states were blocked by caps or user filters.
 
-## 14.2 Scenario-delta attribution
+## 14.2 Configuration-delta attribution
 
-For scenario A vs B, attribute changes to:
+For configuration A vs B, attribute changes to:
 
 - service-demand growth,
 - state-choice change,
@@ -769,17 +769,17 @@ A simple decomposition is acceptable. It does not need to be a perfect Shapley a
 
 Recommended top-level navigation:
 
-1. **Scenario**
+1. **Run**
 2. **Results**
 3. **Compare**
 4. **Library**
 5. **Methods**
 
-### 15.1 Scenario page
+### 15.1 Run page
 
 - left sidebar: years, demand preset, commodity-price preset, carbon price, global toggles
 - main table: one row per service/output family
-- right panel: scenario summary, warnings, confidence exposure
+- right panel: configuration summary, warnings, confidence exposure
 
 ### 15.2 Results tabs
 
@@ -838,7 +838,7 @@ The build is acceptable only if all of the following are true.
 - Every state detail view exposes the evidence and confidence fields embedded in `sector_states.csv`.
 - README and Phase 2 memo are visible in-app.
 
-### 17.2 Scenario control
+### 17.2 Configuration control
 
 - Any required service can be pinned, fixed-share, or optimized.
 - Electricity can be endogenous or externalized.
@@ -847,9 +847,9 @@ The build is acceptable only if all of the following are true.
 
 ### 17.3 Solver behavior
 
-- Fully pinned scenarios solve correctly.
-- Mixed scenarios solve correctly.
-- Fully endogenous state-allocation scenarios solve correctly.
+- Fully pinned configurations solve correctly.
+- Mixed configurations solve correctly.
+- Fully endogenous state-allocation configurations solve correctly.
 - Max-share, min-share, and max-activity fields are enforced when enabled.
 - The generic rollout/uptake proxy works across milestone years.
 
@@ -857,7 +857,7 @@ The build is acceptable only if all of the following are true.
 
 - Results include cost, emissions, commodity demand, electricity balance, and state shares.
 - Compare mode highlights the impact of user choices on emissions, fuel, electricity, and cost.
-- The app explains why chosen states differ from incumbent states and why scenario outcomes differ from each other.
+- The app explains why chosen states differ from incumbent states and why configuration outcomes differ from each other.
 
 ## 18. Risks and mitigation
 
@@ -890,4 +890,4 @@ It should stay simple:
 - generalized rather than sector-coded,
 - explicit about what comes from the library versus app defaults,
 - strong on inspectability and explanation,
-- and good enough for rapid reduced-form scenario work without any VedaLang/Vita dependency.
+- and good enough for rapid reduced-form configuration work without any VedaLang/Vita dependency.

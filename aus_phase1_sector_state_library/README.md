@@ -67,7 +67,7 @@ The core machine-readable dataset contains **228 state-year rows** across the re
 
 `output_cost_per_unit` is defined as a **real-2024 non-commodity conversion/supply cost** unless explicitly noted otherwise.
 
-That means the value generally **excludes** the purchase cost of explicitly modelled input commodities such as electricity, gas, coal, refined liquid fuels, hydrogen, biomass, scrap, iron ore and sequestration service. This makes the library easier to connect to a reduced-form model in which commodity prices can vary endogenously or by scenario.
+That means the value generally **excludes** the purchase cost of explicitly modelled input commodities such as electricity, gas, coal, refined liquid fuels, hydrogen, biomass, scrap, iron ore and sequestration service. This makes the library easier to connect to a reduced-form model in which commodity prices can vary endogenously or by configuration.
 
 The main exception is removals, where the cost is intended as a **full marginal removal supply cost** because the operational commodity inputs are only a small part of the total removal cost.
 
@@ -99,7 +99,7 @@ It is strongest where Australia has robust official or planning evidence at sect
 
 For a first reduced-form national model:
 
-1. Use the **2025 incumbent states** plus official or scenario demand/activity levels for baseline runs.
+1. Use the **2025 incumbent states** plus official or configuration-defined demand/activity levels for baseline runs.
 2. Add commodity price assumptions separately.
 3. Use `max_share` and `max_activity` only as **soft upper envelopes** unless you have a stronger stock-turnover or rollout module.
 4. Treat **generic industrial heat, agriculture mitigation, steel CCS/H2 routes, and DACCS** as sensitivity states rather than base-case anchors.

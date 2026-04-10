@@ -155,7 +155,7 @@ Should be deferred from core decision weight:
 
 Use this package now for:
 
-- MVP reduced-form scenario analysis,
+- MVP reduced-form configuration analysis,
 - national commodity-demand trajectories,
 - emissions trajectory testing,
 - rapid whole-economy / electricity interaction work.

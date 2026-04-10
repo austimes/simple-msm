@@ -61,7 +61,7 @@ It is useful for:
 
 - economy-wide commodity demand,
 - broad industrial decarbonisation sensitivity,
-- fast scenario testing.
+- fast configuration testing.
 
 It is not robust for:
 
