@@ -125,5 +125,6 @@ describe('deriveRightSidebarTree', () => {
     assert.equal(sector.isCollapsed, false);
     assert.equal(sector.subsectors[0].allDisabled, true);
     assert.equal(sector.subsectors[0].isCollapsed, true);
+    assert.deepEqual(sector.subsectors[0].enabledStateIds, []);
   });
 });

@@ -52,11 +52,13 @@ export default function RightSidebarContent({
             )}
           </div>
           {!sectorEntry.isCollapsed && sectorEntry.subsectors.map((sub) => {
-            const availableStateIds = new Set(sub.availableStateIds);
+            const enabledStateIds = new Set(sub.enabledStateIds);
+            const solveActiveStateIds = new Set(sub.solveActiveStateIds);
             const pathwaysInactive = sub.pathwaysInactive;
             const outOfScope = sub.outOfScope;
             const isCollapsed = sub.isCollapsed;
             const badges = sub.badges;
+            const showsSolveActivitySplit = !pathwaysInactive && sub.showsSolveActivitySplit;
 
             return (
               <div
@@ -96,20 +98,52 @@ export default function RightSidebarContent({
                 )}
                 {!isCollapsed && (
                   <div className="workspace-state-chips">
+                    {showsSolveActivitySplit && (
+                      <div className="workspace-subsector-detail">
+                        Enabled pathways stay editable here. Only pathways marked Active are
+                        currently carrying activity and defining the cap denominator.
+                      </div>
+                    )}
                     {sub.states.map((state) => {
-                      const isOn = !pathwaysInactive && availableStateIds.has(state.stateId);
+                      const isEnabled = !pathwaysInactive && enabledStateIds.has(state.stateId);
+                      const isSolveActive = !pathwaysInactive && solveActiveStateIds.has(state.stateId);
+                      const chipClass = pathwaysInactive
+                        ? 'workspace-state-chip--inactive'
+                        : !isEnabled
+                          ? 'workspace-state-chip--off'
+                          : showsSolveActivitySplit && !isSolveActive
+                            ? 'workspace-state-chip--enabled'
+                            : 'workspace-state-chip--on';
+                      const chipStatusLabel = showsSolveActivitySplit && isEnabled
+                        ? (isSolveActive ? 'Active' : 'Enabled')
+                        : null;
+                      const chipTitle = pathwaysInactive
+                        ? sub.presentation.detail
+                        : showsSolveActivitySplit && isEnabled
+                          ? (isSolveActive
+                              ? 'Enabled and solve-active under the current control.'
+                              : 'Enabled, but not solve-active under the current control.')
+                          : undefined;
+
                       return (
                         <button
                           key={state.stateId}
                           type="button"
-                          className={`workspace-state-chip ${isOn ? 'workspace-state-chip--on' : 'workspace-state-chip--off'}${outOfScope ? ' workspace-state-chip--dimmed' : ''}${pathwaysInactive ? ' workspace-state-chip--inactive' : ''}`}
+                          className={`workspace-state-chip ${chipClass}${outOfScope ? ' workspace-state-chip--dimmed' : ''}`}
                           onClick={() =>
                             onToggleStateEnabled(sub.outputId, state.stateId)
                           }
                           disabled={pathwaysInactive}
-                          title={pathwaysInactive ? sub.presentation.detail : undefined}
+                          title={chipTitle}
                         >
-                          {state.stateLabel}
+                          <span>{state.stateLabel}</span>
+                          {chipStatusLabel && (
+                            <span
+                              className={`workspace-state-chip__status workspace-state-chip__status--${isSolveActive ? 'active' : 'enabled'}`}
+                            >
+                              {chipStatusLabel}
+                            </span>
+                          )}
                         </button>
                       );
                     })}
@@ -123,8 +157,9 @@ export default function RightSidebarContent({
       <div className="workspace-state-legend" role="note" aria-label="State selector status legend">
         <p className="workspace-state-legend-copy">
           Seed scope is shown separately from the effective run, which may auto-include dependencies.
-          Demand or supply participation is shown separately from pathway availability.
-          Active pathways in the solve are called out separately when exact-share controls narrow them below the available set.
+          Demand or supply participation is shown separately from pathway enablement.
+          When exact-share controls narrow the current mix, enabled pathways and solve-active
+          pathways are called out separately.
         </p>
         <div className="workspace-state-legend-items">
           {RIGHT_SIDEBAR_STATUS_LEGEND.map((item) => (

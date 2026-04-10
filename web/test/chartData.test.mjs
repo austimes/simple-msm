@@ -215,7 +215,7 @@ test('buildPathwayChartCards returns output and cap views for selectable outputs
   assert.equal(cards.length, 1);
   assert.equal(cards[0].outputId, 'heat');
   assert.equal(cards[0].outputChart.yAxisLabel, 'PJ');
-  assert.match(cards[0].capChart.yAxisLabel, /available pathways/i);
+  assert.match(cards[0].capChart.yAxisLabel, /current cap denominator/i);
   assert.equal(cards[0].outputChart.series.length, 2);
   assert.deepEqual(
     cards[0].outputChart.series.find((series) => series.label === 'Heat A')?.values,
@@ -231,7 +231,7 @@ test('buildPathwayChartCards returns output and cap views for selectable outputs
       { year: 2035, value: 16.666666666666668 },
     ],
   );
-  assert.match(cards[0].note, /normalizing across available \(non-disabled\) pathways/i);
+  assert.match(cards[0].note, /normalizing across enabled pathways/i);
 });
 
 test('buildPathwayChartCards keeps cap context visible when max-share enforcement is off', () => {
@@ -240,6 +240,7 @@ test('buildPathwayChartCards keeps cap context visible when max-share enforcemen
   assert.equal(cards.length, 1);
   assert.equal(cards[0].respectMaxShare, false);
   assert.match(cards[0].note, /ignored in this solve/i);
+  assert.match(cards[0].note, /enabled pathways/i);
   assert.deepEqual(
     cards[0].capChart.series.find((series) => series.label === 'Heat B')?.values,
     [
@@ -341,8 +342,8 @@ test('buildPathwayChartCards matches solver-reported effective caps for exact-sh
   assert.equal(result.status, 'solved');
   assert.equal(cards.length, 1);
   assert.ok(selectedShare?.effectiveMaxShare != null, 'expected selected exact-share cap');
-  assert.ok(availableShare?.effectiveMaxShare != null, 'expected available exact-share cap');
+  assert.equal(availableShare?.effectiveMaxShare, null, 'zero-share exact-share pathways drop out of the cap denominator');
   assert.ok(Math.abs(selectedCap - (selectedShare.effectiveMaxShare * 100)) < 1e-9);
-  assert.ok(Math.abs(availableCap - (availableShare.effectiveMaxShare * 100)) < 1e-9);
-  assert.match(card.note, /available \(non-disabled\) pathways/i);
+  assert.equal(availableCap, undefined, 'cap chart omits pathways that are outside the current cap denominator');
+  assert.match(card.note, /positive exact shares/i);
 });

@@ -1,19 +1,22 @@
 import type {
   SectorCatalogEntry,
   SubsectorCatalogEntry,
-} from '../../data/configurationWorkspaceModel';
+} from '../../data/configurationWorkspaceModel.ts';
 import type { DerivedOutputRunStatus } from '../../solver/solveScope.ts';
 import {
   getRightSidebarStatusPresentation,
   type RightSidebarBadge,
   type RightSidebarStatusPresentation,
-} from './rightSidebarStatus';
+} from './rightSidebarStatus.ts';
 
 export interface RightSidebarSubsectorNode extends SubsectorCatalogEntry {
   status: DerivedOutputRunStatus | undefined;
   presentation: RightSidebarStatusPresentation;
   badges: RightSidebarBadge[];
-  availableStateIds: string[];
+  enabledStateIds: string[];
+  solveActiveStateIds: string[];
+  capDenominatorStateIds: string[];
+  showsSolveActivitySplit: boolean;
   allDisabled: boolean;
   pathwaysInactive: boolean;
   outOfScope: boolean;
@@ -46,7 +49,10 @@ export function deriveRightSidebarTree(
         status,
         presentation,
         badges: presentation.badges,
-        availableStateIds: status?.availableStateIds ?? [],
+        enabledStateIds: status?.availableStateIds ?? [],
+        solveActiveStateIds: status?.activeStateIds ?? [],
+        capDenominatorStateIds: status?.capEligibleStateIds ?? [],
+        showsSolveActivitySplit: (status?.availableStateCount ?? 0) !== (status?.activeStateCount ?? 0),
         allDisabled,
         pathwaysInactive: presentation.arePathwaysInactive,
         outOfScope,

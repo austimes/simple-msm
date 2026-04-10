@@ -62,21 +62,21 @@ export const RIGHT_SIDEBAR_STATUS_LEGEND: RightSidebarLegendItem[] = [
   },
   {
     key: 'active-pathways',
-    label: 'Active pathways in solve',
+    label: 'Solve-active pathways',
     tone: 'info',
-    description: 'Shown when the active solve set is narrower than the available non-disabled pathway set.',
+    description: 'Shown when the current solve mix is narrower than the enabled pathway set.',
   },
   {
     key: 'no-pathways',
-    label: 'No available pathways',
+    label: 'No enabled pathways',
     tone: 'warning',
-    description: 'Pathway availability is separate from seed scope or effective run inclusion.',
+    description: 'Pathway enablement is separate from seed scope or effective run inclusion.',
   },
   {
     key: 'blocked-demand',
-    label: 'Demand active but no available pathways',
+    label: 'Demand active but no enabled pathways',
     tone: 'danger',
-    description: 'The solve is blocked until at least one pathway is made available again.',
+    description: 'The solve is blocked until at least one pathway is enabled again.',
   },
 ];
 
@@ -88,14 +88,14 @@ function buildPathwayBadge(status: DerivedOutputRunStatus): RightSidebarBadge | 
   if (status.availableStateCount === 0) {
     return {
       key: 'no-pathways',
-      label: 'No available pathways',
+      label: 'No enabled pathways',
       tone: status.hasDemandValidationError ? 'danger' : 'warning',
     };
   }
 
   return {
     key: 'available-pathways',
-    label: `${status.availableStateCount} available ${status.availableStateCount === 1 ? 'pathway' : 'pathways'}`,
+    label: `${status.availableStateCount} enabled ${status.availableStateCount === 1 ? 'pathway' : 'pathways'}`,
     tone: 'success',
   };
 }
@@ -111,7 +111,7 @@ function buildActivePathwayBadge(status: DerivedOutputRunStatus): RightSidebarBa
 
   return {
     key: 'active-pathways',
-    label: `${status.activeStateCount} active ${status.activeStateCount === 1 ? 'pathway' : 'pathways'}`,
+    label: `${status.activeStateCount} solve-active ${status.activeStateCount === 1 ? 'pathway' : 'pathways'}`,
     tone: status.activeStateCount > 0 ? 'info' : 'warning',
   };
 }
@@ -154,7 +154,7 @@ function buildDemandBadge(status: DerivedOutputRunStatus): RightSidebarBadge | n
     case 'no_enabled_pathways':
       return {
         key: 'blocked-demand',
-        label: 'Demand active but no available pathways',
+        label: 'Demand active but no enabled pathways',
         tone: 'danger',
       };
     default:
@@ -205,7 +205,7 @@ function buildDetail(status: DerivedOutputRunStatus): string {
   }
 
   if (status.hasDemandValidationError) {
-    return `${detail} Demand is still active, but no pathways are available.`;
+    return `${detail} Demand is still active, but no pathways are enabled.`;
   }
 
   if (status.supplyParticipation === 'externalized_in_run') {
@@ -213,15 +213,16 @@ function buildDetail(status: DerivedOutputRunStatus): string {
   }
 
   if (status.isDisabled) {
-    return `${detail} No pathways are currently available.`;
+    return `${detail} No pathways are currently enabled.`;
   }
 
-  if (status.controlMode === 'fixed_shares' && status.activeStateCount === 1) {
-    return `${detail} Exact shares keep ${status.activeStateCount} pathway active in the solve, while ${status.capEligibleStateCount} non-disabled pathways remain available for cap context and future edits.`;
+  if (status.controlMode === 'off') {
+    return `${detail} Pathways can stay enabled for editing, but the current control leaves none solve-active or in the cap denominator.`;
   }
 
   if (status.controlMode === 'fixed_shares' && status.activeStateCount < status.availableStateCount) {
-    return `${detail} Only pathways with positive exact shares are active in the solve, while ${status.capEligibleStateCount} non-disabled pathways still define the cap denominator in this phase.`;
+    const inactiveEnabledCount = status.availableStateCount - status.activeStateCount;
+    return `${detail} ${status.activeStateCount} enabled ${status.activeStateCount === 1 ? 'pathway has' : 'pathways have'} positive exact shares, so ${status.activeStateCount === 1 ? 'it stays' : 'they stay'} solve-active and in the cap denominator. The other ${inactiveEnabledCount} enabled ${inactiveEnabledCount === 1 ? 'pathway remains' : 'pathways remain'} editable but ${inactiveEnabledCount === 1 ? 'does' : 'do'} not carry activity until ${inactiveEnabledCount === 1 ? 'its' : 'their'} exact share rises above zero.`;
   }
 
   return detail;

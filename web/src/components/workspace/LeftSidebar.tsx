@@ -256,7 +256,9 @@ export default function LeftSidebar() {
         <div className="workspace-subsector-group">
           <div className="workspace-subsector-title">Respect max-share caps</div>
           <div className="workspace-subsector-detail">
-            Keeps pathway max-share limits active in the solve and in the pathway cap view, which normalizes over available pathways.
+            Keeps pathway max-share limits active in the solve and in the pathway cap view.
+            The cap denominator follows the current control semantics: enabled pathways in
+            optimize mode, or only positive exact-share pathways in fixed-share mode.
           </div>
           <div className="workspace-chip-group workspace-chip-group--inline">
             <button
@@ -310,7 +312,11 @@ export default function LeftSidebar() {
           );
           const control = currentConfiguration.service_controls[outputId];
           const currentMode = outputStatuses[outputId]?.controlMode ?? allowedModes[0];
-          const availableStateIds = new Set(outputStatuses[outputId]?.availableStateIds ?? []);
+          const enabledStateIds = new Set(outputStatuses[outputId]?.availableStateIds ?? []);
+          const solveActiveStateIds = new Set(outputStatuses[outputId]?.activeStateIds ?? []);
+          const capDenominatorStateIds = new Set(outputStatuses[outputId]?.capEligibleStateIds ?? []);
+          const showsSolveActivitySplit = (outputStatuses[outputId]?.availableStateCount ?? 0)
+            > (outputStatuses[outputId]?.activeStateCount ?? 0);
           const fixedShareTotal = sumFixedShares(control?.fixed_shares);
           const fixedShareTotalIsValid = Math.abs(fixedShareTotal - 1) < 1e-6;
 
@@ -346,8 +352,9 @@ export default function LeftSidebar() {
                 <div className="workspace-fixed-share-panel">
                   <div className="workspace-fixed-share-summary">
                     <div className="workspace-subsector-detail">
-                      Exact shares determine which available pathways stay active for this commodity in the current run.
-                      All non-disabled pathways remain available and stay in the cap denominator for context.
+                      {showsSolveActivitySplit
+                        ? 'Exact shares currently keep only the positive-share pathways solve-active. Enabled pathways with a 0% share stay editable, but they drop out of the current solve mix and cap denominator until their share rises above zero.'
+                        : 'Exact shares determine which enabled pathways stay solve-active and in the current cap denominator.'}
                     </div>
                     <span className={`workspace-mode-badge workspace-mode-badge--${fixedShareTotalIsValid ? 'success' : 'warning'}`}>
                       Total {formatSharePercent(fixedShareTotal)}
@@ -355,22 +362,27 @@ export default function LeftSidebar() {
                   </div>
                   <div className="workspace-fixed-share-list">
                     {states.map((state) => {
-                      const isAvailable = availableStateIds.has(state.stateId);
+                      const isEnabled = enabledStateIds.has(state.stateId);
+                      const isSolveActive = solveActiveStateIds.has(state.stateId);
+                      const isInCapDenominator = capDenominatorStateIds.has(state.stateId);
                       const share = (control?.fixed_shares?.[state.stateId] ?? 0) * 100;
+                      const note = !isEnabled
+                        ? 'Disabled here and excluded from both the current solve mix and the cap denominator.'
+                        : isSolveActive
+                          ? 'Enabled, solve-active, and included in the current cap denominator.'
+                          : isInCapDenominator
+                            ? 'Enabled and still counted in the current cap denominator.'
+                            : 'Enabled for future edits, but excluded from the current solve mix and cap denominator until its share rises above zero.';
                       return (
                         <div
                           key={state.stateId}
-                          className={`workspace-fixed-share-row${isAvailable ? '' : ' workspace-fixed-share-row--disabled'}`}
+                          className={`workspace-fixed-share-row${isEnabled ? '' : ' workspace-fixed-share-row--disabled'}`}
                         >
                           <div className="workspace-fixed-share-copy">
                             <div className="workspace-fixed-share-label">{state.stateLabel}</div>
-                            <div className="workspace-fixed-share-note">
-                              {isAvailable
-                                ? 'Available for editing and cap context; positive shares decide whether it is active in the solve.'
-                                : 'Unavailable here and excluded from both the active mix and cap denominator.'}
-                            </div>
+                            <div className="workspace-fixed-share-note">{note}</div>
                           </div>
-                          {isAvailable ? (
+                          {isEnabled ? (
                             <label className="workspace-fixed-share-input">
                               <input
                                 type="number"

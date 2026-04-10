@@ -147,7 +147,7 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
     assert.equal(statuses.electricity.demandParticipation, 'not_applicable');
   });
 
-  test('keeps enabled supply pathways distinct from fixed-share entries', () => {
+  test('keeps enabled supply pathways distinct from solve-active and cap-denominator pathways', () => {
     const electricityStateIds = Array.from(
       new Set(
         pkg.sectorStates
@@ -174,9 +174,9 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
     assert.equal(statuses.electricity.isDisabled, false);
     assert.equal(statuses.electricity.availableStateCount, electricityStateIds.length);
     assert.equal(statuses.electricity.activeStateCount, 1);
-    assert.equal(statuses.electricity.capEligibleStateCount, electricityStateIds.length);
+    assert.equal(statuses.electricity.capEligibleStateCount, 1);
     assert.deepEqual(
-      statuses.electricity.availableStateIds,
+      statuses.electricity.activeStateIds,
       statuses.electricity.capEligibleStateIds,
     );
   });
@@ -222,7 +222,11 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
       statuses.residential_building_services.availableStateCount,
       residentialStateIds.length - 1,
     );
-    assert.equal(statuses.residential_building_services.capEligibleStateCount, residentialStateIds.length - 1);
+    assert.deepEqual(
+      statuses.residential_building_services.capEligibleStateIds,
+      [selectedStateId],
+    );
+    assert.equal(statuses.residential_building_services.capEligibleStateCount, 1);
   });
 
   test('dependency expansion follows active pathways under one-hot exact-share controls', () => {

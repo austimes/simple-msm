@@ -400,6 +400,9 @@ export function buildPathwayChartCards(
     .map(([outputId, metadata]) => {
       const outputGrouped = new Map<string, Map<number, number>>();
       const capGrouped = new Map<string, Map<number, number>>();
+      const usesFixedShares = years.some(
+        (year) => request.configuration.controlsByOutput[outputId]?.[String(year)]?.mode === 'fixed_shares',
+      );
       let hasNormalizedCaps = false;
 
       for (const share of result.reporting.stateShares) {
@@ -432,10 +435,16 @@ export function buildPathwayChartCards(
       }
 
       const note = !respectMaxShare
-        ? 'Max-share caps were ignored in this solve. Cap view still shows the normalized caps across available (non-disabled) pathways for context only.'
-        : hasNormalizedCaps
-          ? 'Cap view shows effective max shares after normalizing across available (non-disabled) pathways within each year.'
-          : 'Cap view shows the effective max shares applied to each available (non-disabled) pathway.';
+        ? (usesFixedShares
+            ? 'Max-share caps were ignored in this solve. Cap view still shows the solver\'s effective caps for context, using only pathways with positive exact shares in each year.'
+            : 'Max-share caps were ignored in this solve. Cap view still shows the solver\'s effective caps for context across enabled pathways.')
+        : usesFixedShares
+          ? (hasNormalizedCaps
+              ? 'Cap view shows effective max shares after normalizing across pathways with positive exact shares within each year.'
+              : 'Cap view shows the effective max shares applied to pathways with positive exact shares in each year.')
+          : hasNormalizedCaps
+            ? 'Cap view shows effective max shares after normalizing across enabled pathways within each year.'
+            : 'Cap view shows the effective max shares applied to each enabled pathway.';
 
       return {
         outputId,
@@ -450,7 +459,7 @@ export function buildPathwayChartCards(
         },
         capChart: {
           title: `${metadata.outputLabel} Pathway Cap`,
-          yAxisLabel: 'Effective max share of output (available pathways)',
+          yAxisLabel: 'Effective max share of output (current cap denominator)',
           years,
           series: buildSeries(capGrouped, years, (key) => key),
         },

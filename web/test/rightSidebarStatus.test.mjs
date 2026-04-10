@@ -44,7 +44,7 @@ describe('getRightSidebarStatusPresentation', () => {
       passengerRoad.badges.some((badge) => badge.label === 'Demand excluded from this run'),
     );
     assert.ok(
-      !passengerRoad.badges.some((badge) => badge.label === 'No available pathways'),
+      !passengerRoad.badges.some((badge) => badge.label === 'No enabled pathways'),
     );
     assert.equal(passengerRoad.isDisabled, false);
     assert.equal(passengerRoad.isDimmed, true);
@@ -78,16 +78,16 @@ describe('getRightSidebarStatusPresentation', () => {
     const electricity = getRightSidebarStatusPresentation(statuses.electricity);
 
     assert.ok(
-      passengerRoad.badges.some((badge) => badge.label === 'Demand active but no available pathways'),
+      passengerRoad.badges.some((badge) => badge.label === 'Demand active but no enabled pathways'),
     );
     assert.ok(
-      passengerRoad.badges.some((badge) => badge.label === 'No available pathways'),
+      passengerRoad.badges.some((badge) => badge.label === 'No enabled pathways'),
     );
     assert.equal(passengerRoad.isDisabled, true);
     assert.equal(passengerRoad.isDimmed, false);
     assert.match(passengerRoad.detail, /demand is still active/i);
     assert.ok(
-      electricity.badges.every((badge) => badge.label !== 'No available pathways'),
+      electricity.badges.every((badge) => badge.label !== 'No enabled pathways'),
     );
   });
 
@@ -103,26 +103,26 @@ describe('getRightSidebarStatusPresentation', () => {
       electricity.badges.some((badge) => badge.label === 'Auto-included dependency'),
     );
     assert.ok(
-      electricity.badges.every((badge) => !/available pathway/i.test(badge.label)),
+      electricity.badges.every((badge) => !/enabled pathway/i.test(badge.label)),
     );
     assert.equal(electricity.isDisabled, false);
     assert.equal(electricity.arePathwaysInactive, true);
     assert.match(electricity.detail, /commodity price selection is used instead/i);
   });
 
-  test('explains that one-hot exact-share controls still keep other non-disabled pathways available', () => {
-    const scenario = readJson('../src/configurations/industrial-heat-fossil.json');
+  test('distinguishes enabled pathways from solve-active pathways under one-hot exact shares', () => {
+    const scenario = readJson('../src/configurations/agriculture-only.json');
     const statuses = deriveOutputRunStatusesForConfiguration(pkg, scenario);
-    const lowTemperatureHeat = getRightSidebarStatusPresentation(statuses.low_temperature_heat);
+    const livestock = getRightSidebarStatusPresentation(statuses.livestock_output_bundle);
 
     assert.ok(
-      lowTemperatureHeat.badges.some((badge) => badge.label === '3 available pathways'),
+      livestock.badges.some((badge) => badge.label === '2 enabled pathways'),
     );
     assert.ok(
-      lowTemperatureHeat.badges.some((badge) => badge.label === '1 active pathway'),
+      livestock.badges.some((badge) => badge.label === '1 solve-active pathway'),
     );
-    assert.match(lowTemperatureHeat.detail, /keep 1 pathway active in the solve/i);
-    assert.match(lowTemperatureHeat.detail, /remain available for cap context/i);
+    assert.match(livestock.detail, /positive exact shares/i);
+    assert.match(livestock.detail, /cap denominator/i);
   });
 
   test('documents the legend statuses shown in the sidebar', () => {
@@ -134,9 +134,9 @@ describe('getRightSidebarStatusPresentation', () => {
         'Auto-included dependency',
         'Excluded from this run',
         'Externalized supply in this run',
-        'Active pathways in solve',
-        'No available pathways',
-        'Demand active but no available pathways',
+        'Solve-active pathways',
+        'No enabled pathways',
+        'Demand active but no enabled pathways',
       ],
     );
   });
