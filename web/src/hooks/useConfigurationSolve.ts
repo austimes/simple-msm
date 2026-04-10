@@ -2,6 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePackageStore } from '../data/packageStore';
 import { buildSolveRequest } from '../solver/buildSolveRequest';
 import type { SolveRequest, SolveResult } from '../solver/contract';
+import {
+  buildConfigurationBuildFailure,
+  buildConfigurationSolveFailure,
+  type ConfigurationSolveFailure,
+} from '../solver/configurationSolveFailure.ts';
 import { runSolveInWorker } from '../solver/solverClient';
 
 export type SolvePhase = 'idle' | 'solving' | 'solved' | 'error';
@@ -11,6 +16,7 @@ export interface SolveState {
   result: SolveResult | null;
   request: SolveRequest | null;
   error: string | null;
+  failure: ConfigurationSolveFailure | null;
   solve: () => void;
 }
 
@@ -23,6 +29,7 @@ export function useConfigurationSolve(): SolveState {
   const [result, setResult] = useState<SolveResult | null>(null);
   const [request, setRequest] = useState<SolveRequest | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<ConfigurationSolveFailure | null>(null);
 
   const cancelledRef = useRef(0);
 
@@ -33,8 +40,10 @@ export function useConfigurationSolve(): SolveState {
     try {
       builtRequest = buildSolveRequest({ sectorStates, appConfig }, currentConfiguration);
     } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to build solve request.';
       setPhase('error');
-      setError(err instanceof Error ? err.message : 'Failed to build solve request.');
+      setError(message);
+      setFailure(buildConfigurationBuildFailure(message));
       setResult(null);
       setRequest(null);
       return;
@@ -42,6 +51,8 @@ export function useConfigurationSolve(): SolveState {
 
     setPhase('solving');
     setError(null);
+    setFailure(null);
+    setResult(null);
     setRequest(builtRequest);
 
     void runSolveInWorker(builtRequest)
@@ -50,17 +61,36 @@ export function useConfigurationSolve(): SolveState {
           return;
         }
 
+        if (workerResult.status === 'error') {
+          const solveFailure = buildConfigurationSolveFailure(workerResult);
+          setPhase('error');
+          setError(solveFailure.headline);
+          setFailure(solveFailure);
+          setResult(null);
+          setRequest(builtRequest);
+          return;
+        }
+
         setPhase('solved');
         setResult(workerResult);
         setRequest(builtRequest);
+        setFailure(null);
       })
       .catch((err) => {
         if (cancelledRef.current !== solveId) {
           return;
         }
 
+        const message = err instanceof Error ? err.message : 'Unknown solve failure.';
         setPhase('error');
-        setError(err instanceof Error ? err.message : 'Unknown solve failure.');
+        setError(message);
+        setFailure({
+          stage: 'solve',
+          headline: message,
+          detailLines: [],
+          diagnostics: [],
+          result: null,
+        });
         setResult(null);
       });
   }, [sectorStates, appConfig, currentConfiguration]);
@@ -81,6 +111,7 @@ export function useConfigurationSolve(): SolveState {
     result,
     request,
     error,
+    failure,
     solve,
   };
 }
