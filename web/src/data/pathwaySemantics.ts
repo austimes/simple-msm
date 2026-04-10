@@ -8,14 +8,12 @@ import type {
 export interface PathwayControlInput {
   mode?: ConfigurationControlMode | null;
   fixedShares?: Record<string, number> | null;
-  disabledStateIds?: readonly string[] | null;
+  activeStateIds?: readonly string[] | null;
 }
 
 export interface DerivedPathwayStateIds {
   allStateIds: string[];
-  availableStateIds: string[];
   activeStateIds: string[];
-  capEligibleStateIds: string[];
 }
 
 type SupportedPathwayControl =
@@ -36,25 +34,32 @@ export function toPathwayControlInput(
     return undefined;
   }
 
-  if (
-    'disabledStateIds' in control
-    || 'fixedShares' in control
-  ) {
+  // ResolvedSolveControl (camelCase) — still has disabledStateIds during migration
+  if ('disabledStateIds' in control) {
+    const resolved = control as ResolvedSolveControl;
     return {
-      mode: control.mode ?? null,
-      fixedShares: control.fixedShares ?? null,
-      disabledStateIds: control.disabledStateIds ?? [],
+      mode: resolved.mode ?? null,
+      fixedShares: resolved.fixedShares ?? null,
+      activeStateIds: null,
     };
   }
 
-  if (
-    'disabled_state_ids' in control
-    || 'fixed_shares' in control
-  ) {
+  // PathwayControlInput (already has activeStateIds)
+  if ('activeStateIds' in control || 'fixedShares' in control) {
     return {
-      mode: control.mode,
-      fixedShares: control.fixed_shares ?? null,
-      disabledStateIds: control.disabled_state_ids ?? [],
+      mode: control.mode ?? null,
+      fixedShares: control.fixedShares ?? null,
+      activeStateIds: (control as PathwayControlInput).activeStateIds ?? null,
+    };
+  }
+
+  // ConfigurationServiceControl (snake_case)
+  if ('active_state_ids' in control || 'fixed_shares' in control) {
+    const svc = control as ConfigurationServiceControl;
+    return {
+      mode: svc.mode,
+      fixedShares: svc.fixed_shares ?? null,
+      activeStateIds: svc.active_state_ids ?? null,
     };
   }
 
@@ -62,21 +67,28 @@ export function toPathwayControlInput(
 }
 
 function deriveActiveStateIds(
-  availableStateIds: string[],
+  allStateIds: string[],
   control: PathwayControlInput | undefined,
 ): string[] {
   if (!control?.mode) {
-    return availableStateIds;
+    if (control?.activeStateIds) {
+      const allowed = new Set(control.activeStateIds);
+      return allStateIds.filter((id) => allowed.has(id));
+    }
+    return allStateIds;
   }
 
   switch (control.mode) {
     case 'externalized':
-    case 'off':
       return [];
     case 'fixed_shares':
-      return availableStateIds.filter((stateId) => (control.fixedShares?.[stateId] ?? 0) > 0);
+      return allStateIds.filter((stateId) => (control.fixedShares?.[stateId] ?? 0) > 0);
     default:
-      return availableStateIds;
+      if (control.activeStateIds) {
+        const allowed = new Set(control.activeStateIds);
+        return allStateIds.filter((id) => allowed.has(id));
+      }
+      return allStateIds;
   }
 }
 
@@ -86,18 +98,11 @@ export function derivePathwayStateIds(
 ): DerivedPathwayStateIds {
   const uniqueStateIds = dedupeStateIds(allStateIds);
   const normalizedControl = toPathwayControlInput(control);
-  const disabledStateIds = new Set(normalizedControl?.disabledStateIds ?? []);
-  const availableStateIds = uniqueStateIds.filter((stateId) => !disabledStateIds.has(stateId));
-  const activeStateIds = deriveActiveStateIds(availableStateIds, normalizedControl);
-  const capEligibleStateIds = normalizedControl?.mode === 'fixed_shares' && activeStateIds.length > 0
-    ? activeStateIds
-    : availableStateIds;
+  const activeStateIds = deriveActiveStateIds(uniqueStateIds, normalizedControl);
 
   return {
     allStateIds: uniqueStateIds,
-    availableStateIds,
     activeStateIds,
-    capEligibleStateIds,
   };
 }
 
