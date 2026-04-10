@@ -27,7 +27,6 @@ export function validateFixedShareControl(
 ): SolveDiagnostic[] {
   const diagnostics: SolveDiagnostic[] = [];
   const knownStateIds = new Set(rows.map((row) => row.stateId));
-  const disabledStateIds = new Set(control.disabledStateIds);
   const shares = control.fixedShares;
 
   if (!shares || Object.keys(shares).length === 0) {
@@ -54,17 +53,6 @@ export function validateFixedShareControl(
         message: `Exact-share state ${JSON.stringify(stateId)} is not available for ${outputId} in ${year}.`,
         ...buildConstraintContext(outputId, year, stateId),
         suggestion: 'Choose a state that exists in the library rows for this service-year.',
-      });
-    }
-
-    if (disabledStateIds.has(stateId)) {
-      diagnostics.push({
-        code: 'disabled_fixed_share_state',
-        severity: 'error',
-        reason: 'disabled_states',
-        message: `Exact-share state ${JSON.stringify(stateId)} is disabled for ${outputId} in ${year}.`,
-        ...buildConstraintContext(outputId, year, stateId),
-        suggestion: 'Re-enable the state or remove it from the exact-share mix.',
       });
     }
 
