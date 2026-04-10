@@ -1158,7 +1158,7 @@ function buildNarratives(
     .sort((left, right) => left.delta - right.delta)
     .slice(0, 3);
   const dominantShifts = stateShareDeltas.slice(0, 3);
-  const electricityControlBase = base.configuration.service_controls.electricity?.mode ?? 'fixed_shares';
+  const electricityControlBase = base.configuration.service_controls.electricity?.mode ?? 'externalized';
   const electricityControlCompare = compare.configuration.service_controls.electricity?.mode ?? electricityControlBase;
   const constrainedBindings = constrainedShadow.metrics.bindingConstraints;
   const highlightedBindings = Array.from(new Set(constrainedBindings.slice(0, 3).map((constraint) => {

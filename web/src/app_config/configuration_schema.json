@@ -45,22 +45,10 @@
           "mode": {
             "type": "string",
             "enum": [
-              "fixed_shares",
               "optimize",
               "externalized",
               "target"
             ]
-          },
-          "fixed_shares": {
-            "type": [
-              "object",
-              "null"
-            ],
-            "additionalProperties": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 1
-            }
           },
           "target_value": {
             "type": [
@@ -88,17 +76,6 @@
               "properties": {
                 "mode": {
                   "type": "string"
-                },
-                "fixed_shares": {
-                  "type": [
-                    "object",
-                    "null"
-                  ],
-                  "additionalProperties": {
-                    "type": "number",
-                    "minimum": 0,
-                    "maximum": 1
-                  }
                 },
                 "target_value": {
                   "type": [

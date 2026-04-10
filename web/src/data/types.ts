@@ -6,7 +6,6 @@ export interface EmissionEntry {
 export type OutputRole = 'required_service' | 'endogenous_supply_commodity' | 'optional_removals';
 
 export type ConfigurationControlMode =
-  | 'fixed_shares'
   | 'optimize'
   | 'externalized'
   | 'target';
@@ -22,14 +21,12 @@ export type PriceLevel = (typeof PRICE_LEVELS)[number];
 
 export interface ConfigurationServiceControlYearOverride {
   mode?: ConfigurationControlMode;
-  fixed_shares?: Record<string, number> | null;
   target_value?: number | null;
   active_state_ids?: string[] | null;
 }
 
 export interface ConfigurationServiceControl {
   mode: ConfigurationControlMode;
-  fixed_shares?: Record<string, number> | null;
   target_value?: number | null;
   active_state_ids?: string[] | null;
   year_overrides?: Partial<Record<ConfigurationYearKey, ConfigurationServiceControlYearOverride>> | null;

@@ -7,9 +7,8 @@
     "display_order": 10,
     "participates_in_commodity_balance": false,
     "demand_required": true,
-    "default_control_mode": "fixed_shares",
+    "default_control_mode": "optimize",
     "allowed_control_modes": [
-      "fixed_shares",
       "optimize"
     ],
     "explanation_group": "buildings"
@@ -22,9 +21,8 @@
     "display_order": 20,
     "participates_in_commodity_balance": false,
     "demand_required": true,
-    "default_control_mode": "fixed_shares",
+    "default_control_mode": "optimize",
     "allowed_control_modes": [
-      "fixed_shares",
       "optimize"
     ],
     "explanation_group": "buildings"
@@ -37,9 +35,8 @@
     "display_order": 10,
     "participates_in_commodity_balance": false,
     "demand_required": true,
-    "default_control_mode": "fixed_shares",
+    "default_control_mode": "optimize",
     "allowed_control_modes": [
-      "fixed_shares",
       "optimize"
     ],
     "explanation_group": "road_transport"
@@ -52,9 +49,8 @@
     "display_order": 20,
     "participates_in_commodity_balance": false,
     "demand_required": true,
-    "default_control_mode": "fixed_shares",
+    "default_control_mode": "optimize",
     "allowed_control_modes": [
-      "fixed_shares",
       "optimize"
     ],
     "explanation_group": "road_transport"
@@ -67,9 +63,8 @@
     "display_order": 10,
     "participates_in_commodity_balance": false,
     "demand_required": true,
-    "default_control_mode": "fixed_shares",
+    "default_control_mode": "optimize",
     "allowed_control_modes": [
-      "fixed_shares",
       "optimize"
     ],
     "explanation_group": "industrial_heat"
@@ -82,9 +77,8 @@
     "display_order": 20,
     "participates_in_commodity_balance": false,
     "demand_required": true,
-    "default_control_mode": "fixed_shares",
+    "default_control_mode": "optimize",
     "allowed_control_modes": [
-      "fixed_shares",
       "optimize"
     ],
     "explanation_group": "industrial_heat"
@@ -97,9 +91,8 @@
     "display_order": 30,
     "participates_in_commodity_balance": false,
     "demand_required": true,
-    "default_control_mode": "fixed_shares",
+    "default_control_mode": "optimize",
     "allowed_control_modes": [
-      "fixed_shares",
       "optimize"
     ],
     "explanation_group": "industrial_heat"
@@ -112,9 +105,8 @@
     "display_order": 10,
     "participates_in_commodity_balance": false,
     "demand_required": true,
-    "default_control_mode": "fixed_shares",
+    "default_control_mode": "optimize",
     "allowed_control_modes": [
-      "fixed_shares",
       "optimize"
     ],
     "explanation_group": "industry"
@@ -127,9 +119,8 @@
     "display_order": 20,
     "participates_in_commodity_balance": false,
     "demand_required": true,
-    "default_control_mode": "fixed_shares",
+    "default_control_mode": "optimize",
     "allowed_control_modes": [
-      "fixed_shares",
       "optimize"
     ],
     "explanation_group": "industry"
@@ -142,9 +133,8 @@
     "display_order": 10,
     "participates_in_commodity_balance": false,
     "demand_required": true,
-    "default_control_mode": "fixed_shares",
+    "default_control_mode": "optimize",
     "allowed_control_modes": [
-      "fixed_shares",
       "optimize"
     ],
     "explanation_group": "agriculture"
@@ -157,9 +147,8 @@
     "display_order": 20,
     "participates_in_commodity_balance": false,
     "demand_required": true,
-    "default_control_mode": "fixed_shares",
+    "default_control_mode": "optimize",
     "allowed_control_modes": [
-      "fixed_shares",
       "optimize"
     ],
     "explanation_group": "agriculture"
@@ -174,7 +163,6 @@
     "demand_required": false,
     "default_control_mode": "externalized",
     "allowed_control_modes": [
-      "fixed_shares",
       "optimize",
       "externalized"
     ],

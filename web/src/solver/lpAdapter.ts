@@ -17,7 +17,6 @@ import type {
   SolveStateShareSummary,
   SolveSoftConstraintViolationSummary,
 } from './contract.ts';
-import { validateFixedShareControl } from './fixedShareValidation.ts';
 
 const CONFIGURATION_OBJECTIVE_KEY = 'total_cost';
 const CONFIGURATION_DIRECTION = 'minimize' as const;
@@ -82,7 +81,6 @@ interface RowShareProfile {
   lowerShare: number;
   upperShare: number;
   upperShareIgnoringActivity: number;
-  exactShare: number | null;
   rawMaxShare: number | null;
   effectiveMaxShare: number | null;
   maxShareLimit: number | null;
@@ -450,10 +448,6 @@ function collectSupplyCommodityGroups(request: SolveRequest): SupplyCommodityGro
   });
 }
 
-function controlConstraintPrefix(controlMode: ResolvedSolveControl['mode']): string {
-  return controlMode === 'fixed_shares' ? 'fixed_share' : 'control';
-}
-
 function sharePercent(value: number): string {
   return `${(value * 100).toFixed(1)}%`;
 }
@@ -476,22 +470,8 @@ function buildConstraintContext(
   };
 }
 
-function validateRequiredServiceGroup(group: RequiredServiceGroup): SolveDiagnostic[] {
-  const diagnostics: SolveDiagnostic[] = [];
-
-  if (group.control.mode === 'fixed_shares') {
-    diagnostics.push(
-      ...validateFixedShareControl(
-        group.outputId,
-        group.year,
-        group.rows,
-        group.control,
-        'Exact-share control',
-      ),
-    );
-  }
-
-  return diagnostics;
+function validateRequiredServiceGroup(_group: RequiredServiceGroup): SolveDiagnostic[] {
+  return [];
 }
 
 function validateSupplyCommodityGroup(group: SupplyCommodityGroup): SolveDiagnostic[] {
@@ -501,25 +481,12 @@ function validateSupplyCommodityGroup(group: SupplyCommodityGroup): SolveDiagnos
     return diagnostics;
   }
 
-  if (group.control.mode === 'fixed_shares') {
-    diagnostics.push(
-      ...validateFixedShareControl(
-        group.commodityId,
-        group.year,
-        group.rows,
-        group.control,
-        'Exact-share supply control',
-      ),
-    );
-    return diagnostics;
-  }
-
   diagnostics.push({
     code: 'invalid_supply_control_mode',
     severity: 'error',
-    message: `Supply commodity ${group.commodityId} in ${group.year} must use exact shares, optimize, or externalized mode.`,
+    message: `Supply commodity ${group.commodityId} in ${group.year} must use optimize or externalized mode.`,
     ...buildConstraintContext(group.commodityId, group.year),
-    suggestion: 'Use exact shares, optimize, or externalized mode for endogenous supply commodities.',
+    suggestion: 'Use optimize or externalized mode for endogenous supply commodities.',
   });
 
   return diagnostics;
@@ -573,14 +540,6 @@ function buildEffectiveMaxShareLookup(
   return lookup;
 }
 
-function resolveExactShare(control: ResolvedSolveControl, row: NormalizedSolverRow): number | null {
-  if (control.mode === 'fixed_shares') {
-    return control.fixedShares?.[row.stateId] ?? 0;
-  }
-
-  return null;
-}
-
 function buildRowShareProfiles(
   rows: NormalizedSolverRow[],
   control: ResolvedSolveControl,
@@ -625,7 +584,6 @@ function buildRowShareProfiles(
         lowerShare: inactive || referenceDemand <= SHARE_TOLERANCE ? 0 : Math.max(0, row.bounds.minShare ?? 0),
         upperShare,
         upperShareIgnoringActivity,
-        exactShare: resolveExactShare(control, row),
         rawMaxShare: resolvedMaxShare.rawMaxShare,
         effectiveMaxShare: resolvedMaxShare.effectiveMaxShare,
         maxShareLimit,
@@ -649,13 +607,6 @@ function estimateMinimumCommodityDemandForGroup(
   }
 
   const profiles = buildRowShareProfiles(group.rows, group.control, group.demand, request, commodityId);
-
-  if (group.control.mode === 'fixed_shares') {
-    return group.demand * profiles.reduce((total, profile) => {
-      return total + (profile.exactShare ?? 0) * profile.commodityCoefficient;
-    }, 0);
-  }
-
   const activeProfiles = profiles.filter((profile) => profile.active);
   if (activeProfiles.length === 0) {
     return null;
@@ -752,26 +703,6 @@ function estimateMaximumSupplyActivity(
     return 0;
   }
 
-  if (group.control.mode === 'fixed_shares') {
-    const fixedShares = group.control.fixedShares ?? {};
-    let hasPositiveShare = false;
-    let maximumActivity = Number.POSITIVE_INFINITY;
-
-    for (const row of rows) {
-      const share = fixedShares[row.stateId] ?? 0;
-      if (share <= SHARE_TOLERANCE) {
-        continue;
-      }
-
-      hasPositiveShare = true;
-      if (request.configuration.options.respectMaxActivity && row.bounds.maxActivity != null) {
-        maximumActivity = Math.min(maximumActivity, row.bounds.maxActivity / share);
-      }
-    }
-
-    return hasPositiveShare ? maximumActivity : 0;
-  }
-
   if (!request.configuration.options.respectMaxActivity) {
     return Number.POSITIVE_INFINITY;
   }
@@ -794,63 +725,6 @@ function buildRequiredServiceInfeasibilityDiagnostics(build: ConfigurationLpBuil
     const profiles = buildRowShareProfiles(group.rows, group.control, group.demand, build.request);
     const activeProfiles = profiles.filter((profile) => profile.active);
     const inactiveProfiles = profiles.filter((profile) => !profile.active);
-
-    if (group.control.mode === 'fixed_shares') {
-      for (const profile of profiles) {
-        const exactShare = profile.exactShare ?? 0;
-
-        if (!profile.active && exactShare > SHARE_TOLERANCE) {
-          diagnostics.push({
-            code: 'exact_control_hits_inactive_state',
-            severity: 'error',
-            reason: 'inactive_states',
-            message: `${group.outputLabel} in ${group.year} requires inactive state ${profile.row.stateLabel} under the current exact-share control.`,
-            ...buildConstraintContext(group.outputId, group.year, profile.row.stateId, profile.row.rowId),
-            relatedConstraintIds: [stateConstraintId('inactive', profile.row), stateConstraintId(controlConstraintPrefix(group.control.mode), profile.row)],
-            suggestion: 'Activate the state or relax the exact-share control for this service-year.',
-          });
-        }
-
-        if (exactShare > profile.upperShareIgnoringActivity + SHARE_TOLERANCE) {
-          diagnostics.push({
-            code: 'exact_control_share_conflict',
-            severity: 'error',
-            reason: 'exact_share_conflict',
-            message: `${group.outputLabel} in ${group.year} assigns ${sharePercent(exactShare)} to ${profile.row.stateLabel}, above its max share of ${sharePercent(profile.maxShareLimit ?? 0)}.`,
-            ...buildConstraintContext(group.outputId, group.year, profile.row.stateId, profile.row.rowId),
-            relatedConstraintIds: [stateConstraintId(controlConstraintPrefix(group.control.mode), profile.row), stateConstraintId('max_share', profile.row)],
-            suggestion: 'Relax the exact control or raise the state max share cap for this service-year.',
-          });
-          continue;
-        }
-
-        if (exactShare > profile.upperShare + SHARE_TOLERANCE) {
-          diagnostics.push({
-            code: 'exact_control_activity_conflict',
-            severity: 'error',
-            reason: 'activity_exhaustion',
-            message: `${group.outputLabel} in ${group.year} needs ${formatNumber(exactShare * group.demand)} units from ${profile.row.stateLabel}, but its max activity is ${formatNumber(profile.maxActivityLimit ?? 0)}.`,
-            ...buildConstraintContext(group.outputId, group.year, profile.row.stateId, profile.row.rowId),
-            relatedConstraintIds: [stateConstraintId(controlConstraintPrefix(group.control.mode), profile.row), stateConstraintId('max_activity', profile.row)],
-            suggestion: 'Relax the exact control, increase max activity, or shift activity to additional states.',
-          });
-        }
-
-        if (exactShare + SHARE_TOLERANCE < profile.lowerShare) {
-          diagnostics.push({
-            code: 'exact_control_min_share_conflict',
-            severity: 'error',
-            reason: 'exact_share_conflict',
-            message: `${group.outputLabel} in ${group.year} assigns ${sharePercent(exactShare)} to ${profile.row.stateLabel}, below its minimum share of ${sharePercent(profile.lowerShare)}.`,
-            ...buildConstraintContext(group.outputId, group.year, profile.row.stateId, profile.row.rowId),
-            relatedConstraintIds: [stateConstraintId(controlConstraintPrefix(group.control.mode), profile.row), stateConstraintId('min_share', profile.row)],
-            suggestion: 'Relax the exact control or lower the minimum-share bound for the affected state.',
-          });
-        }
-      }
-
-      continue;
-    }
 
     if (activeProfiles.length === 0) {
       diagnostics.push({
@@ -957,48 +831,7 @@ function buildSupplyCommodityInfeasibilityDiagnostics(build: ConfigurationLpBuil
     const activeProfiles = profiles.filter((profile) => profile.active);
     const inactiveProfiles = profiles.filter((profile) => !profile.active);
 
-    if (group.control.mode === 'fixed_shares') {
-      for (const profile of profiles) {
-        const exactShare = profile.exactShare ?? 0;
-
-        if (exactShare > profile.upperShareIgnoringActivity + SHARE_TOLERANCE) {
-          diagnostics.push({
-            code: 'supply_fixed_share_conflict',
-            severity: 'error',
-            reason: 'exact_share_conflict',
-            message: `${group.commodityLabel} in ${group.year} assigns ${sharePercent(exactShare)} to ${profile.row.stateLabel}, above its max share of ${sharePercent(profile.maxShareLimit ?? 0)}.`,
-            ...buildConstraintContext(group.commodityId, group.year, profile.row.stateId, profile.row.rowId),
-            relatedConstraintIds: [stateConstraintId('fixed_share', profile.row), stateConstraintId('max_share', profile.row)],
-            suggestion: 'Relax the exact supply shares or raise the affected max-share cap.',
-          });
-          continue;
-        }
-
-        if (exactShare + SHARE_TOLERANCE < profile.lowerShare) {
-          diagnostics.push({
-            code: 'supply_fixed_share_min_conflict',
-            severity: 'error',
-            reason: 'exact_share_conflict',
-            message: `${group.commodityLabel} in ${group.year} assigns ${sharePercent(exactShare)} to ${profile.row.stateLabel}, below its minimum share of ${sharePercent(profile.lowerShare)}.`,
-            ...buildConstraintContext(group.commodityId, group.year, profile.row.stateId, profile.row.rowId),
-            relatedConstraintIds: [stateConstraintId('fixed_share', profile.row), stateConstraintId('min_share', profile.row)],
-            suggestion: 'Relax the exact supply shares or lower the state minimum share.',
-          });
-        }
-
-        if (exactShare > profile.upperShare + SHARE_TOLERANCE) {
-          diagnostics.push({
-            code: 'supply_fixed_share_activity_conflict',
-            severity: 'error',
-            reason: 'electricity_balance_conflict',
-            message: `${group.commodityLabel} in ${group.year} needs ${formatNumber(exactShare * minimumRequiredSupply)} units from ${profile.row.stateLabel}, but its max activity is ${formatNumber(profile.maxActivityLimit ?? 0)}.`,
-            ...buildConstraintContext(group.commodityId, group.year, profile.row.stateId, profile.row.rowId),
-            relatedConstraintIds: [stateConstraintId('fixed_share', profile.row), stateConstraintId('max_activity', profile.row)],
-            suggestion: 'Relax the exact supply shares, raise the max activity cap, or lower electricity demand.',
-          });
-        }
-      }
-    } else if (group.control.mode === 'optimize') {
+    if (group.control.mode === 'optimize') {
       if (activeProfiles.length === 0) {
         diagnostics.push({
           code: 'supply_states_inactive',
@@ -1203,7 +1036,6 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
   for (const group of requiredServiceGroups) {
     const demandId = demandConstraintId(group.outputId, group.year);
     const activeStateIds = group.control.activeStateIds ? new Set(group.control.activeStateIds) : null;
-    const fixedShares = group.control.fixedShares ?? {};
     const maxShareLookup = buildEffectiveMaxShareLookup(group.rows, group.control);
 
     trackConstraint(
@@ -1246,28 +1078,6 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
           },
         );
         continue;
-      }
-
-      if (group.control.mode === 'fixed_shares') {
-        addConstraint(
-          constraints,
-          trackedConstraints,
-          variables,
-          variableId,
-          stateConstraintId('fixed_share', row),
-          scaleConstraintBounds({ equal: (fixedShares[row.stateId] ?? 0) * group.demand }, activityScale),
-          {
-            kind: 'fixed_share',
-            outputId: row.outputId,
-            outputLabel: row.outputLabel,
-            year: row.year,
-            stateId: row.stateId,
-            stateLabel: row.stateLabel,
-            rowId: row.rowId,
-            mode: group.control.mode,
-            message: `${row.stateLabel} follows the exact share for ${row.outputLabel} in ${row.year}.`,
-          },
-        );
       }
 
       if (row.bounds.minShare != null) {
@@ -1364,7 +1174,6 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
   for (const group of supplyGroups) {
     const variableIds = group.rows.map((row) => activityVariableId(row));
     const activeStateIds = group.control.activeStateIds ? new Set(group.control.activeStateIds) : null;
-    const fixedShares = group.control.fixedShares ?? {};
     const maxShareLookup = buildEffectiveMaxShareLookup(group.rows, group.control);
 
     if (group.control.mode === 'externalized') {
@@ -1448,31 +1257,6 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
           },
         );
         continue;
-      }
-
-      if (group.control.mode === 'fixed_shares') {
-        addShareConstraint(
-          constraints,
-          trackedConstraints,
-          variables,
-          variableIds,
-          variableId,
-          fixedShares[row.stateId] ?? 0,
-          stateConstraintId('fixed_share', row),
-          { equal: 0 },
-          {
-            kind: 'fixed_share',
-            outputId: row.outputId,
-            outputLabel: row.outputLabel,
-            year: row.year,
-            stateId: row.stateId,
-            stateLabel: row.stateLabel,
-            rowId: row.rowId,
-            commodityId: group.commodityId,
-            mode: group.control.mode,
-            message: `${row.stateLabel} follows the exact share for ${row.outputLabel} in ${row.year}.`,
-          },
-        );
       }
 
       if (row.bounds.minShare != null) {

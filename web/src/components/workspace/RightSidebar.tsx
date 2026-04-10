@@ -11,7 +11,7 @@ export default function RightSidebar() {
   const sectorStates = usePackageStore((s) => s.sectorStates);
   const appConfig = usePackageStore((s) => s.appConfig);
   const currentConfiguration = usePackageStore((s) => s.currentConfiguration);
-  const toggleStateEnabled = usePackageStore((s) => s.toggleStateEnabled);
+  const toggleStateActive = usePackageStore((s) => s.toggleStateActive);
 
   const [expandedSubsectors, setExpandedSubsectors] = useState<Set<string>>(new Set());
   const [expandedSectors, setExpandedSectors] = useState<Set<string>>(new Set());
@@ -63,7 +63,7 @@ export default function RightSidebar() {
       tree={tree}
       onToggleExpandedSector={toggleExpandedSector}
       onToggleExpandedSubsector={toggleExpandedSubsector}
-      onToggleStateEnabled={toggleStateEnabled}
+      onToggleStateActive={toggleStateActive}
     />
   );
 }

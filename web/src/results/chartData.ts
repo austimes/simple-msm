@@ -400,9 +400,6 @@ export function buildPathwayChartCards(
     .map(([outputId, metadata]) => {
       const outputGrouped = new Map<string, Map<number, number>>();
       const capGrouped = new Map<string, Map<number, number>>();
-      const usesFixedShares = years.some(
-        (year) => request.configuration.controlsByOutput[outputId]?.[String(year)]?.mode === 'fixed_shares',
-      );
       let hasNormalizedCaps = false;
 
       for (const share of result.reporting.stateShares) {

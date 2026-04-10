@@ -1,12 +1,11 @@
 import type { OutputRole, ConfigurationControlMode } from '../data/types.ts';
 
-export const SOLVER_CONTRACT_VERSION = 3 as const;
+export const SOLVER_CONTRACT_VERSION = 4 as const;
 
 export type SolverContractVersion = typeof SOLVER_CONTRACT_VERSION;
 export type SolveStatus = 'partial' | 'solved' | 'error';
 export type SolveDiagnosticSeverity = 'info' | 'warning' | 'error';
 export type SolveDiagnosticReason =
-  | 'exact_share_conflict'
   | 'share_exhaustion'
   | 'activity_exhaustion'
   | 'inactive_states'
@@ -57,7 +56,6 @@ export interface NormalizedSolverRow {
 
 export interface ResolvedSolveControl {
   mode: ConfigurationControlMode;
-  fixedShares: Record<string, number> | null;
   activeStateIds: string[] | null;
   targetValue: number | null;
 }
@@ -138,7 +136,6 @@ export type SolveConstraintBoundType = 'equal' | 'min' | 'max';
 export type SolveConstraintKind =
   | 'service_demand'
   | 'commodity_balance'
-  | 'fixed_share'
   | 'min_share'
   | 'max_share'
   | 'max_activity'

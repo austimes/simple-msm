@@ -7,7 +7,6 @@ import type {
 
 export interface PathwayControlInput {
   mode?: ConfigurationControlMode | null;
-  fixedShares?: Record<string, number> | null;
   activeStateIds?: readonly string[] | null;
 }
 
@@ -35,20 +34,18 @@ export function toPathwayControlInput(
   }
 
   // ResolvedSolveControl or PathwayControlInput (camelCase with activeStateIds)
-  if ('activeStateIds' in control || 'fixedShares' in control) {
+  if ('activeStateIds' in control) {
     return {
       mode: control.mode ?? null,
-      fixedShares: control.fixedShares ?? null,
       activeStateIds: (control as PathwayControlInput).activeStateIds ?? null,
     };
   }
 
   // ConfigurationServiceControl (snake_case)
-  if ('active_state_ids' in control || 'fixed_shares' in control) {
+  if ('active_state_ids' in control) {
     const svc = control as ConfigurationServiceControl;
     return {
       mode: svc.mode,
-      fixedShares: svc.fixed_shares ?? null,
       activeStateIds: svc.active_state_ids ?? null,
     };
   }
@@ -71,8 +68,6 @@ function deriveActiveStateIds(
   switch (control.mode) {
     case 'externalized':
       return [];
-    case 'fixed_shares':
-      return allStateIds.filter((stateId) => (control.fixedShares?.[stateId] ?? 0) > 0);
     default:
       if (control.activeStateIds) {
         const allowed = new Set(control.activeStateIds);

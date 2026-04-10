@@ -44,7 +44,7 @@ interface PackageStore extends PackageData {
   setCarbonPricePreset: (presetId: string) => void;
   toggleStateActive: (outputId: string, stateId: string) => void;
   setOutputControlMode: (outputId: string, mode: ConfigurationControlMode) => void;
-  setOutputFixedShare: (outputId: string, stateId: string, share: number) => void;
+
   setDemandPreset: (presetId: string) => void;
   setRespectMaxShare: (enabled: boolean) => void;
   loadConfiguration: (config: ConfigurationDocument) => void;
@@ -98,31 +98,6 @@ function getAllStateIdsForOutput(
         .filter((row) => row.service_or_output_name === outputId)
         .map((row) => row.state_id),
     ),
-  );
-}
-
-function normalizeFixedShares(
-  stateIds: string[],
-  fixedShares: Record<string, number> | null | undefined,
-): Record<string, number> | null {
-  if (stateIds.length === 0) {
-    return null;
-  }
-
-  const filteredEntries = stateIds
-    .map((stateId) => {
-      const share = fixedShares?.[stateId];
-      return [stateId, typeof share === 'number' ? Math.max(0, share) : 0] as const;
-    })
-    .filter(([, share]) => share > 0);
-
-  if (filteredEntries.length > 0) {
-    return Object.fromEntries(filteredEntries);
-  }
-
-  const equalShare = 1 / stateIds.length;
-  return Object.fromEntries(
-    stateIds.map((stateId) => [stateId, equalShare]),
   );
 }
 
@@ -328,59 +303,10 @@ export const usePackageStore = create<PackageStore>((set, get) => {
       const control: ConfigurationServiceControl = nextConfiguration.service_controls[outputId] ?? {
         mode: 'optimize',
       };
-      const allStateIds = getAllStateIdsForOutput(get().sectorStates, outputId);
-      const activeStateIds = getActiveStateIds(nextConfiguration, outputId, allStateIds);
-
-      nextConfiguration.service_controls[outputId] = mode === 'fixed_shares'
-        ? {
-            ...control,
-            mode,
-            fixed_shares: normalizeFixedShares(activeStateIds, control.fixed_shares),
-          }
-        : {
-            ...control,
-            mode,
-            fixed_shares: null,
-          };
-      commitConfigurationEdit(nextConfiguration);
-    },
-    setOutputFixedShare: (outputId, stateId, share) => {
-      const metadata = get().appConfig.output_roles[outputId];
-      const allowed = metadata?.allowed_control_modes ?? [];
-      if (!allowed.includes('fixed_shares')) {
-        return;
-      }
-
-      const nextConfiguration = cloneConfiguration(get().currentConfiguration);
-      const existing: ConfigurationServiceControl = nextConfiguration.service_controls[outputId] ?? {
-        mode: 'fixed_shares',
-      };
-      const allStateIds = getAllStateIdsForOutput(get().sectorStates, outputId);
-
-      if (!allStateIds.includes(stateId)) {
-        return;
-      }
-
-      const nextFixedShares = {
-        ...(existing.fixed_shares ?? {}),
-      };
-      const nextShare = Number.isFinite(share) ? Math.max(0, share) : 0;
-
-      if (nextShare > 0) {
-        nextFixedShares[stateId] = nextShare;
-      } else {
-        delete nextFixedShares[stateId];
-      }
 
       nextConfiguration.service_controls[outputId] = {
-        ...existing,
-        mode: 'fixed_shares',
-        fixed_shares: Object.keys(nextFixedShares).length > 0
-          ? Object.fromEntries(
-              Object.entries(nextFixedShares)
-                .filter(([candidateId]) => allStateIds.includes(candidateId)),
-            )
-          : null,
+        ...control,
+        mode,
       };
       commitConfigurationEdit(nextConfiguration);
     },

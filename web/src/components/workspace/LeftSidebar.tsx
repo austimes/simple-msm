@@ -20,13 +20,10 @@ import type {
   CommodityPriceSeries,
   ConfigurationControlMode,
   ConfigurationDocument,
-  SectorState,
 } from '../../data/types';
 import {
   formatControlModeLabel,
-  formatSharePercent,
   getCommodityPriceSelectorPresentation,
-  sumFixedShares,
 } from './leftSidebarCommodityStatus';
 import { getConfigurationSaveActionState } from './leftSidebarSaveActions';
 
@@ -57,28 +54,6 @@ function formatModeChoiceLabel(mode: ConfigurationControlMode): string {
   return label.replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-function buildStateOptions(
-  sectorStates: SectorState[],
-  outputId: string,
-) {
-  const seen = new Set<string>();
-  const states: Array<{ stateId: string; stateLabel: string }> = [];
-
-  for (const row of sectorStates) {
-    if (row.service_or_output_name !== outputId || seen.has(row.state_id)) {
-      continue;
-    }
-
-    seen.add(row.state_id);
-    states.push({
-      stateId: row.state_id,
-      stateLabel: row.state_label,
-    });
-  }
-
-  return states;
-}
-
 export default function LeftSidebar() {
   const appConfig = usePackageStore((s) => s.appConfig);
   const sectorStates = usePackageStore((s) => s.sectorStates);
@@ -88,7 +63,6 @@ export default function LeftSidebar() {
   const setCarbonPricePreset = usePackageStore((s) => s.setCarbonPricePreset);
   const setRespectMaxShare = usePackageStore((s) => s.setRespectMaxShare);
   const setOutputControlMode = usePackageStore((s) => s.setOutputControlMode);
-  const setOutputFixedShare = usePackageStore((s) => s.setOutputFixedShare);
   const loadConfiguration = usePackageStore((s) => s.loadConfiguration);
   const activeConfigurationId = usePackageStore((s) => s.activeConfigurationId);
   const activeConfigurationReadonly = usePackageStore((s) => s.activeConfigurationReadonly);
@@ -116,7 +90,6 @@ export default function LeftSidebar() {
         metadata.output_role === 'endogenous_supply_commodity'
         && metadata.allowed_control_modes.includes('externalized')
         && metadata.allowed_control_modes.includes('optimize')
-        && metadata.allowed_control_modes.includes('fixed_shares')
       ))
       .sort(([, left], [, right]) => (
         left.display_group_order - right.display_group_order
@@ -128,7 +101,6 @@ export default function LeftSidebar() {
         label: metadata.display_label,
         allowedModes: metadata.allowed_control_modes,
         priceDriver: appConfig.commodity_price_presets[outputId],
-        states: buildStateOptions(sectorStates, outputId),
       })),
     [appConfig, sectorStates],
   );
@@ -303,18 +275,13 @@ export default function LeftSidebar() {
 
       <div className="workspace-section">
         <span className="workspace-section-title">Commodity Controls</span>
-        {commodityControls.map(({ outputId, label, allowedModes, priceDriver, states }) => {
+        {commodityControls.map(({ outputId, label, allowedModes, priceDriver }) => {
           const activeLevel = getCommodityPriceLevel(currentConfiguration, outputId);
           const selectorPresentation = getCommodityPriceSelectorPresentation(
             outputStatuses[outputId],
             activeLevel,
           );
-          const control = currentConfiguration.service_controls[outputId];
           const currentMode = outputStatuses[outputId]?.controlMode ?? allowedModes[0];
-          const activeStateIds = new Set(outputStatuses[outputId]?.activeStateIds ?? []);
-          const fixedShareTotal = sumFixedShares(control?.fixed_shares);
-          const fixedShareTotalIsValid = Math.abs(fixedShareTotal - 1) < 1e-6;
-
           return (
             <div key={outputId} className="workspace-subsector-group">
               <div className="workspace-subsector-title">
@@ -343,65 +310,6 @@ export default function LeftSidebar() {
                   </button>
                 ))}
               </div>
-              {currentMode === 'fixed_shares' && (
-                <div className="workspace-fixed-share-panel">
-                  <div className="workspace-fixed-share-summary">
-                    <div className="workspace-subsector-detail">
-                      Exact shares determine pathway activity. Pathways with a positive share are active in the solve; 0% share means inactive.
-                    </div>
-                    <span className={`workspace-mode-badge workspace-mode-badge--${fixedShareTotalIsValid ? 'success' : 'warning'}`}>
-                      Total {formatSharePercent(fixedShareTotal)}
-                    </span>
-                  </div>
-                  <div className="workspace-fixed-share-list">
-                    {states.map((state) => {
-                      const isActive = activeStateIds.has(state.stateId);
-                      const share = (control?.fixed_shares?.[state.stateId] ?? 0) * 100;
-                      const note = isActive
-                        ? 'Active in the current solve.'
-                        : 'Inactive — set a positive share to activate.';
-                      return (
-                        <div
-                          key={state.stateId}
-                          className="workspace-fixed-share-row"
-                        >
-                          <div className="workspace-fixed-share-copy">
-                            <div className="workspace-fixed-share-label">{state.stateLabel}</div>
-                            <div className="workspace-fixed-share-note">{note}</div>
-                          </div>
-                          <label className="workspace-fixed-share-input">
-                            <input
-                              type="number"
-                              inputMode="decimal"
-                              min="0"
-                              max="100"
-                              step="0.1"
-                              value={Number.isInteger(share) ? share.toFixed(0) : share.toFixed(1)}
-                              onChange={(event) => {
-                                const percent = Number.parseFloat(event.target.value);
-                                setOutputFixedShare(
-                                  outputId,
-                                  state.stateId,
-                                  Number.isFinite(percent) ? percent / 100 : 0,
-                                );
-                              }}
-                            />
-                            <span>%</span>
-                          </label>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div className="workspace-subsector-detail">
-                    {fixedShareTotalIsValid
-                      ? 'Active-pathway shares sum to 100%, so the exact-share mix is solver-ready.'
-                      : `Active-pathway shares currently sum to ${formatSharePercent(fixedShareTotal)}. Adjust them to 100% to satisfy solver validation.`}
-                  </div>
-                  <div className="workspace-subsector-detail">
-                    Set a pathway's share above 0% to make it active in the solve.
-                  </div>
-                </div>
-              )}
               {priceDriver && (
                 <>
                   <div className="workspace-subsector-detail">
