@@ -26,6 +26,7 @@ import {
   getCommodityPriceSelectorPresentation,
 } from './leftSidebarCommodityStatus';
 import { getConfigurationSaveActionState } from './leftSidebarSaveActions';
+import { formatWorkspacePillLabel } from './workspacePillLabel';
 
 function formatUnit(raw: string): string {
   return raw
@@ -52,6 +53,10 @@ function formatCarbonPriceRange(preset: CarbonPricePreset): string {
 function formatModeChoiceLabel(mode: ConfigurationControlMode): string {
   const label = formatControlModeLabel(mode);
   return label.replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function renderWorkspaceChipLabel(label: string) {
+  return <span className="workspace-pill-label">{formatWorkspacePillLabel(label)}</span>;
 }
 
 export default function LeftSidebar() {
@@ -198,10 +203,9 @@ export default function LeftSidebar() {
                   <button
                     className={`workspace-chip${isActiveBase ? ' workspace-chip--active' : ''}${isModified ? ' workspace-chip--modified' : ''}`}
                     onClick={() => loadConfiguration(config)}
-                    title={config.description}
+                    title={config.description ? `${config.name}. ${config.description}` : config.name}
                   >
-                    {config.name}
-                    {isModified ? ' (modified)' : ''}
+                    {renderWorkspaceChipLabel(`${config.name}${isModified ? ' (modified)' : ''}`)}
                   </button>
                   {!isReadonlyConfiguration(config) && (
                     <button
@@ -237,14 +241,14 @@ export default function LeftSidebar() {
               className={`workspace-chip${respectMaxShare ? ' workspace-chip--active' : ''}`}
               onClick={() => setRespectMaxShare(true)}
             >
-              On
+              {renderWorkspaceChipLabel('On')}
             </button>
             <button
               type="button"
               className={`workspace-chip${respectMaxShare ? '' : ' workspace-chip--active'}`}
               onClick={() => setRespectMaxShare(false)}
             >
-              Off
+              {renderWorkspaceChipLabel('Off')}
             </button>
           </div>
           <div className="workspace-subsector-detail">
@@ -263,12 +267,15 @@ export default function LeftSidebar() {
               key={id}
               className={`workspace-chip${activeDemandPreset === id ? ' workspace-chip--active' : ''}`}
               onClick={() => setDemandPreset(id)}
+              title={preset.label}
             >
-              {preset.label}
+              {renderWorkspaceChipLabel(preset.label)}
             </button>
           ))}
           {activeDemandPreset === null && (
-            <span className="workspace-chip workspace-chip--active">Custom</span>
+            <span className="workspace-chip workspace-chip--active" title="Custom">
+              {renderWorkspaceChipLabel('Custom')}
+            </span>
           )}
         </div>
       </div>
@@ -306,7 +313,7 @@ export default function LeftSidebar() {
                     onClick={() => setOutputControlMode(outputId, mode)}
                     title={`Set ${label} to ${formatControlModeLabel(mode)}`}
                   >
-                    {formatModeChoiceLabel(mode)}
+                    {renderWorkspaceChipLabel(formatModeChoiceLabel(mode))}
                   </button>
                 ))}
               </div>
@@ -324,12 +331,12 @@ export default function LeftSidebar() {
                         onClick={() => setCommodityPriceLevel(outputId, level)}
                         title={
                           selectorPresentation.selectorEnabled
-                            ? level
+                            ? formatCommodityPrice(priceDriver.levels[level])
                             : `${label} is ${selectorPresentation.controlModeLabel} in the current solve, so the exogenous price selector is inactive.`
                         }
                         disabled={!selectorPresentation.selectorEnabled}
                       >
-                        {formatCommodityPrice(priceDriver.levels[level])}
+                        {renderWorkspaceChipLabel(formatCommodityPrice(priceDriver.levels[level]))}
                       </button>
                     ))}
                   </div>
@@ -348,13 +355,15 @@ export default function LeftSidebar() {
               key={id}
               className={`workspace-chip${activeCarbonPreset === id ? ' workspace-chip--active' : ''}`}
               onClick={() => setCarbonPricePreset(id)}
-              title={preset.description}
+              title={preset.description ? `${preset.label}. ${preset.description}` : preset.label}
             >
-              {formatCarbonPriceRange(preset)}
+              {renderWorkspaceChipLabel(formatCarbonPriceRange(preset))}
             </button>
           ))}
           {activeCarbonPreset === null && (
-            <span className="workspace-chip workspace-chip--active">Custom</span>
+            <span className="workspace-chip workspace-chip--active" title="Custom">
+              {renderWorkspaceChipLabel('Custom')}
+            </span>
           )}
         </div>
       </div>
@@ -370,14 +379,14 @@ export default function LeftSidebar() {
             disabled={!saveActionState.canSave}
             title={saveActionState.disabledReason ?? 'Save this user configuration.'}
           >
-            Save
+            {renderWorkspaceChipLabel('Save')}
           </button>
           <button
             type="button"
             className="workspace-chip workspace-chip--secondary-action"
             onClick={handleSaveAs}
           >
-            Save As…
+            {renderWorkspaceChipLabel('Save As…')}
           </button>
         </div>
 

@@ -7,6 +7,7 @@ import { buildStateCatalog } from '../src/data/configurationWorkspaceModel.ts';
 import RightSidebarContent from '../src/components/workspace/RightSidebarContent.tsx';
 import { deriveOutputRunStatusesForConfiguration } from '../src/solver/solveScope.ts';
 import { deriveRightSidebarTree } from '../src/components/workspace/rightSidebarTree.ts';
+import { formatWorkspacePillLabel } from '../src/components/workspace/workspacePillLabel.ts';
 import {
   buildConfiguration,
   loadPkg,
@@ -89,7 +90,8 @@ describe('RightSidebarContent', () => {
       />,
     );
 
-    assert.match(html, /Incumbent thermal-heavy grid mix/);
+    assert.match(html, new RegExp(formatWorkspacePillLabel('Incumbent thermal-heavy grid mix')));
+    assert.match(html, /title="Incumbent thermal-heavy grid mix"/);
     assert.match(html, /Deep-clean firmed grid supply/);
     assert.doesNotMatch(html, />Active</);
     assert.doesNotMatch(html, />Inactive</);

@@ -370,5 +370,5 @@ test('left sidebar renders the options section with respect max-share enabled by
   assert.ok(html.includes('Options'));
   assert.ok(html.includes('Respect max-share caps'));
   assert.ok(html.includes('Max-share caps are enforced in the active solve.'));
-  assert.ok(html.includes('workspace-chip workspace-chip--active">On</button>'));
+  assert.ok(html.includes('workspace-chip workspace-chip--active"><span class="workspace-pill-label">On</span></button>'));
 });

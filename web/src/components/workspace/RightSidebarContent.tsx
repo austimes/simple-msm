@@ -3,6 +3,7 @@ import {
   RIGHT_SIDEBAR_STATUS_LEGEND,
 } from './rightSidebarStatus';
 import type { RightSidebarSectorNode } from './rightSidebarTree';
+import { formatWorkspacePillLabel } from './workspacePillLabel';
 
 function formatSectorName(sector: string): string {
   return sector.replaceAll('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase());
@@ -103,6 +104,7 @@ export default function RightSidebarContent({
                         : isActive
                           ? 'workspace-state-chip--on'
                           : 'workspace-state-chip--off';
+                      const chipLabel = formatWorkspacePillLabel(state.stateLabel);
                       const chipTitle = pathwaysInactive
                         ? `${state.stateLabel}. ${sub.presentation.detail}`
                         : state.stateLabel;
@@ -119,7 +121,7 @@ export default function RightSidebarContent({
                           disabled={pathwaysInactive}
                           title={chipTitle}
                         >
-                          <span className="workspace-state-chip__label">{state.stateLabel}</span>
+                          <span className="workspace-pill-label">{chipLabel}</span>
                         </button>
                       );
                     })}
