@@ -103,6 +103,9 @@ export default function RightSidebarContent({
                         : isActive
                           ? 'workspace-state-chip--on'
                           : 'workspace-state-chip--off';
+                      const chipTitle = pathwaysInactive
+                        ? `${state.stateLabel}. ${sub.presentation.detail}`
+                        : state.stateLabel;
 
                       return (
                         <button
@@ -112,15 +115,11 @@ export default function RightSidebarContent({
                           onClick={() =>
                             onToggleStateActive(sub.outputId, state.stateId)
                           }
+                          aria-pressed={!pathwaysInactive && isActive}
                           disabled={pathwaysInactive}
-                          title={pathwaysInactive ? sub.presentation.detail : undefined}
+                          title={chipTitle}
                         >
-                          <span>{state.stateLabel}</span>
-                          <span
-                            className={`workspace-state-chip__status workspace-state-chip__status--${isActive ? 'active' : 'inactive'}`}
-                          >
-                            {isActive ? 'Active' : 'Inactive'}
-                          </span>
+                          <span className="workspace-state-chip__label">{state.stateLabel}</span>
                         </button>
                       );
                     })}
