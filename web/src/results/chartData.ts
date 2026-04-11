@@ -9,6 +9,7 @@ const CHART_PALETTE = [
   '#db2777', '#0891b2', '#65a30d', '#ea580c', '#4f46e5',
   '#0d9488', '#ca8a04',
 ];
+const ABSOLUTE_EMISSIONS_AXIS_LABEL = 'Emissions (tCO2e)';
 
 export interface StackedSeries {
   key: string;
@@ -112,7 +113,7 @@ export function buildEmissionsBySectorChart(
 
   return {
     title: 'Emissions by Sector',
-    yAxisLabel: 'Emissions',
+    yAxisLabel: ABSOLUTE_EMISSIONS_AXIS_LABEL,
     years,
     series: buildSeries(grouped, years, (key) => key),
   };
@@ -302,7 +303,7 @@ export function buildEmissionsBySubsectorChart(
 
   return {
     title: 'Emissions by Sub-sector',
-    yAxisLabel: 'Emissions',
+    yAxisLabel: ABSOLUTE_EMISSIONS_AXIS_LABEL,
     years,
     series: buildSeries(grouped, years, (key) => key),
   };

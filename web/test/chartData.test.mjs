@@ -2,7 +2,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { SOLVER_CONTRACT_VERSION } from '../src/solver/contract.ts';
 import { solveWithLpAdapter } from '../src/solver/lpAdapter.ts';
-import { buildPathwayChartCards } from '../src/results/chartData.ts';
+import {
+  buildEmissionsBySectorChart,
+  buildEmissionsBySubsectorChart,
+  buildPathwayChartCards,
+} from '../src/results/chartData.ts';
 
 function buildRequest(respectMaxShare) {
   return {
@@ -209,6 +213,232 @@ function buildResult() {
   };
 }
 
+function buildEmissionsRequest() {
+  return {
+    contractVersion: SOLVER_CONTRACT_VERSION,
+    requestId: 'chart-data-emissions',
+    rows: [
+      {
+        rowId: 'buildings_incumbent::2030',
+        outputId: 'buildings_service',
+        outputRole: 'required_service',
+        outputLabel: 'Buildings service',
+        year: 2030,
+        stateId: 'buildings_incumbent',
+        stateLabel: 'Buildings incumbent',
+        sector: 'buildings',
+        subsector: 'residential_buildings',
+        region: 'national',
+        outputUnit: 'GJ_service_eq',
+        conversionCostPerUnit: 1,
+        inputs: [],
+        directEmissions: [
+          { pollutant: 'CO2e', value: 0.5, source: 'energy' },
+        ],
+        bounds: {
+          minShare: null,
+          maxShare: null,
+          maxActivity: null,
+        },
+      },
+      {
+        rowId: 'removals_daccs::2030',
+        outputId: 'removals_service',
+        outputRole: 'optional_activity',
+        outputLabel: 'Removals service',
+        year: 2030,
+        stateId: 'removals_daccs',
+        stateLabel: 'DACCS',
+        sector: 'removals_negative_emissions',
+        subsector: 'engineered_removals',
+        region: 'national',
+        outputUnit: 'tCO2_removed',
+        conversionCostPerUnit: 1,
+        inputs: [],
+        directEmissions: [
+          { pollutant: 'CO2e', value: -1, source: 'process' },
+        ],
+        bounds: {
+          minShare: null,
+          maxShare: null,
+          maxActivity: null,
+        },
+      },
+      {
+        rowId: 'buildings_incumbent::2035',
+        outputId: 'buildings_service',
+        outputRole: 'required_service',
+        outputLabel: 'Buildings service',
+        year: 2035,
+        stateId: 'buildings_incumbent',
+        stateLabel: 'Buildings incumbent',
+        sector: 'buildings',
+        subsector: 'residential_buildings',
+        region: 'national',
+        outputUnit: 'GJ_service_eq',
+        conversionCostPerUnit: 1,
+        inputs: [],
+        directEmissions: [
+          { pollutant: 'CO2e', value: 0.3, source: 'energy' },
+        ],
+        bounds: {
+          minShare: null,
+          maxShare: null,
+          maxActivity: null,
+        },
+      },
+      {
+        rowId: 'removals_daccs::2035',
+        outputId: 'removals_service',
+        outputRole: 'optional_activity',
+        outputLabel: 'Removals service',
+        year: 2035,
+        stateId: 'removals_daccs',
+        stateLabel: 'DACCS',
+        sector: 'removals_negative_emissions',
+        subsector: 'engineered_removals',
+        region: 'national',
+        outputUnit: 'tCO2_removed',
+        conversionCostPerUnit: 1,
+        inputs: [],
+        directEmissions: [
+          { pollutant: 'CO2e', value: -0.5, source: 'process' },
+        ],
+        bounds: {
+          minShare: null,
+          maxShare: null,
+          maxActivity: null,
+        },
+      },
+    ],
+    configuration: {
+      name: 'Emissions chart regression',
+      description: null,
+      years: [2030, 2035],
+      controlsByOutput: {},
+      serviceDemandByOutput: {},
+      externalCommodityDemandByCommodity: {},
+      commodityPriceByCommodity: {},
+      carbonPriceByYear: { 2030: 0, 2035: 0 },
+      options: {
+        respectMaxShare: true,
+        respectMaxActivity: true,
+        softConstraints: false,
+        allowRemovalsCredit: false,
+        shareSmoothing: {
+          enabled: false,
+          maxDeltaPp: null,
+        },
+      },
+    },
+  };
+}
+
+function buildEmissionsResult() {
+  return {
+    contractVersion: SOLVER_CONTRACT_VERSION,
+    requestId: 'chart-data-emissions',
+    status: 'solved',
+    engine: { name: 'yalps', worker: true },
+    summary: {
+      rowCount: 4,
+      yearCount: 2,
+      outputCount: 2,
+      serviceDemandOutputCount: 1,
+      externalCommodityCount: 0,
+    },
+    reporting: {
+      commodityBalances: [],
+      stateShares: [
+        {
+          outputId: 'buildings_service',
+          outputLabel: 'Buildings service',
+          year: 2030,
+          stateId: 'buildings_incumbent',
+          stateLabel: 'Buildings incumbent',
+          activity: 100,
+          share: 1,
+          rawMaxShare: null,
+          effectiveMaxShare: null,
+        },
+        {
+          outputId: 'removals_service',
+          outputLabel: 'Removals service',
+          year: 2030,
+          stateId: 'removals_daccs',
+          stateLabel: 'DACCS',
+          activity: 20,
+          share: 1,
+          rawMaxShare: null,
+          effectiveMaxShare: null,
+        },
+        {
+          outputId: 'buildings_service',
+          outputLabel: 'Buildings service',
+          year: 2035,
+          stateId: 'buildings_incumbent',
+          stateLabel: 'Buildings incumbent',
+          activity: 80,
+          share: 1,
+          rawMaxShare: null,
+          effectiveMaxShare: null,
+        },
+        {
+          outputId: 'removals_service',
+          outputLabel: 'Removals service',
+          year: 2035,
+          stateId: 'removals_daccs',
+          stateLabel: 'DACCS',
+          activity: 10,
+          share: 1,
+          rawMaxShare: null,
+          effectiveMaxShare: null,
+        },
+      ],
+      bindingConstraints: [],
+      softConstraintViolations: [],
+    },
+    raw: null,
+    diagnostics: [],
+    timingsMs: {
+      total: 0,
+      solve: 0,
+    },
+  };
+}
+
+test('emissions charts expose tCO2e axis labels and preserve negative removals', () => {
+  const request = buildEmissionsRequest();
+  const result = buildEmissionsResult();
+
+  const sectorChart = buildEmissionsBySectorChart(request, result);
+  const subsectorChart = buildEmissionsBySubsectorChart(request, result);
+
+  assert.equal(sectorChart.yAxisLabel, 'Emissions (tCO2e)');
+  assert.equal(subsectorChart.yAxisLabel, 'Emissions (tCO2e)');
+  assert.deepEqual(
+    sectorChart.series.find((series) => series.label === 'buildings')?.values,
+    [
+      { year: 2030, value: 50 },
+      { year: 2035, value: 24 },
+    ],
+  );
+  assert.deepEqual(
+    sectorChart.series.find((series) => series.label === 'removals_negative_emissions')?.values,
+    [
+      { year: 2030, value: -20 },
+      { year: 2035, value: -5 },
+    ],
+  );
+  assert.deepEqual(
+    subsectorChart.series.find((series) => series.label === 'engineered_removals')?.values,
+    [
+      { year: 2030, value: -20 },
+      { year: 2035, value: -5 },
+    ],
+  );
+});
+
 test('buildPathwayChartCards returns output and cap views for selectable outputs', () => {
   const cards = buildPathwayChartCards(buildRequest(true), buildResult());
 
@@ -231,7 +461,7 @@ test('buildPathwayChartCards returns output and cap views for selectable outputs
       { year: 2035, value: 16.666666666666668 },
     ],
   );
-  assert.match(cards[0].note, /normalizing across enabled pathways/i);
+  assert.match(cards[0].note, /normalizing across active pathways/i);
 });
 
 test('buildPathwayChartCards keeps cap context visible when max-share enforcement is off', () => {
@@ -240,7 +470,7 @@ test('buildPathwayChartCards keeps cap context visible when max-share enforcemen
   assert.equal(cards.length, 1);
   assert.equal(cards[0].respectMaxShare, false);
   assert.match(cards[0].note, /ignored in this solve/i);
-  assert.match(cards[0].note, /enabled pathways/i);
+  assert.match(cards[0].note, /active pathways/i);
   assert.deepEqual(
     cards[0].capChart.series.find((series) => series.label === 'Heat B')?.values,
     [
@@ -342,8 +572,8 @@ test('buildPathwayChartCards matches solver-reported effective caps for exact-sh
   assert.equal(result.status, 'solved');
   assert.equal(cards.length, 1);
   assert.ok(selectedShare?.effectiveMaxShare != null, 'expected selected exact-share cap');
-  assert.equal(availableShare?.effectiveMaxShare, null, 'zero-share exact-share pathways drop out of the cap denominator');
+  assert.ok(availableShare?.effectiveMaxShare != null, 'unselected pathways still retain an effective normalized cap');
   assert.ok(Math.abs(selectedCap - (selectedShare.effectiveMaxShare * 100)) < 1e-9);
-  assert.equal(availableCap, undefined, 'cap chart omits pathways that are outside the current cap denominator');
-  assert.match(card.note, /positive exact shares/i);
+  assert.ok(Math.abs(availableCap - (availableShare.effectiveMaxShare * 100)) < 1e-9);
+  assert.match(card.note, /active pathways/i);
 });
