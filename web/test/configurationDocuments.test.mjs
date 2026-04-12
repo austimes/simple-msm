@@ -357,7 +357,7 @@ test('respect_max_share defaults to true when omitted and can be toggled in the 
   assert.equal(usePackageStore.getState().currentConfiguration.solver_options?.respect_max_share, true);
 });
 
-test('left sidebar renders the options section with respect max-share enabled by default', async () => {
+test('left sidebar uses the requested default collapsed sections and restores all commodity price controls', async () => {
   const { default: LeftSidebar } = await loadViteModule('/src/components/workspace/LeftSidebar.tsx');
   const { usePackageStore } = await loadViteModule('/src/data/packageStore.ts');
   const configuration = readJson('../src/configurations/buildings-endogenous.json');
@@ -367,8 +367,29 @@ test('left sidebar renders the options section with respect max-share enabled by
 
   const html = renderToStaticMarkup(React.createElement(LeftSidebar));
 
+  assert.match(html, /aria-expanded="false" aria-controls="left-sidebar-section-options"/);
+  assert.match(html, /aria-expanded="false" aria-controls="left-sidebar-section-demandGrowth"/);
+  assert.match(html, /aria-expanded="true" aria-controls="left-sidebar-section-commodityControls"/);
+  assert.match(html, /aria-expanded="true" aria-controls="left-sidebar-section-emissionsPrice"/);
+  assert.match(html, /aria-expanded="true" aria-controls="left-sidebar-section-configurations"/);
+
   assert.ok(html.includes('Options'));
-  assert.ok(html.includes('Respect max-share caps'));
-  assert.ok(html.includes('Max-share caps are enforced in the active solve.'));
-  assert.ok(html.includes('workspace-chip workspace-chip--active"><span class="workspace-pill-label">On</span></button>'));
+  assert.ok(html.includes('Demand Growth'));
+  assert.ok(html.includes('Commodity Controls'));
+  assert.ok(html.includes('Emissions Price'));
+  assert.ok(html.includes('Configurations'));
+
+  assert.ok(!html.includes('Respect max-share caps'));
+  assert.ok(!html.includes('Simple sector growth - central'));
+  assert.ok(html.includes('Electricity supply'));
+  assert.ok(html.includes('Natural gas'));
+  assert.ok(html.includes('Coal'));
+  assert.ok(html.includes('Refined liquid fuels'));
+  assert.ok(html.includes('Hydrogen'));
+  assert.ok(html.includes('Biomass'));
+  assert.ok(html.includes('Iron ore'));
+  assert.ok(html.includes('Scrap steel'));
+  assert.ok(html.includes('Sequestration service'));
+  assert.doesNotMatch(html, /workspace-mode-badge--modeled/);
+  assert.doesNotMatch(html, />in model<\/span>/i);
 });

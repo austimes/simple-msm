@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, type ReactNode } from 'react';
 import { usePackageStore } from '../../data/packageStore';
 import { getActiveDemandPreset, getCommodityPriceLevel, getActiveCarbonPricePreset } from '../../data/configurationWorkspaceModel';
 import {
@@ -16,6 +16,7 @@ import { PRICE_LEVELS } from '../../data/types';
 import { deriveOutputRunStatusesForConfiguration } from '../../solver/solveScope.ts';
 import type {
   CarbonPricePreset,
+  CommodityPriceDriver,
   CommodityPriceSeries,
   ConfigurationControlMode,
   ConfigurationDocument,
@@ -26,6 +27,32 @@ import {
 } from './leftSidebarCommodityStatus';
 import { getConfigurationSaveActionState } from './leftSidebarSaveActions';
 import { formatWorkspacePillLabel } from './workspacePillLabel';
+
+type LeftSidebarSectionKey =
+  | 'options'
+  | 'demandGrowth'
+  | 'commodityControls'
+  | 'emissionsPrice'
+  | 'configurations';
+
+type LeftSidebarSectionState = Record<LeftSidebarSectionKey, boolean>;
+
+interface ControlledCommodityEntry {
+  kind: 'controlled';
+  outputId: string;
+  label: string;
+  allowedModes: ConfigurationControlMode[];
+  priceDriver: CommodityPriceDriver | undefined;
+}
+
+interface PriceOnlyCommodityEntry {
+  kind: 'price_only';
+  commodityId: string;
+  label: string;
+  priceDriver: CommodityPriceDriver;
+}
+
+type CommodityControlEntry = ControlledCommodityEntry | PriceOnlyCommodityEntry;
 
 function formatUnit(raw: string): string {
   return raw
@@ -87,34 +114,62 @@ export default function LeftSidebar() {
     ),
     [sectorStates, appConfig, currentConfiguration],
   );
-  const commodityControls = useMemo(
-    () => Object.entries(appConfig.output_roles)
-      .filter(([, metadata]) => (
-        metadata.output_role === 'endogenous_supply_commodity'
-        && metadata.allowed_control_modes.includes('externalized')
-        && metadata.allowed_control_modes.includes('optimize')
-      ))
-      .sort(([, left], [, right]) => (
-        left.display_group_order - right.display_group_order
-        || left.display_order - right.display_order
-        || left.display_label.localeCompare(right.display_label)
-      ))
-      .map(([outputId, metadata]) => ({
-        outputId,
-        label: metadata.display_label,
-        allowedModes: metadata.allowed_control_modes,
-        priceDriver: appConfig.commodity_price_presets[outputId],
-      })),
+  const commodityControls = useMemo<CommodityControlEntry[]>(
+    () => {
+      const controlledEntries: ControlledCommodityEntry[] = Object.entries(appConfig.output_roles)
+        .filter(([, metadata]) => (
+          metadata.output_role === 'endogenous_supply_commodity'
+          && metadata.allowed_control_modes.includes('externalized')
+          && metadata.allowed_control_modes.includes('optimize')
+        ))
+        .sort(([, left], [, right]) => (
+          left.display_group_order - right.display_group_order
+          || left.display_order - right.display_order
+          || left.display_label.localeCompare(right.display_label)
+        ))
+        .map(([outputId, metadata]) => ({
+          kind: 'controlled',
+          outputId,
+          label: metadata.display_label,
+          allowedModes: metadata.allowed_control_modes,
+          priceDriver: appConfig.commodity_price_presets[outputId],
+        }));
+
+      const controlledIds = new Set(controlledEntries.map((entry) => entry.outputId));
+      const priceOnlyEntries: PriceOnlyCommodityEntry[] = Object.entries(appConfig.commodity_price_presets)
+        .filter(([commodityId]) => !controlledIds.has(commodityId))
+        .map(([commodityId, priceDriver]) => ({
+          kind: 'price_only',
+          commodityId,
+          label: priceDriver.label,
+          priceDriver,
+        }));
+
+      return [...controlledEntries, ...priceOnlyEntries];
+    },
     [appConfig],
   );
 
   const builtinConfigs = useMemo(() => loadBuiltinConfigurations(), []);
   const [userConfigs, setUserConfigs] = useState(() => loadUserConfigurations());
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
+  const [expandedSections, setExpandedSections] = useState<LeftSidebarSectionState>({
+    options: false,
+    demandGrowth: false,
+    commodityControls: true,
+    emissionsPrice: true,
+    configurations: true,
+  });
 
   const refreshUserConfigs = useCallback(async () => {
     const configs = await fetchUserConfigurations();
     setUserConfigs(configs);
+  }, []);
+  const toggleSection = useCallback((section: LeftSidebarSectionKey) => {
+    setExpandedSections((current) => ({
+      ...current,
+      [section]: !current[section],
+    }));
   }, []);
 
   function buildUserConfiguration(name: string, configurationId: string): ConfigurationDocument {
@@ -222,10 +277,40 @@ export default function LeftSidebar() {
     );
   }
 
+  function renderSection(
+    section: LeftSidebarSectionKey,
+    title: string,
+    content: ReactNode,
+  ) {
+    const expanded = expandedSections[section];
+    const contentId = `left-sidebar-section-${section}`;
+
+    return (
+      <div className="workspace-section">
+        <button
+          type="button"
+          className="workspace-section-toggle"
+          aria-expanded={expanded}
+          aria-controls={contentId}
+          onClick={() => toggleSection(section)}
+        >
+          <span className="workspace-section-title">{title}</span>
+          <span className="workspace-section-toggle-state">{expanded ? 'Hide' : 'Show'}</span>
+        </button>
+        {expanded && (
+          <div id={contentId} className="workspace-section-body">
+            {content}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <>
-      <div className="workspace-section">
-        <span className="workspace-section-title">Options</span>
+      {renderSection(
+        'options',
+        'Options',
         <div className="workspace-subsector-group">
           <div className="workspace-subsector-title">Respect max-share caps</div>
           <div className="workspace-subsector-detail">
@@ -253,11 +338,12 @@ export default function LeftSidebar() {
               ? 'Max-share caps are enforced in the active solve.'
               : 'Max-share caps are ignored in the active solve.'}
           </div>
-        </div>
-      </div>
+        </div>,
+      )}
 
-      <div className="workspace-section">
-        <span className="workspace-section-title">Demand Growth</span>
+      {renderSection(
+        'demandGrowth',
+        'Demand Growth',
         <div className="workspace-chip-group">
           {Object.entries(appConfig.demand_growth_presets).map(([id, preset]) => (
             <button
@@ -274,78 +360,103 @@ export default function LeftSidebar() {
               {renderWorkspaceChipLabel('Custom')}
             </span>
           )}
-        </div>
-      </div>
+        </div>,
+      )}
 
-      <div className="workspace-section">
-        <span className="workspace-section-title">Commodity Controls</span>
-        {commodityControls.map(({ outputId, label, allowedModes, priceDriver }) => {
-          const activeLevel = getCommodityPriceLevel(currentConfiguration, outputId);
-          const selectorPresentation = getCommodityPriceSelectorPresentation(
-            outputStatuses[outputId],
-            activeLevel,
-          );
-          const currentMode = outputStatuses[outputId]?.controlMode ?? allowedModes[0];
-          return (
-            <div key={outputId} className="workspace-subsector-group">
-              <div className="workspace-subsector-title">
-                {label}
-                {selectorPresentation.badgeLabel && selectorPresentation.badgeTone && (
-                  <span className={`workspace-mode-badge workspace-mode-badge--${selectorPresentation.badgeTone}`}>
-                    {selectorPresentation.badgeLabel}
-                  </span>
-                )}
-              </div>
-              {selectorPresentation.detail && (
-                <div className="workspace-subsector-detail">
-                  {selectorPresentation.detail}
-                </div>
-              )}
-              <div className="workspace-chip-group workspace-chip-group--inline">
-                {allowedModes.map((mode) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    className={`workspace-chip${currentMode === mode ? ' workspace-chip--active' : ''}`}
-                    onClick={() => setOutputControlMode(outputId, mode)}
-                    title={`Set ${label} to ${formatControlModeLabel(mode)}`}
-                  >
-                    {renderWorkspaceChipLabel(formatModeChoiceLabel(mode))}
-                  </button>
-                ))}
-              </div>
-              {priceDriver && (
-                <>
-                  <div className="workspace-subsector-detail">
-                    Exogenous price path. This only affects runs where the commodity is externalized.
-                  </div>
+      {renderSection(
+        'commodityControls',
+        'Commodity Controls',
+        <>
+          {commodityControls.map((entry) => {
+            if (entry.kind === 'controlled') {
+              const activeLevel = getCommodityPriceLevel(currentConfiguration, entry.outputId);
+              const selectorPresentation = getCommodityPriceSelectorPresentation(
+                outputStatuses[entry.outputId],
+                activeLevel,
+              );
+              const currentMode = outputStatuses[entry.outputId]?.controlMode ?? entry.allowedModes[0];
+              const priceDriver = entry.priceDriver;
+
+              return (
+                <div key={entry.outputId} className="workspace-subsector-group">
+                  <div className="workspace-subsector-title">{entry.label}</div>
+                  {selectorPresentation.detail && (
+                    <div className="workspace-subsector-detail">
+                      {selectorPresentation.detail}
+                    </div>
+                  )}
                   <div className="workspace-chip-group workspace-chip-group--inline">
-                    {PRICE_LEVELS.map((level) => (
+                    {entry.allowedModes.map((mode) => (
                       <button
-                        key={level}
+                        key={mode}
                         type="button"
-                        className={`workspace-chip${selectorPresentation.activeLevel === level ? ' workspace-chip--active' : ''}${selectorPresentation.selectorEnabled ? '' : ' workspace-chip--inactive'}`}
-                        onClick={() => setCommodityPriceLevel(outputId, level)}
-                        title={
-                          selectorPresentation.selectorEnabled
-                            ? formatCommodityPrice(priceDriver.levels[level])
-                            : `${label} is ${selectorPresentation.controlModeLabel} in the current solve, so the exogenous price selector is inactive.`
-                        }
-                        disabled={!selectorPresentation.selectorEnabled}
+                        className={`workspace-chip${currentMode === mode ? ' workspace-chip--active' : ''}`}
+                        onClick={() => setOutputControlMode(entry.outputId, mode)}
+                        title={`Set ${entry.label} to ${formatControlModeLabel(mode)}`}
                       >
-                        {renderWorkspaceChipLabel(formatCommodityPrice(priceDriver.levels[level]))}
+                        {renderWorkspaceChipLabel(formatModeChoiceLabel(mode))}
                       </button>
                     ))}
                   </div>
-                </>
-              )}
-            </div>
-          );
-        })}
-      </div>
+                  {priceDriver && (
+                    <>
+                      <div className="workspace-subsector-detail">
+                        Exogenous price path. This only affects runs where the commodity is externalized.
+                      </div>
+                      <div className="workspace-chip-group workspace-chip-group--inline">
+                        {PRICE_LEVELS.map((level) => (
+                          <button
+                            key={level}
+                            type="button"
+                            className={`workspace-chip${selectorPresentation.activeLevel === level ? ' workspace-chip--active' : ''}${selectorPresentation.selectorEnabled ? '' : ' workspace-chip--inactive'}`}
+                            onClick={() => setCommodityPriceLevel(entry.outputId, level)}
+                            title={
+                              selectorPresentation.selectorEnabled
+                                ? formatCommodityPrice(priceDriver.levels[level])
+                                : `${entry.label} is ${selectorPresentation.controlModeLabel} in the current solve, so the exogenous price selector is inactive.`
+                            }
+                            disabled={!selectorPresentation.selectorEnabled}
+                          >
+                            {renderWorkspaceChipLabel(formatCommodityPrice(priceDriver.levels[level]))}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              );
+            }
 
-      <div className="workspace-section">
-        <span className="workspace-section-title">Emissions Price</span>
+            const activeLevel = getCommodityPriceLevel(currentConfiguration, entry.commodityId);
+
+            return (
+              <div key={entry.commodityId} className="workspace-subsector-group">
+                <div className="workspace-subsector-title">{entry.label}</div>
+                <div className="workspace-subsector-detail">
+                  Exogenous purchase price path for this commodity.
+                </div>
+                <div className="workspace-chip-group workspace-chip-group--inline">
+                  {PRICE_LEVELS.map((level) => (
+                    <button
+                      key={level}
+                      type="button"
+                      className={`workspace-chip${activeLevel === level ? ' workspace-chip--active' : ''}`}
+                      onClick={() => setCommodityPriceLevel(entry.commodityId, level)}
+                      title={formatCommodityPrice(entry.priceDriver.levels[level])}
+                    >
+                      {renderWorkspaceChipLabel(formatCommodityPrice(entry.priceDriver.levels[level]))}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </>,
+      )}
+
+      {renderSection(
+        'emissionsPrice',
+        'Emissions Price',
         <div className="workspace-chip-group workspace-chip-group--inline">
           {Object.entries(appConfig.carbon_price_presets).map(([id, preset]) => (
             <button
@@ -362,42 +473,44 @@ export default function LeftSidebar() {
               {renderWorkspaceChipLabel('Custom')}
             </span>
           )}
-        </div>
-      </div>
+        </div>,
+      )}
 
-      <div className="workspace-section">
-        <span className="workspace-section-title">Configurations</span>
-
-        <div className="workspace-configuration-actions">
-          <button
-            type="button"
-            className="workspace-chip"
-            onClick={() => void handleOverwrite()}
-            disabled={!saveActionState.canSave}
-            title={saveActionState.disabledReason ?? 'Save this user configuration.'}
-          >
-            {renderWorkspaceChipLabel('Save')}
-          </button>
-          <button
-            type="button"
-            className="workspace-chip workspace-chip--secondary-action"
-            onClick={handleSaveAs}
-          >
-            {renderWorkspaceChipLabel('Save As…')}
-          </button>
-        </div>
-
-        {saveNotice && (
-          <div
-            className={`workspace-status-notice${saveNotice.startsWith('Error') ? ' workspace-status-notice--error' : ''}`}
-          >
-            {saveNotice}
+      {renderSection(
+        'configurations',
+        'Configurations',
+        <>
+          <div className="workspace-configuration-actions">
+            <button
+              type="button"
+              className="workspace-chip"
+              onClick={() => void handleOverwrite()}
+              disabled={!saveActionState.canSave}
+              title={saveActionState.disabledReason ?? 'Save this user configuration.'}
+            >
+              {renderWorkspaceChipLabel('Save')}
+            </button>
+            <button
+              type="button"
+              className="workspace-chip workspace-chip--secondary-action"
+              onClick={handleSaveAs}
+            >
+              {renderWorkspaceChipLabel('Save As…')}
+            </button>
           </div>
-        )}
 
-        {renderConfigurationGroup('User configurations', userConfigs)}
-        {renderConfigurationGroup('Built-in configurations', builtinConfigs)}
-      </div>
+          {saveNotice && (
+            <div
+              className={`workspace-status-notice${saveNotice.startsWith('Error') ? ' workspace-status-notice--error' : ''}`}
+            >
+              {saveNotice}
+            </div>
+          )}
+
+          {renderConfigurationGroup('User configurations', userConfigs)}
+          {renderConfigurationGroup('Built-in configurations', builtinConfigs)}
+        </>,
+      )}
     </>
   );
 }
