@@ -97,6 +97,10 @@ export default function ConfigurationWorkspaceCenter({
   error,
   failure,
 }: ConfigurationWorkspaceCenterProps) {
+  const hasSolvedSnapshot = request != null && result != null;
+  const isRefreshing = phase === 'solving' && hasSolvedSnapshot;
+  const isInitialLoading = phase === 'solving' && !hasSolvedSnapshot;
+  const showCharts = hasSolvedSnapshot && phase !== 'error';
   const demandBySectorChart = useMemo(
     () => (request ? buildDemandBySectorChart(request) : null),
     [request],
@@ -123,12 +127,32 @@ export default function ConfigurationWorkspaceCenter({
   );
 
   return (
-    <section className="workspace-center">
+    <section className="workspace-center" aria-busy={phase === 'solving'}>
+      {isRefreshing && (
+        <div className="workspace-center-status-anchor">
+          <p
+            className="configuration-status configuration-status--info workspace-center-status"
+            role="status"
+            aria-live="polite"
+          >
+            Updating plots...
+          </p>
+        </div>
+      )}
+      {isInitialLoading && (
+        <p
+          className="configuration-status configuration-status--info workspace-center-status workspace-center-status--loading"
+          role="status"
+          aria-live="polite"
+        >
+          Loading plots...
+        </p>
+      )}
       {phase === 'error' && error && !failure && (
         <p className="configuration-status configuration-status--error">{error}</p>
       )}
       {phase === 'error' && failure && <WorkspaceSolveFailureReport failure={failure} />}
-      {phase === 'solved' && result && request && (
+      {showCharts && (
         <div className="workspace-chart-grid">
           {demandBySectorChart && (
             <div className="workspace-chart-section">

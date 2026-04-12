@@ -25,7 +25,7 @@ export function useConfigurationSolve(): SolveState {
   const appConfig = usePackageStore((state) => state.appConfig);
   const currentConfiguration = usePackageStore((state) => state.currentConfiguration);
 
-  const [phase, setPhase] = useState<SolvePhase>('idle');
+  const [phase, setPhase] = useState<SolvePhase>('solving');
   const [result, setResult] = useState<SolveResult | null>(null);
   const [request, setRequest] = useState<SolveRequest | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -44,16 +44,12 @@ export function useConfigurationSolve(): SolveState {
       setPhase('error');
       setError(message);
       setFailure(buildConfigurationBuildFailure(message));
-      setResult(null);
-      setRequest(null);
       return;
     }
 
     setPhase('solving');
     setError(null);
     setFailure(null);
-    setResult(null);
-    setRequest(builtRequest);
 
     void runSolveInWorker(builtRequest)
       .then((workerResult) => {
@@ -66,14 +62,13 @@ export function useConfigurationSolve(): SolveState {
           setPhase('error');
           setError(solveFailure.headline);
           setFailure(solveFailure);
-          setResult(null);
-          setRequest(builtRequest);
           return;
         }
 
-        setPhase('solved');
-        setResult(workerResult);
         setRequest(builtRequest);
+        setResult(workerResult);
+        setError(null);
+        setPhase('solved');
         setFailure(null);
       })
       .catch((err) => {
@@ -91,7 +86,6 @@ export function useConfigurationSolve(): SolveState {
           diagnostics: [],
           result: null,
         });
-        setResult(null);
       });
   }, [sectorStates, appConfig, currentConfiguration]);
 

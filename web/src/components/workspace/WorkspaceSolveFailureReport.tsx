@@ -1,9 +1,12 @@
+import React from 'react';
 import type {
   SolveBindingConstraintSummary,
   SolveDiagnostic,
   SolveSoftConstraintViolationSummary,
 } from '../../solver/contract.ts';
 import type { ConfigurationSolveFailure } from '../../solver/configurationSolveFailure.ts';
+
+void React;
 
 function formatCount(label: string, count: number): string {
   return `${count} ${label}${count === 1 ? '' : 's'}`;

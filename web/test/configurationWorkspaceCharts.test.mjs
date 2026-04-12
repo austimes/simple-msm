@@ -189,6 +189,39 @@ test('solved workspace renders Cost by Component with diverging chart net metada
   assert.equal(netSeriesMatches.length, 2);
 });
 
+test('refreshing workspace keeps the previous chart grid mounted and surfaces a non-blocking status', () => {
+  const html = renderToStaticMarkup(
+    React.createElement(ConfigurationWorkspaceCenter, {
+      phase: 'solving',
+      result: buildResult(),
+      request: buildRequest(),
+      error: null,
+      failure: null,
+    }),
+  );
+
+  assert.match(html, /aria-busy="true"/);
+  assert.match(html, /workspace-chart-grid/);
+  assert.match(html, /Updating plots\.\.\./);
+  assert.doesNotMatch(html, /workspace-failure-report/);
+});
+
+test('initial workspace solve shows a loading state before the first result arrives', () => {
+  const html = renderToStaticMarkup(
+    React.createElement(ConfigurationWorkspaceCenter, {
+      phase: 'solving',
+      result: null,
+      request: null,
+      error: null,
+      failure: null,
+    }),
+  );
+
+  assert.match(html, /aria-busy="true"/);
+  assert.match(html, /Loading plots\.\.\./);
+  assert.doesNotMatch(html, /workspace-chart-grid/);
+});
+
 test('pathway and removals cards keep only the card heading on the run page', () => {
   const request = {
     contractVersion: SOLVER_CONTRACT_VERSION,
