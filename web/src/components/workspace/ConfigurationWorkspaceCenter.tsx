@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import WorkspaceSolveFailureReport from './WorkspaceSolveFailureReport';
 import StackedAreaChart from '../charts/StackedAreaChart';
 import DivergingStackedBarChart from '../charts/DivergingStackedBarChart';
@@ -15,6 +15,8 @@ import {
 } from '../../results/chartData';
 import type { SolveRequest, SolveResult } from '../../solver/contract.ts';
 import type { ConfigurationSolveFailure } from '../../solver/configurationSolveFailure.ts';
+
+void React;
 
 type PathwayChartMode = 'output' | 'cap';
 type SolvePhase = 'idle' | 'solving' | 'solved' | 'error';
@@ -157,7 +159,7 @@ export default function ConfigurationWorkspaceCenter({
           )}
           {costByComponentChart && (
             <div className="workspace-chart-section">
-              <StackedAreaChart data={costByComponentChart} />
+              <DivergingStackedBarChart data={costByComponentChart} />
             </div>
           )}
           {pathwayCharts.map((chart) => (
