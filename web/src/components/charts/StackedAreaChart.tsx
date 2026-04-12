@@ -26,6 +26,7 @@ interface StackedAreaChartProps {
   data: StackedChartData;
   valueFormatter?: (value: number) => string;
   height?: number;
+  showTitle?: boolean;
 }
 
 function defaultFormatter(value: number): string {
@@ -39,6 +40,7 @@ export default function StackedAreaChart({
   data,
   valueFormatter = defaultFormatter,
   height = WORKSPACE_CHART_HEIGHT,
+  showTitle = true,
 }: StackedAreaChartProps) {
   const { title, yAxisLabel, years, series } = data;
 
@@ -81,6 +83,7 @@ export default function StackedAreaChart({
       height={height}
       legendItems={legendItems}
       summaryItems={summaryItems}
+      showTitle={showTitle}
     >
       <ResponsiveContainer {...buildResponsiveContainerProps(height)}>
         <AreaChart data={rows} margin={WORKSPACE_CHART_MARGIN}>
