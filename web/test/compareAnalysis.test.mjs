@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { buildComparisonReport, buildComparisonConfigurationPlan } from '../src/compare/compareAnalysis.ts';
 import { resolveConfigurationDocument as resolveConfigurationDocument } from '../src/data/demandResolution.ts';
 import { parseCsv } from '../src/data/parseCsv.ts';
-import { SOLVER_CONTRACT_VERSION } from '../src/solver/contract.ts';
+import { buildSolveRequest } from '../src/solver/buildSolveRequest.ts';
 import { solveWithLpAdapter } from '../src/solver/lpAdapter.ts';
 
 function readJson(relativePath) {
@@ -88,159 +88,8 @@ function loadAppConfig() {
   };
 }
 
-function normalizeSolverRows(sectorStates, appConfig) {
-  return sectorStates.map((row) => {
-    const outputMetadata = appConfig.output_roles[row.service_or_output_name];
-    return {
-      rowId: `${row.state_id}::${row.year}`,
-      outputId: row.service_or_output_name,
-      outputRole: outputMetadata.output_role,
-      outputLabel: outputMetadata.display_label,
-      year: row.year,
-      stateId: row.state_id,
-      stateLabel: row.state_label,
-      sector: row.sector,
-      subsector: row.subsector,
-      region: row.region,
-      outputUnit: row.output_unit,
-      conversionCostPerUnit: row.output_cost_per_unit,
-      inputs: row.input_commodities.map((commodityId, index) => ({
-        commodityId,
-        coefficient: row.input_coefficients[index] ?? 0,
-        unit: row.input_units[index] ?? row.output_unit,
-      })),
-      directEmissions: [
-        ...row.energy_emissions_by_pollutant.map((entry) => ({
-          pollutant: entry.pollutant,
-          value: entry.value,
-          source: 'energy',
-        })),
-        ...row.process_emissions_by_pollutant.map((entry) => ({
-          pollutant: entry.pollutant,
-          value: entry.value,
-          source: 'process',
-        })),
-      ],
-      bounds: {
-        minShare: row.min_share,
-        maxShare: row.max_share,
-        maxActivity: row.max_activity,
-      },
-    };
-  });
-}
-
-function resolveCommodityPriceSeries(baseSeries, overrideSeries, years) {
-  const valuesByYear = years.reduce((resolved, year) => {
-    const key = String(year);
-    const overrideValue = overrideSeries?.[key];
-    const baseValue = baseSeries?.values_by_year[key];
-    resolved[key] = typeof overrideValue === 'number'
-      ? overrideValue
-      : typeof baseValue === 'number'
-        ? baseValue
-        : 0;
-    return resolved;
-  }, {});
-
-  return {
-    unit: baseSeries?.unit ?? 'unspecified',
-    valuesByYear,
-  };
-}
-
-function resolveConfigurationForSolve(configuration, appConfig) {
-  const years = [...configuration.years];
-  const controlsByOutput = Object.entries(appConfig.output_roles).reduce((resolved, [outputId, metadata]) => {
-    resolved[outputId] = years.reduce((controlsByYear, year) => {
-      const key = String(year);
-      const control = configuration.service_controls[outputId];
-      const override = control?.year_overrides?.[key] ?? null;
-      controlsByYear[key] = {
-        mode: override?.mode ?? control?.mode ?? metadata.default_control_mode,
-        stateId: override?.state_id ?? control?.state_id ?? null,
-        fixedShares: override?.fixed_shares ?? control?.fixed_shares ?? null,
-        disabledStateIds: control?.disabled_state_ids ?? [],
-        targetValue: override?.target_value ?? control?.target_value ?? null,
-      };
-      return controlsByYear;
-    }, {});
-    return resolved;
-  }, {});
-
-  const serviceDemandByOutput = Object.entries(appConfig.output_roles).reduce((resolved, [outputId, metadata]) => {
-    if (!metadata.demand_required) {
-      return resolved;
-    }
-
-    resolved[outputId] = years.reduce((valuesByYear, year) => {
-      valuesByYear[String(year)] = configuration.service_demands[outputId]?.[String(year)] ?? 0;
-      return valuesByYear;
-    }, {});
-    return resolved;
-  }, {});
-
-  const externalCommodityDemandByCommodity = Object.entries(configuration.external_commodity_demands ?? {}).reduce(
-    (resolved, [commodityId, values]) => {
-      resolved[commodityId] = years.reduce((valuesByYear, year) => {
-        valuesByYear[String(year)] = values[String(year)] ?? 0;
-        return valuesByYear;
-      }, {});
-      return resolved;
-    },
-    {},
-  );
-
-  const commodityDrivers = appConfig.commodity_price_presets;
-  const commodityIds = new Set([
-    ...Object.keys(commodityDrivers),
-    ...Object.keys(configuration.commodity_pricing.overrides),
-  ]);
-  const commodityPriceByCommodity = Array.from(commodityIds).reduce((resolved, commodityId) => {
-    const driver = commodityDrivers[commodityId];
-    const level = configuration.commodity_pricing.selections_by_commodity?.[commodityId] ?? 'medium';
-    const baseSeries = driver?.levels[level];
-    resolved[commodityId] = resolveCommodityPriceSeries(
-      baseSeries,
-      configuration.commodity_pricing.overrides[commodityId],
-      years,
-    );
-    return resolved;
-  }, {});
-
-  const carbonPriceByYear = years.reduce((resolved, year) => {
-    resolved[String(year)] = configuration.carbon_price[String(year)] ?? 0;
-    return resolved;
-  }, {});
-
-  return {
-    name: configuration.name,
-    description: configuration.description ?? null,
-    years,
-    controlsByOutput,
-    serviceDemandByOutput,
-    externalCommodityDemandByCommodity,
-    commodityPriceByCommodity,
-    carbonPriceByYear,
-    options: {
-      respectMaxShare: configuration.solver_options?.respect_max_share ?? true,
-      respectMaxActivity: configuration.solver_options?.respect_max_activity ?? true,
-      softConstraints: configuration.solver_options?.soft_constraints ?? false,
-      shareSmoothing: {
-        enabled: configuration.solver_options?.share_smoothing?.enabled ?? false,
-        maxDeltaPp: configuration.solver_options?.share_smoothing?.max_delta_pp ?? null,
-      },
-    },
-  };
-}
-
 function buildSolveRequestForTest(pkg, configuration) {
-  return {
-    contractVersion: SOLVER_CONTRACT_VERSION,
-    requestId: `compare-test-${configuration.name.replaceAll(/\s+/g, '-').toLowerCase()}`,
-    rows: normalizeSolverRows(pkg.sectorStates, pkg.appConfig),
-    configuration: resolveConfigurationForSolve(configuration, pkg.appConfig),
-  };
+  return buildSolveRequest(pkg, configuration);
 }
 
 test('packaged reference configuration solves as a stable baseline on the Results path', () => {

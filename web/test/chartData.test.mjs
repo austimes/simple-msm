@@ -3,8 +3,10 @@ import test from 'node:test';
 import { SOLVER_CONTRACT_VERSION } from '../src/solver/contract.ts';
 import { solveWithLpAdapter } from '../src/solver/lpAdapter.ts';
 import {
+  buildCostByComponentChart,
   buildEmissionsBySectorChart,
   buildEmissionsBySubsectorChart,
+  buildFuelConsumptionChart,
   buildPathwayChartCards,
 } from '../src/results/chartData.ts';
 
@@ -98,6 +100,10 @@ function buildRequest(respectMaxShare) {
         },
       },
     ],
+    objectiveCost: {
+      currency: 'AUD_2024',
+      costBasisYear: 2024,
+    },
     configuration: {
       name: 'Chart data regression',
       description: null,
@@ -310,6 +316,10 @@ function buildEmissionsRequest() {
         },
       },
     ],
+    objectiveCost: {
+      currency: 'AUD_2024',
+      costBasisYear: 2024,
+    },
     configuration: {
       name: 'Emissions chart regression',
       description: null,
@@ -527,6 +537,10 @@ test('buildPathwayChartCards matches solver-reported effective caps for exact-sh
         },
       },
     ],
+    objectiveCost: {
+      currency: 'AUD_2024',
+      costBasisYear: 2024,
+    },
     configuration: {
       name: 'Exact-share CAP alignment',
       description: null,
@@ -574,4 +588,188 @@ test('buildPathwayChartCards matches solver-reported effective caps for exact-sh
   assert.ok(Math.abs(selectedCap - (selectedShare.effectiveMaxShare * 100)) < 1e-9);
   assert.ok(Math.abs(availableCap - (availableShare.effectiveMaxShare * 100)) < 1e-9);
   assert.match(card.note, /active pathways/i);
+});
+
+function buildFuelAndCostRequest() {
+  return {
+    contractVersion: SOLVER_CONTRACT_VERSION,
+    requestId: 'chart-data-fuel-and-cost',
+    rows: [
+      {
+        rowId: 'fuel_mix::2030',
+        outputId: 'test_service',
+        outputRole: 'required_service',
+        outputLabel: 'Test service',
+        year: 2030,
+        stateId: 'fuel_mix',
+        stateLabel: 'Fuel Mix',
+        sector: 'test',
+        subsector: 'test',
+        region: 'national',
+        outputUnit: 'unit',
+        conversionCostPerUnit: 25,
+        inputs: [
+          { commodityId: 'coal', coefficient: 1_000_000, unit: 'GJ/unit' },
+          { commodityId: 'natural_gas', coefficient: 500_000, unit: 'GJ/unit' },
+          { commodityId: 'electricity', coefficient: 100_000, unit: 'MWh/unit' },
+          { commodityId: 'iron_ore', coefficient: 25, unit: 't/unit' },
+        ],
+        directEmissions: [{ pollutant: 'CO2e', value: 2, source: 'energy' }],
+        bounds: {
+          minShare: null,
+          maxShare: null,
+          maxActivity: null,
+        },
+      },
+      {
+        rowId: 'fuel_mix::2035',
+        outputId: 'test_service',
+        outputRole: 'required_service',
+        outputLabel: 'Test service',
+        year: 2035,
+        stateId: 'fuel_mix',
+        stateLabel: 'Fuel Mix',
+        sector: 'test',
+        subsector: 'test',
+        region: 'national',
+        outputUnit: 'unit',
+        conversionCostPerUnit: 30,
+        inputs: [
+          { commodityId: 'refined_liquid_fuels', coefficient: 250_000, unit: 'GJ/unit' },
+          { commodityId: 'biomass', coefficient: 125_000, unit: 'GJ/unit' },
+          { commodityId: 'hydrogen', coefficient: 80_000, unit: 'GJ/unit' },
+          { commodityId: 'scrap_steel', coefficient: 10, unit: 't/unit' },
+          { commodityId: 'sequestration_service', coefficient: 5, unit: 'tCO2_stored/unit' },
+        ],
+        directEmissions: [{ pollutant: 'CO2e', value: 1, source: 'energy' }],
+        bounds: {
+          minShare: null,
+          maxShare: null,
+          maxActivity: null,
+        },
+      },
+    ],
+    objectiveCost: {
+      currency: 'AUD_2024',
+      costBasisYear: 2024,
+    },
+    configuration: {
+      name: 'Fuel chart regression',
+      description: null,
+      years: [2030, 2035],
+      controlsByOutput: {},
+      serviceDemandByOutput: {
+        test_service: { 2030: 1, 2035: 1 },
+      },
+      externalCommodityDemandByCommodity: {},
+      commodityPriceByCommodity: {
+        coal: { unit: 'AUD_2024_per_GJ', valuesByYear: { 2030: 1, 2035: 1 } },
+        natural_gas: { unit: 'AUD_2024_per_GJ', valuesByYear: { 2030: 2, 2035: 2 } },
+        electricity: { unit: 'AUD_2024_per_MWh', valuesByYear: { 2030: 3, 2035: 3 } },
+        refined_liquid_fuels: { unit: 'AUD_2024_per_GJ', valuesByYear: { 2030: 4, 2035: 4 } },
+        biomass: { unit: 'AUD_2024_per_GJ', valuesByYear: { 2030: 5, 2035: 5 } },
+        hydrogen: { unit: 'AUD_2024_per_GJ', valuesByYear: { 2030: 6, 2035: 6 } },
+      },
+      carbonPriceByYear: { 2030: 10, 2035: 10 },
+      options: {
+        respectMaxShare: true,
+        respectMaxActivity: true,
+        softConstraints: false,
+        shareSmoothing: {
+          enabled: false,
+          maxDeltaPp: null,
+        },
+      },
+    },
+  };
+}
+
+function buildFuelAndCostResult() {
+  return {
+    contractVersion: SOLVER_CONTRACT_VERSION,
+    requestId: 'chart-data-fuel-and-cost',
+    status: 'solved',
+    engine: { name: 'yalps', worker: true },
+    summary: {
+      rowCount: 2,
+      yearCount: 2,
+      outputCount: 1,
+      serviceDemandOutputCount: 1,
+      externalCommodityCount: 0,
+    },
+    reporting: {
+      commodityBalances: [],
+      stateShares: [
+        {
+          outputId: 'test_service',
+          outputLabel: 'Test service',
+          year: 2030,
+          stateId: 'fuel_mix',
+          stateLabel: 'Fuel Mix',
+          activity: 1,
+          share: 1,
+          rawMaxShare: null,
+          effectiveMaxShare: null,
+        },
+        {
+          outputId: 'test_service',
+          outputLabel: 'Test service',
+          year: 2035,
+          stateId: 'fuel_mix',
+          stateLabel: 'Fuel Mix',
+          activity: 1,
+          share: 1,
+          rawMaxShare: null,
+          effectiveMaxShare: null,
+        },
+      ],
+      bindingConstraints: [],
+      softConstraintViolations: [],
+    },
+    raw: null,
+    diagnostics: [],
+    timingsMs: {
+      total: 0,
+      solve: 0,
+    },
+  };
+}
+
+test('fuel consumption chart keeps only fuels and converts all series to PJ', () => {
+  const request = buildFuelAndCostRequest();
+  const result = buildFuelAndCostResult();
+  const chart = buildFuelConsumptionChart(request, result);
+
+  assert.equal(chart.title, 'Fuel Consumption');
+  assert.equal(chart.yAxisLabel, 'PJ');
+  assert.deepEqual(
+    chart.series.map((series) => series.label),
+    ['Coal', 'Natural gas', 'Electricity', 'Refined liquid fuels', 'Biomass', 'Hydrogen'],
+  );
+  assert.ok(!chart.series.some((series) => series.label === 'Iron ore'));
+  assert.ok(!chart.series.some((series) => series.label === 'Scrap steel'));
+  assert.ok(!chart.series.some((series) => series.label === 'Sequestration service'));
+  assert.deepEqual(
+    chart.series.find((series) => series.label === 'Coal')?.values,
+    [
+      { year: 2030, value: 1 },
+      { year: 2035, value: 0 },
+    ],
+  );
+  assert.deepEqual(
+    chart.series.find((series) => series.label === 'Electricity')?.values,
+    [
+      { year: 2030, value: 0.36 },
+      { year: 2035, value: 0 },
+    ],
+  );
+});
+
+test('cost by component chart exposes the objective cost unit on the y-axis', () => {
+  const request = buildFuelAndCostRequest();
+  const result = buildFuelAndCostResult();
+  const chart = buildCostByComponentChart(request, result);
+
+  assert.equal(chart.title, 'Cost by Component');
+  assert.equal(chart.yAxisLabel, 'AUD 2024');
 });

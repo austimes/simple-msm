@@ -7,7 +7,7 @@ import {
   buildPathwayChartCards,
   buildRemovalsChartCards,
   buildEmissionsBySectorChart,
-  buildCommodityConsumptionChart,
+  buildFuelConsumptionChart,
   buildDemandBySectorChart,
   buildCostByComponentChart,
   type PathwayChartCardData,
@@ -116,7 +116,7 @@ export default function ConfigurationWorkspaceCenter({
     [request, result],
   );
   const consumptionChart = useMemo(
-    () => (request && result ? buildCommodityConsumptionChart(request, result) : null),
+    () => (request && result ? buildFuelConsumptionChart(request, result) : null),
     [request, result],
   );
   const costByComponentChart = useMemo(

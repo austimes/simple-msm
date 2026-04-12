@@ -85,11 +85,17 @@ export interface ResolvedConfigurationForSolve {
   };
 }
 
+export interface SolveObjectiveCostMetadata {
+  currency: string;
+  costBasisYear: number | null;
+}
+
 export interface SolveRequest {
   contractVersion: SolverContractVersion;
   requestId: string;
   rows: NormalizedSolverRow[];
   configuration: ResolvedConfigurationForSolve;
+  objectiveCost?: SolveObjectiveCostMetadata;
 }
 
 export interface SolveDiagnostic {

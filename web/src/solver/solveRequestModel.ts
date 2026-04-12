@@ -5,6 +5,7 @@ import type {
   ConfigurationDocument,
   ConfigurationServiceControl,
 } from '../data/types.ts';
+import { normalizeCommodityInput } from '../data/commodityMetadata.ts';
 import { resolveConfigurationDocument } from '../data/demandResolution.ts';
 import type {
   NormalizedSolverRow,
@@ -72,6 +73,20 @@ export function normalizeSolverRows(
       );
     }
 
+    const inputs = row.input_commodities.map((commodityId, index) => {
+      const normalizedInput = normalizeCommodityInput(
+        commodityId,
+        row.input_coefficients[index] ?? 0,
+        row.input_units[index] ?? row.output_unit,
+      );
+
+      return {
+        commodityId,
+        coefficient: normalizedInput.coefficient,
+        unit: normalizedInput.unit,
+      };
+    });
+
     return {
       rowId: `${row.state_id}::${row.year}`,
       outputId: row.service_or_output_name,
@@ -85,11 +100,7 @@ export function normalizeSolverRows(
       region: row.region,
       outputUnit: row.output_unit,
       conversionCostPerUnit: row.output_cost_per_unit,
-      inputs: row.input_commodities.map((commodityId, index) => ({
-        commodityId,
-        coefficient: row.input_coefficients[index] ?? 0,
-        unit: row.input_units[index] ?? row.output_unit,
-      })),
+      inputs,
       directEmissions: [
         ...row.energy_emissions_by_pollutant.map((entry) => ({
           pollutant: entry.pollutant,

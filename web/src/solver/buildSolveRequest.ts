@@ -4,6 +4,7 @@ import {
   type NormalizedSolverRow,
   type ResolvedConfigurationForSolve,
   type ResolvedSolveControl,
+  type SolveObjectiveCostMetadata,
   type SolveRequest,
 } from './contract.ts';
 import {
@@ -16,6 +17,56 @@ import {
 } from './solveRequestModel.ts';
 
 export { normalizeSolverRows, resolveConfigurationForSolve } from './solveRequestModel.ts';
+
+function buildObjectiveCostLookup(
+  sectorStates: PackageData['sectorStates'],
+): Map<string, SolveObjectiveCostMetadata> {
+  const lookup = new Map<string, SolveObjectiveCostMetadata>();
+
+  for (const row of sectorStates) {
+    lookup.set(`${row.state_id}::${row.year}`, {
+      currency: row.currency,
+      costBasisYear: row.cost_basis_year,
+    });
+  }
+
+  return lookup;
+}
+
+function resolveObjectiveCostMetadata(
+  rows: NormalizedSolverRow[],
+  lookup: ReadonlyMap<string, SolveObjectiveCostMetadata>,
+): SolveObjectiveCostMetadata {
+  let metadata: SolveObjectiveCostMetadata | null = null;
+
+  for (const row of rows) {
+    const rowMetadata = lookup.get(row.rowId);
+
+    if (!rowMetadata) {
+      throw new Error(`Missing objective cost metadata for row ${JSON.stringify(row.rowId)}.`);
+    }
+
+    if (!metadata) {
+      metadata = rowMetadata;
+      continue;
+    }
+
+    if (
+      metadata.currency !== rowMetadata.currency
+      || metadata.costBasisYear !== rowMetadata.costBasisYear
+    ) {
+      throw new Error(
+        `Inconsistent objective cost metadata across solve rows: ${metadata.currency}/${metadata.costBasisYear ?? 'unknown'} vs ${rowMetadata.currency}/${rowMetadata.costBasisYear ?? 'unknown'}.`,
+      );
+    }
+  }
+
+  if (!metadata) {
+    throw new Error('Cannot resolve objective cost metadata for an empty solve request.');
+  }
+
+  return metadata;
+}
 
 function createRequestId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -104,6 +155,7 @@ export function buildSolveRequest(
   configuration: ConfigurationDocument,
 ): SolveRequest {
   const allRows = normalizeSolverRows(pkg);
+  const objectiveCostLookup = buildObjectiveCostLookup(pkg.sectorStates);
   const resolvedConfiguration = resolveConfigurationForSolve(configuration, pkg.appConfig);
 
   // Scope is derived from active pathways — required-service outputs with at
@@ -117,6 +169,7 @@ export function buildSolveRequest(
       requestId: createRequestId(),
       rows: allRows,
       configuration: resolvedConfiguration,
+      objectiveCost: resolveObjectiveCostMetadata(allRows, objectiveCostLookup),
     };
   }
 
@@ -138,5 +191,6 @@ export function buildSolveRequest(
     requestId: createRequestId(),
     rows: filtered.rows,
     configuration: filtered.configuration,
+    objectiveCost: resolveObjectiveCostMetadata(filtered.rows, objectiveCostLookup),
   };
 }

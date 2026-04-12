@@ -4,6 +4,11 @@ import type {
   SolveResult,
   SolveStateShareSummary,
 } from '../solver/contract';
+import {
+  convertUnitQuantity,
+  getCommodityMetadata,
+  parseUnitRatio,
+} from '../data/commodityMetadata.ts';
 
 const CHART_PALETTE = [
   '#2563eb', '#dc2626', '#059669', '#d97706', '#7c3aed',
@@ -11,6 +16,7 @@ const CHART_PALETTE = [
   '#0d9488', '#ca8a04',
 ];
 const ABSOLUTE_EMISSIONS_AXIS_LABEL = 'Emissions (tCO2e)';
+const FUEL_CONSUMPTION_AXIS_LABEL = 'PJ';
 
 export interface StackedSeries {
   key: string;
@@ -94,6 +100,25 @@ function buildSeries(
   return series;
 }
 
+function formatObjectiveCostAxisLabel(request: SolveRequest): string {
+  if (!request.objectiveCost?.currency) {
+    return 'Cost';
+  }
+
+  const parsedCurrency = request.objectiveCost.currency.match(/^(.*?)(?:_(\d{4}))?$/);
+  const currencyBase = (parsedCurrency?.[1] ?? request.objectiveCost.currency).replaceAll('_', ' ').trim();
+  const year = request.objectiveCost.costBasisYear ?? (
+    parsedCurrency?.[2] ? Number(parsedCurrency[2]) : null
+  );
+
+  return year ? `${currencyBase} ${year}` : currencyBase;
+}
+
+function convertFuelConsumptionToPj(value: number, unit: string): number {
+  const { numerator } = parseUnitRatio(unit);
+  return convertUnitQuantity(value, numerator as 'GJ' | 'MWh' | 'PJ', 'PJ');
+}
+
 export function buildEmissionsBySectorChart(
   request: SolveRequest,
   result: SolveResult,
@@ -127,7 +152,7 @@ export function buildEmissionsBySectorChart(
   };
 }
 
-export function buildCommodityConsumptionChart(
+export function buildFuelConsumptionChart(
   request: SolveRequest,
   result: SolveResult,
 ): StackedChartData {
@@ -140,8 +165,13 @@ export function buildCommodityConsumptionChart(
     if (!ss || ss.activity === 0) continue;
 
     for (const input of row.inputs) {
-      const consumption = ss.activity * input.coefficient;
-      if (consumption === 0) continue;
+      const metadata = getCommodityMetadata(input.commodityId);
+      if (metadata.kind !== 'fuel') continue;
+
+      const consumption = convertFuelConsumptionToPj(ss.activity * input.coefficient, input.unit);
+      if (consumption === 0) {
+        continue;
+      }
 
       let yearMap = grouped.get(input.commodityId);
       if (!yearMap) {
@@ -153,10 +183,10 @@ export function buildCommodityConsumptionChart(
   }
 
   return {
-    title: 'Commodity Consumption',
-    yAxisLabel: 'Consumption',
+    title: 'Fuel Consumption',
+    yAxisLabel: FUEL_CONSUMPTION_AXIS_LABEL,
     years,
-    series: buildSeries(grouped, years, (key) => key),
+    series: buildSeries(grouped, years, (key) => getCommodityMetadata(key).label),
   };
 }
 
@@ -376,7 +406,7 @@ export function buildCostByComponentChart(
 
   return {
     title: 'Cost by Component',
-    yAxisLabel: 'Cost',
+    yAxisLabel: formatObjectiveCostAxisLabel(request),
     years,
     series: buildSeries(grouped, years, (key) => key),
   };
