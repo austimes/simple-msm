@@ -1,6 +1,7 @@
 import { type ReactNode, useMemo, useState } from 'react';
 import { buildSectorStateFamilies } from '../data/libraryInsights';
 import { usePackageStore } from '../data/packageStore';
+import MethodsSchemaSummaryCard from './MethodsSchemaSummaryCard';
 
 type MethodsTab = 'about' | 'conventions' | 'confidence' | 'phase2' | 'evidence';
 
@@ -189,7 +190,6 @@ function renderMarkdownBlocks(content: string, keyPrefix: string): ReactNode[] {
 
   return blocks;
 }
-
 export default function MethodsPage() {
   const readme = usePackageStore((state) => state.readme);
   const phase2Memo = usePackageStore((state) => state.phase2Memo);
@@ -312,35 +312,6 @@ export default function MethodsPage() {
   const optionalCompanionCount = useMemo(() => {
     return enrichment.availablePaths.filter((path) => path !== 'data/sector_states.csv').length;
   }, [enrichment.availablePaths]);
-
-  const schemaPreviewFields = enrichment.sectorStatesSchema
-    ? (() => {
-        const preferredFields = [
-          'source_ids',
-          'assumption_ids',
-          'confidence_rating',
-          'input_commodities',
-          'energy_emissions_by_pollutant',
-          'process_emissions_by_pollutant',
-        ];
-        const selectedFields = preferredFields.reduce<typeof enrichment.sectorStatesSchema.fields>(
-          (fields, fieldName) => {
-            const field = enrichment.sectorStatesSchema?.fields.find((candidate) => candidate.name === fieldName);
-
-            if (field) {
-              fields.push(field);
-            }
-
-            return fields;
-          },
-          [],
-        );
-
-        return selectedFields.length > 0
-          ? selectedFields
-          : enrichment.sectorStatesSchema.fields.slice(0, 6);
-      })()
-    : [];
 
   return (
     <div className="page page--methods">
@@ -520,36 +491,7 @@ export default function MethodsPage() {
             ) : null}
 
             {enrichment.sectorStatesSchema ? (
-              <section className="methods-content-card">
-                <h2>Row schema guidance</h2>
-                <p>{enrichment.sectorStatesSchema.description}</p>
-                <div className="configuration-stat-grid">
-                  <div className="configuration-stat-card">
-                    <span>Schema fields</span>
-                    <strong>{enrichment.sectorStatesSchema.propertyCount}</strong>
-                  </div>
-                  <div className="configuration-stat-card">
-                    <span>Required fields</span>
-                    <strong>{enrichment.sectorStatesSchema.requiredFields.length}</strong>
-                  </div>
-                </div>
-                <div className="library-mini-table">
-                  <div className="library-mini-table-row library-mini-table-row--header">
-                    <span>Field</span>
-                    <span>Type</span>
-                    <span>Required</span>
-                    <span>Why it matters here</span>
-                  </div>
-                  {schemaPreviewFields.map((field) => (
-                    <div key={field.name} className="library-mini-table-row">
-                      <span>{field.name}</span>
-                      <span>{field.type}</span>
-                      <span>{field.required ? 'Yes' : 'No'}</span>
-                      <span>{field.description || 'No description provided.'}</span>
-                    </div>
-                  ))}
-                </div>
-              </section>
+              <MethodsSchemaSummaryCard schemaInfo={enrichment.sectorStatesSchema} />
             ) : null}
           </div>
         ) : null}

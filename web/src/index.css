@@ -226,12 +226,16 @@ body {
 }
 
 .configuration-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid transparent;
   border-radius: 12px;
   background: var(--color-primary);
   color: #ffffff;
   padding: 10px 14px;
   cursor: pointer;
+  text-decoration: none;
 }
 
 .configuration-button--secondary {
@@ -513,7 +517,8 @@ body {
 }
 
 .page--library,
-.page--methods {
+.page--methods,
+.page--state-schema {
   padding-bottom: 32px;
 }
 
@@ -1427,6 +1432,46 @@ body {
 
 .methods-evidence-card--empty {
   text-align: center;
+}
+
+.state-schema-summary-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  margin-top: 16px;
+}
+
+.state-schema-description {
+  margin-top: 16px;
+}
+
+.state-schema-milestone-table,
+.state-schema-field-table {
+  overflow-x: auto;
+}
+
+.state-schema-milestone-table .library-mini-table-row {
+  grid-template-columns: repeat(7, minmax(140px, 1fr));
+}
+
+.state-schema-field-table .library-mini-table-row {
+  grid-template-columns:
+    minmax(160px, 1.1fr)
+    minmax(84px, 0.55fr)
+    minmax(120px, 0.75fr)
+    minmax(170px, 1fr)
+    minmax(260px, 2fr)
+    minmax(260px, 2fr);
+  align-items: start;
+}
+
+.state-schema-milestone-table .library-mini-table-row > span,
+.state-schema-field-table .library-mini-table-row > span {
+  overflow-wrap: anywhere;
+}
+
+.state-schema-code-block {
+  white-space: pre-wrap;
 }
 
 /* ── Workspace 3-column layout ────────────────────────── */

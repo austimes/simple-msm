@@ -103,8 +103,7 @@ function toSchemaInfo(raw: string | undefined, warnings: string[]): PackageSchem
       type: formatSchemaType(property.type),
       description: property.description ?? '',
       required: requiredFields.includes(name),
-    }))
-    .sort((left, right) => left.name.localeCompare(right.name));
+    }));
 
   return {
     title: document.title ?? 'Sector states schema',
