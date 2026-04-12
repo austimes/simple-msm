@@ -24,7 +24,6 @@ export default function RightSidebarContent({
 }: RightSidebarContentProps) {
   return (
     <React.Fragment>
-      <h2>State Selector</h2>
       {tree.map((sectorEntry) => (
         <div
           key={sectorEntry.sector}

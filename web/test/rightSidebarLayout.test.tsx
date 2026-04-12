@@ -38,6 +38,7 @@ describe('RightSidebarContent', () => {
       html.indexOf(firstOutputLabel) < html.indexOf('aria-label="State selector status legend"'),
       'expected legend to render after the first real state selector card',
     );
+    assert.doesNotMatch(html, /<h2>State Selector<\/h2>/);
   });
 
   test('renders pathway pills without visible active or inactive suffixes', () => {
