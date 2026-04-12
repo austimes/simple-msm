@@ -42,8 +42,6 @@ export interface LineChartData {
 export interface PathwayChartCardData {
   outputId: string;
   outputLabel: string;
-  note: string;
-  respectMaxShare: boolean;
   outputChart: StackedChartData;
   capChart: LineChartData;
 }
@@ -417,7 +415,6 @@ export function buildPathwayChartCards(
   result: SolveResult,
 ): PathwayChartCardData[] {
   const years = request.configuration.years;
-  const respectMaxShare = request.configuration.options.respectMaxShare;
   const outputRows = new Map<string, { outputLabel: string; outputUnit: string; stateIds: Set<string> }>();
 
   for (const row of request.rows) {
@@ -439,7 +436,6 @@ export function buildPathwayChartCards(
     .map(([outputId, metadata]) => {
       const outputGrouped = new Map<string, Map<number, number>>();
       const capGrouped = new Map<string, Map<number, number>>();
-      let hasNormalizedCaps = false;
 
       for (const share of result.reporting.stateShares) {
         if (share.outputId !== outputId) {
@@ -460,27 +456,11 @@ export function buildPathwayChartCards(
           capGrouped.set(share.stateLabel, capYearMap);
         }
         capYearMap.set(share.year, effectiveMaxShare * 100);
-
-        if (
-          share.rawMaxShare != null
-          && share.effectiveMaxShare != null
-          && Math.abs(share.rawMaxShare - share.effectiveMaxShare) > 1e-9
-        ) {
-          hasNormalizedCaps = true;
-        }
       }
-
-      const note = !respectMaxShare
-        ? 'Max-share caps were ignored in this solve. Cap view still shows the solver\'s effective caps for context across active pathways.'
-        : hasNormalizedCaps
-          ? 'Cap view shows effective max shares after normalizing across active pathways within each year.'
-          : 'Cap view shows the effective max shares applied to each active pathway.';
 
       return {
         outputId,
         outputLabel: metadata.outputLabel,
-        note,
-        respectMaxShare,
         outputChart: {
           title: `${metadata.outputLabel} Pathway Output`,
           yAxisLabel: metadata.outputUnit,

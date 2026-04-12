@@ -65,9 +65,6 @@ function PathwayChartCard({ chart }: { chart: PathwayChartCardData }) {
       ) : (
         <StackedAreaChart data={chart.outputChart} showTitle={false} />
       )}
-      <p className={`workspace-chart-note${chart.respectMaxShare ? '' : ' workspace-chart-note--warning'}`}>
-        {chart.note}
-      </p>
     </div>
   );
 }
@@ -81,9 +78,6 @@ function RemovalsChartCard({ chart }: { chart: RemovalsChartCardData }) {
         </div>
       </div>
       <LineChart data={chart.activityChart} valueFormatter={formatNumber} showTitle={false} />
-      <p className="workspace-chart-note">
-        Activity is cost-driven: the solver picks up removals when the carbon price exceeds their unit cost. Max activity shows the physical cap.
-      </p>
     </div>
   );
 }
