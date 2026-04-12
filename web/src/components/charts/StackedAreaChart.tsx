@@ -1,21 +1,32 @@
+import React from 'react';
 import type { StackedChartData } from '../../results/chartData';
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  XAxis,
+  YAxis,
+} from 'recharts';
+import { ChartEmptyState, ChartFrame } from './ChartFrame';
+import {
+  buildResponsiveContainerProps,
+  CHART_AXIS_TICK_STYLE,
+  CHART_AXIS_TITLE_STYLE,
+  CHART_GRID_DASHARRAY,
+  CHART_GRID_STROKE,
+  WORKSPACE_CHART_HEIGHT,
+  WORKSPACE_CHART_MARGIN,
+} from './chartTheme';
+import { buildZeroFilledRows, summarizeSeries } from './rechartsAdapters';
+
+void React;
 
 interface StackedAreaChartProps {
   data: StackedChartData;
   valueFormatter?: (value: number) => string;
   height?: number;
 }
-
-const CHART_WIDTH = 720;
-const PADDING_LEFT = 92;
-const PADDING_RIGHT = 20;
-const PADDING_TOP = 40;
-const PADDING_BOTTOM = 42;
-const AXIS_TITLE_X = 22;
-const TICK_LABEL_OFFSET = 10;
-const TICK_LABEL_BASELINE = 4;
-const YEAR_LABEL_OFFSET = 12;
-const TICK_COUNT = 4;
 
 function defaultFormatter(value: number): string {
   if (Math.abs(value) >= 1e9) return `${(value / 1e9).toPrecision(3)}B`;
@@ -27,153 +38,94 @@ function defaultFormatter(value: number): string {
 export default function StackedAreaChart({
   data,
   valueFormatter = defaultFormatter,
-  height = 300,
+  height = WORKSPACE_CHART_HEIGHT,
 }: StackedAreaChartProps) {
   const { title, yAxisLabel, years, series } = data;
-  const chartHeight = height;
-  const xSpan = CHART_WIDTH - PADDING_LEFT - PADDING_RIGHT;
-  const ySpan = chartHeight - PADDING_TOP - PADDING_BOTTOM;
 
   if (series.length === 0 || years.length === 0) {
-    return <p className="stacked-chart-empty">No data available for this chart.</p>;
-  }
-
-  // Compute cumulative totals per year to check for all-zero
-  const cumulativeTotals = years.map((year) =>
-    series.reduce((sum, s) => {
-      const point = s.values.find((v) => v.year === year);
-      return sum + (point?.value ?? 0);
-    }, 0),
-  );
-
-  if (cumulativeTotals.every((t) => t === 0)) {
-    return <p className="stacked-chart-empty">No data available for this chart.</p>;
-  }
-
-  // Build cumulative sums per year for each series layer
-  // cumulative[i][j] = sum of series[0..i] at years[j]
-  const cumulative: number[][] = [];
-  for (let i = 0; i < series.length; i++) {
-    cumulative.push(
-      years.map((year, j) => {
-        const point = series[i].values.find((v) => v.year === year);
-        const value = point?.value ?? 0;
-        return (i > 0 ? cumulative[i - 1][j] : 0) + value;
-      }),
+    return (
+      <ChartEmptyState
+        className="stacked-chart-empty"
+        message="No data available for this chart."
+      />
     );
   }
 
-  const maxCumulative = Math.max(...cumulative[cumulative.length - 1]);
-  const domainMax = maxCumulative * 1.08;
-  const domainMin = 0;
-
-  const xForIndex = (index: number) => {
-    if (years.length === 1) return PADDING_LEFT + xSpan / 2;
-    return PADDING_LEFT + (xSpan * index) / (years.length - 1);
-  };
-
-  const yForValue = (value: number) =>
-    PADDING_TOP + ((domainMax - value) / (domainMax - domainMin)) * ySpan;
-
-  const tickValues = Array.from({ length: TICK_COUNT + 1 }, (_, i) =>
-    domainMin + ((domainMax - domainMin) * (TICK_COUNT - i)) / TICK_COUNT,
+  const rows = buildZeroFilledRows(years, series);
+  const cumulativeTotals = rows.map((row) =>
+    series.reduce((sum, entry) => sum + Number(row[entry.key] ?? 0), 0),
   );
 
-  // Build area paths: for each series, trace top edge left-to-right, then bottom edge right-to-left
-  const areaPaths = series.map((_, i) => {
-    const topPoints = years.map((_, j) => `${xForIndex(j)} ${yForValue(cumulative[i][j])}`);
-    const bottomPoints = years.map((_, j) => {
-      const bottomValue = i > 0 ? cumulative[i - 1][j] : 0;
-      return `${xForIndex(j)} ${yForValue(bottomValue)}`;
-    });
-    return `M ${topPoints[0]} L ${topPoints.join(' L ')} L ${bottomPoints.reverse().join(' L ')} Z`;
-  });
+  if (cumulativeTotals.every((t) => t === 0)) {
+    return (
+      <ChartEmptyState
+        className="stacked-chart-empty"
+        message="No data available for this chart."
+      />
+    );
+  }
+
+  const maxCumulative = Math.max(...cumulativeTotals);
+  const domainMax = maxCumulative * 1.08;
+  const summaryItems = summarizeSeries(series);
+  const legendItems = series.map((entry) => ({
+    key: entry.key,
+    label: entry.label,
+    color: entry.color,
+  }));
 
   return (
-    <div className="stacked-chart-shell">
-      <svg
-        viewBox={`0 0 ${CHART_WIDTH} ${chartHeight}`}
-        role="img"
-        aria-label={title}
-        className="stacked-chart-svg"
-      >
-        <text
-          x={CHART_WIDTH / 2}
-          y={24}
-          textAnchor="middle"
-          className="stacked-chart-title"
-        >
-          {title}
-        </text>
-
-        {yAxisLabel ? (
-          <text
-            x={AXIS_TITLE_X}
-            y={PADDING_TOP + ySpan / 2}
-            textAnchor="middle"
-            className="stacked-chart-axis-title"
-            transform={`rotate(-90 ${AXIS_TITLE_X} ${PADDING_TOP + ySpan / 2})`}
-          >
-            {yAxisLabel}
-          </text>
-        ) : null}
-
-        {tickValues.map((tickValue) => {
-          const y = yForValue(tickValue);
-          return (
-            <g key={tickValue}>
-              <line
-                x1={PADDING_LEFT}
-                x2={CHART_WIDTH - PADDING_RIGHT}
-                y1={y}
-                y2={y}
-                className="stacked-chart-grid-line"
-              />
-              <text
-                x={PADDING_LEFT - TICK_LABEL_OFFSET}
-                y={y + TICK_LABEL_BASELINE}
-                textAnchor="end"
-                className="stacked-chart-axis-label"
-              >
-                {valueFormatter(tickValue)}
-              </text>
-            </g>
-          );
-        })}
-
-        {years.map((year, index) => (
-          <text
-            key={year}
-            x={xForIndex(index)}
-            y={chartHeight - YEAR_LABEL_OFFSET}
-            textAnchor="middle"
-            className="stacked-chart-axis-label"
-          >
-            {year}
-          </text>
-        ))}
-
-        {series.map((entry, i) => (
-          <path
-            key={entry.key}
-            d={areaPaths[i]}
-            fill={entry.color}
-            opacity={0.82}
+    <ChartFrame
+      title={title}
+      yAxisLabel={yAxisLabel}
+      height={height}
+      legendItems={legendItems}
+      summaryItems={summaryItems}
+    >
+      <ResponsiveContainer {...buildResponsiveContainerProps(height)}>
+        <AreaChart data={rows} margin={WORKSPACE_CHART_MARGIN}>
+          <CartesianGrid
+            stroke={CHART_GRID_STROKE}
+            strokeDasharray={CHART_GRID_DASHARRAY}
+            vertical={false}
           />
-        ))}
-      </svg>
-
-      <div className="stacked-chart-legend">
-        {series.map((entry) => (
-          <span key={entry.key} className="stacked-chart-legend-item">
-            <span
-              className="stacked-chart-legend-swatch"
-              style={{ backgroundColor: entry.color }}
+          <XAxis
+            dataKey="year"
+            tickLine={false}
+            axisLine={false}
+            interval={0}
+            tick={CHART_AXIS_TICK_STYLE}
+          />
+          <YAxis
+            tickLine={false}
+            axisLine={false}
+            width={72}
+            domain={[0, domainMax]}
+            tick={CHART_AXIS_TICK_STYLE}
+            tickFormatter={valueFormatter}
+            label={{
+              value: yAxisLabel,
+              angle: -90,
+              position: 'insideLeft',
+              offset: 2,
+              style: CHART_AXIS_TITLE_STYLE,
+            }}
+          />
+          {series.map((entry) => (
+            <Area
+              key={entry.key}
+              type="linear"
+              dataKey={entry.key}
+              name={entry.label}
+              stackId="stack"
+              stroke={entry.color}
+              fill={entry.color}
+              fillOpacity={0.82}
+              isAnimationActive={false}
             />
-            <span>{entry.label}</span>
-          </span>
-        ))}
-      </div>
-    </div>
+          ))}
+        </AreaChart>
+      </ResponsiveContainer>
+    </ChartFrame>
   );
 }

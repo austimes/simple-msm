@@ -521,7 +521,8 @@ function buildConstraintContext(
   };
 }
 
-function validateRequiredServiceGroup(_group: RequiredServiceGroup): SolveDiagnostic[] {
+function validateRequiredServiceGroup(group: RequiredServiceGroup): SolveDiagnostic[] {
+  void group;
   return [];
 }
 

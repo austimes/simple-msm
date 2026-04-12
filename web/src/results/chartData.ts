@@ -1,4 +1,5 @@
 import type {
+  NormalizedSolverRow,
   SolveRequest,
   SolveResult,
   SolveStateShareSummary,

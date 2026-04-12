@@ -105,7 +105,7 @@ export default function LeftSidebar() {
         allowedModes: metadata.allowed_control_modes,
         priceDriver: appConfig.commodity_price_presets[outputId],
       })),
-    [appConfig, sectorStates],
+    [appConfig],
   );
 
   const builtinConfigs = useMemo(() => loadBuiltinConfigurations(), []);

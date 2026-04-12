@@ -1,21 +1,37 @@
+import React from 'react';
 import type { LineChartData } from '../../results/chartData';
+import {
+  CartesianGrid,
+  Line,
+  LineChart as RechartsLineChart,
+  ResponsiveContainer,
+  XAxis,
+  YAxis,
+} from 'recharts';
+import { ChartEmptyState, ChartFrame } from './ChartFrame';
+import {
+  buildResponsiveContainerProps,
+  CHART_AXIS_TICK_STYLE,
+  CHART_AXIS_TITLE_STYLE,
+  CHART_GRID_DASHARRAY,
+  CHART_GRID_STROKE,
+  WORKSPACE_CHART_HEIGHT,
+  WORKSPACE_CHART_MARGIN,
+} from './chartTheme';
+import {
+  buildZeroFilledRows,
+  collectNumericValues,
+  computeDomain,
+  summarizeSeries,
+} from './rechartsAdapters';
+
+void React;
 
 interface LineChartProps {
   data: LineChartData;
   valueFormatter?: (value: number) => string;
   height?: number;
 }
-
-const CHART_WIDTH = 720;
-const PADDING_LEFT = 92;
-const PADDING_RIGHT = 20;
-const PADDING_TOP = 40;
-const PADDING_BOTTOM = 42;
-const AXIS_TITLE_X = 22;
-const TICK_LABEL_OFFSET = 10;
-const TICK_LABEL_BASELINE = 4;
-const YEAR_LABEL_OFFSET = 12;
-const TICK_COUNT = 4;
 
 function defaultFormatter(value: number): string {
   return `${value.toFixed(0)}%`;
@@ -24,138 +40,84 @@ function defaultFormatter(value: number): string {
 export default function LineChart({
   data,
   valueFormatter = defaultFormatter,
-  height = 300,
+  height = WORKSPACE_CHART_HEIGHT,
 }: LineChartProps) {
   const { title, yAxisLabel, years, series } = data;
-  const chartHeight = height;
-  const xSpan = CHART_WIDTH - PADDING_LEFT - PADDING_RIGHT;
-  const ySpan = chartHeight - PADDING_TOP - PADDING_BOTTOM;
 
   if (series.length === 0 || years.length === 0) {
-    return <p className="stacked-chart-empty">No data available for this chart.</p>;
-  }
-
-  // Compute domain from all values
-  let minVal = Infinity;
-  let maxVal = -Infinity;
-  for (const s of series) {
-    for (const v of s.values) {
-      if (v.value < minVal) minVal = v.value;
-      if (v.value > maxVal) maxVal = v.value;
-    }
-  }
-
-  // Add some padding to domain
-  const range = maxVal - minVal || 1;
-  const domainMin = Math.floor((minVal - range * 0.08) / 5) * 5;
-  const domainMax = Math.ceil((maxVal + range * 0.08) / 5) * 5;
-
-  const xForIndex = (index: number) => {
-    if (years.length === 1) return PADDING_LEFT + xSpan / 2;
-    return PADDING_LEFT + (xSpan * index) / (years.length - 1);
-  };
-
-  const yForValue = (value: number) =>
-    PADDING_TOP + ((domainMax - value) / (domainMax - domainMin)) * ySpan;
-
-  const tickValues = Array.from({ length: TICK_COUNT + 1 }, (_, i) =>
-    domainMin + ((domainMax - domainMin) * (TICK_COUNT - i)) / TICK_COUNT,
-  );
-
-  // Build polyline points for each series
-  const linePaths = series.map((s) => {
-    const points = s.values.map(
-      (v, j) => `${xForIndex(j)},${yForValue(v.value)}`,
+    return (
+      <ChartEmptyState
+        className="stacked-chart-empty"
+        message="No data available for this chart."
+      />
     );
-    return points.join(' ');
+  }
+
+  const rows = buildZeroFilledRows(years, series);
+  const seriesKeys = series.map((entry) => entry.key);
+  const domain = computeDomain(collectNumericValues(rows, seriesKeys), {
+    paddingRatio: 0.08,
+    roundTo: 5,
   });
+  const summaryItems = summarizeSeries(series);
+  const legendItems = series.map((entry) => ({
+    key: entry.key,
+    label: entry.label,
+    color: entry.color,
+  }));
 
   return (
-    <div className="stacked-chart-shell">
-      <svg
-        viewBox={`0 0 ${CHART_WIDTH} ${chartHeight}`}
-        role="img"
-        aria-label={title}
-        className="stacked-chart-svg"
-      >
-        <text
-          x={CHART_WIDTH / 2}
-          y={24}
-          textAnchor="middle"
-          className="stacked-chart-title"
-        >
-          {title}
-        </text>
-
-        {yAxisLabel ? (
-          <text
-            x={AXIS_TITLE_X}
-            y={PADDING_TOP + ySpan / 2}
-            textAnchor="middle"
-            className="stacked-chart-axis-title"
-            transform={`rotate(-90 ${AXIS_TITLE_X} ${PADDING_TOP + ySpan / 2})`}
-          >
-            {yAxisLabel}
-          </text>
-        ) : null}
-
-        {tickValues.map((tickValue) => {
-          const y = yForValue(tickValue);
-          return (
-            <g key={tickValue}>
-              <line
-                x1={PADDING_LEFT}
-                x2={CHART_WIDTH - PADDING_RIGHT}
-                y1={y}
-                y2={y}
-                className="stacked-chart-grid-line"
-              />
-              <text
-                x={PADDING_LEFT - TICK_LABEL_OFFSET}
-                y={y + TICK_LABEL_BASELINE}
-                textAnchor="end"
-                className="stacked-chart-axis-label"
-              >
-                {valueFormatter(tickValue)}
-              </text>
-            </g>
-          );
-        })}
-
-        {years.map((year, index) => (
-          <text
-            key={year}
-            x={xForIndex(index)}
-            y={chartHeight - YEAR_LABEL_OFFSET}
-            textAnchor="middle"
-            className="stacked-chart-axis-label"
-          >
-            {year}
-          </text>
-        ))}
-
-        {series.map((entry, i) => (
-          <polyline
-            key={entry.key}
-            points={linePaths[i]}
-            fill="none"
-            stroke={entry.color}
-            strokeWidth={2.5}
+    <ChartFrame
+      title={title}
+      yAxisLabel={yAxisLabel}
+      height={height}
+      legendItems={legendItems}
+      summaryItems={summaryItems}
+    >
+      <ResponsiveContainer {...buildResponsiveContainerProps(height)}>
+        <RechartsLineChart data={rows} margin={WORKSPACE_CHART_MARGIN}>
+          <CartesianGrid
+            stroke={CHART_GRID_STROKE}
+            strokeDasharray={CHART_GRID_DASHARRAY}
+            vertical={false}
           />
-        ))}
-      </svg>
-
-      <div className="stacked-chart-legend">
-        {series.map((entry) => (
-          <span key={entry.key} className="stacked-chart-legend-item">
-            <span
-              className="stacked-chart-legend-swatch"
-              style={{ backgroundColor: entry.color }}
+          <XAxis
+            dataKey="year"
+            tickLine={false}
+            axisLine={false}
+            interval={0}
+            tick={CHART_AXIS_TICK_STYLE}
+          />
+          <YAxis
+            tickLine={false}
+            axisLine={false}
+            width={72}
+            domain={domain}
+            tick={CHART_AXIS_TICK_STYLE}
+            tickFormatter={valueFormatter}
+            label={{
+              value: yAxisLabel,
+              angle: -90,
+              position: 'insideLeft',
+              offset: 2,
+              style: CHART_AXIS_TITLE_STYLE,
+            }}
+          />
+          {series.map((entry) => (
+            <Line
+              key={entry.key}
+              type="linear"
+              dataKey={entry.key}
+              name={entry.label}
+              stroke={entry.color}
+              strokeWidth={2.5}
+              dot={false}
+              isAnimationActive={false}
+              connectNulls={false}
             />
-            <span>{entry.label}</span>
-          </span>
-        ))}
-      </div>
-    </div>
+          ))}
+        </RechartsLineChart>
+      </ResponsiveContainer>
+    </ChartFrame>
   );
 }
