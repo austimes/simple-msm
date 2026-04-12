@@ -94,7 +94,11 @@ export default function DivergingStackedBarChart({
       summaryItems={summaryItems}
     >
       <ResponsiveContainer {...buildResponsiveContainerProps(height)}>
-        <ComposedChart data={rows} margin={WORKSPACE_CHART_MARGIN}>
+        <ComposedChart
+          data={rows}
+          margin={WORKSPACE_CHART_MARGIN}
+          stackOffset="sign"
+        >
           <CartesianGrid
             stroke={CHART_GRID_STROKE}
             strokeDasharray={CHART_GRID_DASHARRAY}

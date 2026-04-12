@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { ComposedChart } from 'recharts';
 import type { LineChartData, StackedChartData } from '../src/results/chartData.ts';
 import DivergingStackedBarChart from '../src/components/charts/DivergingStackedBarChart.tsx';
 import LineChart from '../src/components/charts/LineChart.tsx';
@@ -59,6 +60,26 @@ const demandChart: LineChartData = {
   ],
 };
 
+function findElementByType(node: unknown, targetType: unknown): React.ReactElement | null {
+  if (!React.isValidElement(node)) {
+    return null;
+  }
+
+  if (node.type === targetType) {
+    return node;
+  }
+
+  const children = React.Children.toArray(node.props.children);
+  for (const child of children) {
+    const match = findElementByType(child, targetType);
+    if (match) {
+      return match;
+    }
+  }
+
+  return null;
+}
+
 describe('workspace Recharts wrappers', () => {
   test('diverging emissions charts retain the axis label, negative series metadata, and net legend item', () => {
     const html = renderToStaticMarkup(<DivergingStackedBarChart data={emissionsChart} />);
@@ -71,6 +92,14 @@ describe('workspace Recharts wrappers', () => {
     assert.match(html, /data-series-key="removals"/);
     assert.match(html, /data-negative-points="2"/);
     assert.match(html, /data-series-key="__net"/);
+  });
+
+  test('diverging emissions charts stack bars by sign so negatives render below zero', () => {
+    const tree = DivergingStackedBarChart({ data: emissionsChart });
+    const composedChart = findElementByType(tree, ComposedChart);
+
+    assert.ok(composedChart, 'expected a ComposedChart element in the diverging chart tree');
+    assert.equal(composedChart.props.stackOffset, 'sign');
   });
 
   test('line chart legends render the series labels inside the chart shell', () => {
@@ -97,4 +126,3 @@ describe('workspace Recharts wrappers', () => {
     assert.match(html, /No data available for this chart\./);
   });
 });
-
