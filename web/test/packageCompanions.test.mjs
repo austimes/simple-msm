@@ -58,6 +58,15 @@ test('optional companions are parsed into enrichment data when they are present'
   assert.equal(enrichment.sourceLedger[0].sourceId, 'S001');
   assert.equal(enrichment.assumptionsLedger[0].assumptionId, 'A001');
   assert.equal(enrichment.sectorStatesSchema?.requiredFields.includes('source_ids'), true);
+  assert.deepEqual(
+    enrichment.sectorStatesSchema?.fields.map((field) => field.name),
+    ['sector', 'source_ids'],
+  );
+  assert.equal(enrichment.sectorStatesSchema?.fields[0].description, 'Sector name.');
+  assert.equal(
+    enrichment.sectorStatesSchema?.fields[1].description,
+    'JSON-encoded source IDs.',
+  );
   assert.equal(enrichment.sectorDerivations.steel.title, 'Steel derivation');
   assert.deepEqual(enrichment.warnings, []);
 });
