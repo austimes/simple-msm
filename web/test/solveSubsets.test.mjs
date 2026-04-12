@@ -30,7 +30,7 @@ function buildServiceControls(singlePathOutputIds, extras = {}) {
   for (const outputId of singlePathOutputIds) {
     const stateId = INCUMBENT_STATE_IDS[outputId];
     if (stateId) {
-      controls[outputId] = { mode: 'fixed_shares', fixed_shares: { [stateId]: 1 } };
+      controls[outputId] = { mode: 'optimize', active_state_ids: [stateId] };
     }
   }
   controls.electricity = extras.electricity ?? { mode: 'externalized' };
@@ -314,7 +314,7 @@ describe('buildings endogenous electricity respects normalized pathway caps when
     assertElectricityEndogenous(result);
   });
 
-  test('policy-frontier electricity dominates 2045 and fully replaces the incumbent by 2050', () => {
+  test('policy-frontier electricity dominates 2045 while the incumbent retains a residual 2050 cap', () => {
     const incumbent2045 = result.reporting.stateShares.find((share) => {
       return share.outputId === 'electricity'
         && share.year === 2045
@@ -338,8 +338,7 @@ describe('buildings endogenous electricity respects normalized pathway caps when
 
     assert.ok((frontier2045?.activity ?? 0) > (incumbent2045?.activity ?? 0), 'policy-frontier electricity should dominate in 2045');
     assert.ok((incumbent2045?.effectiveMaxShare ?? 0) < 0.1, 'incumbent effective cap should stay tight in 2045');
-    assert.ok(Math.abs(incumbent2050?.activity ?? 0) < 1e-6, 'incumbent electricity should be excluded in 2050');
-    assert.ok(Math.abs((incumbent2050?.effectiveMaxShare ?? 0)) < 1e-9, 'incumbent effective cap should be zero in 2050');
+    assert.equal(incumbent2050?.effectiveMaxShare, 0.03, 'incumbent effective cap should retain a 3% residual in 2050');
     assert.ok((frontier2050?.activity ?? 0) > 0, 'policy-frontier electricity should remain active in 2050');
   });
 });
@@ -350,8 +349,8 @@ describe('road transport with BEV (needs electricity)', () => {
     electricity: { mode: 'externalized' },
     additional: {
       passenger_road_transport: {
-        mode: 'fixed_shares',
-        fixed_shares: { 'road_transport__passenger_road__bev': 1 },
+        mode: 'optimize',
+        active_state_ids: ['road_transport__passenger_road__bev'],
       },
     },
   });
@@ -418,16 +417,16 @@ describe('industrial heat electrified (auto-includes electricity)', () => {
     electricity: { mode: 'externalized' },
     additional: {
       low_temperature_heat: {
-        mode: 'fixed_shares',
-        fixed_shares: { 'generic_industrial_heat__low_temperature_heat__electrified': 1 },
+        mode: 'optimize',
+        active_state_ids: ['generic_industrial_heat__low_temperature_heat__electrified'],
       },
       medium_temperature_heat: {
-        mode: 'fixed_shares',
-        fixed_shares: { 'generic_industrial_heat__medium_temperature_heat__electrified': 1 },
+        mode: 'optimize',
+        active_state_ids: ['generic_industrial_heat__medium_temperature_heat__electrified'],
       },
       high_temperature_heat: {
-        mode: 'fixed_shares',
-        fixed_shares: { 'generic_industrial_heat__high_temperature_heat__electrified': 1 },
+        mode: 'optimize',
+        active_state_ids: ['generic_industrial_heat__high_temperature_heat__electrified'],
       },
     },
   });

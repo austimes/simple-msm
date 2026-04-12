@@ -115,12 +115,16 @@ function loadPkg() {
   return { sectorStates, appConfig };
 }
 
-function buildBaselineConfiguration(appConfig, electricityControl = { mode: 'externalized' }) {
+function buildBaselineConfiguration(
+  appConfig,
+  electricityControl = { mode: 'externalized' },
+  solverOptionsOverrides = {},
+) {
   const referenceConfiguration = readJson('../public/app_config/reference_configuration.json');
 
   const serviceControls = {};
   for (const [outputId, stateId] of Object.entries(INCUMBENT_STATE_IDS)) {
-    serviceControls[outputId] = { mode: 'fixed_shares', fixed_shares: { [stateId]: 1 } };
+    serviceControls[outputId] = { mode: 'optimize', active_state_ids: [stateId] };
   }
   serviceControls.electricity = electricityControl;
   serviceControls.land_sequestration = { mode: 'optimize', disabled_state_ids: ['removals_negative_emissions__land_sequestration__biological_sink'] };
@@ -136,6 +140,7 @@ function buildBaselineConfiguration(appConfig, electricityControl = { mode: 'ext
       respect_max_activity: true,
       soft_constraints: false,
       share_smoothing: { enabled: false },
+      ...solverOptionsOverrides,
     },
   };
 
@@ -147,8 +152,14 @@ function buildBaselineConfiguration(appConfig, electricityControl = { mode: 'ext
 const pkg = loadPkg();
 const configuration = buildBaselineConfiguration(pkg.appConfig);
 const endogenousElectricityConfiguration = buildBaselineConfiguration(pkg.appConfig, {
-  mode: 'fixed_shares',
-  fixed_shares: { [INCUMBENT_ELECTRICITY_STATE_ID]: 1 },
+  mode: 'optimize',
+  active_state_ids: [INCUMBENT_ELECTRICITY_STATE_ID],
+});
+const cappedIncumbentElectricityConfiguration = buildBaselineConfiguration(pkg.appConfig, {
+  mode: 'optimize',
+  active_state_ids: [INCUMBENT_ELECTRICITY_STATE_ID],
+}, {
+  respect_max_share: true,
 });
 
 test('baseline incumbent configuration solves optimally', () => {
@@ -234,11 +245,31 @@ test('demand is met for all service outputs in every year', () => {
   }
 });
 
-test('baseline incumbent configuration also solves with endogenous fixed-share electricity', () => {
+test('baseline incumbent configuration also solves with only incumbent endogenous electricity', () => {
   const request = buildSolveRequest({
     sectorStates: pkg.sectorStates,
     appConfig: pkg.appConfig,
   }, endogenousElectricityConfiguration);
+
+  const result = solveWithLpAdapter(request);
+
+  assert.equal(result.status, 'solved', `expected solved, got ${result.status}`);
+  assert.equal(result.raw.solutionStatus, 'optimal');
+  assert.ok(result.diagnostics.every((d) => d.severity !== 'error'), 'no error diagnostics');
+
+  for (const balance of result.reporting.commodityBalances) {
+    if (balance.commodityId !== 'electricity') continue;
+    assert.equal(balance.mode, 'endogenous', `electricity ${balance.year} should stay endogenous`);
+    assert.ok(balance.supply > 0, `electricity ${balance.year} should have positive supply`);
+    assert.ok(Math.abs(balance.balanceGap ?? 0) < 1e-2, `electricity ${balance.year} should balance`);
+  }
+});
+
+test('baseline incumbent configuration also solves with only incumbent endogenous electricity under max-share caps', () => {
+  const request = buildSolveRequest({
+    sectorStates: pkg.sectorStates,
+    appConfig: pkg.appConfig,
+  }, cappedIncumbentElectricityConfiguration);
 
   const result = solveWithLpAdapter(request);
 
