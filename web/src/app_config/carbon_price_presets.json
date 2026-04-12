@@ -26,5 +26,19 @@
     "unit": "AUD_2024_per_tCO2",
     "values_by_year": { "2025": 30, "2030": 60, "2035": 110, "2040": 170, "2045": 235, "2050": 300 },
     "provenance_note": "App-owned sensitivity band."
+  },
+  "very_high": {
+    "label": "Very High",
+    "description": "Aggressive decarbonisation signal reaching $600/tCO2 by 2050.",
+    "unit": "AUD_2024_per_tCO2",
+    "values_by_year": { "2025": 30, "2030": 100, "2035": 210, "2040": 340, "2045": 470, "2050": 600 },
+    "provenance_note": "App-owned sensitivity band."
+  },
+  "extreme": {
+    "label": "Extreme",
+    "description": "Maximum decarbonisation signal reaching $1000/tCO2 by 2050.",
+    "unit": "AUD_2024_per_tCO2",
+    "values_by_year": { "2025": 30, "2030": 150, "2035": 340, "2040": 560, "2045": 780, "2050": 1000 },
+    "provenance_note": "App-owned sensitivity band."
   }
 }

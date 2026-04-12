@@ -15,57 +15,39 @@
     },
     "residential_building_services": {
       "mode": "optimize",
-      "active_state_ids": [
-        "buildings__residential__incumbent_mixed_fuels"
-      ]
+      "active_state_ids": []
     },
     "commercial_building_services": {
       "mode": "optimize",
-      "active_state_ids": [
-        "buildings__commercial__incumbent_mixed_fuels"
-      ]
+      "active_state_ids": []
     },
     "passenger_road_transport": {
       "mode": "optimize",
-      "active_state_ids": [
-        "road_transport__passenger_road__ice_fleet"
-      ]
+      "active_state_ids": []
     },
     "freight_road_transport": {
       "mode": "optimize",
-      "active_state_ids": [
-        "road_transport__freight_road__diesel"
-      ]
+      "active_state_ids": []
     },
     "low_temperature_heat": {
       "mode": "optimize",
-      "active_state_ids": [
-        "generic_industrial_heat__low_temperature_heat__fossil"
-      ]
+      "active_state_ids": []
     },
     "medium_temperature_heat": {
       "mode": "optimize",
-      "active_state_ids": [
-        "generic_industrial_heat__medium_temperature_heat__fossil"
-      ]
+      "active_state_ids": []
     },
     "high_temperature_heat": {
       "mode": "optimize",
-      "active_state_ids": [
-        "generic_industrial_heat__high_temperature_heat__fossil"
-      ]
+      "active_state_ids": []
     },
     "crude_steel": {
       "mode": "optimize",
-      "active_state_ids": [
-        "steel__crude_steel__bf_bof_conventional"
-      ]
+      "active_state_ids": []
     },
     "cement_equivalent": {
       "mode": "optimize",
-      "active_state_ids": [
-        "cement_clinker__cement_equivalent__conventional"
-      ]
+      "active_state_ids": []
     },
     "livestock_output_bundle": {
       "mode": "optimize",
@@ -253,7 +235,6 @@
     "respect_max_share": true,
     "respect_max_activity": true,
     "soft_constraints": false,
-    "allow_removals_credit": false,
     "share_smoothing": {
       "enabled": false
     }

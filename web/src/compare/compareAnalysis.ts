@@ -392,13 +392,13 @@ function applyRequiredServiceControls(
   }
 }
 
-function applyOptionalRemovalsControls(
+function applyRemovalsControls(
   target: ConfigurationDocument,
   source: ConfigurationDocument,
   appConfig: AppConfigRegistry,
 ): void {
   for (const [outputId, metadata] of Object.entries(appConfig.output_roles)) {
-    if (metadata.output_role !== 'optional_removals') {
+    if (metadata.explanation_group !== 'removals') {
       continue;
     }
 
@@ -436,7 +436,7 @@ export function buildTransitionCounterfactual(
   };
 
   for (const [outputId, metadata] of Object.entries(appConfig.output_roles)) {
-    if (metadata.output_role === 'required_service') {
+    if (metadata.output_role === 'required_service' || metadata.output_role === 'optional_activity') {
       draft.service_controls[outputId] = {
         mode: 'optimize',
       };
@@ -449,12 +449,6 @@ export function buildTransitionCounterfactual(
       };
       continue;
     }
-
-    if (metadata.output_role === 'optional_removals') {
-      draft.service_controls[outputId] = outputId === 'engineered_removals'
-        ? { mode: 'target', target_value: 5_000_000 }
-        : { mode: 'optimize' };
-    }
   }
 
   draft.solver_options = {
@@ -462,7 +456,6 @@ export function buildTransitionCounterfactual(
     respect_max_share: false,
     respect_max_activity: false,
     soft_constraints: false,
-    allow_removals_credit: true,
     share_smoothing: {
       enabled: false,
       max_delta_pp: draft.solver_options?.share_smoothing?.max_delta_pp ?? 20,
@@ -538,7 +531,7 @@ export function buildComparisonConfigurationPlan(
     'Matches the transition counterfactual but restores the reference removals controls.',
     'Optional-removals controls restored to the reference configuration for heuristic compare attribution.',
   );
-  applyOptionalRemovalsControls(noRemovalsDelta, base, appConfig);
+  applyRemovalsControls(noRemovalsDelta, base, appConfig);
 
   const relaxedConstraints = cloneConfigurationVariant(
     compare,
@@ -1169,8 +1162,6 @@ function buildNarratives(
     return JSON.stringify(compare.configuration.service_controls[outputId])
       !== JSON.stringify(base.configuration.service_controls[outputId]);
   });
-  const removalsNote = compare.result.diagnostics.some((diagnostic) => diagnostic.code === 'optional_rows_pending');
-
   return [
     {
       id: 'emissions',
@@ -1242,12 +1233,10 @@ function buildNarratives(
       id: 'removals',
       title: 'Removals',
       summary: removalsChanged
-        ? removalsNote
-          ? 'The compare configuration turns removals on, but the current LP still treats optional removals as pending rows. The page therefore reports removals activation as a transparent heuristic flag rather than fake modeled abatement.'
-          : 'The compare configuration turns removals on and the solver picks up a modeled change.'
+        ? 'The compare configuration turns removals on and the solver picks up a modeled change.'
         : 'Removals settings do not materially change between the two configurations, so there is no removals activation story here.',
       evidence: removalsChanged
-        ? `Removals-only effect against its withheld counterfactual changes emissions by ${(compare.metrics.totalEmissions - noRemovals.metrics.totalEmissions).toFixed(2)} tCO2e, with diagnostics still reporting optional-removal rows as pending.`
+        ? `Removals-only effect against its withheld counterfactual changes emissions by ${(compare.metrics.totalEmissions - noRemovals.metrics.totalEmissions).toFixed(2)} tCO2e.`
         : undefined,
     },
     {
@@ -1425,10 +1414,7 @@ export function buildComparisonReport(
         'Removals activation',
         compare,
         configurations.noRemovalsDelta,
-        'Restores reference removals controls. Because optional removals are still outside the LP core, this effect is expected to be small and heavily caveated.',
-        compare.result.diagnostics.some((diagnostic) => diagnostic.code === 'optional_rows_pending')
-          ? 'Optional-removal rows remain outside the active LP core, so this row is a configuration-activation signal more than a modeled delta.'
-          : undefined,
+        'Restores reference removals controls while keeping the rest of the transition package, so the residual reflects removals activation.',
       ),
       {
         id: 'interaction',

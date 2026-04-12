@@ -78,7 +78,6 @@ export interface ResolvedConfigurationForSolve {
     respectMaxShare: boolean;
     respectMaxActivity: boolean;
     softConstraints: boolean;
-    allowRemovalsCredit: boolean;
     shareSmoothing: {
       enabled: boolean;
       maxDeltaPp: number | null;

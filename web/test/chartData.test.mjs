@@ -130,7 +130,6 @@ function buildRequest(respectMaxShare) {
         respectMaxShare,
         respectMaxActivity: true,
         softConstraints: false,
-        allowRemovalsCredit: false,
         shareSmoothing: {
           enabled: false,
           maxDeltaPp: null,
@@ -552,7 +551,6 @@ test('buildPathwayChartCards matches solver-reported effective caps for exact-sh
         respectMaxShare: false,
         respectMaxActivity: true,
         softConstraints: false,
-        allowRemovalsCredit: false,
         shareSmoothing: {
           enabled: false,
           maxDeltaPp: null,

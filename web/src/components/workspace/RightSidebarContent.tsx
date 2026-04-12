@@ -134,8 +134,8 @@ export default function RightSidebarContent({
       ))}
       <div className="workspace-state-legend" role="note" aria-label="State selector status legend">
         <p className="workspace-state-legend-copy">
-          Seed scope is shown separately from the effective run, which may auto-include dependencies.
-          Pathway activity shows which pathways participate in the current solve.
+          Outputs with active pathways participate in the solve. Outputs whose pathways are all
+          deactivated are excluded. Dependencies like electricity are auto-included when needed.
         </p>
         <div className="workspace-state-legend-items">
           {RIGHT_SIDEBAR_STATUS_LEGEND.map((item) => (

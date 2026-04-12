@@ -198,7 +198,6 @@ export function resolveConfigurationForSolve(
       respectMaxShare: resolvedConfiguration.solver_options?.respect_max_share ?? true,
       respectMaxActivity: resolvedConfiguration.solver_options?.respect_max_activity ?? true,
       softConstraints: resolvedConfiguration.solver_options?.soft_constraints ?? false,
-      allowRemovalsCredit: resolvedConfiguration.solver_options?.allow_removals_credit ?? false,
       shareSmoothing: {
         enabled: resolvedConfiguration.solver_options?.share_smoothing?.enabled ?? false,
         maxDeltaPp: resolvedConfiguration.solver_options?.share_smoothing?.max_delta_pp ?? null,

@@ -169,7 +169,7 @@
     "explanation_group": "electricity"
   },
   "land_sequestration": {
-    "output_role": "optional_removals",
+    "output_role": "optional_activity",
     "display_label": "Land sequestration",
     "display_group": "Removals",
     "display_group_order": 70,
@@ -178,13 +178,12 @@
     "demand_required": false,
     "default_control_mode": "optimize",
     "allowed_control_modes": [
-      "target",
       "optimize"
     ],
     "explanation_group": "removals"
   },
   "engineered_removals": {
-    "output_role": "optional_removals",
+    "output_role": "optional_activity",
     "display_label": "Engineered removals",
     "display_group": "Removals",
     "display_group_order": 70,
@@ -193,7 +192,6 @@
     "demand_required": false,
     "default_control_mode": "optimize",
     "allowed_control_modes": [
-      "target",
       "optimize"
     ],
     "explanation_group": "removals"

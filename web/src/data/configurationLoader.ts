@@ -233,12 +233,10 @@ export function findConfiguration(id: string): ConfigurationDocument | null {
 
 export function createConfigurationFromDocument(
   configuration: ConfigurationDocument,
-  seedOutputIds: string[] | undefined,
 ): ConfigurationDocument {
   return withConfigurationMetadata(structuredClone(configuration), {
     id: slugifyConfigurationName(configuration.name),
     readonly: false,
-    seed_output_ids: seedOutputIds,
   });
 }
 

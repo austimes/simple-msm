@@ -115,7 +115,7 @@ describe('deriveRightSidebarTree', () => {
         availableStateCount: 0,
         isDisabled: true,
         demandParticipation: 'not_applicable',
-        outputRole: 'optional_removals',
+        outputRole: 'required_service',
       }),
     };
 

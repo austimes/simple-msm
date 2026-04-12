@@ -87,6 +87,22 @@
     "unit": "A$m_output_2024",
     "provenance_note": "App-owned 2025 default anchor for fast configuration setup. Not part of the research library evidence."
   },
+  "land_sequestration": {
+    "output_role": "optional_activity",
+    "anchor_kind": "service_demand",
+    "anchor_year": 2025,
+    "value": 0,
+    "unit": "tCO2e_sequestered",
+    "provenance_note": "App-owned 2025 default anchor for fast configuration setup. Not part of the research library evidence."
+  },
+  "engineered_removals": {
+    "output_role": "optional_activity",
+    "anchor_kind": "service_demand",
+    "anchor_year": 2025,
+    "value": 0,
+    "unit": "tCO2e_removed",
+    "provenance_note": "App-owned 2025 default anchor for fast configuration setup. Not part of the research library evidence."
+  },
   "electricity": {
     "output_role": "endogenous_supply_commodity",
     "anchor_kind": "external_commodity_demand",

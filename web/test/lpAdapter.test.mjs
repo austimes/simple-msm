@@ -235,7 +235,6 @@ test('required-service LP solves exact-share and optimize controls generically',
         respectMaxShare: true,
         respectMaxActivity: true,
         softConstraints: false,
-        allowRemovalsCredit: false,
         shareSmoothing: {
           enabled: false,
           maxDeltaPp: null,
@@ -374,7 +373,6 @@ test('endogenous electricity enforces balance and removes exogenous electricity 
         respectMaxShare: true,
         respectMaxActivity: true,
         softConstraints: false,
-        allowRemovalsCredit: false,
         shareSmoothing: {
           enabled: false,
           maxDeltaPp: null,
@@ -489,7 +487,6 @@ test('externalized electricity bypasses supply states and prices electricity exo
         respectMaxShare: true,
         respectMaxActivity: true,
         softConstraints: false,
-        allowRemovalsCredit: false,
         shareSmoothing: {
           enabled: false,
           maxDeltaPp: null,
@@ -691,7 +688,6 @@ test('infeasible runs report deterministic service-year and electricity diagnost
         respectMaxShare: true,
         respectMaxActivity: true,
         softConstraints: false,
-        allowRemovalsCredit: false,
         shareSmoothing: {
           enabled: false,
           maxDeltaPp: null,
@@ -856,7 +852,6 @@ test('soft-constraint mode restores feasibility and reports slack penalties', ()
         respectMaxShare: true,
         respectMaxActivity: true,
         softConstraints: true,
-        allowRemovalsCredit: false,
         shareSmoothing: {
           enabled: false,
           maxDeltaPp: null,
@@ -952,7 +947,6 @@ test('max-share normalization keeps subset runs feasible and reports raw versus 
         respectMaxShare: true,
         respectMaxActivity: true,
         softConstraints: false,
-        allowRemovalsCredit: false,
         shareSmoothing: {
           enabled: false,
           maxDeltaPp: null,
@@ -1028,7 +1022,6 @@ test('zero raw max shares fall back to equal effective shares across enabled pat
         respectMaxShare: true,
         respectMaxActivity: true,
         softConstraints: false,
-        allowRemovalsCredit: false,
         shareSmoothing: {
           enabled: false,
           maxDeltaPp: null,
@@ -1094,7 +1087,6 @@ test('one-hot exact-share controls normalize caps over active states', () => {
         respectMaxShare: true,
         respectMaxActivity: true,
         softConstraints: false,
-        allowRemovalsCredit: false,
         shareSmoothing: {
           enabled: false,
           maxDeltaPp: null,

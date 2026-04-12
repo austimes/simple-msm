@@ -37,22 +37,22 @@ export const RIGHT_SIDEBAR_STATUS_LEGEND: RightSidebarLegendItem[] = [
     description: 'Required-service demand participates in the current solve.',
   },
   {
-    key: 'seed-scope',
-    label: 'Seed scope',
+    key: 'active-output',
+    label: 'Active in this run',
     tone: 'success',
-    description: 'Explicitly selected as the scoped-solve seed. The effective run may also include dependencies.',
+    description: 'This output has active pathways and participates in the current solve.',
   },
   {
     key: 'auto-dependency',
     label: 'Auto-included dependency',
     tone: 'info',
-    description: 'Added to the effective run because a seed-scoped output depends on it.',
+    description: 'Added to the effective run because an active output depends on it.',
   },
   {
     key: 'excluded',
     label: 'Excluded from this run',
     tone: 'muted',
-    description: 'Shown when demand or supply is outside the current effective run.',
+    description: 'All pathways are deactivated, so this output is excluded from the solve.',
   },
   {
     key: 'externalized',
@@ -66,18 +66,6 @@ export const RIGHT_SIDEBAR_STATUS_LEGEND: RightSidebarLegendItem[] = [
     tone: 'info',
     description: 'Number of pathways active in the current solve.',
   },
-  {
-    key: 'no-pathways',
-    label: 'No active pathways',
-    tone: 'warning',
-    description: 'Pathway activity is separate from seed scope or effective run inclusion.',
-  },
-  {
-    key: 'blocked-demand',
-    label: 'Demand active but no active pathways',
-    tone: 'danger',
-    description: 'The solve is blocked until at least one pathway is activated.',
-  },
 ];
 
 function buildPathwayBadge(status: DerivedOutputRunStatus): RightSidebarBadge | null {
@@ -86,11 +74,7 @@ function buildPathwayBadge(status: DerivedOutputRunStatus): RightSidebarBadge | 
   }
 
   if (status.activeStateCount === 0) {
-    return {
-      key: 'no-pathways',
-      label: 'No active pathways',
-      tone: status.hasDemandValidationError ? 'danger' : 'warning',
-    };
+    return null;
   }
 
   return {
@@ -106,8 +90,8 @@ function buildRunParticipationBadge(
   switch (status.runParticipation) {
     case 'seed_scope':
       return {
-        key: 'seed-scope',
-        label: 'Seed scope',
+        key: 'active-output',
+        label: 'Active in this run',
         tone: 'success',
       };
     case 'auto_included_dependency':
@@ -134,12 +118,6 @@ function buildDemandBadge(status: DerivedOutputRunStatus): RightSidebarBadge | n
         key: 'demand-excluded',
         label: 'Demand excluded from this run',
         tone: 'muted',
-      };
-    case 'no_active_pathways':
-      return {
-        key: 'blocked-demand',
-        label: 'Demand active but no active pathways',
-        tone: 'danger',
       };
     default:
       return null;
@@ -176,20 +154,16 @@ function buildDetail(status: DerivedOutputRunStatus): string {
 
   switch (status.runParticipation) {
     case 'seed_scope':
-      detail = 'Explicitly selected as seed scope for this scoped solve.';
+      detail = 'Has active pathways and participates in this solve.';
       break;
     case 'auto_included_dependency':
-      detail = 'Included in the effective run because a seed-scoped output depends on it.';
+      detail = 'Included in the effective run because an active output depends on it.';
       break;
     case 'excluded_from_run':
-      detail = 'Outside the effective run for this scoped solve.';
+      detail = 'All pathways are deactivated, so this output is excluded.';
       break;
     default:
       break;
-  }
-
-  if (status.hasDemandValidationError) {
-    return `${detail} Demand is still active, but no pathways are active.`;
   }
 
   if (status.supplyParticipation === 'externalized_in_run') {

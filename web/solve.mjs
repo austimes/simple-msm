@@ -340,7 +340,6 @@ function executeConfig(pkg, configPath) {
   const request = buildSolveRequest(
     { sectorStates: pkg.sectorStates, appConfig: pkg.appConfig },
     configuration,
-    includedOutputIds ? { includedOutputIds } : {},
   );
 
   const result = solveWithLpAdapter(request);

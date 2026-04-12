@@ -3,7 +3,7 @@ export interface EmissionEntry {
   value: number;
 }
 
-export type OutputRole = 'required_service' | 'endogenous_supply_commodity' | 'optional_removals';
+export type OutputRole = 'required_service' | 'endogenous_supply_commodity' | 'optional_activity';
 
 export type ConfigurationControlMode =
   | 'optimize'
@@ -64,7 +64,6 @@ export interface ConfigurationSolverOptions {
   respect_max_share?: boolean;
   respect_max_activity?: boolean;
   soft_constraints?: boolean;
-  allow_removals_credit?: boolean;
   share_smoothing?: ConfigurationShareSmoothing;
 }
 

@@ -135,7 +135,6 @@ function buildBaselineConfiguration(appConfig, electricityControl = { mode: 'ext
       respect_max_share: false,
       respect_max_activity: true,
       soft_constraints: false,
-      allow_removals_credit: false,
       share_smoothing: { enabled: false },
     },
   };

@@ -139,13 +139,32 @@ export function buildConfiguration(appConfig, overrides = {}) {
 }
 
 /**
- * Build and solve a request with optional seed scope.
+ * Build and solve a request, scoping to the given output IDs by
+ * deactivating pathways for all other required-service outputs.
  */
 export function solveScoped(pkg, configuration, seedOutputIds) {
+  let effectiveConfiguration = configuration;
+
+  if (seedOutputIds && seedOutputIds.length > 0) {
+    const seedSet = new Set(seedOutputIds);
+    const adjustedControls = { ...effectiveConfiguration.service_controls };
+
+    for (const [outputId, meta] of Object.entries(pkg.appConfig.output_roles)) {
+      if (!meta.demand_required) continue;
+      if (seedSet.has(outputId)) continue;
+      // Deactivate pathways for out-of-scope required services.
+      adjustedControls[outputId] = {
+        ...(adjustedControls[outputId] ?? {}),
+        active_state_ids: [],
+      };
+    }
+
+    effectiveConfiguration = { ...effectiveConfiguration, service_controls: adjustedControls };
+  }
+
   const request = buildSolveRequest(
     { sectorStates: pkg.sectorStates, appConfig: pkg.appConfig },
-    configuration,
-    seedOutputIds ? { seedOutputIds } : {},
+    effectiveConfiguration,
   );
   const result = solveWithLpAdapter(request);
   return { request, result };

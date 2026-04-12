@@ -112,16 +112,15 @@ function flattenResolvedControls(request) {
   const rows = [];
   for (const [outputId, yearTable] of Object.entries(request.configuration.controlsByOutput)) {
     for (const [year, control] of Object.entries(yearTable)) {
-      if (control.mode === 'optimize' && !control.stateId && control.disabledStateIds.length === 0) {
+      if (control.mode === 'optimize' && !control.activeStateIds) {
         continue;
       }
       rows.push({
         outputId,
         year,
         mode: control.mode,
-        stateId: control.stateId ?? '',
-        fixedShares: control.fixedShares ? JSON.stringify(control.fixedShares) : '',
-        disabledStateIds: control.disabledStateIds.join(', '),
+        activeStateIds: control.activeStateIds ? control.activeStateIds.join(', ') : '',
+        targetValue: control.targetValue ?? '',
       });
     }
   }

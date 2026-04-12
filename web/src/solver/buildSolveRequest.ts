@@ -1,4 +1,3 @@
-import { getSeedOutputIds } from '../data/configurationMetadata.ts';
 import type { PackageData, ConfigurationDocument } from '../data/types.ts';
 import {
   SOLVER_CONTRACT_VERSION,
@@ -8,7 +7,7 @@ import {
   type SolveRequest,
 } from './contract.ts';
 import {
-  deriveOutputRunStatuses,
+  deriveSeedOutputIds,
   expandIncludedOutputsForDependencies,
 } from './solveScope.ts';
 import {
@@ -26,54 +25,11 @@ function createRequestId(): string {
   return `solve-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-export interface BuildSolveRequestOptions {
-  seedOutputIds?: string[];
-  /**
-   * Backward-compatible alias for `seedOutputIds`.
-   */
-  includedOutputIds?: string[];
-}
-
-function buildDemandValidationMessage(
-  configuration: ResolvedConfigurationForSolve,
-  invalidStatuses: ReturnType<typeof deriveOutputRunStatuses>,
-): string {
-  const details = Object.values(invalidStatuses).map((status) => {
-    const activeYears = configuration.years.filter(
-      (year) => (configuration.serviceDemandByOutput[status.outputId]?.[String(year)] ?? 0) > 0,
-    );
-    const yearsLabel = activeYears.length > 0 ? ` (${activeYears.join(', ')})` : '';
-    return `${status.outputId}${yearsLabel}`;
-  });
-
-  return `Cannot solve because required-service outputs have positive in-run demand but no available pathways: ${details.join(', ')}.`;
-}
-
-function validateRequiredServiceCoverage(
-  rows: NormalizedSolverRow[],
-  configuration: ConfigurationDocument,
-  resolvedConfiguration: ResolvedConfigurationForSolve,
-  appConfig: PackageData['appConfig'],
-  seedOutputIds: string[] | undefined,
-): void {
-  const invalidStatuses = Object.fromEntries(
-    Object.entries(
-      deriveOutputRunStatuses(rows, configuration, resolvedConfiguration, appConfig, seedOutputIds),
-    ).filter(([, status]) => status.hasDemandValidationError),
-  );
-
-  if (Object.keys(invalidStatuses).length === 0) {
-    return;
-  }
-
-  throw new Error(buildDemandValidationMessage(resolvedConfiguration, invalidStatuses));
-}
-
 function filterSolveRequestForOutputs(
   rows: NormalizedSolverRow[],
   configuration: ResolvedConfigurationForSolve,
   effectiveOutputIds: Set<string>,
-  seedOutputIds: Set<string>,
+  activeRequiredServiceIds: Set<string>,
 ): { rows: NormalizedSolverRow[]; configuration: ResolvedConfigurationForSolve } {
   const filteredRows = rows.filter((row) => effectiveOutputIds.has(row.outputId));
 
@@ -92,7 +48,7 @@ function filterSolveRequestForOutputs(
   }
 
   const filteredExternalCommodityDemandByCommodity: Record<string, Record<string, number>> = {};
-  for (const outputId of seedOutputIds) {
+  for (const outputId of activeRequiredServiceIds) {
     if (configuration.externalCommodityDemandByCommodity[outputId]) {
       filteredExternalCommodityDemandByCommodity[outputId]
         = configuration.externalCommodityDemandByCommodity[outputId];
@@ -146,22 +102,16 @@ export function collectOutputIdsForSelection(
 export function buildSolveRequest(
   pkg: Pick<PackageData, 'sectorStates' | 'appConfig'>,
   configuration: ConfigurationDocument,
-  options: BuildSolveRequestOptions = {},
 ): SolveRequest {
   const allRows = normalizeSolverRows(pkg);
   const resolvedConfiguration = resolveConfigurationForSolve(configuration, pkg.appConfig);
-  const seedOutputIds = options.seedOutputIds
-    ?? options.includedOutputIds
-    ?? getSeedOutputIds(configuration);
-  validateRequiredServiceCoverage(
-    allRows,
-    configuration,
-    resolvedConfiguration,
-    pkg.appConfig,
-    seedOutputIds,
-  );
 
-  if (!seedOutputIds || seedOutputIds.length === 0) {
+  // Scope is derived from active pathways — required-service outputs with at
+  // least one active pathway form the seed set.
+  const derivedSeeds = deriveSeedOutputIds(allRows, resolvedConfiguration, pkg.appConfig);
+
+  if (!derivedSeeds) {
+    // Full-model run — every required-service output has active pathways.
     return {
       contractVersion: SOLVER_CONTRACT_VERSION,
       requestId: createRequestId(),
@@ -170,7 +120,7 @@ export function buildSolveRequest(
     };
   }
 
-  const seedOutputIdSet = new Set(seedOutputIds);
+  const seedOutputIdSet = new Set(derivedSeeds);
   const expandedOutputIds = expandIncludedOutputsForDependencies(
     allRows,
     resolvedConfiguration,

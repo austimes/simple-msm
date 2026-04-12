@@ -1,14 +1,17 @@
 import { useMemo, useState } from 'react';
 import WorkspaceSolveFailureReport from './WorkspaceSolveFailureReport';
 import StackedAreaChart from '../charts/StackedAreaChart';
+import DivergingStackedBarChart from '../charts/DivergingStackedBarChart';
 import LineChart from '../charts/LineChart';
 import {
   buildPathwayChartCards,
+  buildRemovalsChartCards,
   buildEmissionsBySectorChart,
   buildCommodityConsumptionChart,
   buildDemandBySectorChart,
   buildCostByComponentChart,
   type PathwayChartCardData,
+  type RemovalsChartCardData,
 } from '../../results/chartData';
 import type { SolveRequest, SolveResult } from '../../solver/contract.ts';
 import type { ConfigurationSolveFailure } from '../../solver/configurationSolveFailure.ts';
@@ -18,6 +21,12 @@ type SolvePhase = 'idle' | 'solving' | 'solved' | 'error';
 
 function formatPercent(value: number): string {
   return `${value.toFixed(0)}%`;
+}
+
+function formatNumber(value: number): string {
+  if (Math.abs(value) >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+  if (Math.abs(value) >= 1_000) return `${(value / 1_000).toFixed(0)}k`;
+  return value.toFixed(0);
 }
 
 function PathwayChartCard({ chart }: { chart: PathwayChartCardData }) {
@@ -64,6 +73,25 @@ function PathwayChartCard({ chart }: { chart: PathwayChartCardData }) {
   );
 }
 
+function RemovalsChartCard({ chart }: { chart: RemovalsChartCardData }) {
+  return (
+    <div className="workspace-chart-section workspace-chart-section--pathway">
+      <div className="workspace-chart-card-header">
+        <div>
+          <h2 className="workspace-chart-card-title">{chart.outputLabel}</h2>
+          <p className="workspace-chart-card-subtitle">
+            Activity vs max activity over time
+          </p>
+        </div>
+      </div>
+      <LineChart data={chart.activityChart} valueFormatter={formatNumber} />
+      <p className="workspace-chart-note">
+        Activity is cost-driven: the solver picks up removals when the carbon price exceeds their unit cost. Max activity shows the physical cap.
+      </p>
+    </div>
+  );
+}
+
 export interface ConfigurationWorkspaceCenterProps {
   phase: SolvePhase;
   result: SolveResult | null;
@@ -99,6 +127,10 @@ export default function ConfigurationWorkspaceCenter({
     () => (request && result ? buildPathwayChartCards(request, result) : []),
     [request, result],
   );
+  const removalsCharts = useMemo(
+    () => (request && result ? buildRemovalsChartCards(request, result) : []),
+    [request, result],
+  );
 
   return (
     <section className="workspace-center">
@@ -115,7 +147,7 @@ export default function ConfigurationWorkspaceCenter({
           )}
           {emissionsChart && (
             <div className="workspace-chart-section">
-              <StackedAreaChart data={emissionsChart} />
+              <DivergingStackedBarChart data={emissionsChart} />
             </div>
           )}
           {consumptionChart && (
@@ -130,6 +162,9 @@ export default function ConfigurationWorkspaceCenter({
           )}
           {pathwayCharts.map((chart) => (
             <PathwayChartCard key={chart.outputId} chart={chart} />
+          ))}
+          {removalsCharts.map((chart) => (
+            <RemovalsChartCard key={chart.outputId} chart={chart} />
           ))}
         </div>
       )}

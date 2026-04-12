@@ -81,7 +81,6 @@ function buildRequest() {
         respectMaxShare: true,
         respectMaxActivity: true,
         softConstraints: false,
-        allowRemovalsCredit: false,
         shareSmoothing: {
           enabled: false,
           maxDeltaPp: null,

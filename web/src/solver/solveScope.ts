@@ -1,4 +1,3 @@
-import { getSeedOutputIds } from '../data/configurationMetadata.ts';
 import { derivePathwayStateIds } from '../data/pathwaySemantics.ts';
 import type {
   AppConfigRegistry,
@@ -22,7 +21,6 @@ export type OutputRunParticipation =
 
 export type OutputDemandParticipation =
   | 'active_in_run'
-  | 'no_active_pathways'
   | 'excluded_from_run'
   | 'not_applicable';
 
@@ -44,7 +42,6 @@ export interface DerivedOutputRunStatus {
   demandParticipation: OutputDemandParticipation;
   supplyParticipation: OutputSupplyParticipation;
   hasPositiveDemandInRun: boolean;
-  hasDemandValidationError: boolean;
   isSeedScoped: boolean;
   isAutoIncludedDependency: boolean;
   isExcludedFromRun: boolean;
@@ -191,18 +188,44 @@ export function expandIncludedOutputsForDependencies(
   return included;
 }
 
+export function deriveSeedOutputIds(
+  rows: NormalizedSolverRow[],
+  resolvedConfiguration: ResolvedConfigurationForSolve,
+  appConfig: AppConfigRegistry,
+): string[] | undefined {
+  const stateIdsByOutput = collectStateIdsByOutput(rows);
+  const allRequired: string[] = [];
+  const activeRequired: string[] = [];
+
+  for (const [outputId, allStateIds] of stateIdsByOutput) {
+    const metadata = appConfig.output_roles[outputId];
+    if (!metadata) continue;
+    if (!metadata.demand_required && metadata.output_role !== 'optional_activity') continue;
+    allRequired.push(outputId);
+    const { activeStateCount } = deriveOutputPathwayStateIds(outputId, allStateIds, resolvedConfiguration);
+    if (activeStateCount > 0) {
+      activeRequired.push(outputId);
+    }
+  }
+
+  // When every required-service output has active pathways it is a full-model
+  // run — return undefined so callers skip the scoping path.
+  return activeRequired.length >= allRequired.length ? undefined : activeRequired;
+}
+
 export function deriveOutputRunStatuses(
   rows: NormalizedSolverRow[],
   configuration: ConfigurationDocument,
   resolvedConfiguration: ResolvedConfigurationForSolve,
   appConfig: AppConfigRegistry,
-  seedOutputIdsFromMetadata: string[] | undefined,
 ): Record<string, DerivedOutputRunStatus> {
   const stateIdsByOutput = collectStateIdsByOutput(rows);
-  const hasScopedRun = !!seedOutputIdsFromMetadata?.length;
-  const seedOutputIds = new Set(seedOutputIdsFromMetadata ?? []);
-  // Seed scope comes directly from configuration metadata. The effective run
-  // may be larger after endogenous supply dependencies are auto-included.
+
+  // Scope is derived entirely from which required-service outputs have at
+  // least one active pathway.  No separate seed-scope metadata is needed.
+  const derivedSeeds = deriveSeedOutputIds(rows, resolvedConfiguration, appConfig);
+  const hasScopedRun = derivedSeeds !== undefined;
+  const seedOutputIds = new Set(derivedSeeds ?? []);
   const expandedOutputIds = hasScopedRun
     ? expandIncludedOutputsForDependencies(rows, resolvedConfiguration, appConfig, seedOutputIds)
     : null;
@@ -225,9 +248,6 @@ export function deriveOutputRunStatuses(
         && inRun
         && Object.values(resolvedConfiguration.serviceDemandByOutput[outputId] ?? {})
           .some((value) => value > 0);
-      const hasDemandValidationError = outputMetadata.demand_required
-        && hasPositiveDemandInRun
-        && pathwayStateIds.activeStateCount === 0;
       const runParticipation: OutputRunParticipation = isFullModel
         ? 'full_model'
         : isSeedScoped
@@ -245,9 +265,7 @@ export function deriveOutputRunStatuses(
         inRun,
         runParticipation,
         demandParticipation: outputMetadata.demand_required
-          ? (inRun
-              ? (pathwayStateIds.activeStateCount === 0 ? 'no_active_pathways' : 'active_in_run')
-              : 'excluded_from_run')
+          ? (inRun ? 'active_in_run' : 'excluded_from_run')
           : 'not_applicable',
         supplyParticipation: outputMetadata.output_role === 'endogenous_supply_commodity'
           ? (inRun
@@ -257,7 +275,6 @@ export function deriveOutputRunStatuses(
               : 'excluded_from_run')
           : 'not_applicable',
         hasPositiveDemandInRun,
-        hasDemandValidationError,
         isSeedScoped,
         isAutoIncludedDependency,
         isExcludedFromRun: !inRun,
@@ -280,6 +297,5 @@ export function deriveOutputRunStatusesForConfiguration(
     configuration,
     resolvedConfiguration,
     pkg.appConfig,
-    getSeedOutputIds(configuration),
   );
 }

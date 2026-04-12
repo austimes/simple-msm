@@ -9,5 +9,8 @@
   "industrial-heat-fossil",
   "industrial-heat-electrified",
   "freight-diesel",
-  "full-model-incumbents"
+  "full-model-incumbents",
+  "land-sequestration-only",
+  "removals-both",
+  "agriculture-removals-endogenous"
 ]

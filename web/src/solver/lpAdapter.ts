@@ -53,6 +53,14 @@ interface SupplyCommodityGroup {
   rows: NormalizedSolverRow[];
 }
 
+interface OptionalActivityGroup {
+  outputId: string;
+  outputLabel: string;
+  year: number;
+  control: ResolvedSolveControl;
+  rows: NormalizedSolverRow[];
+}
+
 interface TrackedConstraint {
   constraintId: string;
   kind: SolveConstraintKind;
@@ -98,6 +106,7 @@ interface ConfigurationLpBuild {
   activeRows: NormalizedSolverRow[];
   requiredServiceGroups: RequiredServiceGroup[];
   supplyGroups: SupplyCommodityGroup[];
+  optionalActivityGroups: OptionalActivityGroup[];
   balancedCommodityKeys: Set<string>;
   trackedConstraints: Record<string, TrackedConstraint>;
   softConstraintVariableIds: Set<string>;
@@ -448,6 +457,48 @@ function collectSupplyCommodityGroups(request: SolveRequest): SupplyCommodityGro
   });
 }
 
+function collectOptionalActivityGroups(request: SolveRequest): OptionalActivityGroup[] {
+  const groups = new Map<string, OptionalActivityGroup>();
+
+  for (const row of request.rows) {
+    if (row.outputRole !== 'optional_activity') {
+      continue;
+    }
+
+    const control = request.configuration.controlsByOutput[row.outputId]?.[yearKey(row.year)];
+
+    if (!control) {
+      throw new Error(
+        `Missing resolved control for optional activity ${JSON.stringify(row.outputId)} in ${row.year}.`,
+      );
+    }
+
+    const key = commodityYearKey(row.outputId, row.year);
+    const existing = groups.get(key);
+
+    if (existing) {
+      existing.rows.push(row);
+      continue;
+    }
+
+    groups.set(key, {
+      outputId: row.outputId,
+      outputLabel: row.outputLabel,
+      year: row.year,
+      control,
+      rows: [row],
+    });
+  }
+
+  return Array.from(groups.values()).sort((left, right) => {
+    if (left.year !== right.year) {
+      return left.year - right.year;
+    }
+
+    return left.outputId.localeCompare(right.outputId);
+  });
+}
+
 function sharePercent(value: number): string {
   return `${(value * 100).toFixed(1)}%`;
 }
@@ -524,7 +575,7 @@ function buildEffectiveMaxShareLookup(
     weight: clampShare(row.bounds.maxShare ?? 1),
   }));
   const totalWeight = weights.reduce((sum, entry) => sum + entry.weight, 0);
-  const fallbackShare = 1 / activeRows.length;
+  const shouldNormalize = totalWeight > SHARE_TOLERANCE && totalWeight < 1 - SHARE_TOLERANCE;
 
   for (const { rowId, weight } of weights) {
     const existing = lookup.get(rowId);
@@ -532,9 +583,9 @@ function buildEffectiveMaxShareLookup(
       continue;
     }
 
-    existing.effectiveMaxShare = totalWeight <= SHARE_TOLERANCE
-      ? fallbackShare
-      : weight / totalWeight;
+    existing.effectiveMaxShare = shouldNormalize
+      ? weight / totalWeight
+      : weight;
   }
 
   return lookup;
@@ -953,10 +1004,11 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
   const notes: string[] = [];
   const requiredServiceGroups = collectRequiredServiceGroups(request);
   const supplyGroups = collectSupplyCommodityGroups(request);
+  const optionalActivityGroups = collectOptionalActivityGroups(request);
   const activityScale = resolveActivityScale(request);
 
-  if (requiredServiceGroups.length === 0) {
-    throw new Error('Solve request does not include any required-service rows to optimize.');
+  if (requiredServiceGroups.length === 0 && optionalActivityGroups.length === 0) {
+    throw new Error('Solve request does not include any required-service or optional-activity rows to optimize.');
   }
 
   for (const group of requiredServiceGroups) {
@@ -967,21 +1019,7 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
     diagnostics.push(...validateSupplyCommodityGroup(group));
   }
 
-  const ignoredRows = request.rows.filter((row) => row.outputRole === 'optional_removals');
-  const activeIgnoredRows = ignoredRows.filter((row) => {
-    const control = request.configuration.controlsByOutput[row.outputId]?.[yearKey(row.year)];
-    return !control || !control.activeStateIds || control.activeStateIds.includes(row.stateId);
-  });
-  const hasUnmodeledFeatures = activeIgnoredRows.length > 0 || request.configuration.options.shareSmoothing.enabled;
-
-  if (ignoredRows.length > 0) {
-    const ignoredOutputCount = new Set(ignoredRows.map((row) => row.outputId)).size;
-    diagnostics.push({
-      code: 'optional_rows_pending',
-      severity: 'warning',
-      message: `${ignoredRows.length} optional-removal rows across ${ignoredOutputCount} outputs remain outside the current LP core and are ignored for this solve.`,
-    });
-  }
+  const hasUnmodeledFeatures = request.configuration.options.shareSmoothing.enabled;
 
   if (request.configuration.options.shareSmoothing.enabled) {
     diagnostics.push({
@@ -997,7 +1035,7 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
       .map((group) => commodityYearKey(group.commodityId, group.year)),
   );
 
-  const activeRows = request.rows.filter((row) => row.outputRole !== 'optional_removals');
+  const activeRows = request.rows;
 
   for (const row of activeRows) {
     variables[activityVariableId(row)] = {
@@ -1026,6 +1064,7 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
       activeRows,
       requiredServiceGroups,
       supplyGroups,
+      optionalActivityGroups,
       balancedCommodityKeys,
       trackedConstraints,
       softConstraintVariableIds,
@@ -1357,13 +1396,68 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
     }
   }
 
+  for (const group of optionalActivityGroups) {
+    const activeStateIds = group.control.activeStateIds ? new Set(group.control.activeStateIds) : null;
+
+    for (const row of group.rows) {
+      const variableId = activityVariableId(row);
+
+      if (activeStateIds && !activeStateIds.has(row.stateId)) {
+        addConstraint(
+          constraints,
+          trackedConstraints,
+          variables,
+          variableId,
+          stateConstraintId('inactive', row),
+          scaleConstraintBounds({ equal: 0 }, activityScale),
+          {
+            kind: 'inactive_state',
+            outputId: row.outputId,
+            outputLabel: row.outputLabel,
+            year: row.year,
+            stateId: row.stateId,
+            stateLabel: row.stateLabel,
+            rowId: row.rowId,
+            mode: group.control.mode,
+            message: `${row.stateLabel} is inactive for ${row.outputLabel} in ${row.year}.`,
+          },
+        );
+        continue;
+      }
+
+      // Always enforce max_activity for optional activities to prevent unbounded LP.
+      if (row.bounds.maxActivity != null) {
+        const constraintId = stateConstraintId('max_activity', row);
+        addConstraint(
+          constraints,
+          trackedConstraints,
+          variables,
+          variableId,
+          constraintId,
+          scaleConstraintBounds({ max: row.bounds.maxActivity }, activityScale),
+          {
+            kind: 'max_activity',
+            outputId: row.outputId,
+            outputLabel: row.outputLabel,
+            year: row.year,
+            stateId: row.stateId,
+            stateLabel: row.stateLabel,
+            rowId: row.rowId,
+            mode: group.control.mode,
+            message: `${row.stateLabel} stays within its max activity for ${row.outputLabel} in ${row.year}.`,
+          },
+        );
+      }
+    }
+  }
+
   const softConstraintCount = Object.values(trackedConstraints).filter((constraint) => constraint.softConstraint).length;
 
   const endogenousSupplyGroupCount = supplyGroups.filter((group) => group.control.mode !== 'externalized').length;
   const externalizedSupplyGroupCount = supplyGroups.length - endogenousSupplyGroupCount;
 
   notes.push(
-    `Built a generic LP over ${requiredServiceGroups.length} required-service groups, ${endogenousSupplyGroupCount} endogenous-supply groups, ${activeRows.length} activity variables, and ${softConstraintCount} soft-slack variables.`,
+    `Built a generic LP over ${requiredServiceGroups.length} required-service groups, ${optionalActivityGroups.length} optional-activity groups, ${endogenousSupplyGroupCount} endogenous-supply groups, ${activeRows.length} activity variables, and ${softConstraintCount} soft-slack variables.`,
   );
   notes.push(
     'Objective coefficients combine row conversion cost, exogenously priced non-balanced commodity inputs, and direct-emissions carbon cost using the resolved configuration tables.',
@@ -1397,6 +1491,7 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
     activeRows,
     requiredServiceGroups,
     supplyGroups,
+    optionalActivityGroups,
     balancedCommodityKeys,
     trackedConstraints,
     softConstraintVariableIds,
@@ -1448,7 +1543,7 @@ function buildDiagnostics(
     diagnostics.push({
       code: 'partial_domain_coverage',
       severity: 'warning',
-      message: 'The LP solved required services and in-model supply commodities, but removals or rollout smoothing still need downstream tasks.',
+      message: 'The LP solved required services, optional activities, and in-model supply commodities, but rollout smoothing still needs downstream tasks.',
     });
   }
 
@@ -1800,6 +1895,14 @@ export function inspectConfigurationLpBuild(request: SolveRequest) {
       commodityLabel: group.commodityLabel,
       year: group.year,
       externalDemand: group.externalDemand,
+      mode: group.control.mode,
+      activeStateIds: group.control.activeStateIds,
+      rowCount: group.rows.length,
+    })),
+    optionalActivityGroups: build.optionalActivityGroups.map((group) => ({
+      outputId: group.outputId,
+      outputLabel: group.outputLabel,
+      year: group.year,
       mode: group.control.mode,
       activeStateIds: group.control.activeStateIds,
       rowCount: group.rows.length,

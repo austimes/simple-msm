@@ -41,6 +41,13 @@ export interface PathwayChartCardData {
   capChart: LineChartData;
 }
 
+export interface RemovalsChartCardData {
+  outputId: string;
+  outputLabel: string;
+  outputUnit: string;
+  activityChart: LineChartData;
+}
+
 type ShareLookupKey = string;
 
 function shareKey(outputId: string, year: number, stateId: string): ShareLookupKey {
@@ -457,4 +464,65 @@ export function buildPathwayChartCards(
         },
       } satisfies PathwayChartCardData;
     });
+}
+
+export function buildRemovalsChartCards(
+  request: SolveRequest,
+  result: SolveResult,
+): RemovalsChartCardData[] {
+  const years = request.configuration.years;
+  const lookup = buildShareLookup(result.reporting.stateShares);
+
+  const outputRows = new Map<string, { outputLabel: string; outputUnit: string; rows: NormalizedSolverRow[] }>();
+
+  for (const row of request.rows) {
+    if (row.outputRole !== 'optional_activity') {
+      continue;
+    }
+
+    const existing = outputRows.get(row.outputId);
+    if (existing) {
+      existing.rows.push(row);
+      continue;
+    }
+
+    outputRows.set(row.outputId, {
+      outputLabel: row.outputLabel,
+      outputUnit: row.outputUnit,
+      rows: [row],
+    });
+  }
+
+  return Array.from(outputRows.entries()).map(([outputId, metadata]) => {
+    const activityByYear = new Map<number, number>();
+    const maxActivityByYear = new Map<number, number>();
+
+    for (const row of metadata.rows) {
+      const ss = lookup.get(shareKey(outputId, row.year, row.stateId));
+      const activity = ss?.activity ?? 0;
+      activityByYear.set(row.year, (activityByYear.get(row.year) ?? 0) + activity);
+
+      if (row.bounds.maxActivity != null) {
+        maxActivityByYear.set(row.year, (maxActivityByYear.get(row.year) ?? 0) + row.bounds.maxActivity);
+      }
+    }
+
+    const grouped = new Map<string, Map<number, number>>();
+    grouped.set('Activity', activityByYear);
+    if (maxActivityByYear.size > 0) {
+      grouped.set('Max activity', maxActivityByYear);
+    }
+
+    return {
+      outputId,
+      outputLabel: metadata.outputLabel,
+      outputUnit: metadata.outputUnit,
+      activityChart: {
+        title: `${metadata.outputLabel}`,
+        yAxisLabel: metadata.outputUnit,
+        years,
+        series: buildSeries(grouped, years, (key) => key),
+      },
+    } satisfies RemovalsChartCardData;
+  });
 }

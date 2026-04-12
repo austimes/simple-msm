@@ -1,6 +1,6 @@
 {
-  "name": "Steel incumbent only",
-  "description": "Crude steel held at 100% on BF-BOF conventional with electricity externalized.",
+  "name": "Land sequestration only",
+  "description": "Land sequestration (biological sink) with electricity externalized. Tests that land sequestration uses electricity and refined liquid fuels (auto-included).",
   "years": [
     2025,
     2030,
@@ -43,9 +43,7 @@
     },
     "crude_steel": {
       "mode": "optimize",
-      "active_state_ids": [
-        "steel__crude_steel__bf_bof_conventional"
-      ]
+      "active_state_ids": []
     },
     "cement_equivalent": {
       "mode": "optimize",
@@ -61,7 +59,9 @@
     },
     "land_sequestration": {
       "mode": "optimize",
-      "active_state_ids": []
+      "active_state_ids": [
+        "removals_negative_emissions__land_sequestration__biological_sink"
+      ]
     },
     "engineered_removals": {
       "mode": "optimize",
@@ -156,6 +156,14 @@
       "2040": 38257.24,
       "2045": 38834.55,
       "2050": 39420.58
+    },
+    "land_sequestration": {
+      "2025": 5000000,
+      "2030": 6000000,
+      "2035": 7000000,
+      "2040": 8000000,
+      "2045": 9000000,
+      "2050": 10000000
     }
   },
   "demand_generation": {
@@ -173,7 +181,8 @@
       "crude_steel": 5700000,
       "cement_equivalent": 9600000,
       "livestock_output_bundle": 31134.94,
-      "cropping_horticulture_output_bundle": 36576.29
+      "cropping_horticulture_output_bundle": 36576.29,
+      "land_sequestration": 5000000
     },
     "service_growth_rates_pct_per_year": {
       "residential_building_services": 0.6,
@@ -194,7 +203,13 @@
     "external_commodity_growth_rates_pct_per_year": {
       "electricity": 0.2
     },
-    "year_overrides": {},
+    "year_overrides": {
+      "2030": { "land_sequestration": 6000000 },
+      "2035": { "land_sequestration": 7000000 },
+      "2040": { "land_sequestration": 8000000 },
+      "2045": { "land_sequestration": 9000000 },
+      "2050": { "land_sequestration": 10000000 }
+    },
     "notes": "Resolved milestone-year demand tables are included for reproducibility. The preset metadata explains how they were generated."
   },
   "external_commodity_demands": {
@@ -238,10 +253,10 @@
     }
   },
   "app_metadata": {
-    "id": "steel-incumbent",
+    "id": "land-sequestration-only",
     "readonly": true,
     "seed_output_ids": [
-      "crude_steel"
+      "land_sequestration"
     ]
   }
 }

@@ -3,7 +3,6 @@ import { usePackageStore } from '../../data/packageStore';
 import { getActiveDemandPreset, getCommodityPriceLevel, getActiveCarbonPricePreset } from '../../data/configurationWorkspaceModel';
 import {
   getConfigurationId,
-  getSeedOutputIds,
   isReadonlyConfiguration,
   loadBuiltinConfigurations,
   loadUserConfigurations,
@@ -72,7 +71,6 @@ export default function LeftSidebar() {
   const activeConfigurationId = usePackageStore((s) => s.activeConfigurationId);
   const activeConfigurationReadonly = usePackageStore((s) => s.activeConfigurationReadonly);
   const isConfigurationDirty = usePackageStore((s) => s.isConfigurationDirty);
-  const seedOutputIds = getSeedOutputIds(currentConfiguration);
   const saveActionState = getConfigurationSaveActionState({
     activeConfigurationId,
     activeConfigurationReadonly,
@@ -120,13 +118,12 @@ export default function LeftSidebar() {
   }, []);
 
   function buildUserConfiguration(name: string, configurationId: string): ConfigurationDocument {
-    const configuration = createConfigurationFromDocument(currentConfiguration, seedOutputIds);
+    const configuration = createConfigurationFromDocument(currentConfiguration);
     configuration.name = name;
     configuration.app_metadata = {
       ...(configuration.app_metadata ?? {}),
       id: configurationId,
       readonly: false,
-      seed_output_ids: seedOutputIds,
     };
     return configuration;
   }

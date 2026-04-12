@@ -169,31 +169,29 @@
     "explanation_group": "electricity"
   },
   "land_sequestration": {
-    "output_role": "optional_removals",
+    "output_role": "required_service",
     "display_label": "Land sequestration",
     "display_group": "Removals",
     "display_group_order": 70,
     "display_order": 10,
     "participates_in_commodity_balance": false,
-    "demand_required": false,
+    "demand_required": true,
     "default_control_mode": "optimize",
     "allowed_control_modes": [
-      "target",
       "optimize"
     ],
     "explanation_group": "removals"
   },
   "engineered_removals": {
-    "output_role": "optional_removals",
+    "output_role": "required_service",
     "display_label": "Engineered removals",
     "display_group": "Removals",
     "display_group_order": 70,
     "display_order": 20,
     "participates_in_commodity_balance": false,
-    "demand_required": false,
+    "demand_required": true,
     "default_control_mode": "optimize",
     "allowed_control_modes": [
-      "target",
       "optimize"
     ],
     "explanation_group": "removals"
