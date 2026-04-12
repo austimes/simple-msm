@@ -794,19 +794,14 @@ body {
 .stacked-chart-shell {
   display: grid;
   gap: 14px;
+  container-type: inline-size;
 }
 
 .stacked-chart-layout {
   display: grid;
-  gap: 18px;
+  gap: 16px;
   align-items: start;
-  grid-template-columns: minmax(0, 1fr) minmax(180px, 220px);
-}
-
-@media (max-width: 760px) {
-  .stacked-chart-layout {
-    grid-template-columns: 1fr;
-  }
+  grid-template-columns: minmax(0, 1fr) minmax(132px, 168px);
 }
 
 .stacked-chart-title {
@@ -834,15 +829,21 @@ body {
 
 .stacked-chart-legend {
   display: grid;
-  gap: 10px;
+  min-width: 0;
+  gap: 8px;
   align-content: start;
 }
 
-@media (max-width: 760px) {
+@container (max-width: 40rem) {
   .stacked-chart-legend {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 10px 14px;
+  }
+
+  .stacked-chart-layout {
+    grid-template-columns: 1fr;
+    gap: 12px;
   }
 }
 
