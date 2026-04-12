@@ -29,6 +29,7 @@ interface DivergingStackedBarChartProps {
   data: StackedChartData;
   valueFormatter?: (value: number) => string;
   height?: number;
+  showTitle?: boolean;
 }
 
 function defaultFormatter(value: number): string {
@@ -42,6 +43,7 @@ export default function DivergingStackedBarChart({
   data,
   valueFormatter = defaultFormatter,
   height = WORKSPACE_CHART_HEIGHT,
+  showTitle = true,
 }: DivergingStackedBarChartProps) {
   const { title, yAxisLabel, years, series } = data;
   const hasAnyNonZero = series.some((s) => s.values.some((v) => v.value !== 0));
@@ -92,6 +94,7 @@ export default function DivergingStackedBarChart({
       height={height}
       legendItems={legendItems}
       summaryItems={summaryItems}
+      showTitle={showTitle}
     >
       <ResponsiveContainer {...buildResponsiveContainerProps(height)}>
         <ComposedChart

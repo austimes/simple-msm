@@ -31,6 +31,7 @@ interface LineChartProps {
   data: LineChartData;
   valueFormatter?: (value: number) => string;
   height?: number;
+  showTitle?: boolean;
 }
 
 function defaultFormatter(value: number): string {
@@ -41,6 +42,7 @@ export default function LineChart({
   data,
   valueFormatter = defaultFormatter,
   height = WORKSPACE_CHART_HEIGHT,
+  showTitle = true,
 }: LineChartProps) {
   const { title, yAxisLabel, years, series } = data;
 
@@ -73,6 +75,7 @@ export default function LineChart({
       height={height}
       legendItems={legendItems}
       summaryItems={summaryItems}
+      showTitle={showTitle}
     >
       <ResponsiveContainer {...buildResponsiveContainerProps(height)}>
         <RechartsLineChart data={rows} margin={WORKSPACE_CHART_MARGIN}>

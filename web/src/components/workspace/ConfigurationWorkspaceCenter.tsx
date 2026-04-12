@@ -40,9 +40,6 @@ function PathwayChartCard({ chart }: { chart: PathwayChartCardData }) {
       <div className="workspace-chart-card-header">
         <div>
           <h2 className="workspace-chart-card-title">{chart.outputLabel}</h2>
-          <p className="workspace-chart-card-subtitle">
-            {showingCap ? 'Effective pathway cap over time' : 'Absolute pathway output over time'}
-          </p>
         </div>
         <div className="workspace-chart-toggle" role="tablist" aria-label={`${chart.outputLabel} chart mode`}>
           <button
@@ -64,9 +61,9 @@ function PathwayChartCard({ chart }: { chart: PathwayChartCardData }) {
         </div>
       </div>
       {showingCap ? (
-        <LineChart data={chart.capChart} valueFormatter={formatPercent} />
+        <LineChart data={chart.capChart} valueFormatter={formatPercent} showTitle={false} />
       ) : (
-        <StackedAreaChart data={chart.outputChart} />
+        <StackedAreaChart data={chart.outputChart} showTitle={false} />
       )}
       <p className={`workspace-chart-note${chart.respectMaxShare ? '' : ' workspace-chart-note--warning'}`}>
         {chart.note}
@@ -81,12 +78,9 @@ function RemovalsChartCard({ chart }: { chart: RemovalsChartCardData }) {
       <div className="workspace-chart-card-header">
         <div>
           <h2 className="workspace-chart-card-title">{chart.outputLabel}</h2>
-          <p className="workspace-chart-card-subtitle">
-            Activity vs max activity over time
-          </p>
         </div>
       </div>
-      <LineChart data={chart.activityChart} valueFormatter={formatNumber} />
+      <LineChart data={chart.activityChart} valueFormatter={formatNumber} showTitle={false} />
       <p className="workspace-chart-note">
         Activity is cost-driven: the solver picks up removals when the carbon price exceeds their unit cost. Max activity shows the physical cap.
       </p>

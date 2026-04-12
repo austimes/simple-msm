@@ -27,6 +27,7 @@ interface ChartFrameProps {
   height: number;
   legendItems: ChartLegendItem[];
   summaryItems: ChartSummaryItem[];
+  showTitle?: boolean;
   children: ReactNode;
 }
 
@@ -67,11 +68,12 @@ export function ChartFrame({
   height,
   legendItems,
   summaryItems,
+  showTitle = true,
   children,
 }: ChartFrameProps) {
   return (
     <figure className="stacked-chart-shell" style={buildChartShellStyle(height)}>
-      <figcaption className="stacked-chart-title">{title}</figcaption>
+      {showTitle ? <figcaption className="stacked-chart-title">{title}</figcaption> : null}
 
       <div className="stacked-chart-layout">
         <div className="stacked-chart-canvas" role="img" aria-label={title}>
