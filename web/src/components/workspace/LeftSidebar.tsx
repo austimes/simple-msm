@@ -20,6 +20,8 @@ import type {
   CommodityPriceSeries,
   ConfigurationControlMode,
   ConfigurationDocument,
+  ResidualOverlayDomain,
+  ResidualOverlayRow,
 } from '../../data/types';
 import {
   formatControlModeLabel,
@@ -33,6 +35,7 @@ type LeftSidebarSectionKey =
   | 'demandGrowth'
   | 'commodityControls'
   | 'emissionsPrice'
+  | 'overlays'
   | 'configurations';
 
 type LeftSidebarSectionState = Record<LeftSidebarSectionKey, boolean>;
@@ -53,6 +56,78 @@ interface PriceOnlyCommodityEntry {
 }
 
 type CommodityControlEntry = ControlledCommodityEntry | PriceOnlyCommodityEntry;
+
+interface OverlayCatalogEntry {
+  overlayId: string;
+  overlayLabel: string;
+  overlayDomain: ResidualOverlayDomain;
+  officialAccountingBucket: string;
+  commodityCount: number;
+  totalEnergyPJ: number;
+  totalEmissionsMt: number;
+  totalCostM: number;
+  defaultInclude: boolean;
+}
+
+const DOMAIN_GROUP_ORDER: Record<ResidualOverlayDomain, number> = {
+  energy_residual: 0,
+  nonenergy_residual: 1,
+  net_sink: 2,
+};
+
+const DOMAIN_LABELS: Record<ResidualOverlayDomain, string> = {
+  energy_residual: 'Energy residuals',
+  nonenergy_residual: 'Non-energy residuals',
+  net_sink: 'Net sinks',
+};
+
+function deriveOverlayCatalog(rows: ResidualOverlayRow[]): OverlayCatalogEntry[] {
+  const byId = new Map<string, OverlayCatalogEntry>();
+  for (const row of rows) {
+    let entry = byId.get(row.overlay_id);
+    if (!entry) {
+      entry = {
+        overlayId: row.overlay_id,
+        overlayLabel: row.overlay_label,
+        overlayDomain: row.overlay_domain,
+        officialAccountingBucket: row.official_accounting_bucket,
+        commodityCount: 0,
+        totalEnergyPJ: 0,
+        totalEmissionsMt: 0,
+        totalCostM: 0,
+        defaultInclude: row.default_include,
+      };
+      byId.set(row.overlay_id, entry);
+    }
+    entry.commodityCount += 1;
+    entry.totalEnergyPJ += row.final_energy_pj_2025 ?? 0;
+    entry.totalEmissionsMt += (row.direct_energy_emissions_mtco2e_2025 ?? 0) + (row.other_emissions_mtco2e_2025 ?? 0);
+    entry.totalCostM += row.default_total_cost_ex_carbon_audm_2024 ?? 0;
+    if (!row.default_include) entry.defaultInclude = false;
+  }
+  return Array.from(byId.values()).sort((a, b) =>
+    DOMAIN_GROUP_ORDER[a.overlayDomain] - DOMAIN_GROUP_ORDER[b.overlayDomain]
+    || a.overlayLabel.localeCompare(b.overlayLabel),
+  );
+}
+
+function formatOverlayDetail(entry: OverlayCatalogEntry): string {
+  if (entry.overlayDomain === 'energy_residual') {
+    return `${entry.commodityCount} commodity rows`;
+  }
+  return 'Emissions only';
+}
+
+function formatOverlayAnchorPreview(entry: OverlayCatalogEntry): string {
+  const parts: string[] = [];
+  if (entry.totalEnergyPJ !== 0) {
+    parts.push(`${Math.abs(entry.totalEnergyPJ).toFixed(1)} PJ`);
+  }
+  if (entry.totalEmissionsMt !== 0) {
+    parts.push(`${entry.totalEmissionsMt.toFixed(1)} MtCO₂e`);
+  }
+  return parts.length > 0 ? parts.join(', ') : '—';
+}
 
 function formatUnit(raw: string): string {
   return raw
@@ -94,6 +169,9 @@ export default function LeftSidebar() {
   const setCarbonPricePreset = usePackageStore((s) => s.setCarbonPricePreset);
   const setRespectMaxShare = usePackageStore((s) => s.setRespectMaxShare);
   const setOutputControlMode = usePackageStore((s) => s.setOutputControlMode);
+  const residualOverlays2025 = usePackageStore((s) => s.residualOverlays2025);
+  const setResidualOverlayIncluded = usePackageStore((s) => s.setResidualOverlayIncluded);
+  const setAllResidualOverlaysIncluded = usePackageStore((s) => s.setAllResidualOverlaysIncluded);
   const loadConfiguration = usePackageStore((s) => s.loadConfiguration);
   const activeConfigurationId = usePackageStore((s) => s.activeConfigurationId);
   const activeConfigurationReadonly = usePackageStore((s) => s.activeConfigurationReadonly);
@@ -150,6 +228,9 @@ export default function LeftSidebar() {
     [appConfig],
   );
 
+  const overlayCatalog = useMemo(() => deriveOverlayCatalog(residualOverlays2025), [residualOverlays2025]);
+  const overlayControls = currentConfiguration.residual_overlays?.controls_by_overlay_id ?? {};
+
   const builtinConfigs = useMemo(() => loadBuiltinConfigurations(), []);
   const [userConfigs, setUserConfigs] = useState(() => loadUserConfigurations());
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
@@ -158,6 +239,7 @@ export default function LeftSidebar() {
     demandGrowth: false,
     commodityControls: true,
     emissionsPrice: true,
+    overlays: true,
     configurations: true,
   });
 
@@ -474,6 +556,72 @@ export default function LeftSidebar() {
             </span>
           )}
         </div>,
+      )}
+
+      {renderSection(
+        'overlays',
+        'Overlays',
+        <>
+          <div className="workspace-subsector-detail">
+            Overlay trajectories follow the active demand-growth preset. Commodity shares within each overlay remain fixed at 2025 proportions.
+          </div>
+          <div className="workspace-chip-group workspace-chip-group--inline">
+            <button
+              type="button"
+              className="workspace-chip"
+              onClick={() => setAllResidualOverlaysIncluded(true)}
+            >
+              {renderWorkspaceChipLabel('All on')}
+            </button>
+            <button
+              type="button"
+              className="workspace-chip"
+              onClick={() => setAllResidualOverlaysIncluded(false)}
+            >
+              {renderWorkspaceChipLabel('All off')}
+            </button>
+          </div>
+          {([
+            'energy_residual',
+            'nonenergy_residual',
+            'net_sink',
+          ] as ResidualOverlayDomain[]).map((domain) => {
+            const domainEntries = overlayCatalog.filter((e) => e.overlayDomain === domain);
+            if (domainEntries.length === 0) return null;
+            return (
+              <div key={domain} className="workspace-sector-group">
+                <div className="workspace-sector-title">{DOMAIN_LABELS[domain]}</div>
+                {domainEntries.map((entry) => {
+                  const included = overlayControls[entry.overlayId]?.included ?? entry.defaultInclude;
+                  return (
+                    <div key={entry.overlayId} className="workspace-subsector-group">
+                      <div className="workspace-subsector-title">{entry.overlayLabel}</div>
+                      <div className="workspace-subsector-detail">
+                        {formatOverlayDetail(entry)} · {formatOverlayAnchorPreview(entry)}
+                      </div>
+                      <div className="workspace-chip-group workspace-chip-group--inline">
+                        <button
+                          type="button"
+                          className={`workspace-chip${included ? ' workspace-chip--active' : ''}`}
+                          onClick={() => setResidualOverlayIncluded(entry.overlayId, true)}
+                        >
+                          {renderWorkspaceChipLabel('On')}
+                        </button>
+                        <button
+                          type="button"
+                          className={`workspace-chip${included ? '' : ' workspace-chip--active'}`}
+                          onClick={() => setResidualOverlayIncluded(entry.overlayId, false)}
+                        >
+                          {renderWorkspaceChipLabel('Off')}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </>,
       )}
 
       {renderSection(
