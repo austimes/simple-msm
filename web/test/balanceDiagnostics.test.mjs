@@ -11,8 +11,7 @@ import { describe, it } from 'node:test';
 import { readFileSync } from 'node:fs';
 import { parseCsv } from '../src/data/parseCsv.ts';
 import {
-  getDefaultIncludedEnergyOverlays,
-  getDefaultIncludedNonEnergyOverlays,
+  getDefaultIncludedResidualOverlays,
   summarizeOverlayTotals,
 } from '../src/data/balanceDiagnostics.ts';
 
@@ -110,14 +109,15 @@ describe('Overlay parsing', () => {
 // =============================================================================
 
 describe('Default-include filtering', () => {
-  it('all 34 energy_residual overlay rows have default_include=True', () => {
-    const included = getDefaultIncludedEnergyOverlays(typedOverlays);
-    assert.equal(included.length, 34);
+  it('38 overlay rows have default_include=True (34 energy + 4 non-energy)', () => {
+    const included = getDefaultIncludedResidualOverlays(typedOverlays);
+    assert.equal(included.length, 38);
   });
 
-  it('4 non-energy overlay rows have default_include=True (LULUCF excluded)', () => {
-    const included = getDefaultIncludedNonEnergyOverlays(typedOverlays);
-    assert.equal(included.length, 4);
+  it('LULUCF sink row is excluded by default', () => {
+    const included = getDefaultIncludedResidualOverlays(typedOverlays);
+    const hasSink = included.some((r) => r.overlay_id === 'residual_lulucf_sink');
+    assert.equal(hasSink, false);
   });
 });
 
