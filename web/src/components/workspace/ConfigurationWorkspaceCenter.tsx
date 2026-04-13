@@ -61,9 +61,18 @@ function PathwayChartCard({ chart }: { chart: PathwayChartCardData }) {
         </div>
       </div>
       {showingCap ? (
-        <LineChart data={chart.capChart} valueFormatter={formatPercent} showTitle={false} />
+        <LineChart
+          data={chart.capChart}
+          valueFormatter={formatPercent}
+          showTitle={false}
+          yDomainPersistenceKey={`run:pathway-cap:${chart.outputId}`}
+        />
       ) : (
-        <StackedAreaChart data={chart.outputChart} showTitle={false} />
+        <StackedAreaChart
+          data={chart.outputChart}
+          showTitle={false}
+          yDomainPersistenceKey={`run:pathway-output:${chart.outputId}`}
+        />
       )}
     </div>
   );
@@ -77,7 +86,12 @@ function RemovalsChartCard({ chart }: { chart: RemovalsChartCardData }) {
           <h2 className="workspace-chart-card-title">{chart.outputLabel}</h2>
         </div>
       </div>
-      <LineChart data={chart.activityChart} valueFormatter={formatNumber} showTitle={false} />
+      <LineChart
+        data={chart.activityChart}
+        valueFormatter={formatNumber}
+        showTitle={false}
+        yDomainPersistenceKey={`run:removals-activity:${chart.outputId}`}
+      />
     </div>
   );
 }
@@ -156,22 +170,34 @@ export default function ConfigurationWorkspaceCenter({
         <div className="workspace-chart-grid">
           {demandBySectorChart && (
             <div className="workspace-chart-section">
-              <LineChart data={demandBySectorChart} />
+              <LineChart
+                data={demandBySectorChart}
+                yDomainPersistenceKey="run:demand-by-sector"
+              />
             </div>
           )}
           {emissionsChart && (
             <div className="workspace-chart-section">
-              <DivergingStackedBarChart data={emissionsChart} />
+              <DivergingStackedBarChart
+                data={emissionsChart}
+                yDomainPersistenceKey="run:emissions-by-sector"
+              />
             </div>
           )}
           {consumptionChart && (
             <div className="workspace-chart-section">
-              <StackedAreaChart data={consumptionChart} />
+              <StackedAreaChart
+                data={consumptionChart}
+                yDomainPersistenceKey="run:fuel-consumption"
+              />
             </div>
           )}
           {costByComponentChart && (
             <div className="workspace-chart-section">
-              <DivergingStackedBarChart data={costByComponentChart} />
+              <DivergingStackedBarChart
+                data={costByComponentChart}
+                yDomainPersistenceKey="run:cost-by-component"
+              />
             </div>
           )}
           {pathwayCharts.map((chart) => (

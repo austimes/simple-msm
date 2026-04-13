@@ -181,12 +181,15 @@ test('solved workspace renders Cost by Component with diverging chart net metada
   );
 
   const netSeriesMatches = html.match(/data-series-key="__net"/g) ?? [];
+  const resetMatches = html.match(/class="stacked-chart-reset-button"/g) ?? [];
 
   assert.match(html, /workspace-chart-grid/);
   assert.match(html, /Cost by Component/);
   assert.match(html, /aria-label="Cost by Component legend"/);
   assert.match(html, /aria-label="Emissions by Sector legend"/);
+  assert.match(html, /aria-label="Reset y-axis range for Demand by Sector"/);
   assert.equal(netSeriesMatches.length, 2);
+  assert.equal(resetMatches.length, 4);
 });
 
 test('refreshing workspace keeps the previous chart grid mounted and surfaces a non-blocking status', () => {
@@ -404,6 +407,7 @@ test('pathway and removals cards keep only the card heading on the run page', ()
 
   assert.match(html, /<h2 class="workspace-chart-card-title">Electricity supply<\/h2>/);
   assert.match(html, /<h2 class="workspace-chart-card-title">Engineered removals<\/h2>/);
+  assert.equal((html.match(/class="stacked-chart-reset-button"/g) ?? []).length, 4);
   assert.doesNotMatch(html, /Absolute pathway output over time/);
   assert.doesNotMatch(html, /Activity vs max activity over time/);
   assert.doesNotMatch(html, /<figcaption class="stacked-chart-title">Electricity supply Pathway Output<\/figcaption>/);

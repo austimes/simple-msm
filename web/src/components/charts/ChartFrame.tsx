@@ -28,6 +28,7 @@ interface ChartFrameProps {
   legendItems: ChartLegendItem[];
   summaryItems: ChartSummaryItem[];
   showTitle?: boolean;
+  headerAction?: ReactNode;
   children: ReactNode;
 }
 
@@ -69,11 +70,24 @@ export function ChartFrame({
   legendItems,
   summaryItems,
   showTitle = true,
+  headerAction,
   children,
 }: ChartFrameProps) {
   return (
     <figure className="stacked-chart-shell" style={buildChartShellStyle(height)}>
-      {showTitle ? <figcaption className="stacked-chart-title">{title}</figcaption> : null}
+      {showTitle ? (
+        <figcaption className="stacked-chart-header">
+          <span className="stacked-chart-title">{title}</span>
+          {headerAction ? (
+            <span className="stacked-chart-header-actions">{headerAction}</span>
+          ) : null}
+        </figcaption>
+      ) : null}
+      {!showTitle && headerAction ? (
+        <div className="stacked-chart-header stacked-chart-header--action-only">
+          <span className="stacked-chart-header-actions">{headerAction}</span>
+        </div>
+      ) : null}
 
       <div className="stacked-chart-layout">
         <div className="stacked-chart-canvas" role="img" aria-label={title}>

@@ -24,6 +24,7 @@ import {
   computeDomain,
   summarizeSeries,
 } from './rechartsAdapters';
+import { usePersistentYAxisDomain } from './persistentYAxisDomain';
 
 void React;
 
@@ -32,6 +33,7 @@ interface LineChartProps {
   valueFormatter?: (value: number) => string;
   height?: number;
   showTitle?: boolean;
+  yDomainPersistenceKey?: string;
 }
 
 function defaultFormatter(value: number): string {
@@ -43,10 +45,34 @@ export default function LineChart({
   valueFormatter = defaultFormatter,
   height = WORKSPACE_CHART_HEIGHT,
   showTitle = true,
+  yDomainPersistenceKey,
 }: LineChartProps) {
   const { title, yAxisLabel, years, series } = data;
+  const isEmpty = series.length === 0 || years.length === 0;
+  const rows = isEmpty ? [] : buildZeroFilledRows(years, series);
+  const seriesKeys = series.map((entry) => entry.key);
+  const autoDomain = isEmpty
+    ? [0, 1] as [number, number]
+    : computeDomain(collectNumericValues(rows, seriesKeys), {
+      paddingRatio: 0.08,
+      roundTo: 5,
+    });
+  const { effectiveDomain, resetDomain, isPersistent } = usePersistentYAxisDomain({
+    chartKey: isEmpty ? null : yDomainPersistenceKey,
+    autoDomain,
+  });
+  const headerAction = isPersistent ? (
+    <button
+      type="button"
+      className="stacked-chart-reset-button"
+      onClick={resetDomain}
+      aria-label={`Reset y-axis range for ${title}`}
+    >
+      Reset y-axis range
+    </button>
+  ) : undefined;
 
-  if (series.length === 0 || years.length === 0) {
+  if (isEmpty) {
     return (
       <ChartEmptyState
         className="stacked-chart-empty"
@@ -55,12 +81,6 @@ export default function LineChart({
     );
   }
 
-  const rows = buildZeroFilledRows(years, series);
-  const seriesKeys = series.map((entry) => entry.key);
-  const domain = computeDomain(collectNumericValues(rows, seriesKeys), {
-    paddingRatio: 0.08,
-    roundTo: 5,
-  });
   const summaryItems = summarizeSeries(series);
   const legendItems = series.map((entry) => ({
     key: entry.key,
@@ -76,6 +96,7 @@ export default function LineChart({
       legendItems={legendItems}
       summaryItems={summaryItems}
       showTitle={showTitle}
+      headerAction={headerAction}
     >
       <ResponsiveContainer {...buildResponsiveContainerProps(height)}>
         <RechartsLineChart data={rows} margin={WORKSPACE_CHART_MARGIN}>
@@ -95,7 +116,7 @@ export default function LineChart({
             tickLine={false}
             axisLine={false}
             width={72}
-            domain={domain}
+            domain={effectiveDomain}
             tick={CHART_AXIS_TICK_STYLE}
             tickFormatter={valueFormatter}
             label={{

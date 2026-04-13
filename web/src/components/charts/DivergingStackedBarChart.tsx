@@ -22,6 +22,7 @@ import {
   WORKSPACE_CHART_MARGIN,
 } from './chartTheme';
 import { buildDivergingRows, computeDomain, summarizeSeries } from './rechartsAdapters';
+import { usePersistentYAxisDomain } from './persistentYAxisDomain';
 
 void React;
 
@@ -30,6 +31,7 @@ interface DivergingStackedBarChartProps {
   valueFormatter?: (value: number) => string;
   height?: number;
   showTitle?: boolean;
+  yDomainPersistenceKey?: string;
 }
 
 function defaultFormatter(value: number): string {
@@ -44,10 +46,47 @@ export default function DivergingStackedBarChart({
   valueFormatter = defaultFormatter,
   height = WORKSPACE_CHART_HEIGHT,
   showTitle = true,
+  yDomainPersistenceKey,
 }: DivergingStackedBarChartProps) {
   const { title, yAxisLabel, years, series } = data;
   const hasAnyNonZero = series.some((s) => s.values.some((v) => v.value !== 0));
-  if (series.length === 0 || years.length === 0 || !hasAnyNonZero) {
+  const isEmpty = series.length === 0 || years.length === 0 || !hasAnyNonZero;
+  const divergingData = isEmpty
+    ? {
+      rows: [],
+      positiveTotals: [],
+      negativeTotals: [],
+      netKey: '__net',
+      netValues: [],
+    }
+    : buildDivergingRows(years, series);
+  const autoDomain = isEmpty
+    ? [0, 1] as [number, number]
+    : computeDomain(
+      [
+        ...divergingData.positiveTotals,
+        ...divergingData.negativeTotals,
+        ...divergingData.netValues,
+        0,
+      ],
+      { paddingRatio: 0.08 },
+    );
+  const { effectiveDomain, resetDomain, isPersistent } = usePersistentYAxisDomain({
+    chartKey: isEmpty ? null : yDomainPersistenceKey,
+    autoDomain,
+  });
+  const headerAction = isPersistent ? (
+    <button
+      type="button"
+      className="stacked-chart-reset-button"
+      onClick={resetDomain}
+      aria-label={`Reset y-axis range for ${title}`}
+    >
+      Reset y-axis range
+    </button>
+  ) : undefined;
+
+  if (isEmpty) {
     return (
       <ChartEmptyState
         className="stacked-chart-empty"
@@ -58,15 +97,8 @@ export default function DivergingStackedBarChart({
 
   const {
     rows,
-    positiveTotals,
-    negativeTotals,
     netKey,
-    netValues,
-  } = buildDivergingRows(years, series);
-  const domain = computeDomain(
-    [...positiveTotals, ...negativeTotals, ...netValues, 0],
-    { paddingRatio: 0.08 },
-  );
+  } = divergingData;
   const summaryItems = [
     ...summarizeSeries(series),
     { key: netKey, label: 'Net', dashArray: '6 4', nullPoints: 0 },
@@ -85,7 +117,6 @@ export default function DivergingStackedBarChart({
       kind: 'line' as const,
     },
   ];
-  const hasNegatives = domain[0] < 0;
 
   return (
     <ChartFrame
@@ -95,6 +126,7 @@ export default function DivergingStackedBarChart({
       legendItems={legendItems}
       summaryItems={summaryItems}
       showTitle={showTitle}
+      headerAction={headerAction}
     >
       <ResponsiveContainer {...buildResponsiveContainerProps(height)}>
         <ComposedChart
@@ -118,7 +150,7 @@ export default function DivergingStackedBarChart({
             tickLine={false}
             axisLine={false}
             width={72}
-            domain={domain}
+            domain={effectiveDomain}
             tick={CHART_AXIS_TICK_STYLE}
             tickFormatter={valueFormatter}
             label={{
@@ -129,7 +161,7 @@ export default function DivergingStackedBarChart({
               style: CHART_AXIS_TITLE_STYLE,
             }}
           />
-          {hasNegatives ? (
+          {effectiveDomain[0] < 0 ? (
             <ReferenceLine y={0} stroke="#334155" strokeWidth={1.5} ifOverflow="extendDomain" />
           ) : null}
           {series.map((entry) => (

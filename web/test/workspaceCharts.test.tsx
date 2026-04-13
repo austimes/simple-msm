@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { ComposedChart } from 'recharts';
 import type { LineChartData, StackedChartData } from '../src/results/chartData.ts';
 import DivergingStackedBarChart from '../src/components/charts/DivergingStackedBarChart.tsx';
 import LineChart from '../src/components/charts/LineChart.tsx';
@@ -60,32 +59,18 @@ const demandChart: LineChartData = {
   ],
 };
 
-function findElementByType(node: unknown, targetType: unknown): React.ReactElement | null {
-  if (!React.isValidElement(node)) {
-    return null;
-  }
-
-  if (node.type === targetType) {
-    return node;
-  }
-
-  const children = React.Children.toArray(node.props.children);
-  for (const child of children) {
-    const match = findElementByType(child, targetType);
-    if (match) {
-      return match;
-    }
-  }
-
-  return null;
-}
-
 describe('workspace Recharts wrappers', () => {
   test('diverging emissions charts retain the axis label, negative series metadata, and net legend item', () => {
-    const html = renderToStaticMarkup(<DivergingStackedBarChart data={emissionsChart} />);
+    const html = renderToStaticMarkup(
+      <DivergingStackedBarChart
+        data={emissionsChart}
+        yDomainPersistenceKey="run:emissions-by-sector"
+      />,
+    );
 
     assert.match(html, /Axis: Emissions \(tCO2e\)/);
     assert.match(html, /aria-label="Emissions by Sector legend"/);
+    assert.match(html, /aria-label="Reset y-axis range for Emissions by Sector"/);
     assert.match(html, />Buildings</);
     assert.match(html, />Removals</);
     assert.match(html, />Net</);
@@ -94,24 +79,36 @@ describe('workspace Recharts wrappers', () => {
     assert.match(html, /data-series-key="__net"/);
   });
 
-  test('diverging emissions charts stack bars by sign so negatives render below zero', () => {
-    const tree = DivergingStackedBarChart({ data: emissionsChart });
-    const composedChart = findElementByType(tree, ComposedChart);
+  test('workspace charts keep the reset control visible when the internal chart title is hidden', () => {
+    const html = renderToStaticMarkup(
+      <LineChart
+        data={demandChart}
+        showTitle={false}
+        yDomainPersistenceKey="run:demand-by-sector"
+      />,
+    );
 
-    assert.ok(composedChart, 'expected a ComposedChart element in the diverging chart tree');
-    assert.equal(composedChart.props.stackOffset, 'sign');
+    assert.doesNotMatch(html, /<figcaption/);
+    assert.match(html, /class="stacked-chart-header stacked-chart-header--action-only"/);
+    assert.match(html, /aria-label="Reset y-axis range for Demand by Sector"/);
   });
 
   test('line chart legends render the series labels inside the chart shell', () => {
-    const html = renderToStaticMarkup(<LineChart data={demandChart} />);
+    const html = renderToStaticMarkup(
+      <LineChart
+        data={demandChart}
+        yDomainPersistenceKey="run:demand-by-sector"
+      />,
+    );
 
     assert.match(html, /class="stacked-chart-shell"/);
     assert.match(html, /aria-label="Demand by Sector legend"/);
+    assert.match(html, /aria-label="Reset y-axis range for Demand by Sector"/);
     assert.match(html, />Industry</);
     assert.match(html, />Transport</);
   });
 
-  test('empty-state charts keep the existing message', () => {
+  test('empty-state charts keep the existing message without rendering a reset control', () => {
     const html = renderToStaticMarkup(
       <StackedAreaChart
         data={{
@@ -120,9 +117,11 @@ describe('workspace Recharts wrappers', () => {
           years: [],
           series: [],
         }}
+        yDomainPersistenceKey="run:fuel-consumption"
       />,
     );
 
     assert.match(html, /No data available for this chart\./);
+    assert.doesNotMatch(html, /Reset y-axis range/);
   });
 });

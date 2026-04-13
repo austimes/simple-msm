@@ -19,6 +19,7 @@ import {
   WORKSPACE_CHART_MARGIN,
 } from './chartTheme';
 import { buildZeroFilledRows, summarizeSeries } from './rechartsAdapters';
+import { usePersistentYAxisDomain } from './persistentYAxisDomain';
 
 void React;
 
@@ -27,6 +28,7 @@ interface StackedAreaChartProps {
   valueFormatter?: (value: number) => string;
   height?: number;
   showTitle?: boolean;
+  yDomainPersistenceKey?: string;
 }
 
 function defaultFormatter(value: number): string {
@@ -41,24 +43,36 @@ export default function StackedAreaChart({
   valueFormatter = defaultFormatter,
   height = WORKSPACE_CHART_HEIGHT,
   showTitle = true,
+  yDomainPersistenceKey,
 }: StackedAreaChartProps) {
   const { title, yAxisLabel, years, series } = data;
-
-  if (series.length === 0 || years.length === 0) {
-    return (
-      <ChartEmptyState
-        className="stacked-chart-empty"
-        message="No data available for this chart."
-      />
-    );
-  }
-
-  const rows = buildZeroFilledRows(years, series);
+  const isStructurallyEmpty = series.length === 0 || years.length === 0;
+  const rows = isStructurallyEmpty ? [] : buildZeroFilledRows(years, series);
   const cumulativeTotals = rows.map((row) =>
     series.reduce((sum, entry) => sum + Number(row[entry.key] ?? 0), 0),
   );
+  const hasOnlyZeroTotals = cumulativeTotals.length > 0 && cumulativeTotals.every((total) => total === 0);
+  const isEmpty = isStructurallyEmpty || hasOnlyZeroTotals;
+  const maxCumulative = cumulativeTotals.length > 0 ? Math.max(...cumulativeTotals) : 0;
+  const autoDomain = isEmpty
+    ? [0, 1] as [number, number]
+    : [0, maxCumulative * 1.08] as [number, number];
+  const { effectiveDomain, resetDomain, isPersistent } = usePersistentYAxisDomain({
+    chartKey: isEmpty ? null : yDomainPersistenceKey,
+    autoDomain,
+  });
+  const headerAction = isPersistent ? (
+    <button
+      type="button"
+      className="stacked-chart-reset-button"
+      onClick={resetDomain}
+      aria-label={`Reset y-axis range for ${title}`}
+    >
+      Reset y-axis range
+    </button>
+  ) : undefined;
 
-  if (cumulativeTotals.every((t) => t === 0)) {
+  if (isStructurallyEmpty) {
     return (
       <ChartEmptyState
         className="stacked-chart-empty"
@@ -67,8 +81,15 @@ export default function StackedAreaChart({
     );
   }
 
-  const maxCumulative = Math.max(...cumulativeTotals);
-  const domainMax = maxCumulative * 1.08;
+  if (hasOnlyZeroTotals) {
+    return (
+      <ChartEmptyState
+        className="stacked-chart-empty"
+        message="No data available for this chart."
+      />
+    );
+  }
+
   const summaryItems = summarizeSeries(series);
   const legendItems = series.map((entry) => ({
     key: entry.key,
@@ -84,6 +105,7 @@ export default function StackedAreaChart({
       legendItems={legendItems}
       summaryItems={summaryItems}
       showTitle={showTitle}
+      headerAction={headerAction}
     >
       <ResponsiveContainer {...buildResponsiveContainerProps(height)}>
         <AreaChart data={rows} margin={WORKSPACE_CHART_MARGIN}>
@@ -103,7 +125,7 @@ export default function StackedAreaChart({
             tickLine={false}
             axisLine={false}
             width={72}
-            domain={[0, domainMax]}
+            domain={effectiveDomain}
             tick={CHART_AXIS_TICK_STYLE}
             tickFormatter={valueFormatter}
             label={{
