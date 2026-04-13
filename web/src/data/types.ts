@@ -257,6 +257,20 @@ export interface SectorState {
   times_or_vedalang_mapping_notes: string;
   would_expand_to_explicit_capacity: boolean;
   would_expand_to_process_chain: boolean;
+  energy_co2e: number | null;
+  process_co2e: number | null;
+  state_stage_family: string;
+  state_stage_rank: number | null;
+  state_stage_code: string;
+  state_sort_key: string;
+  state_label_standardized: string;
+  is_default_incumbent_2025: boolean;
+  state_option_rank: number | null;
+  state_option_code: string;
+  state_option_label: string;
+  balance_tuning_flag: boolean;
+  balance_tuning_note: string;
+  benchmark_balance_note: string;
 }
 
 export interface PackageData {
