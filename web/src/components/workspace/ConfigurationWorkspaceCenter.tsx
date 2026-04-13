@@ -15,6 +15,7 @@ import {
 } from '../../results/chartData';
 import { buildAllContributionRows } from '../../results/resultContributions.ts';
 import { usePackageStore } from '../../data/packageStore.ts';
+import type { ConfigurationDocument } from '../../data/types.ts';
 import type { SolveRequest, SolveResult } from '../../solver/contract.ts';
 import type { ConfigurationSolveFailure } from '../../solver/configurationSolveFailure.ts';
 
@@ -102,6 +103,7 @@ export interface ConfigurationWorkspaceCenterProps {
   phase: SolvePhase;
   result: SolveResult | null;
   request: SolveRequest | null;
+  solvedConfiguration: ConfigurationDocument | null;
   error: string | null;
   failure: ConfigurationSolveFailure | null;
 }
@@ -110,21 +112,21 @@ export default function ConfigurationWorkspaceCenter({
   phase,
   result,
   request,
+  solvedConfiguration,
   error,
   failure,
 }: ConfigurationWorkspaceCenterProps) {
   const residualOverlays2025 = usePackageStore((s) => s.residualOverlays2025);
-  const currentConfiguration = usePackageStore((s) => s.currentConfiguration);
 
-  const hasSolvedSnapshot = request != null && result != null;
+  const hasSolvedSnapshot = request != null && result != null && solvedConfiguration != null;
   const showCharts = hasSolvedSnapshot && phase !== 'error';
 
   const contributions = useMemo(
     () =>
-      request && result
-        ? buildAllContributionRows(request, result, residualOverlays2025, currentConfiguration)
+      request && result && solvedConfiguration
+        ? buildAllContributionRows(request, result, residualOverlays2025, solvedConfiguration)
         : [],
-    [request, result, residualOverlays2025, currentConfiguration],
+    [request, result, residualOverlays2025, solvedConfiguration],
   );
   const years = request?.configuration.years ?? [];
 

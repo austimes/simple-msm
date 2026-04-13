@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePackageStore } from '../data/packageStore';
 import { buildSolveRequest } from '../solver/buildSolveRequest';
 import type { SolveRequest, SolveResult } from '../solver/contract';
+import type { ConfigurationDocument } from '../data/types.ts';
 import {
   buildConfigurationBuildFailure,
   buildConfigurationSolveFailure,
@@ -15,6 +16,7 @@ export interface SolveState {
   phase: SolvePhase;
   result: SolveResult | null;
   request: SolveRequest | null;
+  solvedConfiguration: ConfigurationDocument | null;
   error: string | null;
   failure: ConfigurationSolveFailure | null;
   solve: () => void;
@@ -28,6 +30,7 @@ export function useConfigurationSolve(): SolveState {
   const [phase, setPhase] = useState<SolvePhase>('solving');
   const [result, setResult] = useState<SolveResult | null>(null);
   const [request, setRequest] = useState<SolveRequest | null>(null);
+  const [solvedConfiguration, setSolvedConfiguration] = useState<ConfigurationDocument | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [failure, setFailure] = useState<ConfigurationSolveFailure | null>(null);
 
@@ -35,10 +38,11 @@ export function useConfigurationSolve(): SolveState {
 
   const solve = useCallback(() => {
     const solveId = ++cancelledRef.current;
+    const configSnapshot = currentConfiguration;
 
     let builtRequest: SolveRequest;
     try {
-      builtRequest = buildSolveRequest({ sectorStates, appConfig }, currentConfiguration);
+      builtRequest = buildSolveRequest({ sectorStates, appConfig }, configSnapshot);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to build solve request.';
       setPhase('error');
@@ -67,6 +71,7 @@ export function useConfigurationSolve(): SolveState {
 
         setRequest(builtRequest);
         setResult(workerResult);
+        setSolvedConfiguration(configSnapshot);
         setError(null);
         setPhase('solved');
         setFailure(null);
@@ -104,6 +109,7 @@ export function useConfigurationSolve(): SolveState {
     phase,
     result,
     request,
+    solvedConfiguration,
     error,
     failure,
     solve,
