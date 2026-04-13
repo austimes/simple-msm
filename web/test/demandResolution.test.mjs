@@ -24,7 +24,22 @@ const referenceConfiguration = readJson('../public/app_config/reference_configur
 test('reference configuration demand metadata reproduces the stored demand tables', () => {
   const resolved = resolveConfigurationDocument(referenceConfiguration, appConfig, 'reference_configuration.json');
 
-  assert.deepEqual(resolved.service_demands, referenceConfiguration.service_demands);
+  // Originally-stored service demand tables must round-trip exactly.
+  for (const [id, table] of Object.entries(referenceConfiguration.service_demands)) {
+    assert.deepEqual(resolved.service_demands[id], table, `service_demands.${id} mismatch`);
+  }
+
+  // The resolver may add zero-demand tables for services that exist in the
+  // package but had no demand configured (e.g. land_sequestration). Verify any
+  // extra keys are all-zero.
+  for (const [id, table] of Object.entries(resolved.service_demands)) {
+    if (!(id in referenceConfiguration.service_demands)) {
+      const values = Object.values(table);
+      assert.ok(values.length > 0, `zero-demand table ${id} should have year entries`);
+      assert.ok(values.every((v) => v === 0), `extra service_demands.${id} should be all zeros`);
+    }
+  }
+
   assert.deepEqual(
     resolved.external_commodity_demands,
     referenceConfiguration.external_commodity_demands,
