@@ -2,7 +2,7 @@ import { loadAppConfig } from './appConfigLoader.ts';
 import { buildPackageEnrichment, normalizePackageTextFiles } from './packageCompanions.ts';
 import { deriveBaselineAnchorsFromPackage } from './packageAnchorMapping.ts';
 import { parseCsv } from './parseCsv.ts';
-import { loadDefaultConfiguration } from './configurationDocumentLoader.ts';
+import { buildDefaultResidualOverlays, loadDefaultConfiguration } from './configurationDocumentLoader.ts';
 import type { EmissionEntry, PackageData, SectorState, ServiceDemandAnchorRow, ServiceDemandAnchorType, ResidualOverlayRow, ResidualOverlayDomain, CommodityBalance2025Row, EmissionsBalance2025Row } from './types.ts';
 
 const packageTextFiles = normalizePackageTextFiles(
@@ -212,6 +212,7 @@ export function loadPackage(): PackageData {
 
   const enrichment = buildPackageEnrichment(packageTextFiles);
   const defaultConfiguration = loadDefaultConfiguration(appConfig);
+  defaultConfiguration.residual_overlays = buildDefaultResidualOverlays(residualOverlays2025);
 
   return {
     sectorStates: rows.map(toSectorState),

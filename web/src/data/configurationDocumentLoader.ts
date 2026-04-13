@@ -3,7 +3,7 @@ import type { ErrorObject } from 'ajv';
 import referenceConfigurationText from '@root/web/src/app_config/reference_configuration.json?raw';
 import configurationSchemaText from '@root/web/src/app_config/configuration_schema.json?raw';
 import { resolveConfigurationDocument } from './demandResolution.ts';
-import type { AppConfigRegistry, ConfigurationDocument } from './types.ts';
+import type { AppConfigRegistry, ConfigurationDocument, ConfigurationResidualOverlays, ResidualOverlayRow } from './types.ts';
 
 type JsonObject = Record<string, unknown>;
 
@@ -116,6 +116,35 @@ export function parseConfigurationDocument(
 ): ConfigurationDocument {
   const configuration = validateConfigurationDocument(parseJsonObject<unknown>(raw, label), label);
   return appConfig ? resolveConfigurationDocument(configuration, appConfig, label) : configuration;
+}
+
+export function buildDefaultResidualOverlays(
+  overlayRows: ResidualOverlayRow[],
+): ConfigurationResidualOverlays {
+  const ids = Array.from(new Set(overlayRows.map((row) => row.overlay_id)));
+  return {
+    controls_by_overlay_id: Object.fromEntries(
+      ids.map((id) => [id, { included: true }]),
+    ),
+  };
+}
+
+export function ensureResidualOverlays(
+  configuration: ConfigurationDocument,
+  overlayRows: ResidualOverlayRow[],
+): ConfigurationDocument {
+  const knownIds = Array.from(new Set(overlayRows.map((row) => row.overlay_id)));
+  const existing = configuration.residual_overlays?.controls_by_overlay_id ?? {};
+  const merged: Record<string, { included: boolean }> = {};
+
+  for (const id of knownIds) {
+    merged[id] = { included: existing[id]?.included ?? true };
+  }
+
+  return {
+    ...configuration,
+    residual_overlays: { controls_by_overlay_id: merged },
+  };
 }
 
 export function loadDefaultConfiguration(appConfig: AppConfigRegistry): ConfigurationDocument {

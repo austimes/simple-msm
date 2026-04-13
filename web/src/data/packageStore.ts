@@ -19,6 +19,7 @@ import {
   loadBuiltinConfigurations,
   withSeedOutputIds,
 } from './configurationLoader.ts';
+import { ensureResidualOverlays } from './configurationDocumentLoader.ts';
 import { getActiveStateIds } from './configurationWorkspaceModel.ts';
 
 export type ConfigurationDraftSource = 'reference' | 'local_draft' | 'imported' | 'draft' | 'configuration';
@@ -45,6 +46,8 @@ interface PackageStore extends PackageData {
   toggleStateActive: (outputId: string, stateId: string) => void;
   setOutputControlMode: (outputId: string, mode: ConfigurationControlMode) => void;
 
+  setResidualOverlayIncluded: (overlayId: string, included: boolean) => void;
+  setAllResidualOverlaysIncluded: (included: boolean) => void;
   setDemandPreset: (presetId: string) => void;
   setRespectMaxShare: (enabled: boolean) => void;
   loadConfiguration: (config: ConfigurationDocument) => void;
@@ -130,7 +133,10 @@ export const usePackageStore = create<PackageStore>((set, get) => {
   let initialDirty = false;
 
   if (persistedDraft.configuration) {
-    initialConfiguration = cloneConfiguration(persistedDraft.configuration);
+    initialConfiguration = ensureResidualOverlays(
+      cloneConfiguration(persistedDraft.configuration),
+      pkg.residualOverlays2025,
+    );
     initialSource = 'local_draft';
 
     const restoredMeta = persistedDraft.configMeta;
@@ -201,7 +207,10 @@ export const usePackageStore = create<PackageStore>((set, get) => {
     persistenceNotice: persistedDraft.notice,
     persistenceError: persistedDraft.error,
     replaceCurrentConfiguration: (configuration, source = 'draft', notice = null) => {
-      const nextConfiguration = cloneConfiguration(configuration);
+      const nextConfiguration = ensureResidualOverlays(
+        cloneConfiguration(configuration),
+        get().residualOverlays2025,
+      );
       const persistenceError = persistConfigurationDraft(nextConfiguration);
       persistConfigMeta(null);
 
@@ -310,6 +319,27 @@ export const usePackageStore = create<PackageStore>((set, get) => {
       };
       commitConfigurationEdit(nextConfiguration);
     },
+    setResidualOverlayIncluded: (overlayId, included) => {
+      const nextConfiguration = cloneConfiguration(get().currentConfiguration);
+      nextConfiguration.residual_overlays = {
+        ...nextConfiguration.residual_overlays,
+        controls_by_overlay_id: {
+          ...nextConfiguration.residual_overlays?.controls_by_overlay_id,
+          [overlayId]: { included },
+        },
+      };
+      commitConfigurationEdit(nextConfiguration);
+    },
+    setAllResidualOverlaysIncluded: (included) => {
+      const nextConfiguration = cloneConfiguration(get().currentConfiguration);
+      const controls = nextConfiguration.residual_overlays?.controls_by_overlay_id ?? {};
+      nextConfiguration.residual_overlays = {
+        controls_by_overlay_id: Object.fromEntries(
+          Object.keys(controls).map((id) => [id, { included }]),
+        ),
+      };
+      commitConfigurationEdit(nextConfiguration);
+    },
     setDemandPreset: (presetId) => {
       const nextConfiguration = cloneConfiguration(get().currentConfiguration);
       nextConfiguration.demand_generation.preset_id = presetId;
@@ -331,7 +361,10 @@ export const usePackageStore = create<PackageStore>((set, get) => {
       commitConfigurationEdit(nextConfiguration);
     },
     loadConfiguration: (config) => {
-      const nextConfiguration = cloneConfiguration(config);
+      const nextConfiguration = ensureResidualOverlays(
+        cloneConfiguration(config),
+        get().residualOverlays2025,
+      );
       const baseConfiguration = cloneConfiguration(nextConfiguration);
       const configId = getConfigurationId(config) ?? config.name;
       const readonly = isReadonlyConfiguration(config);
