@@ -84,7 +84,7 @@ function toSectorState(row) {
 }
 
 function loadPkg() {
-  const csvText = readText('../../aus_phase1_sector_state_library/data/sector_states.csv');
+  const csvText = readText('../../aus_phase1_sector_state_library/data/sector_state_curves_balanced.csv');
   const csvRows = parseCsv(csvText);
   const sectorStates = csvRows.map(toSectorState);
   const appConfig = loadAppConfig();
