@@ -105,6 +105,20 @@ function toSectorState(row) {
     times_or_vedalang_mapping_notes: row['times_or_vedalang_mapping_notes'],
     would_expand_to_explicit_capacity: parseBool(row['would_expand_to_explicit_capacity?'] ?? ''),
     would_expand_to_process_chain: parseBool(row['would_expand_to_process_chain?'] ?? ''),
+    energy_co2e: parseNum(row['energy_co2e']),
+    process_co2e: parseNum(row['process_co2e']),
+    state_stage_family: row['state_stage_family'] ?? '',
+    state_stage_rank: parseNum(row['state_stage_rank']),
+    state_stage_code: row['state_stage_code'] ?? '',
+    state_sort_key: row['state_sort_key'] ?? '',
+    state_label_standardized: row['state_label_standardized'] ?? '',
+    is_default_incumbent_2025: parseBool(row['is_default_incumbent_2025'] ?? ''),
+    state_option_rank: parseNum(row['state_option_rank']),
+    state_option_code: row['state_option_code'] ?? '',
+    state_option_label: row['state_option_label'] ?? '',
+    balance_tuning_flag: parseBool(row['balance_tuning_flag'] ?? ''),
+    balance_tuning_note: row['balance_tuning_note'] ?? '',
+    benchmark_balance_note: row['benchmark_balance_note'] ?? '',
   };
 }
 
@@ -283,4 +297,31 @@ test('baseline incumbent configuration also solves with only incumbent endogenou
     assert.ok(balance.supply > 0, `electricity ${balance.year} should have positive supply`);
     assert.ok(Math.abs(balance.balanceGap ?? 0) < 1e-2, `electricity ${balance.year} should balance`);
   }
+});
+
+// --- Balanced-table metadata regression tests ---
+
+test('at least one parsed SectorState has is_default_incumbent_2025 === true', () => {
+  const incumbent = pkg.sectorStates.find((s) => s.is_default_incumbent_2025 === true);
+  assert.ok(incumbent, 'no row found with is_default_incumbent_2025 === true');
+});
+
+test('at least one parsed SectorState has a non-empty state_sort_key', () => {
+  const withSortKey = pkg.sectorStates.find((s) => s.state_sort_key !== '');
+  assert.ok(withSortKey, 'no row found with a non-empty state_sort_key');
+});
+
+test('electricity incumbent 2025 state has energy_co2e populated', () => {
+  const elecIncumbent2025 = pkg.sectorStates.find(
+    (s) => s.state_id === INCUMBENT_ELECTRICITY_STATE_ID && s.year === 2025,
+  );
+  assert.ok(elecIncumbent2025, 'electricity incumbent 2025 row not found');
+  assert.ok(
+    elecIncumbent2025.energy_co2e != null && elecIncumbent2025.energy_co2e > 0,
+    `expected positive energy_co2e, got ${elecIncumbent2025.energy_co2e}`,
+  );
+});
+
+test('row count matches manifest expectation', () => {
+  assert.equal(pkg.sectorStates.length, 228, `expected 228 rows, got ${pkg.sectorStates.length}`);
 });
