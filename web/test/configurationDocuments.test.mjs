@@ -121,10 +121,11 @@ test('configuration documents round-trip through browser persistence into scoped
   assert.ok(storage.getItem(CONFIG_META_STORAGE_KEY));
 
   const restored = loadPersistedConfigurationDraft(appConfig, storage);
+  const resolved = resolveConfigurationDocument(structuredClone(configuration), appConfig);
 
   assert.equal(restored.error, null);
   assert.equal(restored.notice, 'Restored the most recent configuration document from this browser.');
-  assert.deepEqual(restored.configuration, configuration);
+  assert.deepEqual(restored.configuration, resolved);
   assert.deepEqual(restored.configMeta?.baseConfiguration, configuration);
 
   const request = buildSolveRequest(pkg, restored.configuration);
