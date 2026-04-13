@@ -13,6 +13,8 @@ import {
   type PathwayChartCardData,
   type RemovalsChartCardData,
 } from '../../results/chartData';
+import { buildAllContributionRows } from '../../results/resultContributions.ts';
+import { usePackageStore } from '../../data/packageStore.ts';
 import type { SolveRequest, SolveResult } from '../../solver/contract.ts';
 import type { ConfigurationSolveFailure } from '../../solver/configurationSolveFailure.ts';
 
@@ -111,23 +113,39 @@ export default function ConfigurationWorkspaceCenter({
   error,
   failure,
 }: ConfigurationWorkspaceCenterProps) {
+  const residualOverlays2025 = usePackageStore((s) => s.residualOverlays2025);
+  const currentConfiguration = usePackageStore((s) => s.currentConfiguration);
+
   const hasSolvedSnapshot = request != null && result != null;
   const showCharts = hasSolvedSnapshot && phase !== 'error';
+
+  const contributions = useMemo(
+    () =>
+      request && result
+        ? buildAllContributionRows(request, result, residualOverlays2025, currentConfiguration)
+        : [],
+    [request, result, residualOverlays2025, currentConfiguration],
+  );
+  const years = request?.configuration.years ?? [];
+
   const demandBySectorChart = useMemo(
     () => (request ? buildDemandBySectorChart(request) : null),
     [request],
   );
   const emissionsChart = useMemo(
-    () => (request && result ? buildEmissionsBySectorChart(request, result) : null),
-    [request, result],
+    () => (contributions.length > 0 ? buildEmissionsBySectorChart(contributions, years) : null),
+    [contributions, years],
   );
   const consumptionChart = useMemo(
-    () => (request && result ? buildFuelConsumptionChart(request, result) : null),
-    [request, result],
+    () => (contributions.length > 0 ? buildFuelConsumptionChart(contributions, years) : null),
+    [contributions, years],
   );
   const costByComponentChart = useMemo(
-    () => (request && result ? buildCostByComponentChart(request, result) : null),
-    [request, result],
+    () =>
+      contributions.length > 0
+        ? buildCostByComponentChart(contributions, years, request?.objectiveCost)
+        : null,
+    [contributions, years, request?.objectiveCost],
   );
   const pathwayCharts = useMemo(
     () => (request && result ? buildPathwayChartCards(request, result) : []),

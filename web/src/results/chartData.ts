@@ -1,14 +1,12 @@
 import type {
   NormalizedSolverRow,
+  SolveObjectiveCostMetadata,
   SolveRequest,
   SolveResult,
   SolveStateShareSummary,
 } from '../solver/contract';
-import {
-  convertUnitQuantity,
-  getCommodityMetadata,
-  parseUnitRatio,
-} from '../data/commodityMetadata.ts';
+import { getCommodityMetadata } from '../data/commodityMetadata.ts';
+import type { ResultContributionRow } from './resultContributions.ts';
 
 const CHART_PALETTE = [
   '#2563eb', '#dc2626', '#059669', '#d97706', '#7c3aed',
@@ -98,86 +96,68 @@ function buildSeries(
   return series;
 }
 
-function formatObjectiveCostAxisLabel(request: SolveRequest): string {
-  if (!request.objectiveCost?.currency) {
+function formatObjectiveCostAxisLabelFromMetadata(objectiveCost?: SolveObjectiveCostMetadata): string {
+  if (!objectiveCost?.currency) {
     return 'Cost';
   }
 
-  const parsedCurrency = request.objectiveCost.currency.match(/^(.*?)(?:_(\d{4}))?$/);
-  const currencyBase = (parsedCurrency?.[1] ?? request.objectiveCost.currency).replaceAll('_', ' ').trim();
-  const year = request.objectiveCost.costBasisYear ?? (
+  const parsedCurrency = objectiveCost.currency.match(/^(.*?)(?:_(\d{4}))?$/);
+  const currencyBase = (parsedCurrency?.[1] ?? objectiveCost.currency).replaceAll('_', ' ').trim();
+  const year = objectiveCost.costBasisYear ?? (
     parsedCurrency?.[2] ? Number(parsedCurrency[2]) : null
   );
 
   return year ? `${currencyBase} ${year}` : currencyBase;
 }
 
-function convertFuelConsumptionToPj(value: number, unit: string): number {
-  const { numerator } = parseUnitRatio(unit);
-  return convertUnitQuantity(value, numerator as 'GJ' | 'MWh' | 'PJ', 'PJ');
-}
-
 export function buildEmissionsBySectorChart(
-  request: SolveRequest,
-  result: SolveResult,
+  contributions: ResultContributionRow[],
+  years: number[],
 ): StackedChartData {
-  const years = request.configuration.years;
-  const lookup = buildShareLookup(result.reporting.stateShares);
   const grouped = new Map<string, Map<number, number>>();
 
-  for (const row of request.rows) {
-    const ss = lookup.get(shareKey(row.outputId, row.year, row.stateId));
-    if (!ss || ss.activity === 0) continue;
+  for (const row of contributions) {
+    if (row.metric !== 'emissions') continue;
 
-    const totalEmissions = row.directEmissions.reduce((sum, e) => sum + e.value, 0);
-    if (totalEmissions === 0) continue;
-
-    const emissions = ss.activity * totalEmissions;
-
-    let yearMap = grouped.get(row.sector);
+    const key = row.sourceKind === 'overlay' ? `overlay:${row.sectorId}` : row.sectorId;
+    let yearMap = grouped.get(key);
     if (!yearMap) {
       yearMap = new Map<number, number>();
-      grouped.set(row.sector, yearMap);
+      grouped.set(key, yearMap);
     }
-    yearMap.set(row.year, (yearMap.get(row.year) ?? 0) + emissions);
+    yearMap.set(row.year, (yearMap.get(row.year) ?? 0) + row.value);
+  }
+
+  const labelLookup = new Map<string, string>();
+  for (const row of contributions) {
+    if (row.metric !== 'emissions') continue;
+    const key = row.sourceKind === 'overlay' ? `overlay:${row.sectorId}` : row.sectorId;
+    if (!labelLookup.has(key)) labelLookup.set(key, row.sectorLabel);
   }
 
   return {
     title: 'Emissions by Sector',
     yAxisLabel: ABSOLUTE_EMISSIONS_AXIS_LABEL,
     years,
-    series: buildSeries(grouped, years, (key) => key),
+    series: buildSeries(grouped, years, (key) => labelLookup.get(key) ?? key),
   };
 }
 
 export function buildFuelConsumptionChart(
-  request: SolveRequest,
-  result: SolveResult,
+  contributions: ResultContributionRow[],
+  years: number[],
 ): StackedChartData {
-  const years = request.configuration.years;
-  const lookup = buildShareLookup(result.reporting.stateShares);
   const grouped = new Map<string, Map<number, number>>();
 
-  for (const row of request.rows) {
-    const ss = lookup.get(shareKey(row.outputId, row.year, row.stateId));
-    if (!ss || ss.activity === 0) continue;
+  for (const row of contributions) {
+    if (row.metric !== 'fuel' || row.commodityId === null) continue;
 
-    for (const input of row.inputs) {
-      const metadata = getCommodityMetadata(input.commodityId);
-      if (metadata.kind !== 'fuel') continue;
-
-      const consumption = convertFuelConsumptionToPj(ss.activity * input.coefficient, input.unit);
-      if (consumption === 0) {
-        continue;
-      }
-
-      let yearMap = grouped.get(input.commodityId);
-      if (!yearMap) {
-        yearMap = new Map<number, number>();
-        grouped.set(input.commodityId, yearMap);
-      }
-      yearMap.set(row.year, (yearMap.get(row.year) ?? 0) + consumption);
+    let yearMap = grouped.get(row.commodityId);
+    if (!yearMap) {
+      yearMap = new Map<number, number>();
+      grouped.set(row.commodityId, yearMap);
     }
+    yearMap.set(row.year, (yearMap.get(row.year) ?? 0) + row.value);
   }
 
   return {
@@ -313,98 +293,66 @@ export function buildDemandBySubsectorChart(request: SolveRequest): StackedChart
 }
 
 export function buildEmissionsBySubsectorChart(
-  request: SolveRequest,
-  result: SolveResult,
+  contributions: ResultContributionRow[],
+  years: number[],
 ): StackedChartData {
-  const years = request.configuration.years;
-  const lookup = buildShareLookup(result.reporting.stateShares);
   const grouped = new Map<string, Map<number, number>>();
 
-  for (const row of request.rows) {
-    const ss = lookup.get(shareKey(row.outputId, row.year, row.stateId));
-    if (!ss || ss.activity === 0) continue;
+  for (const row of contributions) {
+    if (row.metric !== 'emissions') continue;
 
-    const totalEmissions = row.directEmissions.reduce((sum, e) => sum + e.value, 0);
-    if (totalEmissions === 0) continue;
-
-    const emissions = ss.activity * totalEmissions;
-
-    let yearMap = grouped.get(row.subsector);
+    const key = row.sourceKind === 'overlay' ? `overlay:${row.overlayId}` : row.sectorId;
+    let yearMap = grouped.get(key);
     if (!yearMap) {
       yearMap = new Map<number, number>();
-      grouped.set(row.subsector, yearMap);
+      grouped.set(key, yearMap);
     }
-    yearMap.set(row.year, (yearMap.get(row.year) ?? 0) + emissions);
+    yearMap.set(row.year, (yearMap.get(row.year) ?? 0) + row.value);
+  }
+
+  const labelLookup = new Map<string, string>();
+  for (const row of contributions) {
+    if (row.metric !== 'emissions') continue;
+    const key = row.sourceKind === 'overlay' ? `overlay:${row.overlayId}` : row.sectorId;
+    if (!labelLookup.has(key)) labelLookup.set(key, row.sourceKind === 'overlay' ? row.sourceLabel : row.sectorLabel);
   }
 
   return {
     title: 'Emissions by Sub-sector',
     yAxisLabel: ABSOLUTE_EMISSIONS_AXIS_LABEL,
     years,
-    series: buildSeries(grouped, years, (key) => key),
+    series: buildSeries(grouped, years, (key) => labelLookup.get(key) ?? key),
   };
 }
 
 export function buildCostByComponentChart(
-  request: SolveRequest,
-  result: SolveResult,
+  contributions: ResultContributionRow[],
+  years: number[],
+  objectiveCost?: SolveObjectiveCostMetadata,
 ): StackedChartData {
-  const years = request.configuration.years;
-  const lookup = buildShareLookup(result.reporting.stateShares);
-
-  const conversionMap = new Map<number, number>();
-  const commodityMap = new Map<number, number>();
-  const carbonMap = new Map<number, number>();
-
-  const balancedCommodityKeys = new Set(
-    result.reporting.commodityBalances
-      .filter((cb) => cb.mode !== 'externalized')
-      .map((cb) => `${cb.commodityId}::${cb.year}`),
-  );
-
-  for (const row of request.rows) {
-    const ss = lookup.get(shareKey(row.outputId, row.year, row.stateId));
-    if (!ss || ss.activity === 0) continue;
-
-    const conversion = ss.activity * (row.conversionCostPerUnit ?? 0);
-    if (conversion !== 0) {
-      conversionMap.set(row.year, (conversionMap.get(row.year) ?? 0) + conversion);
-    }
-
-    const commodity = ss.activity * row.inputs.reduce((total, input) => {
-      if (balancedCommodityKeys.has(`${input.commodityId}::${row.year}`)) {
-        return total;
-      }
-      const price =
-        request.configuration.commodityPriceByCommodity[input.commodityId]
-          ?.valuesByYear[String(row.year)] ?? 0;
-      return total + input.coefficient * price;
-    }, 0);
-    if (commodity !== 0) {
-      commodityMap.set(row.year, (commodityMap.get(row.year) ?? 0) + commodity);
-    }
-
-    const emissionsPerUnit = row.directEmissions.reduce(
-      (total, emission) => total + emission.value,
-      0,
-    );
-    const carbon =
-      ss.activity *
-      emissionsPerUnit *
-      (request.configuration.carbonPriceByYear[String(row.year)] ?? 0);
-    if (carbon !== 0) {
-      carbonMap.set(row.year, (carbonMap.get(row.year) ?? 0) + carbon);
-    }
-  }
+  const componentLabels: Record<string, string> = {
+    conversion: 'Conversion',
+    commodity: 'Commodity',
+    carbon: 'Carbon',
+  };
 
   const grouped = new Map<string, Map<number, number>>();
-  grouped.set('Conversion', conversionMap);
-  grouped.set('Commodity', commodityMap);
-  grouped.set('Carbon', carbonMap);
+
+  for (const row of contributions) {
+    if (row.metric !== 'cost' || row.costComponent === null) continue;
+
+    const label = componentLabels[row.costComponent] ?? row.costComponent;
+    let yearMap = grouped.get(label);
+    if (!yearMap) {
+      yearMap = new Map<number, number>();
+      grouped.set(label, yearMap);
+    }
+    yearMap.set(row.year, (yearMap.get(row.year) ?? 0) + row.value);
+  }
 
   return {
     title: 'Cost by Component',
-    yAxisLabel: formatObjectiveCostAxisLabel(request),
+    yAxisLabel: formatObjectiveCostAxisLabelFromMetadata(objectiveCost),
     years,
     series: buildSeries(grouped, years, (key) => key),
   };
