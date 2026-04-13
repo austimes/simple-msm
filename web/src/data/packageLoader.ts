@@ -2,7 +2,7 @@ import { loadAppConfig } from './appConfigLoader.ts';
 import { buildPackageEnrichment, normalizePackageTextFiles } from './packageCompanions.ts';
 import { parseCsv } from './parseCsv.ts';
 import { loadDefaultConfiguration } from './configurationDocumentLoader.ts';
-import type { EmissionEntry, PackageData, SectorState } from './types.ts';
+import type { EmissionEntry, PackageData, SectorState, ServiceDemandAnchorRow, ServiceDemandAnchorType } from './types.ts';
 
 const packageTextFiles = normalizePackageTextFiles(
   import.meta.glob<string>(
@@ -105,14 +105,36 @@ function toSectorState(row: Record<string, string>): SectorState {
   };
 }
 
+function toServiceDemandAnchorRow(row: Record<string, string>): ServiceDemandAnchorRow {
+  return {
+    anchor_type: row['anchor_type'] as ServiceDemandAnchorType,
+    service_or_output_name: row['service_or_output_name'],
+    default_2025_state_id: row['default_2025_state_id'],
+    default_2025_state_option_code: row['default_2025_state_option_code'],
+    default_2025_state_option_label: row['default_2025_state_option_label'],
+    quantity_2025: parseNum(row['quantity_2025']),
+    unit: row['unit'],
+    anchor_status: row['anchor_status'],
+    source_family: row['source_family'],
+    coverage_note: row['coverage_note'],
+    implied_gross_input_energy_pj_if_default: parseNum(row['implied_gross_input_energy_pj_if_default']),
+    implied_benchmark_final_energy_pj_if_default: parseNum(row['implied_benchmark_final_energy_pj_if_default']),
+    implied_energy_emissions_mtco2e_if_default: parseNum(row['implied_energy_emissions_mtco2e_if_default']),
+    implied_process_emissions_mtco2e_if_default: parseNum(row['implied_process_emissions_mtco2e_if_default']),
+    implied_total_emissions_mtco2e_if_default: parseNum(row['implied_total_emissions_mtco2e_if_default']),
+  };
+}
+
 export function loadPackage(): PackageData {
   const rows = parseCsv(requirePackageFile('data/sector_state_curves_balanced.csv'));
+  const anchorRows = parseCsv(requirePackageFile('data/service_demand_anchors_2025.csv'));
   const appConfig = loadAppConfig();
   const enrichment = buildPackageEnrichment(packageTextFiles);
   const defaultConfiguration = loadDefaultConfiguration(appConfig);
 
   return {
     sectorStates: rows.map(toSectorState),
+    serviceDemandAnchors2025: anchorRows.map(toServiceDemandAnchorRow),
     readme: enrichment.readme,
     phase2Memo: enrichment.phase2Memo,
     enrichment,

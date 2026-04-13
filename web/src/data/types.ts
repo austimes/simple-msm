@@ -273,8 +273,33 @@ export interface SectorState {
   benchmark_balance_note: string;
 }
 
+export type ServiceDemandAnchorType =
+  | 'service_demand_anchor'
+  | 'derived_explicit_electricity_load'
+  | 'external_electricity_balance_anchor'
+  | 'electricity_output_benchmark';
+
+export interface ServiceDemandAnchorRow {
+  anchor_type: ServiceDemandAnchorType;
+  service_or_output_name: string;
+  default_2025_state_id: string;
+  default_2025_state_option_code: string;
+  default_2025_state_option_label: string;
+  quantity_2025: number | null;
+  unit: string;
+  anchor_status: string;
+  source_family: string;
+  coverage_note: string;
+  implied_gross_input_energy_pj_if_default: number | null;
+  implied_benchmark_final_energy_pj_if_default: number | null;
+  implied_energy_emissions_mtco2e_if_default: number | null;
+  implied_process_emissions_mtco2e_if_default: number | null;
+  implied_total_emissions_mtco2e_if_default: number | null;
+}
+
 export interface PackageData {
   sectorStates: SectorState[];
+  serviceDemandAnchors2025: ServiceDemandAnchorRow[];
   readme: string;
   phase2Memo: string;
   enrichment: PackageEnrichment;
