@@ -27,6 +27,7 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { basename, isAbsolute, relative as relativePath, resolve as resolvePath } from 'node:path';
 import { parseCsv } from './src/data/parseCsv.ts';
+import { deriveBaselineAnchorsFromPackage } from './src/data/packageAnchorMapping.ts';
 import { resolveConfigurationDocument } from './src/data/demandResolution.ts';
 import {
   buildSolveRequest,
@@ -222,12 +223,24 @@ function toSectorState(row) {
   };
 }
 
+function toServiceDemandAnchorRow(row) {
+  return {
+    anchor_type: row['anchor_type'],
+    service_or_output_name: row['service_or_output_name'],
+    quantity_2025: parseNum(row['quantity_2025']),
+    unit: row['unit'],
+    source_family: row['source_family'],
+    coverage_note: row['coverage_note'],
+  };
+}
+
 function loadAppConfig() {
   return {
     output_roles: readJsonRelative('public/app_config/output_roles.json'),
     baseline_activity_anchors: readJsonRelative('public/app_config/baseline_activity_anchors.json'),
     demand_growth_presets: readJsonRelative('public/app_config/demand_growth_presets.json'),
     commodity_price_presets: readJsonRelative('public/app_config/commodity_price_presets.json'),
+    carbon_price_presets: readJsonRelative('public/app_config/carbon_price_presets.json'),
     explanation_tag_rules: readJsonRelative('public/app_config/explanation_tag_rules.json'),
   };
 }
@@ -236,6 +249,16 @@ function loadPackage() {
   const csvText = readTextRelative('../aus_phase1_sector_state_library/data/sector_state_curves_balanced.csv');
   const sectorStates = parseCsv(csvText).map(toSectorState);
   const appConfig = loadAppConfig();
+
+  // Parse anchor CSV and merge into appConfig (same logic as browser path)
+  const anchorCsvText = readTextRelative('../aus_phase1_sector_state_library/data/service_demand_anchors_2025.csv');
+  const anchorRows = parseCsv(anchorCsvText).map(toServiceDemandAnchorRow);
+  const csvAnchors = deriveBaselineAnchorsFromPackage(anchorRows, appConfig.output_roles);
+  appConfig.baseline_activity_anchors = {
+    ...appConfig.baseline_activity_anchors,
+    ...csvAnchors,
+  };
+
   const normalizedRows = normalizeSolverRows({ sectorStates, appConfig });
   return {
     sectorStates, appConfig, normalizedRows,

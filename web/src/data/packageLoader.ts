@@ -1,5 +1,6 @@
 import { loadAppConfig } from './appConfigLoader.ts';
 import { buildPackageEnrichment, normalizePackageTextFiles } from './packageCompanions.ts';
+import { deriveBaselineAnchorsFromPackage } from './packageAnchorMapping.ts';
 import { parseCsv } from './parseCsv.ts';
 import { loadDefaultConfiguration } from './configurationDocumentLoader.ts';
 import type { EmissionEntry, PackageData, SectorState, ServiceDemandAnchorRow, ServiceDemandAnchorType } from './types.ts';
@@ -129,12 +130,25 @@ export function loadPackage(): PackageData {
   const rows = parseCsv(requirePackageFile('data/sector_state_curves_balanced.csv'));
   const anchorRows = parseCsv(requirePackageFile('data/service_demand_anchors_2025.csv'));
   const appConfig = loadAppConfig();
+  const serviceDemandAnchors2025 = anchorRows.map(toServiceDemandAnchorRow);
+
+  // Derive anchors from the package CSV and merge into appConfig.
+  // Package-derived anchors override JSON values; JSON-only entries are preserved.
+  const csvAnchors = deriveBaselineAnchorsFromPackage(
+    serviceDemandAnchors2025,
+    appConfig.output_roles,
+  );
+  appConfig.baseline_activity_anchors = {
+    ...appConfig.baseline_activity_anchors,
+    ...csvAnchors,
+  };
+
   const enrichment = buildPackageEnrichment(packageTextFiles);
   const defaultConfiguration = loadDefaultConfiguration(appConfig);
 
   return {
     sectorStates: rows.map(toSectorState),
-    serviceDemandAnchors2025: anchorRows.map(toServiceDemandAnchorRow),
+    serviceDemandAnchors2025,
     readme: enrichment.readme,
     phase2Memo: enrichment.phase2Memo,
     enrichment,
