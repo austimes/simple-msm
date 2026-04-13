@@ -1,6 +1,7 @@
 import { type ReactNode, useMemo, useState } from 'react';
 import { buildSectorStateFamilies } from '../data/libraryInsights';
 import { usePackageStore } from '../data/packageStore';
+import BaselineClosureDiagnosticsCard from './BaselineClosureDiagnosticsCard';
 import MethodsSchemaSummaryCard from './MethodsSchemaSummaryCard';
 
 type MethodsTab = 'about' | 'conventions' | 'confidence' | 'phase2' | 'evidence';
@@ -440,6 +441,8 @@ export default function MethodsPage() {
                 'The packaged README did not include a provenance note.',
               )}
             </section>
+
+            <BaselineClosureDiagnosticsCard />
           </div>
         ) : null}
 
