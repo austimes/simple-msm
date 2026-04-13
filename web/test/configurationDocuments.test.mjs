@@ -324,7 +324,7 @@ test('bundled configurations and reference assets default respect_max_share to t
   }
 
   const referenceAssetPaths = [
-    '../src/app_config/reference_configuration.json',
+    '../src/configurations/reference.json',
     '../public/app_config/reference_configuration.json',
     '../public/app_config/reference_configuration_v02.json',
   ];

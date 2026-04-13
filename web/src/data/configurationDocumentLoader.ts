@@ -1,6 +1,6 @@
 import Ajv2020 from 'ajv/dist/2020';
 import type { ErrorObject } from 'ajv';
-import referenceConfigurationText from '@root/web/src/app_config/reference_configuration.json?raw';
+import referenceConfigurationText from '@root/web/src/configurations/reference.json?raw';
 import configurationSchemaText from '@root/web/src/app_config/configuration_schema.json?raw';
 import { resolveConfigurationDocument } from './demandResolution.ts';
 import type { AppConfigRegistry, ConfigurationDocument, ConfigurationResidualOverlays, ResidualOverlayRow } from './types.ts';
