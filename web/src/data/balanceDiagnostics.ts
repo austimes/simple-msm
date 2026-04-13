@@ -4,19 +4,23 @@
  * DIAGNOSTIC / PRESENTATION ONLY — nothing in this module should be imported
  * by buildSolveRequest.ts or any solver-facing code. These functions exist
  * solely for balance-sheet validation and UI display.
+ *
+ * TODO(3g6.3): Refactor to work with the unified ResidualOverlayRow type.
+ * Currently uses the unified type but filters by overlay_domain to preserve
+ * the existing API surface for BaselineClosureDiagnosticsCard.
  */
-import type { ResidualEnergyOverlayRow, ResidualNonEnergyEmissionsOverlayRow } from './types.ts';
+import type { ResidualOverlayRow } from './types.ts';
 
 export function getDefaultIncludedEnergyOverlays(
-  overlays: ResidualEnergyOverlayRow[],
-): ResidualEnergyOverlayRow[] {
-  return overlays.filter((r) => r.default_include === true);
+  overlays: ResidualOverlayRow[],
+): ResidualOverlayRow[] {
+  return overlays.filter((r) => r.overlay_domain === 'energy_residual' && r.default_include === true);
 }
 
 export function getDefaultIncludedNonEnergyOverlays(
-  overlays: ResidualNonEnergyEmissionsOverlayRow[],
-): ResidualNonEnergyEmissionsOverlayRow[] {
-  return overlays.filter((r) => r.default_include === true);
+  overlays: ResidualOverlayRow[],
+): ResidualOverlayRow[] {
+  return overlays.filter((r) => r.overlay_domain !== 'energy_residual' && r.default_include === true);
 }
 
 export interface OverlayTotalsSummary {
@@ -27,29 +31,28 @@ export interface OverlayTotalsSummary {
 }
 
 export function summarizeOverlayTotals(
-  energyOverlays: ResidualEnergyOverlayRow[],
-  nonEnergyOverlays: ResidualNonEnergyEmissionsOverlayRow[],
+  overlays: ResidualOverlayRow[],
 ): OverlayTotalsSummary {
-  const includedEnergy = getDefaultIncludedEnergyOverlays(energyOverlays);
-  const includedNonEnergy = getDefaultIncludedNonEnergyOverlays(nonEnergyOverlays);
+  const includedEnergy = getDefaultIncludedEnergyOverlays(overlays);
+  const includedNonEnergy = getDefaultIncludedNonEnergyOverlays(overlays);
 
   const totalResidualEnergyPj = includedEnergy.reduce(
-    (sum, r) => sum + r.total_final_energy_pj_2025,
+    (sum, r) => sum + (r.final_energy_pj_2025 ?? 0),
     0,
   );
   const totalResidualEnergyEmissions = includedEnergy.reduce(
-    (sum, r) => sum + r.direct_energy_emissions_mtco2e_2025,
+    (sum, r) => sum + (r.direct_energy_emissions_mtco2e_2025 ?? 0),
     0,
   );
   const totalResidualNonEnergyEmissions = includedNonEnergy.reduce(
-    (sum, r) => sum + r.emissions_mtco2e_2025,
+    (sum, r) => sum + (r.other_emissions_mtco2e_2025 ?? 0),
     0,
   );
 
-  const lulucfRow = nonEnergyOverlays.find(
+  const lulucfRow = overlays.find(
     (r) => r.overlay_id === 'residual_lulucf_sink',
   );
-  const lulucfSinkMtco2e = lulucfRow ? lulucfRow.emissions_mtco2e_2025 : null;
+  const lulucfSinkMtco2e = lulucfRow ? (lulucfRow.other_emissions_mtco2e_2025 ?? lulucfRow.carbon_billable_emissions_mtco2e_2025) : null;
 
   return {
     totalResidualEnergyPj,
