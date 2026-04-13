@@ -1,0 +1,7 @@
+row_id,quantity_2025,unit,note
+explicit_modelled_end_use_electricity,139.901279,TWh,Electricity consumed directly by the explicit modelled services under the default 2025 state selection.
+residual_final_electricity_omitted_sectors,101.598721,TWh,Omitted-sector final electricity demand required to reach the official final electricity benchmark.
+official_final_electricity_benchmark,241.5,TWh,Official final electricity consumption benchmark used in the balance-ready pack.
+grid_losses_and_own_use,42.42,TWh,Generation minus official final electricity; used as a simple losses/own-use/system-balance term.
+external_generation_balance_anchor,144.018721,TWh,Residual electricity-supply activity required in addition to explicit end-use electricity to recover total generation output.
+official_total_generation_benchmark,283.92,TWh,Official total electricity generation benchmark used for 2025 closure.

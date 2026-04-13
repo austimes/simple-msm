@@ -1,0 +1,6 @@
+overlay_id,overlay_label,official_category,year,emissions_mtco2e_2025,default_include,notes
+residual_fugitives,Residual fugitive emissions,Energy – Fugitive emissions,2025,46.3,True,"Fixed omitted-sector closure layer. Covers fugitive coal, oil and gas emissions that are not represented by the explicit Phase 1 sectors."
+residual_ippu_other,Residual IPPU other,Industrial processes and product use,2025,22.069200000000002,True,Fixed omitted-sector closure layer for industrial processes not represented by the explicit steel and cement process states.
+residual_agriculture_other,Residual agriculture other,Agriculture,2025,4.565563794420498,True,Residual agriculture emissions not captured by the coarse cropping/horticulture and livestock bundles.
+residual_waste,Residual waste emissions,Waste,2025,13.8,True,Waste is not explicitly represented in the current Phase 1 state library; this row closes the 2025 baseline.
+residual_lulucf_sink,Residual LULUCF sink,"Land Use, Land Use Change and Forestry",2025,-73.7,False,Optional net sink layer for national-total reconciliation. Keep separate from explicit removals states to avoid conflating calibration closure with scenario levers.
