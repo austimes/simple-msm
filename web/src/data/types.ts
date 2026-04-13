@@ -88,6 +88,7 @@ export interface ConfigurationDocument {
   external_commodity_demands?: Record<string, ConfigurationYearValueTable>;
   commodity_pricing: ConfigurationCommodityPricing;
   carbon_price: ConfigurationYearValueTable;
+  residual_overlays?: ConfigurationResidualOverlays;
   solver_options?: ConfigurationSolverOptions;
   app_metadata?: ConfigurationAppMetadata;
 }
@@ -297,26 +298,38 @@ export interface ServiceDemandAnchorRow {
   implied_total_emissions_mtco2e_if_default: number | null;
 }
 
-export interface ResidualEnergyOverlayRow {
-  overlay_sector_id: string;
-  overlay_sector_label: string;
-  official_broad_sector: string;
+export type ResidualOverlayDomain = 'energy_residual' | 'nonenergy_residual' | 'net_sink';
+
+export interface ResidualOverlayRow {
+  overlay_id: string;
+  overlay_label: string;
+  overlay_domain: ResidualOverlayDomain;
+  official_accounting_bucket: string;
   year: number;
-  total_final_energy_pj_2025: number;
-  direct_energy_emissions_mtco2e_2025: number;
-  emissions_allocation_method: string;
+  commodity: string | null;
+  final_energy_pj_2025: number | null;
+  native_unit: string;
+  native_quantity_2025: number | null;
+  direct_energy_emissions_mtco2e_2025: number | null;
+  other_emissions_mtco2e_2025: number | null;
+  carbon_billable_emissions_mtco2e_2025: number | null;
+  default_price_basis: string;
+  default_price_per_native_unit_aud_2024: number | null;
+  default_commodity_cost_audm_2024: number | null;
+  default_fixed_noncommodity_cost_audm_2024: number | null;
+  default_total_cost_ex_carbon_audm_2024: number | null;
   default_include: boolean;
+  allocation_method: string;
+  cost_basis_note: string;
   notes: string;
 }
 
-export interface ResidualNonEnergyEmissionsOverlayRow {
-  overlay_id: string;
-  overlay_label: string;
-  official_category: string;
-  year: number;
-  emissions_mtco2e_2025: number;
-  default_include: boolean;
-  notes: string;
+export interface ConfigurationResidualOverlayControl {
+  included?: boolean;
+}
+
+export interface ConfigurationResidualOverlays {
+  controls_by_overlay_id: Record<string, ConfigurationResidualOverlayControl>;
 }
 
 export interface CommodityBalance2025Row {
@@ -351,8 +364,7 @@ export interface EmissionsBalance2025Row {
 export interface PackageData {
   sectorStates: SectorState[];
   serviceDemandAnchors2025: ServiceDemandAnchorRow[];
-  residualEnergyOverlays2025: ResidualEnergyOverlayRow[];
-  residualNonEnergyEmissionsOverlays2025: ResidualNonEnergyEmissionsOverlayRow[];
+  residualOverlays2025: ResidualOverlayRow[];
   commodityBalance2025: CommodityBalance2025Row[];
   emissionsBalance2025: EmissionsBalance2025Row[];
   readme: string;

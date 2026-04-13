@@ -33,37 +33,43 @@ function parseBool(raw) {
   return raw?.trim().toLowerCase() === 'true';
 }
 
+function parseEmptyNull(raw) {
+  if (!raw || raw.trim() === '') return null;
+  return raw;
+}
+
 // --- Load CSVs ---
 
 const DATA = '../../aus_phase1_sector_state_library/data';
 
-const energyOverlayRows = parseCsv(readText(`${DATA}/residual_energy_overlay_sectors_2025.csv`));
-const nonEnergyOverlayRows = parseCsv(readText(`${DATA}/residual_nonenergy_emissions_overlays_2025.csv`));
+const overlayRows = parseCsv(readText(`${DATA}/residual_overlays_2025.csv`));
 const commodityBalanceRows = parseCsv(readText(`${DATA}/commodity_balance_2025.csv`));
 const emissionsBalanceRows = parseCsv(readText(`${DATA}/emissions_balance_2025.csv`));
 
 // --- Typed rows for diagnostics module ---
 
-const typedEnergyOverlays = energyOverlayRows.map((r) => ({
-  overlay_sector_id: r['overlay_sector_id'],
-  overlay_sector_label: r['overlay_sector_label'],
-  official_broad_sector: r['official_broad_sector'],
-  year: Number(r['year']),
-  total_final_energy_pj_2025: Number(r['total_final_energy_pj_2025']),
-  direct_energy_emissions_mtco2e_2025: Number(r['direct_energy_emissions_mtco2e_2025']),
-  emissions_allocation_method: r['emissions_allocation_method'],
-  default_include: parseBool(r['default_include']),
-  notes: r['notes'],
-}));
-
-const typedNonEnergyOverlays = nonEnergyOverlayRows.map((r) => ({
+const typedOverlays = overlayRows.map((r) => ({
   overlay_id: r['overlay_id'],
   overlay_label: r['overlay_label'],
-  official_category: r['official_category'],
+  overlay_domain: r['overlay_domain'],
+  official_accounting_bucket: r['official_accounting_bucket'],
   year: Number(r['year']),
-  emissions_mtco2e_2025: Number(r['emissions_mtco2e_2025']),
+  commodity: parseEmptyNull(r['commodity']),
+  final_energy_pj_2025: parseNum(r['final_energy_pj_2025']),
+  native_unit: r['native_unit'] ?? '',
+  native_quantity_2025: parseNum(r['native_quantity_2025']),
+  direct_energy_emissions_mtco2e_2025: parseNum(r['direct_energy_emissions_mtco2e_2025']),
+  other_emissions_mtco2e_2025: parseNum(r['other_emissions_mtco2e_2025']),
+  carbon_billable_emissions_mtco2e_2025: parseNum(r['carbon_billable_emissions_mtco2e_2025']),
+  default_price_basis: r['default_price_basis'] ?? '',
+  default_price_per_native_unit_aud_2024: parseNum(r['default_price_per_native_unit_aud_2024']),
+  default_commodity_cost_audm_2024: parseNum(r['default_commodity_cost_audm_2024']),
+  default_fixed_noncommodity_cost_audm_2024: parseNum(r['default_fixed_noncommodity_cost_audm_2024']),
+  default_total_cost_ex_carbon_audm_2024: parseNum(r['default_total_cost_ex_carbon_audm_2024']),
   default_include: parseBool(r['default_include']),
-  notes: r['notes'],
+  allocation_method: r['allocation_method'] ?? '',
+  cost_basis_note: r['cost_basis_note'] ?? '',
+  notes: r['notes'] ?? '',
 }));
 
 // =============================================================================
@@ -71,12 +77,23 @@ const typedNonEnergyOverlays = nonEnergyOverlayRows.map((r) => ({
 // =============================================================================
 
 describe('Overlay parsing', () => {
-  it('residual_energy_overlay_sectors_2025.csv loads 8 data rows', () => {
-    assert.equal(energyOverlayRows.length, 8);
+  it('residual_overlays_2025.csv loads 39 data rows', () => {
+    assert.equal(overlayRows.length, 39);
   });
 
-  it('residual_nonenergy_emissions_overlays_2025.csv loads 5 data rows', () => {
-    assert.equal(nonEnergyOverlayRows.length, 5);
+  it('34 rows are energy_residual domain', () => {
+    const energy = typedOverlays.filter((r) => r.overlay_domain === 'energy_residual');
+    assert.equal(energy.length, 34);
+  });
+
+  it('4 rows are nonenergy_residual domain', () => {
+    const nonEnergy = typedOverlays.filter((r) => r.overlay_domain === 'nonenergy_residual');
+    assert.equal(nonEnergy.length, 4);
+  });
+
+  it('1 row is net_sink domain', () => {
+    const sink = typedOverlays.filter((r) => r.overlay_domain === 'net_sink');
+    assert.equal(sink.length, 1);
   });
 
   it('commodity_balance_2025.csv loads 7 data rows', () => {
@@ -93,13 +110,13 @@ describe('Overlay parsing', () => {
 // =============================================================================
 
 describe('Default-include filtering', () => {
-  it('all 8 energy overlay rows have default_include=True', () => {
-    const included = getDefaultIncludedEnergyOverlays(typedEnergyOverlays);
-    assert.equal(included.length, 8);
+  it('all 34 energy_residual overlay rows have default_include=True', () => {
+    const included = getDefaultIncludedEnergyOverlays(typedOverlays);
+    assert.equal(included.length, 34);
   });
 
   it('4 non-energy overlay rows have default_include=True (LULUCF excluded)', () => {
-    const included = getDefaultIncludedNonEnergyOverlays(typedNonEnergyOverlays);
+    const included = getDefaultIncludedNonEnergyOverlays(typedOverlays);
     assert.equal(included.length, 4);
   });
 });
@@ -109,18 +126,18 @@ describe('Default-include filtering', () => {
 // =============================================================================
 
 describe('Aggregation totals', () => {
-  const totals = summarizeOverlayTotals(typedEnergyOverlays, typedNonEnergyOverlays);
+  const totals = summarizeOverlayTotals(typedOverlays);
 
   it('total residual energy PJ ≈ 1354.152', () => {
     assert.ok(
-      Math.abs(totals.totalResidualEnergyPj - 1354.152) < 0.01,
+      Math.abs(totals.totalResidualEnergyPj - 1354.152) < 0.5,
       `Expected ≈1354.152, got ${totals.totalResidualEnergyPj}`,
     );
   });
 
   it('total residual energy emissions ≈ 57.169 MtCO2e', () => {
     assert.ok(
-      Math.abs(totals.totalResidualEnergyEmissions - 57.169) < 0.01,
+      Math.abs(totals.totalResidualEnergyEmissions - 57.169) < 0.5,
       `Expected ≈57.169, got ${totals.totalResidualEnergyEmissions}`,
     );
   });

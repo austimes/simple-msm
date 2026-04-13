@@ -7,29 +7,26 @@ function fmt(value: number, decimals = 3): string {
 }
 
 export default function BaselineClosureDiagnosticsCard() {
-  const residualEnergyOverlays2025 = usePackageStore((state) => state.residualEnergyOverlays2025);
-  const residualNonEnergyEmissionsOverlays2025 = usePackageStore(
-    (state) => state.residualNonEnergyEmissionsOverlays2025,
-  );
+  const residualOverlays2025 = usePackageStore((state) => state.residualOverlays2025);
 
   const totals = useMemo(
-    () => summarizeOverlayTotals(residualEnergyOverlays2025, residualNonEnergyEmissionsOverlays2025),
-    [residualEnergyOverlays2025, residualNonEnergyEmissionsOverlays2025],
+    () => summarizeOverlayTotals(residualOverlays2025),
+    [residualOverlays2025],
   );
 
   const includedEnergy = useMemo(
-    () => residualEnergyOverlays2025.filter((r) => r.default_include),
-    [residualEnergyOverlays2025],
+    () => residualOverlays2025.filter((r) => r.overlay_domain === 'energy_residual' && r.default_include),
+    [residualOverlays2025],
   );
 
   const includedNonEnergy = useMemo(
-    () => residualNonEnergyEmissionsOverlays2025.filter((r) => r.default_include),
-    [residualNonEnergyEmissionsOverlays2025],
+    () => residualOverlays2025.filter((r) => r.overlay_domain === 'nonenergy_residual' && r.default_include),
+    [residualOverlays2025],
   );
 
   const excludedNonEnergy = useMemo(
-    () => residualNonEnergyEmissionsOverlays2025.filter((r) => !r.default_include),
-    [residualNonEnergyEmissionsOverlays2025],
+    () => residualOverlays2025.filter((r) => r.overlay_domain !== 'energy_residual' && !r.default_include),
+    [residualOverlays2025],
   );
 
   return (
@@ -48,11 +45,11 @@ export default function BaselineClosureDiagnosticsCard() {
           <span>Final energy (PJ)</span>
           <span>Emissions (MtCO₂e)</span>
         </div>
-        {includedEnergy.map((row) => (
-          <div key={row.overlay_sector_id} className="library-mini-table-row">
-            <span>{row.overlay_sector_label}</span>
-            <span>{fmt(row.total_final_energy_pj_2025)}</span>
-            <span>{fmt(row.direct_energy_emissions_mtco2e_2025)}</span>
+        {includedEnergy.map((row, i) => (
+          <div key={`${row.overlay_id}-${row.commodity ?? i}`} className="library-mini-table-row">
+            <span>{row.overlay_label}</span>
+            <span>{fmt(row.final_energy_pj_2025 ?? 0)}</span>
+            <span>{fmt(row.direct_energy_emissions_mtco2e_2025 ?? 0)}</span>
           </div>
         ))}
         <div className="library-mini-table-row library-mini-table-row--header">
@@ -71,7 +68,7 @@ export default function BaselineClosureDiagnosticsCard() {
         {includedNonEnergy.map((row) => (
           <div key={row.overlay_id} className="library-mini-table-row">
             <span>{row.overlay_label}</span>
-            <span>{fmt(row.emissions_mtco2e_2025)}</span>
+            <span>{fmt(row.other_emissions_mtco2e_2025 ?? 0)}</span>
           </div>
         ))}
         <div className="library-mini-table-row library-mini-table-row--header">
@@ -86,7 +83,7 @@ export default function BaselineClosureDiagnosticsCard() {
           <p>
             {excludedNonEnergy.map((row) => (
               <span key={row.overlay_id}>
-                {row.overlay_label}: {fmt(row.emissions_mtco2e_2025)} MtCO₂e.{' '}
+                {row.overlay_label}: {fmt(row.other_emissions_mtco2e_2025 ?? row.carbon_billable_emissions_mtco2e_2025 ?? 0)} MtCO₂e.{' '}
               </span>
             ))}
             These overlays (e.g. LULUCF sink) are kept separate because their sign or accounting
