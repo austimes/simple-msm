@@ -29,11 +29,8 @@ import { basename, isAbsolute, relative as relativePath, resolve as resolvePath 
 import { parseCsv } from './src/data/parseCsv.ts';
 import { deriveBaselineAnchorsFromPackage } from './src/data/packageAnchorMapping.ts';
 import { resolveConfigurationDocument } from './src/data/demandResolution.ts';
-import {
-  buildSolveRequest,
-  normalizeSolverRows,
-} from './src/solver/buildSolveRequest.ts';
-import { solveWithLpAdapter } from './src/solver/lpAdapter.ts';
+import { normalizeSolverRows } from './src/solver/buildSolveRequest.ts';
+import { runScenario } from './src/results/runScenario.ts';
 
 const EXIT_OK = 0;
 const EXIT_ERROR = 1;
@@ -56,10 +53,11 @@ A <config> is a file path or a built-in id (resolves to src/configurations/<id>.
 Scope is defined in the config file via app_metadata.included_output_ids.
 
 Options:
-  --json       Machine-readable JSON output
-  --quiet      Summary-only output
-  --all        Solve every built-in config
-  -h, --help   Show this help
+  --json          Machine-readable JSON output
+  --quiet         Summary-only output
+  --all           Solve every built-in config
+  --solver-only   Exclude residual overlay contributions (raw LP output only)
+  -h, --help      Show this help
 
 Exit codes: 0 = success, 1 = solve/runtime error, 2 = usage error
 `.trim();
@@ -234,6 +232,48 @@ function toServiceDemandAnchorRow(row) {
   };
 }
 
+function parseEmptyNull(raw) {
+  if (raw == null) return null;
+  const trimmed = String(raw).trim();
+  return trimmed === '' ? null : trimmed;
+}
+
+function toResidualOverlayRow(row) {
+  return {
+    overlay_id: row['overlay_id'],
+    overlay_label: row['overlay_label'],
+    overlay_domain: row['overlay_domain'],
+    official_accounting_bucket: row['official_accounting_bucket'],
+    year: Number(row['year']),
+    commodity: parseEmptyNull(row['commodity']),
+    final_energy_pj_2025: parseNum(row['final_energy_pj_2025']),
+    native_unit: row['native_unit'] ?? '',
+    native_quantity_2025: parseNum(row['native_quantity_2025']),
+    direct_energy_emissions_mtco2e_2025: parseNum(row['direct_energy_emissions_mtco2e_2025']),
+    other_emissions_mtco2e_2025: parseNum(row['other_emissions_mtco2e_2025']),
+    carbon_billable_emissions_mtco2e_2025: parseNum(row['carbon_billable_emissions_mtco2e_2025']),
+    default_price_basis: row['default_price_basis'] ?? '',
+    default_price_per_native_unit_aud_2024: parseNum(row['default_price_per_native_unit_aud_2024']),
+    default_commodity_cost_audm_2024: parseNum(row['default_commodity_cost_audm_2024']),
+    default_fixed_noncommodity_cost_audm_2024: parseNum(row['default_fixed_noncommodity_cost_audm_2024']),
+    default_total_cost_ex_carbon_audm_2024: parseNum(row['default_total_cost_ex_carbon_audm_2024']),
+    default_include: parseBool(row['default_include']),
+    allocation_method: row['allocation_method'] ?? '',
+    cost_basis_note: row['cost_basis_note'] ?? '',
+    notes: row['notes'] ?? '',
+  };
+}
+
+function ensureResidualOverlays(configuration, overlayRows) {
+  const knownIds = Array.from(new Set(overlayRows.map((row) => row.overlay_id)));
+  const existing = configuration.residual_overlays?.controls_by_overlay_id ?? {};
+  const merged = {};
+  for (const id of knownIds) {
+    merged[id] = { included: existing[id]?.included ?? true };
+  }
+  return { ...configuration, residual_overlays: { controls_by_overlay_id: merged } };
+}
+
 function loadAppConfig() {
   return {
     output_roles: readJsonRelative('public/app_config/output_roles.json'),
@@ -259,9 +299,13 @@ function loadPackage() {
     ...csvAnchors,
   };
 
+  const residualOverlays2025 = parseCsv(
+    readTextRelative('../aus_phase1_sector_state_library/data/residual_overlays_2025.csv'),
+  ).map(toResidualOverlayRow);
+
   const normalizedRows = normalizeSolverRows({ sectorStates, appConfig });
   return {
-    sectorStates, appConfig, normalizedRows,
+    sectorStates, appConfig, residualOverlays2025, normalizedRows,
     allOutputIds: uniqueSorted(Object.keys(appConfig.output_roles)),
   };
 }
@@ -354,34 +398,33 @@ function summarizeRun(run) {
   };
 }
 
-function executeConfig(pkg, configPath) {
+function executeConfig(pkg, configPath, { solverOnly = false } = {}) {
   const config = loadConfig(configPath);
   const configId = getConfigId(config, basename(configPath, '.json'));
   const includedOutputIds = getConfigIncludedOutputIds(config);
-  const configuration = resolveConfigurationDocument(config, pkg.appConfig, config.name);
+  let configuration = resolveConfigurationDocument(config, pkg.appConfig, config.name);
+  configuration = ensureResidualOverlays(configuration, pkg.residualOverlays2025);
 
-  const request = buildSolveRequest(
-    { sectorStates: pkg.sectorStates, appConfig: pkg.appConfig },
-    configuration,
-  );
+  const snapshot = runScenario(pkg, configuration, { includeOverlays: !solverOnly });
 
-  const result = solveWithLpAdapter(request);
   const run = {
     ok: true, label: configId, configId,
     source: displayPath(configPath),
     configurationName: config.name,
     configurationDescription: config.description ?? null,
     includedOutputIds: includedOutputIds ?? null,
-    request, result,
+    request: snapshot.request, result: snapshot.result,
+    contributions: snapshot.contributions,
+    solverOnly,
   };
   run.metrics = summarizeRun(run);
   return run;
 }
 
 
-function executeSafe(pkg, configPath) {
+function executeSafe(pkg, configPath, { solverOnly = false } = {}) {
   try {
-    return executeConfig(pkg, configPath);
+    return executeConfig(pkg, configPath, { solverOnly });
   } catch (e) {
     if (e instanceof UsageError) throw e;
     const label = displayPath(configPath);
@@ -682,7 +725,7 @@ function printComparison(leftRun, rightRun, comparison, { quiet = false } = {}) 
 function parseCli(argv) {
   let command = 'solve';
   const positionals = [];
-  let json = false, quiet = false, all = false;
+  let json = false, quiet = false, all = false, solverOnly = false;
 
   let i = 0;
   // Check for subcommand
@@ -695,6 +738,7 @@ function parseCli(argv) {
     if (arg === '--json') { json = true; continue; }
     if (arg === '--quiet') { quiet = true; continue; }
     if (arg === '--all') { all = true; continue; }
+    if (arg === '--solver-only') { solverOnly = true; continue; }
     if (arg === '--list-configs') { command = 'list'; continue; }
     if (arg.startsWith('-')) throw new UsageError(`Unknown option: ${arg}`);
     positionals.push(arg);
@@ -712,7 +756,7 @@ function parseCli(argv) {
     if (all) throw new UsageError('--all cannot be used with compare.');
     if (positionals.length !== 2) throw new UsageError('compare requires exactly two config arguments.');
     return {
-      command, json, quiet,
+      command, json, quiet, solverOnly,
       left: resolveConfigReference(positionals[0]),
       right: resolveConfigReference(positionals[1]),
     };
@@ -721,14 +765,14 @@ function parseCli(argv) {
   // solve
   if (all) {
     if (positionals.length) throw new UsageError('--all cannot be combined with positional config arguments.');
-    return { command: 'batch', json, quiet };
+    return { command: 'batch', json, quiet, solverOnly };
   }
 
   if (positionals.length === 0) throw new UsageError('A config argument is required. Run "npx msm list" to see built-in configs.');
-  if (positionals.length === 1) return { command: 'solve', json, quiet, config: resolveConfigReference(positionals[0]) };
+  if (positionals.length === 1) return { command: 'solve', json, quiet, solverOnly, config: resolveConfigReference(positionals[0]) };
 
   return {
-    command: 'batch', json, quiet,
+    command: 'batch', json, quiet, solverOnly,
     configs: positionals.map((p) => resolveConfigReference(p)),
   };
 }
@@ -778,8 +822,10 @@ function main(argv) {
     return EXIT_OK;
   }
 
+  const solveOpts = { solverOnly: cli.solverOnly ?? false };
+
   if (cli.command === 'solve') {
-    const run = executeSafe(pkg, cli.config);
+    const run = executeSafe(pkg, cli.config, solveOpts);
     if (cli.json) { console.log(JSON.stringify(run, null, 2)); }
     else { printSingleRun(run, pkg, { quiet: cli.quiet }); }
     return runHasError(run) ? EXIT_ERROR : EXIT_OK;
@@ -787,15 +833,15 @@ function main(argv) {
 
   if (cli.command === 'batch') {
     const configPaths = cli.configs ?? listBuiltinConfigPaths();
-    const runs = configPaths.map((p) => executeSafe(pkg, p));
+    const runs = configPaths.map((p) => executeSafe(pkg, p, solveOpts));
     if (cli.json) { console.log(JSON.stringify({ runs }, null, 2)); }
     else { printBatch(runs, { quiet: cli.quiet }); }
     return runs.some(runHasError) ? EXIT_ERROR : EXIT_OK;
   }
 
   if (cli.command === 'compare') {
-    const leftRun = executeSafe(pkg, cli.left);
-    const rightRun = executeSafe(pkg, cli.right);
+    const leftRun = executeSafe(pkg, cli.left, solveOpts);
+    const rightRun = executeSafe(pkg, cli.right, solveOpts);
     const comparison = leftRun.ok && rightRun.ok ? buildComparison(leftRun, rightRun) : null;
     if (cli.json) { console.log(JSON.stringify({ left: leftRun, right: rightRun, comparison }, null, 2)); }
     else { printComparison(leftRun, rightRun, comparison, { quiet: cli.quiet }); }
