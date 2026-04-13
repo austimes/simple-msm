@@ -83,17 +83,24 @@ export function loadStoredYAxisDomain(
   chartKey: string,
   storage?: StorageLike | null,
 ): ChartDomain | null {
+  return parseStoredDomain(loadStoredYAxisDomainRaw(chartKey, storage));
+}
+
+function loadStoredYAxisDomainRaw(
+  chartKey: string,
+  storage?: StorageLike | null,
+): string | null {
   const storageKey = buildWorkspaceYAxisStorageKey(chartKey);
   const resolvedStorage = resolveStorage(storage);
 
   if (!resolvedStorage) {
-    return parseStoredDomain(memoryStorageFallback.get(storageKey) ?? null);
+    return memoryStorageFallback.get(storageKey) ?? null;
   }
 
   try {
-    return parseStoredDomain(resolvedStorage.getItem(storageKey));
+    return resolvedStorage.getItem(storageKey);
   } catch {
-    return parseStoredDomain(memoryStorageFallback.get(storageKey) ?? null);
+    return memoryStorageFallback.get(storageKey) ?? null;
   }
 }
 
@@ -172,30 +179,35 @@ export function usePersistentYAxisDomain({
   autoDomain,
 }: UsePersistentYAxisDomainOptions) {
   const activeChartKey = chartKey ?? null;
-  const storedDomain = useSyncExternalStore(
+  const storedDomainRaw = useSyncExternalStore(
     (onStoreChange) => (
       activeChartKey ? subscribeToStoredYAxisDomain(activeChartKey, onStoreChange) : () => {}
     ),
-    () => (activeChartKey ? loadStoredYAxisDomain(activeChartKey) : null),
+    () => (activeChartKey ? loadStoredYAxisDomainRaw(activeChartKey) : null),
     () => null,
   );
+  const storedDomain = parseStoredDomain(storedDomainRaw);
 
   const effectiveDomain = activeChartKey
     ? mergeRememberedDomain(storedDomain, autoDomain)
     : autoDomain;
+  const effectiveDomainMin = effectiveDomain[0];
+  const effectiveDomainMax = effectiveDomain[1];
 
   useEffect(() => {
     if (!activeChartKey) {
       return;
     }
 
-    if (domainsEqual(storedDomain, effectiveDomain)) {
+    const nextDomain: ChartDomain = [effectiveDomainMin, effectiveDomainMax];
+    const currentStoredDomain = parseStoredDomain(storedDomainRaw);
+    if (domainsEqual(currentStoredDomain, nextDomain)) {
       return;
     }
 
-    persistStoredYAxisDomain(activeChartKey, effectiveDomain);
+    persistStoredYAxisDomain(activeChartKey, nextDomain);
     notifyStoredYAxisDomainChange(activeChartKey);
-  }, [activeChartKey, effectiveDomain, storedDomain]);
+  }, [activeChartKey, effectiveDomainMax, effectiveDomainMin, storedDomainRaw]);
 
   function resetDomain() {
     if (!activeChartKey) {
