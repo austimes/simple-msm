@@ -1,11 +1,11 @@
 official_category,official_mtco2e_2025,explicit_model_mtco2e_2025,residual_energy_overlay_mtco2e_2025,residual_nonenergy_overlay_mtco2e_2025,balanced_total_mtco2e_2025,difference_to_official_mtco2e_2025,note
 Energy – Electricity,149.8,149.8,0.0,0.0,149.8,-0.000117,Closed directly by the 2025 incumbent electricity intensity and generation benchmark.
-Energy – Stationary energy excluding electricity,95.6,50.087,45.513,0.0,95.6,0.0,Residual energy overlays carry the omitted-sector stationary-energy closure.
-Energy – Transport,98.7,87.043,11.657,0.0,98.7,0.0,Residual transport-energy closure is represented as a fixed omitted-sector layer.
-Energy – Fugitive emissions,46.3,0.0,0.0,46.3,46.3,0.0,Omitted-sector fixed overlay.
-Industrial processes and product use,30.0,7.931,0.0,22.069,30.0,0.0,Explicit steel/cement process emissions plus residual omitted IPPU overlay.
-Agriculture,79.7,75.134,0.0,4.566,79.7,0.0,Explicit coarse agriculture process emissions plus residual omitted agriculture overlay.
-Waste,13.8,0.0,0.0,13.8,13.8,0.0,Omitted-sector fixed overlay.
-"Land Use, Land Use Change and Forestry",-73.7,0.0,0.0,-73.7,-73.7,0.0,Kept as a separate optional net-sink layer.
+Energy – Stationary energy excluding electricity,95.6,50.087,45.513,0.0,95.6,0.0,Residual energy closure is carried by `residual_overlays_2025.csv` under `overlay_domain = energy_residual`.
+Energy – Transport,98.7,87.043,11.657,0.0,98.7,0.0,Residual transport closure is carried by `residual_overlays_2025.csv`; energy and emissions are both visible there.
+Energy – Fugitive emissions,46.3,0.0,0.0,46.3,46.3,0.0,Fixed omitted-sector row in `residual_overlays_2025.csv` with `overlay_domain = nonenergy_residual`.
+Industrial processes and product use,30.0,7.931,0.0,22.069,30.0,0.0,Explicit steel/cement process emissions plus residual omitted IPPU rows in `residual_overlays_2025.csv`.
+Agriculture,79.7,75.134,0.0,4.566,79.7,0.0,Explicit coarse agriculture process emissions plus residual omitted agriculture rows in `residual_overlays_2025.csv`.
+Waste,13.8,0.0,0.0,13.8,13.8,0.0,Fixed omitted-sector row in `residual_overlays_2025.csv` with `overlay_domain = nonenergy_residual`.
+"Land Use, Land Use Change and Forestry",-73.7,0.0,0.0,-73.7,-73.7,0.0,Optional sink row in `residual_overlays_2025.csv` with `overlay_domain = net_sink`.
 Positive-emitting sectors total (excludes LULUCF),513.9,369.996,57.169,86.735,513.9,-0.000117,Best like-for-like closure row for positive-emitting sectors.
-National Inventory Total (net),440.2,369.996,57.169,13.035,440.2,-0.000117,Net total shown only when the optional LULUCF sink overlay is included.
+National Inventory Total (net),440.2,369.996,57.169,13.035,440.2,-0.000117,Net total shown only when the optional sink row is included.
