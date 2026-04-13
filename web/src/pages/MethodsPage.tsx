@@ -310,7 +310,7 @@ export default function MethodsPage() {
   }, [confidenceCounts]);
 
   const optionalCompanionCount = useMemo(() => {
-    return enrichment.availablePaths.filter((path) => path !== 'data/sector_states.csv').length;
+    return enrichment.availablePaths.filter((path) => path !== 'data/sector_state_curves_balanced.csv').length;
   }, [enrichment.availablePaths]);
 
   return (
@@ -333,7 +333,7 @@ export default function MethodsPage() {
             ))
           ) : (
             <p className="methods-lead-paragraph">
-              The explorer can still run from `sector_states.csv` alone, even when package-level
+              The explorer can still run from the main sector-state table alone, even when package-level
               companion notes are absent.
             </p>
           )}

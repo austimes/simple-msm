@@ -48,7 +48,7 @@ The core machine-readable dataset contains **228 state-year rows** across the re
 
 ## Directory structure
 
-- `data/sector_states.csv` — main state library dataset
+- `data/sector_state_curves_balanced.csv` — main state library dataset
 - `data/sector_states_schema.json` — JSON schema for the CSV rows
 - `data/source_ledger.csv` — source ledger with authority notes
 - `data/assumptions_ledger.csv` — explicit assumptions ledger

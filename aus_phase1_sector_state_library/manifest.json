@@ -15,7 +15,7 @@
     "data/assumptions_ledger.csv",
     "data/calibration_summary.csv",
     "data/commodity_taxonomy.csv",
-    "data/sector_states.csv",
+    "data/sector_state_curves_balanced.csv",
     "data/sector_states_schema.json",
     "data/source_ledger.csv",
     "data/uncertainty_summary.csv",

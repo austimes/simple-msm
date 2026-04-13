@@ -36,7 +36,7 @@ There is no separate user-facing split between a packaged reference configuratio
 
 `aus_phase1_sector_state_library/` is the checked-in Phase 1 package. Its main artifacts are:
 
-- `data/sector_states.csv` — the core state-year dataset consumed by the app and solver.
+- `data/sector_state_curves_balanced.csv` — the core state-year dataset consumed by the app and solver.
 - `data/sector_states_schema.json` — schema for the sector-state rows.
 - `data/source_ledger.csv` and `data/assumptions_ledger.csv` — traceability metadata.
 - `data/calibration_summary.csv`, `data/uncertainty_summary.csv`, and `data/commodity_taxonomy.csv` — companion reference tables.
@@ -62,7 +62,7 @@ The app follows a straightforward pipeline:
 1. Load the checked-in package directly.
    Vite raw-imports Markdown, CSV, and JSON files from `aus_phase1_sector_state_library/`. The app expects that folder to exist in this repo; it is not a generic package uploader.
 2. Normalize the package.
-   The loader parses `sector_states.csv` into typed sector-state rows, converts JSON-encoded array columns into usable arrays, and loads companion ledgers and docs when present.
+   The loader parses `sector_state_curves_balanced.csv` into typed sector-state rows, converts JSON-encoded array columns into usable arrays, and loads companion ledgers and docs when present.
 3. Load app-owned registries and configuration documents.
    The app reads `web/public/app_config/` for output-role metadata, baseline anchors, demand presets, commodity-price presets, explanation rules, and the JSON schema. It also loads full built-in configurations from `web/src/configurations/`.
 4. Restore one active working document.

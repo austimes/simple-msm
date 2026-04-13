@@ -13,7 +13,7 @@ export default function MethodsSchemaSummaryCard({
     <section className="methods-content-card">
       <h2>Row schema guidance</h2>
       <p>
-        The packaged library includes a JSON schema for `sector_states.csv`. The dedicated State
+        The packaged library includes a JSON schema for `sector_state_curves_balanced.csv`. The dedicated State
         Schema page explains the contribution unit, milestone-year expectations, CSV encodings, and
         every field in plain language.
       </p>

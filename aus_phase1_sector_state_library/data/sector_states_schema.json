@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Australia Phase 1 sector state library row schema",
   "type": "object",
-  "description": "Schema for rows in data/sector_states.csv. Array-like fields are stored as JSON-encoded strings in the CSV export.",
+  "description": "Schema for rows in data/sector_state_curves_balanced.csv. Array-like fields are stored as JSON-encoded strings in the CSV export.",
   "required": [
     "sector",
     "service_or_output_name",

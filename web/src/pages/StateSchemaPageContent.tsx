@@ -71,7 +71,7 @@ export default function StateSchemaPageContent({
       <h1>State Schema</h1>
       <p>
         This page defines the structure of a sector-state contribution in the same shape as
-        `sector_states.csv`, so another modeller can understand what would be directly appendable
+        `sector_state_curves_balanced.csv`, so another modeller can understand what would be directly appendable
         to the packaged library.
       </p>
 
