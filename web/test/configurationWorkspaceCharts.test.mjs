@@ -192,7 +192,7 @@ test('solved workspace renders Cost by Component with diverging chart net metada
   assert.equal(resetMatches.length, 4);
 });
 
-test('refreshing workspace keeps the previous chart grid mounted and surfaces a non-blocking status', () => {
+test('refreshing workspace keeps the previous chart grid mounted without a visible status overlay', () => {
   const html = renderToStaticMarkup(
     React.createElement(ConfigurationWorkspaceCenter, {
       phase: 'solving',
@@ -205,11 +205,11 @@ test('refreshing workspace keeps the previous chart grid mounted and surfaces a 
 
   assert.match(html, /aria-busy="true"/);
   assert.match(html, /workspace-chart-grid/);
-  assert.match(html, /Updating plots\.\.\./);
+  assert.doesNotMatch(html, /Updating plots\.\.\./);
   assert.doesNotMatch(html, /workspace-failure-report/);
 });
 
-test('initial workspace solve shows a loading state before the first result arrives', () => {
+test('initial workspace solve keeps the center blank while the first result is loading', () => {
   const html = renderToStaticMarkup(
     React.createElement(ConfigurationWorkspaceCenter, {
       phase: 'solving',
@@ -221,7 +221,7 @@ test('initial workspace solve shows a loading state before the first result arri
   );
 
   assert.match(html, /aria-busy="true"/);
-  assert.match(html, /Loading plots\.\.\./);
+  assert.doesNotMatch(html, /Loading plots\.\.\./);
   assert.doesNotMatch(html, /workspace-chart-grid/);
 });
 
