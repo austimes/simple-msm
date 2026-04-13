@@ -297,9 +297,64 @@ export interface ServiceDemandAnchorRow {
   implied_total_emissions_mtco2e_if_default: number | null;
 }
 
+export interface ResidualEnergyOverlayRow {
+  overlay_sector_id: string;
+  overlay_sector_label: string;
+  official_broad_sector: string;
+  year: number;
+  total_final_energy_pj_2025: number;
+  direct_energy_emissions_mtco2e_2025: number;
+  emissions_allocation_method: string;
+  default_include: boolean;
+  notes: string;
+}
+
+export interface ResidualNonEnergyEmissionsOverlayRow {
+  overlay_id: string;
+  overlay_label: string;
+  official_category: string;
+  year: number;
+  emissions_mtco2e_2025: number;
+  default_include: boolean;
+  notes: string;
+}
+
+export interface CommodityBalance2025Row {
+  commodity: string;
+  benchmark_stream: string;
+  official_benchmark_pj_2025: number | null;
+  explicit_gross_model_inputs_pj_2025: number | null;
+  explicit_benchmark_mapped_pj_2025: number | null;
+  residual_overlay_pj_2025: number | null;
+  balanced_total_pj_2025: number | null;
+  difference_to_benchmark_pj_2025: number | null;
+  native_unit: string;
+  official_benchmark_native_2025: number | null;
+  explicit_gross_model_inputs_native_2025: number | null;
+  explicit_benchmark_mapped_native_2025: number | null;
+  residual_overlay_native_2025: number | null;
+  balanced_total_native_2025: number | null;
+  notes: string;
+}
+
+export interface EmissionsBalance2025Row {
+  official_category: string;
+  official_mtco2e_2025: number | null;
+  explicit_model_mtco2e_2025: number | null;
+  residual_energy_overlay_mtco2e_2025: number | null;
+  residual_nonenergy_overlay_mtco2e_2025: number | null;
+  balanced_total_mtco2e_2025: number | null;
+  difference_to_official_mtco2e_2025: number | null;
+  note: string;
+}
+
 export interface PackageData {
   sectorStates: SectorState[];
   serviceDemandAnchors2025: ServiceDemandAnchorRow[];
+  residualEnergyOverlays2025: ResidualEnergyOverlayRow[];
+  residualNonEnergyEmissionsOverlays2025: ResidualNonEnergyEmissionsOverlayRow[];
+  commodityBalance2025: CommodityBalance2025Row[];
+  emissionsBalance2025: EmissionsBalance2025Row[];
   readme: string;
   phase2Memo: string;
   enrichment: PackageEnrichment;

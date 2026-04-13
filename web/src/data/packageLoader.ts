@@ -3,7 +3,7 @@ import { buildPackageEnrichment, normalizePackageTextFiles } from './packageComp
 import { deriveBaselineAnchorsFromPackage } from './packageAnchorMapping.ts';
 import { parseCsv } from './parseCsv.ts';
 import { loadDefaultConfiguration } from './configurationDocumentLoader.ts';
-import type { EmissionEntry, PackageData, SectorState, ServiceDemandAnchorRow, ServiceDemandAnchorType } from './types.ts';
+import type { EmissionEntry, PackageData, SectorState, ServiceDemandAnchorRow, ServiceDemandAnchorType, ResidualEnergyOverlayRow, ResidualNonEnergyEmissionsOverlayRow, CommodityBalance2025Row, EmissionsBalance2025Row } from './types.ts';
 
 const packageTextFiles = normalizePackageTextFiles(
   import.meta.glob<string>(
@@ -126,11 +126,74 @@ function toServiceDemandAnchorRow(row: Record<string, string>): ServiceDemandAnc
   };
 }
 
+function toResidualEnergyOverlayRow(row: Record<string, string>): ResidualEnergyOverlayRow {
+  return {
+    overlay_sector_id: row['overlay_sector_id'],
+    overlay_sector_label: row['overlay_sector_label'],
+    official_broad_sector: row['official_broad_sector'],
+    year: Number(row['year']),
+    total_final_energy_pj_2025: Number(row['total_final_energy_pj_2025']),
+    direct_energy_emissions_mtco2e_2025: Number(row['direct_energy_emissions_mtco2e_2025']),
+    emissions_allocation_method: row['emissions_allocation_method'],
+    default_include: parseBool(row['default_include']),
+    notes: row['notes'],
+  };
+}
+
+function toResidualNonEnergyEmissionsOverlayRow(row: Record<string, string>): ResidualNonEnergyEmissionsOverlayRow {
+  return {
+    overlay_id: row['overlay_id'],
+    overlay_label: row['overlay_label'],
+    official_category: row['official_category'],
+    year: Number(row['year']),
+    emissions_mtco2e_2025: Number(row['emissions_mtco2e_2025']),
+    default_include: parseBool(row['default_include']),
+    notes: row['notes'],
+  };
+}
+
+function toCommodityBalance2025Row(row: Record<string, string>): CommodityBalance2025Row {
+  return {
+    commodity: row['commodity'],
+    benchmark_stream: row['benchmark_stream'],
+    official_benchmark_pj_2025: parseNum(row['official_benchmark_pj_2025']),
+    explicit_gross_model_inputs_pj_2025: parseNum(row['explicit_gross_model_inputs_pj_2025']),
+    explicit_benchmark_mapped_pj_2025: parseNum(row['explicit_benchmark_mapped_pj_2025']),
+    residual_overlay_pj_2025: parseNum(row['residual_overlay_pj_2025']),
+    balanced_total_pj_2025: parseNum(row['balanced_total_pj_2025']),
+    difference_to_benchmark_pj_2025: parseNum(row['difference_to_benchmark_pj_2025']),
+    native_unit: row['native_unit'],
+    official_benchmark_native_2025: parseNum(row['official_benchmark_native_2025']),
+    explicit_gross_model_inputs_native_2025: parseNum(row['explicit_gross_model_inputs_native_2025']),
+    explicit_benchmark_mapped_native_2025: parseNum(row['explicit_benchmark_mapped_native_2025']),
+    residual_overlay_native_2025: parseNum(row['residual_overlay_native_2025']),
+    balanced_total_native_2025: parseNum(row['balanced_total_native_2025']),
+    notes: row['notes'],
+  };
+}
+
+function toEmissionsBalance2025Row(row: Record<string, string>): EmissionsBalance2025Row {
+  return {
+    official_category: row['official_category'],
+    official_mtco2e_2025: parseNum(row['official_mtco2e_2025']),
+    explicit_model_mtco2e_2025: parseNum(row['explicit_model_mtco2e_2025']),
+    residual_energy_overlay_mtco2e_2025: parseNum(row['residual_energy_overlay_mtco2e_2025']),
+    residual_nonenergy_overlay_mtco2e_2025: parseNum(row['residual_nonenergy_overlay_mtco2e_2025']),
+    balanced_total_mtco2e_2025: parseNum(row['balanced_total_mtco2e_2025']),
+    difference_to_official_mtco2e_2025: parseNum(row['difference_to_official_mtco2e_2025']),
+    note: row['note'],
+  };
+}
+
 export function loadPackage(): PackageData {
   const rows = parseCsv(requirePackageFile('data/sector_state_curves_balanced.csv'));
   const anchorRows = parseCsv(requirePackageFile('data/service_demand_anchors_2025.csv'));
   const appConfig = loadAppConfig();
   const serviceDemandAnchors2025 = anchorRows.map(toServiceDemandAnchorRow);
+  const residualEnergyOverlays2025 = parseCsv(requirePackageFile('data/residual_energy_overlay_sectors_2025.csv')).map(toResidualEnergyOverlayRow);
+  const residualNonEnergyEmissionsOverlays2025 = parseCsv(requirePackageFile('data/residual_nonenergy_emissions_overlays_2025.csv')).map(toResidualNonEnergyEmissionsOverlayRow);
+  const commodityBalance2025 = parseCsv(requirePackageFile('data/commodity_balance_2025.csv')).map(toCommodityBalance2025Row);
+  const emissionsBalance2025 = parseCsv(requirePackageFile('data/emissions_balance_2025.csv')).map(toEmissionsBalance2025Row);
 
   // Derive anchors from the package CSV and merge into appConfig.
   // Package-derived anchors override JSON values; JSON-only entries are preserved.
@@ -149,6 +212,10 @@ export function loadPackage(): PackageData {
   return {
     sectorStates: rows.map(toSectorState),
     serviceDemandAnchors2025,
+    residualEnergyOverlays2025,
+    residualNonEnergyEmissionsOverlays2025,
+    commodityBalance2025,
+    emissionsBalance2025,
     readme: enrichment.readme,
     phase2Memo: enrichment.phase2Memo,
     enrichment,
