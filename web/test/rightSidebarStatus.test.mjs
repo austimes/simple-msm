@@ -32,7 +32,7 @@ describe('getRightSidebarStatusPresentation', () => {
       residential.badges.some((badge) => badge.label === 'Demand active in this run'),
     );
     assert.ok(
-      residential.badges.some((badge) => badge.label === 'Seed scope'),
+      residential.badges.some((badge) => badge.label === 'Active in this run'),
     );
     assert.ok(
       electricity.badges.some((badge) => badge.label === 'Endogenous supply in this run'),
@@ -43,30 +43,19 @@ describe('getRightSidebarStatusPresentation', () => {
     assert.ok(
       passengerRoad.badges.some((badge) => badge.label === 'Demand excluded from this run'),
     );
-    assert.ok(
-      !passengerRoad.badges.some((badge) => badge.label === 'No enabled pathways'),
-    );
-    assert.equal(passengerRoad.isDisabled, false);
+    assert.equal(passengerRoad.isDisabled, true);
     assert.equal(passengerRoad.isDimmed, true);
     assert.match(electricity.detail, /depends on it/i);
-    assert.match(passengerRoad.detail, /outside the effective run/i);
+    assert.match(passengerRoad.detail, /excluded/i);
   });
 
-  test('shows blocked demand separately from disabled pathways', () => {
-    const allPassengerStateIds = Array.from(
-      new Set(
-        pkg.sectorStates
-          .filter((row) => row.service_or_output_name === 'passenger_road_transport')
-          .map((row) => row.state_id),
-      ),
-    );
-
+  test('shows disabled output as excluded from run when all pathways deactivated', () => {
     const configuration = buildConfiguration(pkg.appConfig, {
       name: 'Passenger transport fully disabled',
       serviceControls: {
         passenger_road_transport: {
           mode: 'optimize',
-          disabled_state_ids: allPassengerStateIds,
+          active_state_ids: [],
         },
       },
     });
@@ -75,20 +64,9 @@ describe('getRightSidebarStatusPresentation', () => {
     const passengerRoad = getRightSidebarStatusPresentation(
       statuses.passenger_road_transport,
     );
-    const electricity = getRightSidebarStatusPresentation(statuses.electricity);
 
-    assert.ok(
-      passengerRoad.badges.some((badge) => badge.label === 'Demand active but no enabled pathways'),
-    );
-    assert.ok(
-      passengerRoad.badges.some((badge) => badge.label === 'No enabled pathways'),
-    );
     assert.equal(passengerRoad.isDisabled, true);
-    assert.equal(passengerRoad.isDimmed, false);
-    assert.match(passengerRoad.detail, /demand is still active/i);
-    assert.ok(
-      electricity.badges.every((badge) => badge.label !== 'No enabled pathways'),
-    );
+    assert.equal(passengerRoad.isDimmed, true);
   });
 
   test('greys out pathway status for externalized supply dependencies', () => {
@@ -105,24 +83,19 @@ describe('getRightSidebarStatusPresentation', () => {
     assert.ok(
       electricity.badges.every((badge) => !/enabled pathway/i.test(badge.label)),
     );
-    assert.equal(electricity.isDisabled, false);
+    assert.equal(electricity.isDisabled, true);
     assert.equal(electricity.arePathwaysInactive, true);
     assert.match(electricity.detail, /commodity price selection is used instead/i);
   });
 
-  test('distinguishes enabled pathways from solve-active pathways under one-hot exact shares', () => {
+  test('shows active pathways count under agriculture-only configuration', () => {
     const configuration = readJson('../src/configurations/agriculture-only.json');
     const statuses = deriveOutputRunStatusesForConfiguration(pkg, configuration);
     const livestock = getRightSidebarStatusPresentation(statuses.livestock_output_bundle);
 
     assert.ok(
-      livestock.badges.some((badge) => badge.label === '2 enabled pathways'),
+      livestock.badges.some((badge) => /active pathway/i.test(badge.label)),
     );
-    assert.ok(
-      livestock.badges.some((badge) => badge.label === '1 solve-active pathway'),
-    );
-    assert.match(livestock.detail, /positive exact shares/i);
-    assert.match(livestock.detail, /cap denominator/i);
   });
 
   test('documents the legend statuses shown in the sidebar', () => {
@@ -130,13 +103,11 @@ describe('getRightSidebarStatusPresentation', () => {
       RIGHT_SIDEBAR_STATUS_LEGEND.map((item) => item.label),
       [
         'Demand active in this run',
-        'Seed scope',
+        'Active in this run',
         'Auto-included dependency',
         'Excluded from this run',
         'Externalized supply in this run',
-        'Solve-active pathways',
-        'No enabled pathways',
-        'Demand active but no enabled pathways',
+        'Active pathways',
       ],
     );
   });

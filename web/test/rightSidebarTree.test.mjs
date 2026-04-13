@@ -3,28 +3,23 @@ import { describe, test } from 'node:test';
 import { deriveRightSidebarTree } from '../src/components/workspace/rightSidebarTree.ts';
 
 function buildStatus(outputId, overrides = {}) {
-  const availableStateIds = overrides.availableStateIds ?? ['pathway-a'];
+  const activeStateIds = overrides.activeStateIds ?? ['pathway-a'];
   const isExcludedFromRun = overrides.isExcludedFromRun ?? false;
   const inRun = overrides.inRun ?? !isExcludedFromRun;
-  const isDisabled = overrides.isDisabled ?? availableStateIds.length === 0;
+  const isDisabled = overrides.isDisabled ?? activeStateIds.length === 0;
 
   return {
     outputId,
     outputRole: overrides.outputRole ?? 'required_service',
     controlMode: overrides.controlMode ?? 'optimize',
-    availableStateIds,
-    availableStateCount: overrides.availableStateCount ?? availableStateIds.length,
-    activeStateIds: overrides.activeStateIds ?? availableStateIds,
-    activeStateCount: overrides.activeStateCount ?? (overrides.activeStateIds ?? availableStateIds).length,
-    capEligibleStateIds: overrides.capEligibleStateIds ?? availableStateIds,
-    capEligibleStateCount: overrides.capEligibleStateCount ?? (overrides.capEligibleStateIds ?? availableStateIds).length,
+    activeStateIds,
+    activeStateCount: overrides.activeStateCount ?? activeStateIds.length,
     isDisabled,
     inRun,
     runParticipation: overrides.runParticipation ?? (isExcludedFromRun ? 'excluded_from_run' : 'full_model'),
     demandParticipation: overrides.demandParticipation ?? (isExcludedFromRun ? 'excluded_from_run' : 'active_in_run'),
     supplyParticipation: overrides.supplyParticipation ?? 'not_applicable',
     hasPositiveDemandInRun: overrides.hasPositiveDemandInRun ?? inRun,
-    hasDemandValidationError: overrides.hasDemandValidationError ?? false,
     isSeedScoped: overrides.isSeedScoped ?? false,
     isAutoIncludedDependency: overrides.isAutoIncludedDependency ?? false,
     isExcludedFromRun,
@@ -111,8 +106,8 @@ describe('deriveRightSidebarTree', () => {
     ];
     const statuses = {
       land_sequestration: buildStatus('land_sequestration', {
-        availableStateIds: [],
-        availableStateCount: 0,
+        activeStateIds: [],
+        activeStateCount: 0,
         isDisabled: true,
         demandParticipation: 'not_applicable',
         outputRole: 'required_service',
@@ -125,6 +120,6 @@ describe('deriveRightSidebarTree', () => {
     assert.equal(sector.isCollapsed, false);
     assert.equal(sector.subsectors[0].allDisabled, true);
     assert.equal(sector.subsectors[0].isCollapsed, true);
-    assert.deepEqual(sector.subsectors[0].enabledStateIds, []);
+    assert.deepEqual(sector.subsectors[0].activeStateIds, []);
   });
 });

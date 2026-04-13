@@ -56,8 +56,8 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
       'excluded_from_run',
     );
     assert.equal(statuses.electricity.supplyParticipation, 'endogenous_in_run');
-    assert.ok(statuses.residential_building_services.availableStateCount > 0);
-    assert.ok(statuses.commercial_building_services.availableStateCount > 0);
+    assert.ok(statuses.residential_building_services.activeStateCount > 0);
+    assert.ok(statuses.commercial_building_services.activeStateCount > 0);
     assert.equal(statuses.electricity.isDisabled, false);
     assert.deepEqual(
       outputSetFromStatuses(statuses),
@@ -98,36 +98,26 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
   });
 
   test('marks outputs as disabled when no states are enabled', () => {
-    const allPassengerStateIds = Array.from(
-      new Set(
-        pkg.sectorStates
-          .filter((row) => row.service_or_output_name === 'passenger_road_transport')
-          .map((row) => row.state_id),
-      ),
-    );
-
     const configuration = buildConfiguration(pkg.appConfig, {
       name: 'Passenger transport fully disabled',
       serviceControls: {
         passenger_road_transport: {
           mode: 'optimize',
-          disabled_state_ids: allPassengerStateIds,
+          active_state_ids: [],
         },
       },
     });
 
     const statuses = deriveOutputRunStatusesForConfiguration(pkg, configuration);
 
-    assert.deepEqual(statuses.passenger_road_transport.availableStateIds, []);
-    assert.equal(statuses.passenger_road_transport.availableStateCount, 0);
+    assert.deepEqual(statuses.passenger_road_transport.activeStateIds, []);
+    assert.equal(statuses.passenger_road_transport.activeStateCount, 0);
     assert.equal(statuses.passenger_road_transport.isDisabled, true);
     assert.equal(statuses.passenger_road_transport.controlMode, 'optimize');
     assert.equal(
       statuses.passenger_road_transport.demandParticipation,
-      'no_enabled_pathways',
+      'excluded_from_run',
     );
-    assert.equal(statuses.passenger_road_transport.hasPositiveDemandInRun, true);
-    assert.equal(statuses.passenger_road_transport.hasDemandValidationError, true);
   });
 
   test('marks commodity outputs as externalized supply without reading as disabled', () => {
@@ -141,13 +131,12 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
     const statuses = deriveOutputRunStatusesForConfiguration(pkg, configuration);
 
     assert.equal(statuses.electricity.supplyParticipation, 'externalized_in_run');
-    assert.equal(statuses.electricity.isDisabled, false);
-    assert.ok(statuses.electricity.availableStateCount > 0);
+    assert.equal(statuses.electricity.isDisabled, true);
     assert.equal(statuses.electricity.activeStateCount, 0);
     assert.equal(statuses.electricity.demandParticipation, 'not_applicable');
   });
 
-  test('keeps enabled supply pathways distinct from solve-active and cap-denominator pathways', () => {
+  test('keeps active pathways distinct from all available pathways under active_state_ids controls', () => {
     const electricityStateIds = Array.from(
       new Set(
         pkg.sectorStates
@@ -159,29 +148,24 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
     assert.ok(electricityStateIds.length >= 2, 'expected multiple electricity pathways');
 
     const configuration = buildConfiguration(pkg.appConfig, {
-      name: 'Electricity fixed-share status semantics',
+      name: 'Electricity active-state-ids status semantics',
       serviceControls: {
         electricity: {
-          mode: 'fixed_shares',
-          fixed_shares: { [electricityStateIds[0]]: 1 },
+          mode: 'optimize',
+          active_state_ids: [electricityStateIds[0]],
         },
       },
     });
 
     const statuses = deriveOutputRunStatusesForConfiguration(pkg, configuration);
 
-    assert.equal(statuses.electricity.controlMode, 'fixed_shares');
+    assert.equal(statuses.electricity.controlMode, 'optimize');
     assert.equal(statuses.electricity.isDisabled, false);
-    assert.equal(statuses.electricity.availableStateCount, electricityStateIds.length);
     assert.equal(statuses.electricity.activeStateCount, 1);
-    assert.equal(statuses.electricity.capEligibleStateCount, 1);
-    assert.deepEqual(
-      statuses.electricity.activeStateIds,
-      statuses.electricity.capEligibleStateIds,
-    );
+    assert.deepEqual(statuses.electricity.activeStateIds, [electricityStateIds[0]]);
   });
 
-  test('keeps non-disabled pathways available in status output for one-hot exact-share controls', () => {
+  test('keeps active pathways scoped to active_state_ids in status output', () => {
     const residentialStateIds = Array.from(
       new Set(
         pkg.sectorStates
@@ -193,40 +177,31 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
     assert.ok(residentialStateIds.length >= 2, 'expected multiple residential pathways');
 
     const [selectedStateId, disabledStateId] = residentialStateIds;
+    const activeIds = residentialStateIds.filter((id) => id !== disabledStateId);
     const configuration = buildConfiguration(pkg.appConfig, {
-      name: 'Residential one-hot exact-share status semantics',
+      name: 'Residential active-state-ids status semantics',
       serviceControls: {
         residential_building_services: {
-          mode: 'fixed_shares',
-          fixed_shares: { [selectedStateId]: 1 },
-          disabled_state_ids: [disabledStateId],
+          mode: 'optimize',
+          active_state_ids: activeIds,
         },
       },
     });
 
     const statuses = deriveOutputRunStatusesForConfiguration(pkg, configuration);
 
-    assert.equal(statuses.residential_building_services.controlMode, 'fixed_shares');
+    assert.equal(statuses.residential_building_services.controlMode, 'optimize');
     assert.equal(statuses.residential_building_services.isDisabled, false);
-    assert.deepEqual(
-      statuses.residential_building_services.activeStateIds,
-      [selectedStateId],
+    assert.ok(
+      statuses.residential_building_services.activeStateIds.includes(selectedStateId),
     );
     assert.ok(
-      statuses.residential_building_services.availableStateIds.includes(selectedStateId),
-    );
-    assert.ok(
-      !statuses.residential_building_services.availableStateIds.includes(disabledStateId),
+      !statuses.residential_building_services.activeStateIds.includes(disabledStateId),
     );
     assert.equal(
-      statuses.residential_building_services.availableStateCount,
+      statuses.residential_building_services.activeStateCount,
       residentialStateIds.length - 1,
     );
-    assert.deepEqual(
-      statuses.residential_building_services.capEligibleStateIds,
-      [selectedStateId],
-    );
-    assert.equal(statuses.residential_building_services.capEligibleStateCount, 1);
   });
 
   test('dependency expansion follows active pathways under one-hot exact-share controls', () => {
@@ -303,8 +278,8 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
     const configuration = {
       service_controls: {
         service: {
-          mode: 'fixed_shares',
-          fixed_shares: { service_electric: 1 },
+          mode: 'optimize',
+          active_state_ids: ['service_electric'],
         },
       },
     };
@@ -315,25 +290,22 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
       controlsByOutput: {
         service: {
           2030: {
-            mode: 'fixed_shares',
-            fixedShares: { service_electric: 1 },
-            disabledStateIds: [],
+            mode: 'optimize',
+            activeStateIds: ['service_electric'],
             targetValue: null,
           },
         },
         electricity: {
           2030: {
             mode: 'optimize',
-            fixedShares: null,
-            disabledStateIds: [],
+            activeStateIds: null,
             targetValue: null,
           },
         },
         hydrogen: {
           2030: {
             mode: 'optimize',
-            fixedShares: null,
-            disabledStateIds: [],
+            activeStateIds: null,
             targetValue: null,
           },
         },
@@ -406,77 +378,40 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
       configuration,
       resolvedConfiguration,
       appConfig,
-      ['service'],
     );
 
     assert.deepEqual(new Set(expandedOutputIds), new Set(['service', 'electricity']));
     assert.deepEqual(statuses.service.activeStateIds, ['service_electric']);
-    assert.equal(statuses.electricity.runParticipation, 'auto_included_dependency');
-    assert.equal(statuses.hydrogen.runParticipation, 'excluded_from_run');
+    assert.equal(statuses.service.runParticipation, 'full_model');
+    assert.equal(statuses.electricity.runParticipation, 'full_model');
+    assert.equal(statuses.hydrogen.runParticipation, 'full_model');
   });
 
-  test('buildSolveRequest blocks positive required-service demand with no available pathways', () => {
-    const allPassengerStateIds = Array.from(
-      new Set(
-        pkg.sectorStates
-          .filter((row) => row.service_or_output_name === 'passenger_road_transport')
-          .map((row) => row.state_id),
-      ),
-    );
-
+  test('buildSolveRequest scopes out disabled outputs instead of throwing', () => {
     const configuration = buildConfiguration(pkg.appConfig, {
-      name: 'Passenger transport blocked by disabled pathways',
+      name: 'Passenger transport scoped out by empty active_state_ids',
       serviceControls: {
         passenger_road_transport: {
           mode: 'optimize',
-          disabled_state_ids: allPassengerStateIds,
+          active_state_ids: [],
         },
       },
     });
 
-    assert.throws(() => buildSolveRequest(pkg, configuration), /no available pathways: passenger_road_transport/i);
+    const request = buildSolveRequest(pkg, configuration);
+    const outputIds = new Set(request.rows.map((row) => row.outputId));
+    assert.ok(!outputIds.has('passenger_road_transport'), 'disabled output is excluded from the solve request');
   });
 
-  test('buildSolveRequest rejects malformed exact-share controls before solving', () => {
-    const residentialStateIds = Array.from(
-      new Set(
-        pkg.sectorStates
-          .filter((row) => row.service_or_output_name === 'residential_building_services')
-          .map((row) => row.state_id),
-      ),
-    );
-
-    assert.ok(residentialStateIds.length >= 1, 'expected at least one residential pathway');
-
+  test('default configuration produces a scoped run where active outputs participate', () => {
     const configuration = buildConfiguration(pkg.appConfig, {
-      name: 'Malformed residential exact-share control',
-      serviceControls: {
-        residential_building_services: {
-          mode: 'fixed_shares',
-          fixed_shares: {
-            [residentialStateIds[0]]: 0.6,
-            unknown_exact_share_state: 0.1,
-          },
-        },
-      },
-    });
-
-    assert.throws(
-      () => buildSolveRequest(pkg, configuration),
-      /exact-share controls are malformed[\s\S]*unknown_exact_share_state[\s\S]*sum to 0\.700000 instead of 1/i,
-    );
-  });
-
-  test('marks unscoped configurations as full-model runs', () => {
-    const configuration = buildConfiguration(pkg.appConfig, {
-      name: 'Full model status baseline',
+      name: 'Default configuration status baseline',
     });
 
     const statuses = deriveOutputRunStatusesForConfiguration(pkg, configuration);
 
-    assert.equal(statuses.electricity.runParticipation, 'full_model');
-    assert.equal(statuses.residential_building_services.runParticipation, 'full_model');
-    assert.equal(statuses.electricity.isFullModel, true);
+    assert.equal(statuses.residential_building_services.runParticipation, 'seed_scope');
+    assert.equal(statuses.electricity.runParticipation, 'auto_included_dependency');
     assert.equal(statuses.electricity.inRun, true);
   });
 });

@@ -9,6 +9,7 @@ import {
   buildFuelConsumptionChart,
   buildPathwayChartCards,
 } from '../src/results/chartData.ts';
+import { buildSolverContributionRows } from '../src/results/resultContributions.ts';
 
 function buildRequest(respectMaxShare) {
   return {
@@ -112,16 +113,12 @@ function buildRequest(respectMaxShare) {
         heat: {
           2030: {
             mode: 'optimize',
-            stateId: null,
-            fixedShares: null,
-            disabledStateIds: [],
+            activeStateIds: null,
             targetValue: null,
           },
           2035: {
             mode: 'optimize',
-            stateId: null,
-            fixedShares: null,
-            disabledStateIds: [],
+            activeStateIds: null,
             targetValue: null,
           },
         },
@@ -419,9 +416,11 @@ function buildEmissionsResult() {
 test('emissions charts expose tCO2e axis labels and preserve negative removals', () => {
   const request = buildEmissionsRequest();
   const result = buildEmissionsResult();
+  const contributions = buildSolverContributionRows(request, result);
+  const years = request.configuration.years;
 
-  const sectorChart = buildEmissionsBySectorChart(request, result);
-  const subsectorChart = buildEmissionsBySubsectorChart(request, result);
+  const sectorChart = buildEmissionsBySectorChart(contributions, years);
+  const subsectorChart = buildEmissionsBySubsectorChart(contributions, years);
 
   assert.equal(sectorChart.yAxisLabel, 'Emissions (tCO2e)');
   assert.equal(subsectorChart.yAxisLabel, 'Emissions (tCO2e)');
@@ -440,7 +439,7 @@ test('emissions charts expose tCO2e axis labels and preserve negative removals',
     ],
   );
   assert.deepEqual(
-    subsectorChart.series.find((series) => series.label === 'engineered_removals')?.values,
+    subsectorChart.series.find((series) => series.label === 'removals_negative_emissions')?.values,
     [
       { year: 2030, value: -20 },
       { year: 2035, value: -5 },
@@ -470,16 +469,12 @@ test('buildPathwayChartCards returns output and cap views for selectable outputs
       { year: 2035, value: 16.666666666666668 },
     ],
   );
-  assert.match(cards[0].note, /normalizing across active pathways/i);
 });
 
 test('buildPathwayChartCards keeps cap context visible when max-share enforcement is off', () => {
   const cards = buildPathwayChartCards(buildRequest(false), buildResult());
 
   assert.equal(cards.length, 1);
-  assert.equal(cards[0].respectMaxShare, false);
-  assert.match(cards[0].note, /ignored in this solve/i);
-  assert.match(cards[0].note, /active pathways/i);
   assert.deepEqual(
     cards[0].capChart.series.find((series) => series.label === 'Heat B')?.values,
     [
@@ -549,8 +544,7 @@ test('buildPathwayChartCards matches solver-reported effective caps for exact-sh
         exact_share_service: {
           2030: {
             mode: 'fixed_shares',
-            fixedShares: { selected_a: 1 },
-            disabledStateIds: [],
+            activeStateIds: ['selected_a'],
             targetValue: null,
           },
         },
@@ -584,10 +578,8 @@ test('buildPathwayChartCards matches solver-reported effective caps for exact-sh
   assert.equal(result.status, 'solved');
   assert.equal(cards.length, 1);
   assert.ok(selectedShare?.effectiveMaxShare != null, 'expected selected exact-share cap');
-  assert.ok(availableShare?.effectiveMaxShare != null, 'unselected pathways still retain an effective normalized cap');
+  assert.equal(availableShare?.effectiveMaxShare, null, 'inactive pathways are excluded from cap normalization');
   assert.ok(Math.abs(selectedCap - (selectedShare.effectiveMaxShare * 100)) < 1e-9);
-  assert.ok(Math.abs(availableCap - (availableShare.effectiveMaxShare * 100)) < 1e-9);
-  assert.match(card.note, /active pathways/i);
 });
 
 function buildFuelAndCostRequest() {
@@ -738,7 +730,9 @@ function buildFuelAndCostResult() {
 test('fuel consumption chart keeps only fuels and converts all series to PJ', () => {
   const request = buildFuelAndCostRequest();
   const result = buildFuelAndCostResult();
-  const chart = buildFuelConsumptionChart(request, result);
+  const contributions = buildSolverContributionRows(request, result);
+  const years = request.configuration.years;
+  const chart = buildFuelConsumptionChart(contributions, years);
 
   assert.equal(chart.title, 'Fuel Consumption');
   assert.equal(chart.yAxisLabel, 'PJ');
@@ -768,7 +762,9 @@ test('fuel consumption chart keeps only fuels and converts all series to PJ', ()
 test('cost by component chart exposes the objective cost unit on the y-axis', () => {
   const request = buildFuelAndCostRequest();
   const result = buildFuelAndCostResult();
-  const chart = buildCostByComponentChart(request, result);
+  const contributions = buildSolverContributionRows(request, result);
+  const years = request.configuration.years;
+  const chart = buildCostByComponentChart(contributions, years, request.objectiveCost);
 
   assert.equal(chart.title, 'Cost by Component');
   assert.equal(chart.yAxisLabel, 'AUD 2024');

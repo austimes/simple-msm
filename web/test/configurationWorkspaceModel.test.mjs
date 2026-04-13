@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
-import { getAvailableStateIds } from '../src/data/configurationWorkspaceModel.ts';
+import { getActiveStateIds } from '../src/data/configurationWorkspaceModel.ts';
 import { buildConfiguration, loadPkg } from './solverTestUtils.mjs';
 
 const pkg = loadPkg();
 
-describe('getAvailableStateIds', () => {
-  test('fixed-share controls keep non-disabled pathways enabled for editing', () => {
+describe('getActiveStateIds', () => {
+  test('active_state_ids controls keep only listed pathways active', () => {
     const electricityStateIds = Array.from(
       new Set(
         pkg.sectorStates
@@ -18,25 +18,25 @@ describe('getAvailableStateIds', () => {
     assert.ok(electricityStateIds.length >= 2, 'expected multiple electricity pathways');
 
     const [primaryStateId, disabledStateId] = electricityStateIds;
+    const activeIds = electricityStateIds.filter((id) => id !== disabledStateId);
     const configuration = buildConfiguration(pkg.appConfig, {
       name: 'Electricity fixed-share denominator semantics',
       serviceControls: {
         electricity: {
-          mode: 'fixed_shares',
-          fixed_shares: { [primaryStateId]: 1 },
-          disabled_state_ids: [disabledStateId],
+          mode: 'optimize',
+          active_state_ids: activeIds,
         },
       },
     });
 
-    const availableStateIds = getAvailableStateIds(configuration, 'electricity', electricityStateIds);
+    const resultIds = getActiveStateIds(configuration, 'electricity', electricityStateIds);
 
-    assert.ok(availableStateIds.includes(primaryStateId));
-    assert.ok(!availableStateIds.includes(disabledStateId));
-    assert.equal(availableStateIds.length, electricityStateIds.length - 1);
+    assert.ok(resultIds.includes(primaryStateId));
+    assert.ok(!resultIds.includes(disabledStateId));
+    assert.equal(resultIds.length, electricityStateIds.length - 1);
   });
 
-  test('single-path exact-share controls still expose non-disabled pathways as enabled candidates', () => {
+  test('single-path active_state_ids controls still expose only listed pathways as active', () => {
     const residentialStateIds = Array.from(
       new Set(
         pkg.sectorStates
@@ -48,25 +48,25 @@ describe('getAvailableStateIds', () => {
     assert.ok(residentialStateIds.length >= 2, 'expected multiple residential pathways');
 
     const [selectedStateId, disabledStateId] = residentialStateIds;
+    const activeIds = residentialStateIds.filter((id) => id !== disabledStateId);
     const configuration = buildConfiguration(pkg.appConfig, {
       name: 'Residential single-path exact-share availability semantics',
       serviceControls: {
         residential_building_services: {
-          mode: 'fixed_shares',
-          fixed_shares: { [selectedStateId]: 1 },
-          disabled_state_ids: [disabledStateId],
+          mode: 'optimize',
+          active_state_ids: activeIds,
         },
       },
     });
 
-    const availableStateIds = getAvailableStateIds(
+    const resultIds = getActiveStateIds(
       configuration,
       'residential_building_services',
       residentialStateIds,
     );
 
-    assert.ok(availableStateIds.includes(selectedStateId));
-    assert.ok(!availableStateIds.includes(disabledStateId));
-    assert.equal(availableStateIds.length, residentialStateIds.length - 1);
+    assert.ok(resultIds.includes(selectedStateId));
+    assert.ok(!resultIds.includes(disabledStateId));
+    assert.equal(resultIds.length, residentialStateIds.length - 1);
   });
 });

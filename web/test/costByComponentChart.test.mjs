@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { SOLVER_CONTRACT_VERSION } from '../src/solver/contract.ts';
 import { buildCostByComponentChart } from '../src/results/chartData.ts';
+import { buildSolverContributionRows } from '../src/results/resultContributions.ts';
 
 function buildRequest() {
   return {
@@ -83,14 +84,12 @@ function buildRequest() {
         removals_service: {
           2030: {
             mode: 'optimize',
-            fixedShares: null,
-            disabledStateIds: [],
+            activeStateIds: null,
             targetValue: null,
           },
           2035: {
             mode: 'optimize',
-            fixedShares: null,
-            disabledStateIds: [],
+            activeStateIds: null,
             targetValue: null,
           },
         },
@@ -171,7 +170,11 @@ function buildResult() {
 }
 
 test('buildCostByComponentChart preserves negative carbon values for diverging stacks', () => {
-  const chart = buildCostByComponentChart(buildRequest(), buildResult());
+  const request = buildRequest();
+  const result = buildResult();
+  const contributions = buildSolverContributionRows(request, result);
+  const years = request.configuration.years;
+  const chart = buildCostByComponentChart(contributions, years);
 
   assert.equal(chart.title, 'Cost by Component');
   assert.equal(chart.yAxisLabel, 'Cost');

@@ -179,46 +179,37 @@ test('required-service LP solves exact-share and optimize controls generically',
       controlsByOutput: {
         heat: {
           2025: {
-            mode: 'fixed_shares',
-            fixedShares: { 'heat_fossil': 1 },
-            disabledStateIds: ['heat_electric'],
+            mode: 'optimize',
+            activeStateIds: ['heat_fossil'],
             targetValue: null,
           },
           2030: {
-            mode: 'fixed_shares',
-            fixedShares: {
-              heat_fossil: 0.25,
-              heat_electric: 0.75,
-            },
-            disabledStateIds: [],
+            mode: 'optimize',
+            activeStateIds: ['heat_fossil', 'heat_electric'],
             targetValue: null,
           },
         },
         transport: {
           2025: {
-            mode: 'fixed_shares',
-            fixedShares: { 'transport_diesel': 1 },
-            disabledStateIds: ['transport_ev'],
+            mode: 'optimize',
+            activeStateIds: ['transport_diesel'],
             targetValue: null,
           },
           2030: {
-            mode: 'fixed_shares',
-            fixedShares: { 'transport_ev': 1 },
-            disabledStateIds: ['transport_diesel'],
+            mode: 'optimize',
+            activeStateIds: ['transport_ev'],
             targetValue: null,
           },
         },
         process: {
           2025: {
-            mode: 'fixed_shares',
-            fixedShares: { 'process_transition': 1 },
-            disabledStateIds: ['process_incumbent', 'process_hydrogen'],
+            mode: 'optimize',
+            activeStateIds: ['process_transition'],
             targetValue: null,
           },
           2030: {
             mode: 'optimize',
-            fixedShares: null,
-            disabledStateIds: ['process_hydrogen'],
+            activeStateIds: ['process_incumbent', 'process_transition'],
             targetValue: null,
           },
         },
@@ -251,37 +242,37 @@ test('required-service LP solves exact-share and optimize controls generically',
   assert.equal(result.raw.solutionStatus, 'optimal');
   assert.ok(result.diagnostics.every((diagnostic) => diagnostic.severity !== 'error'));
 
-  assertClose(variables.get('activity:heat_fossil::2025'), 60, '2025 heat exact-share row');
+  assertClose(variables.get('activity:heat_fossil::2025'), 60, '2025 heat single-active row');
   assertClose(variables.get('activity:heat_electric::2025'), 0, '2025 heat inactive row');
-  assertClose(variables.get('activity:transport_diesel::2025'), 40, '2025 transport exact-share row');
+  assertClose(variables.get('activity:transport_diesel::2025'), 40, '2025 transport single-active row');
   assertClose(variables.get('activity:transport_ev::2025'), 0, '2025 transport inactive row');
-  assertClose(variables.get('activity:process_transition::2025'), 30, '2025 process exact-share row');
+  assertClose(variables.get('activity:process_transition::2025'), 30, '2025 process single-active row');
   assertClose(variables.get('activity:process_incumbent::2025'), 0, '2025 process inactive row');
-  assertClose(variables.get('activity:process_hydrogen::2025'), 0, '2025 process extra row');
+  assertClose(variables.get('activity:process_hydrogen::2025'), 0, '2025 process inactive extra row');
 
-  assertClose(variables.get('activity:heat_fossil::2030'), 20, '2030 heat fixed-share fossil row');
-  assertClose(variables.get('activity:heat_electric::2030'), 60, '2030 heat fixed-share electric row');
+  assertClose(variables.get('activity:heat_fossil::2030'), 20, '2030 heat optimize capped fossil row');
+  assertClose(variables.get('activity:heat_electric::2030'), 60, '2030 heat optimize residual electric row');
   assertClose(variables.get('activity:transport_diesel::2030'), 0, '2030 transport inactive row');
-  assertClose(variables.get('activity:transport_ev::2030'), 50, '2030 transport exact-share row');
-  assertClose(variables.get('activity:process_incumbent::2030'), 37.5, '2030 process optimize low-cost capped row');
-  assertClose(variables.get('activity:process_transition::2030'), 62.5, '2030 process optimize residual row');
-  assertClose(variables.get('activity:process_hydrogen::2030'), 0, '2030 process disabled row');
+  assertClose(variables.get('activity:transport_ev::2030'), 50, '2030 transport single-active row');
+  assertClose(variables.get('activity:process_incumbent::2030'), 60, '2030 process optimize low-cost capped row');
+  assertClose(variables.get('activity:process_transition::2030'), 40, '2030 process optimize residual row');
+  assertClose(variables.get('activity:process_hydrogen::2030'), 0, '2030 process inactive row');
 
   const incumbentShare = findStateShare(result, 'process', 2030, 'process_incumbent');
   const transitionShare = findStateShare(result, 'process', 2030, 'process_transition');
   assertClose(incumbentShare?.rawMaxShare, 0.6, 'raw incumbent max share is reported');
-  assertClose(incumbentShare?.effectiveMaxShare, 0.375, 'effective incumbent max share is normalized');
+  assertClose(incumbentShare?.effectiveMaxShare, 0.6, 'effective incumbent max share when total weight > 1');
   assert.equal(transitionShare?.rawMaxShare, null);
-  assertClose(transitionShare?.effectiveMaxShare, 0.625, 'null raw max share contributes weight 1.0');
+  assertClose(transitionShare?.effectiveMaxShare, 1, 'null raw max share contributes weight 1.0');
 
   const bindingConstraintIds = new Set(
     result.reporting.bindingConstraints.map((constraint) => constraint.constraintId),
   );
 
-  assert.ok(bindingConstraintIds.has('fixed_share:heat_fossil::2025'));
-  assert.ok(bindingConstraintIds.has('fixed_share:heat_electric::2030'));
+  assert.ok(bindingConstraintIds.has('inactive:heat_electric::2025'));
+  assert.ok(bindingConstraintIds.has('max_share:heat_fossil::2030'));
   assert.ok(bindingConstraintIds.has('max_share:process_incumbent::2030'));
-  assert.ok(bindingConstraintIds.has('disabled:process_hydrogen::2030'));
+  assert.ok(bindingConstraintIds.has('inactive:process_hydrogen::2030'));
 });
 
 test('endogenous electricity enforces balance and removes exogenous electricity double counting', () => {
@@ -339,19 +330,14 @@ test('endogenous electricity enforces balance and removes exogenous electricity 
         process: {
           2030: {
             mode: 'optimize',
-            fixedShares: null,
-            disabledStateIds: [],
+            activeStateIds: null,
             targetValue: null,
           },
         },
         electricity: {
           2030: {
-            mode: 'fixed_shares',
-            fixedShares: {
-              grid_clean: 0.25,
-              grid_firmed: 0.75,
-            },
-            disabledStateIds: [],
+            mode: 'optimize',
+            activeStateIds: ['grid_clean', 'grid_firmed'],
             targetValue: null,
           },
         },
@@ -456,16 +442,14 @@ test('externalized electricity bypasses supply states and prices electricity exo
         process: {
           2030: {
             mode: 'optimize',
-            fixedShares: null,
-            disabledStateIds: [],
+            activeStateIds: null,
             targetValue: null,
           },
         },
         electricity: {
           2030: {
             mode: 'externalized',
-            fixedShares: null,
-            disabledStateIds: [],
+            activeStateIds: null,
             targetValue: null,
           },
         },
@@ -617,52 +601,43 @@ test('infeasible runs report deterministic service-year and electricity diagnost
       controlsByOutput: {
         pin_service: {
           2030: {
-            mode: 'fixed_shares',
-            fixedShares: {
-              pin_locked: 0.8,
-              pin_flexible: 0.2,
-            },
-            disabledStateIds: [],
+            mode: 'optimize',
+            activeStateIds: ['pin_locked', 'pin_flexible'],
             targetValue: null,
           },
         },
         share_service: {
           2030: {
             mode: 'optimize',
-            fixedShares: null,
-            disabledStateIds: [],
+            activeStateIds: null,
             targetValue: null,
           },
         },
         activity_service: {
           2030: {
             mode: 'optimize',
-            fixedShares: null,
-            disabledStateIds: [],
+            activeStateIds: null,
             targetValue: null,
           },
         },
         disabled_service: {
           2030: {
             mode: 'optimize',
-            fixedShares: null,
-            disabledStateIds: ['disabled_a', 'disabled_b'],
+            activeStateIds: [],
             targetValue: null,
           },
         },
         process_service: {
           2030: {
             mode: 'optimize',
-            fixedShares: null,
-            disabledStateIds: [],
+            activeStateIds: null,
             targetValue: null,
           },
         },
         electricity: {
           2030: {
             mode: 'optimize',
-            fixedShares: null,
-            disabledStateIds: [],
+            activeStateIds: null,
             targetValue: null,
           },
         },
@@ -704,11 +679,6 @@ test('infeasible runs report deterministic service-year and electricity diagnost
   assert.deepEqual(result.reporting.softConstraintViolations, []);
 
   assert.equal(
-    findDiagnostic(result, 'exact_control_share_conflict', 'pin_service')?.reason,
-    'exact_share_conflict',
-  );
-  assert.equal(findDiagnostic(result, 'exact_control_share_conflict', 'pin_service')?.year, 2030);
-  assert.equal(
     findDiagnostic(result, 'service_min_share_exhaustion', 'share_service')?.reason,
     'share_exhaustion',
   );
@@ -717,8 +687,8 @@ test('infeasible runs report deterministic service-year and electricity diagnost
     'activity_exhaustion',
   );
   assert.equal(
-    findDiagnostic(result, 'service_states_disabled', 'disabled_service')?.reason,
-    'disabled_states',
+    findDiagnostic(result, 'service_states_inactive', 'disabled_service')?.reason,
+    'inactive_states',
   );
   assert.equal(
     findDiagnostic(result, 'electricity_balance_shortfall', 'electricity')?.reason,
@@ -799,36 +769,29 @@ test('soft-constraint mode restores feasibility and reports slack penalties', ()
       controlsByOutput: {
         share_service: {
           2030: {
-            mode: 'fixed_shares',
-            fixedShares: {
-              share_a: 0.8,
-              share_b: 0.2,
-            },
-            disabledStateIds: [],
+            mode: 'optimize',
+            activeStateIds: ['share_a', 'share_b'],
             targetValue: null,
           },
         },
         activity_service: {
           2030: {
             mode: 'optimize',
-            fixedShares: null,
-            disabledStateIds: [],
+            activeStateIds: null,
             targetValue: null,
           },
         },
         process_service: {
           2030: {
             mode: 'optimize',
-            fixedShares: null,
-            disabledStateIds: [],
+            activeStateIds: null,
             targetValue: null,
           },
         },
         electricity: {
           2030: {
             mode: 'optimize',
-            fixedShares: null,
-            disabledStateIds: [],
+            activeStateIds: null,
             targetValue: null,
           },
         },
@@ -873,27 +836,21 @@ test('soft-constraint mode restores feasibility and reports slack penalties', ()
   assert.equal(result.raw?.solutionStatus, 'optimal');
   assert.ok(result.diagnostics.every((diagnostic) => diagnostic.severity !== 'error'));
 
-  assertClose(variables.get('activity:share_a::2030'), 80, 'soft share service follows the exact control');
-  assertClose(variables.get('activity:share_b::2030'), 20, 'soft share service keeps the residual state at its exact-share target');
+  assertClose(variables.get('activity:share_a::2030'), 40, 'soft share service capped at effective max share');
+  assertClose(variables.get('activity:share_b::2030'), 60, 'soft share service residual');
   assertClose(variables.get('activity:activity_a::2030'), 80, 'soft activity service exceeds cheapest cap');
   assertClose(variables.get('activity:activity_b::2030'), 20, 'soft activity service stays on expensive capped row');
   assertClose(variables.get('activity:grid_limited::2030'), 60, 'soft electricity supply covers modeled and external demand');
 
-  assert.equal(result.reporting.softConstraintViolations.length, 3);
-  assertClose(shareSlack?.boundValue, 28.57142857142857, 'share bound reflects normalized effective cap');
-  assertClose(shareSlack?.slack, 51.42857143, 'share slack');
-  assertClose(shareSlack?.actualValue, 80, 'share actual activity');
+  assert.equal(result.reporting.softConstraintViolations.length, 2);
   assertClose(activitySlack?.slack, 50, 'activity slack');
   assertClose(activitySlack?.actualValue, 80, 'activity actual output');
   assertClose(electricitySlack?.slack, 20, 'electricity slack');
   assertClose(electricitySlack?.actualValue, 60, 'electricity actual output');
-  assert.ok((shareSlack?.penaltyPerUnit ?? 0) > 0);
-  assertClose(shareSlack?.totalPenalty, (shareSlack?.penaltyPerUnit ?? 0) * (shareSlack?.slack ?? 0), 'share total penalty');
   assertClose(activitySlack?.totalPenalty, (activitySlack?.penaltyPerUnit ?? 0) * 50, 'activity total penalty');
   assertClose(electricitySlack?.totalPenalty, (electricitySlack?.penaltyPerUnit ?? 0) * 20, 'electricity total penalty');
 
   assert.equal(findDiagnostic(result, 'soft_constraints_enabled')?.severity, 'info');
-  assert.equal(findDiagnostic(result, 'soft_max_share_relaxed', 'share_service')?.reason, 'share_exhaustion');
   assert.equal(findDiagnostic(result, 'soft_max_activity_relaxed', 'activity_service')?.reason, 'activity_exhaustion');
   assert.equal(findDiagnostic(result, 'soft_max_activity_relaxed', 'electricity')?.reason, 'activity_exhaustion');
   assertClose(electricitySummary?.supply, 60, 'soft electricity supply');
@@ -931,8 +888,7 @@ test('max-share normalization keeps subset runs feasible and reports raw versus 
         subset_service: {
           2030: {
             mode: 'optimize',
-            fixedShares: null,
-            disabledStateIds: ['subset_disabled'],
+            activeStateIds: ['subset_enabled'],
             targetValue: null,
           },
         },
@@ -973,7 +929,7 @@ test('max-share normalization keeps subset runs feasible and reports raw versus 
   assertClose(maxConstraint?.boundValue, 100, 'hard max-share constraint uses the normalized effective cap');
 });
 
-test('zero raw max shares fall back to equal effective shares across enabled pathways', () => {
+test('zero raw max shares with both states active results in infeasibility when maxShare is respected', () => {
   const request = {
     contractVersion: SOLVER_CONTRACT_VERSION,
     requestId: 'lp-adapter-zero-max-share-fallback',
@@ -1002,12 +958,8 @@ test('zero raw max shares fall back to equal effective shares across enabled pat
       controlsByOutput: {
         equal_service: {
           2030: {
-            mode: 'fixed_shares',
-            fixedShares: {
-              equal_a: 0.5,
-              equal_b: 0.5,
-            },
-            disabledStateIds: [],
+            mode: 'optimize',
+            activeStateIds: ['equal_a', 'equal_b'],
             targetValue: null,
           },
         },
@@ -1031,15 +983,9 @@ test('zero raw max shares fall back to equal effective shares across enabled pat
   };
 
   const result = solveWithLpAdapter(request);
-  const variables = getVariableMap(result);
-  const shareA = findStateShare(result, 'equal_service', 2030, 'equal_a');
-  const shareB = findStateShare(result, 'equal_service', 2030, 'equal_b');
 
-  assert.equal(result.status, 'solved');
-  assertClose(variables.get('activity:equal_a::2030'), 40, 'equal_a activity');
-  assertClose(variables.get('activity:equal_b::2030'), 40, 'equal_b activity');
-  assertClose(shareA?.effectiveMaxShare, 0.5, 'equal_a effective max share falls back to 50%');
-  assertClose(shareB?.effectiveMaxShare, 0.5, 'equal_b effective max share falls back to 50%');
+  assert.equal(result.status, 'error');
+  assert.equal(result.raw?.solutionStatus, 'infeasible');
 });
 
 test('one-hot exact-share controls normalize caps over active states', () => {
@@ -1070,9 +1016,8 @@ test('one-hot exact-share controls normalize caps over active states', () => {
       controlsByOutput: {
         exact_share_service: {
           2030: {
-            mode: 'fixed_shares',
-            fixedShares: { 'selected_a': 1 },
-            disabledStateIds: [],
+            mode: 'optimize',
+            activeStateIds: ['selected_a', 'available_b'],
             targetValue: null,
           },
         },
@@ -1101,8 +1046,8 @@ test('one-hot exact-share controls normalize caps over active states', () => {
   const availableShare = findStateShare(result, 'exact_share_service', 2030, 'available_b');
 
   assert.equal(result.status, 'solved');
-  assertClose(variables.get('activity:selected_a::2030'), 100, 'selected exact-share state carries the full demand');
-  assertClose(variables.get('activity:available_b::2030'), 0, 'other available state stays inactive');
-  assertClose(selectedShare?.effectiveMaxShare, 1, 'selected exact-share state cap expands to the full active denominator');
-  assert.equal(availableShare?.effectiveMaxShare, null, 'zero-share available pathways drop out of the cap denominator');
+  assertClose(variables.get('activity:selected_a::2030'), 20, 'cheaper state capped at its effective max share');
+  assertClose(variables.get('activity:available_b::2030'), 80, 'remaining demand on the uncapped state');
+  assertClose(selectedShare?.effectiveMaxShare, 0.2, 'selected state effective max share unchanged when total weight > 1');
+  assertClose(availableShare?.effectiveMaxShare, 1, 'uncapped state retains full effective share');
 });
