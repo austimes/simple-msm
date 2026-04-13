@@ -152,6 +152,24 @@ describe('Aggregation totals', () => {
   it('LULUCF sink = -73.7 MtCO2e', () => {
     assert.equal(totals.lulucfSinkMtco2e, -73.7);
   });
+
+  it('total carbon-billable emissions ≈ 143.904 MtCO2e', () => {
+    assert.ok(
+      Math.abs(totals.totalCarbonBillableEmissionsMtco2e - 143.904) < 0.01,
+      `Expected ≈143.904, got ${totals.totalCarbonBillableEmissionsMtco2e}`,
+    );
+  });
+
+  it('total overlay commodity cost ≈ 40820.1 AUD M 2024', () => {
+    assert.ok(
+      Math.abs(totals.totalOverlayCommodityCostAudm2024 - 40820.1) < 1.0,
+      `Expected ≈40820.1, got ${totals.totalOverlayCommodityCostAudm2024}`,
+    );
+  });
+
+  it('total overlay fixed cost = 0 AUD M 2024', () => {
+    assert.equal(totals.totalOverlayFixedCostAudm2024, 0);
+  });
 });
 
 // =============================================================================
