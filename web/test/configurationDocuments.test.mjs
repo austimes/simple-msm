@@ -79,16 +79,8 @@ test('bundled configurations are full documents with app metadata', () => {
     assert.equal(typeof config.carbon_price, 'object', `${file} should include carbon_price`);
     assert.equal(typeof config.app_metadata?.id, 'string', `${file} should include app_metadata.id`);
     assert.equal(config.app_metadata?.readonly, true, `${file} should be readonly`);
-    if (file !== 'reference.json') {
-      assert.ok(
-        Array.isArray(config.app_metadata?.seed_output_ids),
-        `${file} should use app_metadata.seed_output_ids for scoped solves`,
-      );
-      assert.ok(
-        !('included_output_ids' in (config.app_metadata ?? {})),
-        `${file} should not keep the legacy app_metadata.included_output_ids field`,
-      );
-    }
+    assert.ok(!('seed_output_ids' in (config.app_metadata ?? {})), `${file} should not keep dead app_metadata.seed_output_ids`);
+    assert.ok(!('included_output_ids' in (config.app_metadata ?? {})), `${file} should not keep dead app_metadata.included_output_ids`);
 
     assert.ok(!('id' in config), `${file} should not keep legacy top-level id`);
     assert.ok(!('readonly' in config), `${file} should not keep legacy top-level readonly`);
@@ -140,30 +132,6 @@ test('configuration documents round-trip through browser persistence into scoped
   assert.ok(outputsInRequest.has('commercial_building_services'));
   assert.ok(outputsInRequest.has('electricity'));
   assert.ok(!outputsInRequest.has('cement_equivalent'));
-});
-
-test('configuration loader accepts legacy included_output_ids and canonicalizes to seed_output_ids', async () => {
-  const { parseConfigurationCollection } = await loadViteModule('/src/data/configurationLoader.ts');
-  const legacyConfig = readJson('../src/configurations/buildings-endogenous.json');
-
-  legacyConfig.app_metadata = {
-    id: legacyConfig.app_metadata.id,
-    readonly: true,
-    included_output_ids: legacyConfig.app_metadata.seed_output_ids,
-  };
-
-  const [parsed] = parseConfigurationCollection(
-    {
-      '/src/configurations/legacy-buildings-endogenous.json': JSON.stringify(legacyConfig),
-    },
-    true,
-  );
-
-  assert.deepEqual(
-    parsed.app_metadata?.seed_output_ids,
-    readJson('../src/configurations/buildings-endogenous.json').app_metadata.seed_output_ids,
-  );
-  assert.ok(!('included_output_ids' in (parsed.app_metadata ?? {})));
 });
 
 test('configuration id helper prefers app metadata ids and falls back to legacy top-level ids', async () => {

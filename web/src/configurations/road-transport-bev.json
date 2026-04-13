@@ -239,9 +239,6 @@
   },
   "app_metadata": {
     "id": "road-transport-bev",
-    "readonly": true,
-    "seed_output_ids": [
-      "passenger_road_transport"
-    ]
+    "readonly": true
   }
 }

@@ -259,19 +259,6 @@
   },
   "app_metadata": {
     "id": "full-model-incumbents",
-    "readonly": true,
-    "seed_output_ids": [
-      "residential_building_services",
-      "commercial_building_services",
-      "passenger_road_transport",
-      "freight_road_transport",
-      "low_temperature_heat",
-      "medium_temperature_heat",
-      "high_temperature_heat",
-      "crude_steel",
-      "cement_equivalent",
-      "livestock_output_bundle",
-      "cropping_horticulture_output_bundle"
-    ]
+    "readonly": true
   }
 }

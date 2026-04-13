@@ -235,10 +235,6 @@
   },
   "app_metadata": {
     "id": "buildings-endogenous",
-    "readonly": true,
-    "seed_output_ids": [
-      "residential_building_services",
-      "commercial_building_services"
-    ]
+    "readonly": true
   }
 }

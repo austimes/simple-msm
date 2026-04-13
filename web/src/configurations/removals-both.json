@@ -280,10 +280,6 @@
   },
   "app_metadata": {
     "id": "removals-both",
-    "readonly": true,
-    "seed_output_ids": [
-      "land_sequestration",
-      "engineered_removals"
-    ]
+    "readonly": true
   }
 }

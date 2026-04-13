@@ -204,11 +204,21 @@
       "electricity": 0.2
     },
     "year_overrides": {
-      "2030": { "land_sequestration": 6000000 },
-      "2035": { "land_sequestration": 7000000 },
-      "2040": { "land_sequestration": 8000000 },
-      "2045": { "land_sequestration": 9000000 },
-      "2050": { "land_sequestration": 10000000 }
+      "2030": {
+        "land_sequestration": 6000000
+      },
+      "2035": {
+        "land_sequestration": 7000000
+      },
+      "2040": {
+        "land_sequestration": 8000000
+      },
+      "2045": {
+        "land_sequestration": 9000000
+      },
+      "2050": {
+        "land_sequestration": 10000000
+      }
     },
     "notes": "Resolved milestone-year demand tables are included for reproducibility. The preset metadata explains how they were generated."
   },
@@ -254,9 +264,6 @@
   },
   "app_metadata": {
     "id": "land-sequestration-only",
-    "readonly": true,
-    "seed_output_ids": [
-      "land_sequestration"
-    ]
+    "readonly": true
   }
 }

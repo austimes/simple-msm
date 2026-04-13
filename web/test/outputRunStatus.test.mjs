@@ -65,38 +65,6 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
     );
   });
 
-  test('accepts legacy included_output_ids as an alias for seed_output_ids', () => {
-    const configuration = readJson('../src/configurations/buildings-endogenous.json');
-    const legacyConfiguration = structuredClone(configuration);
-    legacyConfiguration.app_metadata = {
-      ...legacyConfiguration.app_metadata,
-      included_output_ids: legacyConfiguration.app_metadata.seed_output_ids,
-    };
-    delete legacyConfiguration.app_metadata.seed_output_ids;
-
-    const canonicalStatuses = deriveOutputRunStatusesForConfiguration(pkg, configuration);
-    const legacyStatuses = deriveOutputRunStatusesForConfiguration(pkg, legacyConfiguration);
-    const canonicalRequest = buildSolveRequest(pkg, configuration);
-    const legacyRequest = buildSolveRequest(pkg, legacyConfiguration);
-
-    assert.equal(
-      legacyStatuses.residential_building_services.runParticipation,
-      'seed_scope',
-    );
-    assert.equal(
-      legacyStatuses.electricity.runParticipation,
-      'auto_included_dependency',
-    );
-    assert.deepEqual(
-      outputSetFromStatuses(legacyStatuses),
-      outputSetFromStatuses(canonicalStatuses),
-    );
-    assert.deepEqual(
-      outputSetFromRequest(legacyRequest),
-      outputSetFromRequest(canonicalRequest),
-    );
-  });
-
   test('marks outputs as disabled when no states are enabled', () => {
     const configuration = buildConfiguration(pkg.appConfig, {
       name: 'Passenger transport fully disabled',

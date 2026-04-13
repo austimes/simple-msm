@@ -17,7 +17,6 @@ import {
   getConfigurationId,
   isReadonlyConfiguration,
   loadBuiltinConfigurations,
-  withSeedOutputIds,
 } from './configurationLoader.ts';
 import { ensureResidualOverlays } from './configurationDocumentLoader.ts';
 import { getActiveStateIds } from './configurationWorkspaceModel.ts';
@@ -51,7 +50,6 @@ interface PackageStore extends PackageData {
   setDemandPreset: (presetId: string) => void;
   setRespectMaxShare: (enabled: boolean) => void;
   loadConfiguration: (config: ConfigurationDocument) => void;
-  setIncludedOutputIds: (outputIds: string[] | undefined) => void;
 }
 
 function cloneConfiguration(configuration: ConfigurationDocument): ConfigurationDocument {
@@ -386,14 +384,6 @@ export const usePackageStore = create<PackageStore>((set, get) => {
         persistenceNotice: `Loaded configuration "${config.name}".`,
         persistenceError,
       });
-    },
-    setIncludedOutputIds: (outputIds) => {
-      const state = get();
-      const nextConfiguration = withSeedOutputIds(
-        cloneConfiguration(state.currentConfiguration),
-        outputIds,
-      );
-      commitConfigurationEdit(nextConfiguration);
     },
   };
 });

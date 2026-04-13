@@ -284,12 +284,6 @@
   },
   "app_metadata": {
     "id": "agriculture-removals-endogenous",
-    "readonly": true,
-    "seed_output_ids": [
-      "livestock_output_bundle",
-      "cropping_horticulture_output_bundle",
-      "land_sequestration",
-      "engineered_removals"
-    ]
+    "readonly": true
   }
 }

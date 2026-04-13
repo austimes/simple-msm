@@ -241,10 +241,6 @@
   },
   "app_metadata": {
     "id": "agriculture-only",
-    "readonly": true,
-    "seed_output_ids": [
-      "livestock_output_bundle",
-      "cropping_horticulture_output_bundle"
-    ]
+    "readonly": true
   }
 }

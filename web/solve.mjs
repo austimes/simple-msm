@@ -13,8 +13,6 @@
  * A <config> is a file path (e.g. ./my-config.json) or a built-in id
  * (e.g. steel-optimize). Built-in ids resolve to src/configurations/<id>.json.
  *
- * Scope is defined in the config file via app_metadata.included_output_ids.
- *
  * Output:
  *   --json      Machine-readable JSON
  *   --quiet     Summary-only human output
@@ -50,7 +48,7 @@ Usage:
   npx msm --all                        Batch solve all built-ins
 
 A <config> is a file path or a built-in id (resolves to src/configurations/<id>.json).
-Scope is defined in the config file via app_metadata.included_output_ids.
+Scope is derived dynamically from active pathways.
 
 Options:
   --json          Machine-readable JSON output
@@ -93,12 +91,6 @@ function readTextRelative(p) {
 function readJsonFile(absPath, label) {
   try { return JSON.parse(readFileSync(absPath, 'utf8')); }
   catch (e) { throw new Error(`Failed to parse ${label} ${displayPath(absPath)}: ${toErrorMessage(e)}`); }
-}
-
-function normalizeOptionalStringArray(value) {
-  if (!Array.isArray(value)) return undefined;
-  const n = uniqueSorted(value.filter((e) => typeof e === 'string' && e.trim()));
-  return n.length > 0 ? n : undefined;
 }
 
 function formatIdList(values, limit = 6) {
@@ -337,10 +329,6 @@ function getConfigId(config, fallback = null) {
   return typeof id === 'string' && id.trim() ? id.trim() : fallback;
 }
 
-function getConfigIncludedOutputIds(config) {
-  return normalizeOptionalStringArray(config?.app_metadata?.included_output_ids);
-}
-
 function validateConfig(config, label) {
   if (!isPlainObject(config)) throw new Error(`Invalid ${label}: expected a JSON object.`);
   if (typeof config.name !== 'string' || !config.name.trim()) throw new Error(`Invalid ${label}: missing string "name".`);
@@ -401,7 +389,6 @@ function summarizeRun(run) {
 function executeConfig(pkg, configPath, { solverOnly = false } = {}) {
   const config = loadConfig(configPath);
   const configId = getConfigId(config, basename(configPath, '.json'));
-  const includedOutputIds = getConfigIncludedOutputIds(config);
   let configuration = resolveConfigurationDocument(config, pkg.appConfig, config.name);
   configuration = ensureResidualOverlays(configuration, pkg.residualOverlays2025);
 
@@ -412,7 +399,6 @@ function executeConfig(pkg, configPath, { solverOnly = false } = {}) {
     source: displayPath(configPath),
     configurationName: config.name,
     configurationDescription: config.description ?? null,
-    includedOutputIds: includedOutputIds ?? null,
     request: snapshot.request, result: snapshot.result,
     contributions: snapshot.contributions,
     solverOnly,
@@ -524,12 +510,7 @@ function printSingleRun(run, pkg, { quiet = false } = {}) {
   console.log(`  Status:        ${m.status} (LP: ${m.lpStatus ?? 'N/A'})`);
   console.log(`  Objective:     ${fmtNumber(m.objectiveValue)}`);
   console.log(`  Years:         ${run.request.configuration.years.join(', ')}`);
-  if (run.includedOutputIds) {
-    console.log(`  Scope:         ${run.includedOutputIds.length} seed outputs -> ${m.outputCount} resolved`);
-    console.log(`  Seed outputs:  ${formatIdList(run.includedOutputIds)}`);
-  } else {
-    console.log(`  Scope:         full model (${m.outputCount} outputs)`);
-  }
+  console.log(`  Scope:         ${m.outputCount} outputs`);
   console.log(`  Rows:          ${m.rowCount}`);
   console.log(`  Variables:     ${m.variableCount}`);
   console.log(`  Constraints:   ${m.constraintCount}`);
@@ -799,24 +780,16 @@ function main(argv) {
         id: getConfigId(config, basename(configPaths[index], '.json')),
         name: config.name,
         description: config.description ?? null,
-        includedOutputIds: getConfigIncludedOutputIds(config) ?? null,
       })), null, 2));
     } else {
       console.log(`\nBuilt-in configurations`);
       console.log(renderTable([
         { header: 'id', key: 'id', maxWidth: 28 },
-        { header: 'name', key: 'name', maxWidth: 36 },
-        { header: 'scope', key: 'scope', maxWidth: 18 },
-        { header: 'outputs', key: 'outputs', maxWidth: 64 },
-      ], configs.map((config, index) => {
-        const includedOutputIds = getConfigIncludedOutputIds(config);
-        return {
-          id: getConfigId(config, basename(configPaths[index], '.json')),
-          name: config.name,
-          scope: includedOutputIds ? `${includedOutputIds.length} outputs` : 'full model',
-          outputs: formatIdList(includedOutputIds ?? pkg.allOutputIds, 8),
-        };
-      })));
+        { header: 'name', key: 'name', maxWidth: 48 },
+      ], configs.map((config, index) => ({
+        id: getConfigId(config, basename(configPaths[index], '.json')),
+        name: config.name,
+      }))));
       console.log();
     }
     return EXIT_OK;

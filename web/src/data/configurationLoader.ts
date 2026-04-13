@@ -6,11 +6,8 @@
 import { parseConfigurationDocument } from './configurationDocumentLoader.ts';
 import {
   getConfigurationDocumentId,
-  normalizeSeedOutputIds,
 } from './configurationMetadata.ts';
 import type { ConfigurationDocument } from './types.ts';
-
-export { getIncludedOutputIds, getSeedOutputIds } from './configurationMetadata.ts';
 
 // --- Built-in configuration loading (Vite eager import) ---
 
@@ -28,18 +25,13 @@ function normalizeConfigurationMetadata(configuration: ConfigurationDocument): C
   const configurationWithoutMetadata = { ...configuration };
   delete configurationWithoutMetadata.app_metadata;
 
-  const seedOutputIds = normalizeSeedOutputIds(
-    configuration.app_metadata?.seed_output_ids
-    ?? configuration.app_metadata?.included_output_ids,
-  );
   const id = configuration.app_metadata?.id?.trim() || undefined;
   const readonly = configuration.app_metadata?.readonly === true;
 
-  const appMetadata = [id, readonly, seedOutputIds?.length].some(Boolean)
+  const appMetadata = [id, readonly].some(Boolean)
     ? {
         ...(id ? { id } : {}),
         ...(readonly ? { readonly: true } : {}),
-        ...(seedOutputIds ? { seed_output_ids: seedOutputIds } : {}),
       }
     : undefined;
 
@@ -134,20 +126,6 @@ export function getConfigurationId(configuration: ConfigurationDocument): string
 
 export function isReadonlyConfiguration(configuration: ConfigurationDocument): boolean {
   return configuration.app_metadata?.readonly === true;
-}
-
-export function withIncludedOutputIds(
-  configuration: ConfigurationDocument,
-  includedOutputIds: string[] | undefined,
-): ConfigurationDocument {
-  return withSeedOutputIds(configuration, includedOutputIds);
-}
-
-export function withSeedOutputIds(
-  configuration: ConfigurationDocument,
-  seedOutputIds: string[] | undefined,
-): ConfigurationDocument {
-  return withConfigurationMetadata(configuration, { seed_output_ids: seedOutputIds });
 }
 
 export function loadBuiltinConfigurations(): ConfigurationDocument[] {

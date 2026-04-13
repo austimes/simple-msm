@@ -243,11 +243,6 @@
   },
   "app_metadata": {
     "id": "industrial-heat-electrified",
-    "readonly": true,
-    "seed_output_ids": [
-      "low_temperature_heat",
-      "medium_temperature_heat",
-      "high_temperature_heat"
-    ]
+    "readonly": true
   }
 }

@@ -241,10 +241,6 @@
   },
   "app_metadata": {
     "id": "buildings-externalized",
-    "readonly": true,
-    "seed_output_ids": [
-      "residential_building_services",
-      "commercial_building_services"
-    ]
+    "readonly": true
   }
 }

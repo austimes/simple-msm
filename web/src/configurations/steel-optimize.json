@@ -236,9 +236,6 @@
   },
   "app_metadata": {
     "id": "steel-optimize",
-    "readonly": true,
-    "seed_output_ids": [
-      "crude_steel"
-    ]
+    "readonly": true
   }
 }
