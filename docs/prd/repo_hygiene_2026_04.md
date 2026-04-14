@@ -19,7 +19,7 @@ The repo builds and lints cleanly but has several hygiene issues: one failing te
 ### 3. Documentation Drift
 
 - **README.md hardcoded absolute paths**: Lines 39, 67, 98-100 use `/Users/gre538/code/simple-msm/...` absolute paths instead of relative paths. These break for any other developer or CI.
-- **PRD filenames `20261314-*`**: The date prefix "20261314" is invalid (month 14 doesn't exist). Should be corrected to a valid date or a different naming convention.
+- **PRD filenames `20261314-*`**: Fixed — renamed to `20260413-*` (valid ISO date prefix).
 
 ### 4. Code Quality
 
