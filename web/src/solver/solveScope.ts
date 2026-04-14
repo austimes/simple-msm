@@ -14,8 +14,7 @@ import type {
 import { normalizeSolverRows, resolveConfigurationForSolve, yearKey } from './solveRequestModel.ts';
 
 export type OutputRunParticipation =
-  | 'full_model'
-  | 'seed_scope'
+  | 'active_pathways'
   | 'auto_included_dependency'
   | 'excluded_from_run';
 
@@ -42,10 +41,9 @@ export interface DerivedOutputRunStatus {
   demandParticipation: OutputDemandParticipation;
   supplyParticipation: OutputSupplyParticipation;
   hasPositiveDemandInRun: boolean;
-  isSeedScoped: boolean;
+  isDirectlyActive: boolean;
   isAutoIncludedDependency: boolean;
   isExcludedFromRun: boolean;
-  isFullModel: boolean;
 }
 
 function collectStateIdsByOutput(rows: NormalizedSolverRow[]): Map<string, string[]> {
@@ -172,7 +170,7 @@ export function expandIncludedOutputsForDependencies(
 
         for (const input of row.inputs) {
           const inputMetadata = appConfig.output_roles[input.commodityId];
-          if (!inputMetadata || inputMetadata.output_role !== 'endogenous_supply_commodity') {
+          if (!inputMetadata || !inputMetadata.participates_in_commodity_balance) {
             continue;
           }
 
@@ -188,29 +186,28 @@ export function expandIncludedOutputsForDependencies(
   return included;
 }
 
-export function deriveSeedOutputIds(
+export function deriveDirectlyIncludedOutputIds(
+  rows: NormalizedSolverRow[],
+  resolvedConfiguration: ResolvedConfigurationForSolve,
+): Set<string> {
+  const stateIdsByOutput = collectStateIdsByOutput(rows);
+  const included = new Set<string>();
+  for (const [outputId, allStateIds] of stateIdsByOutput) {
+    const { activeStateCount } = deriveOutputPathwayStateIds(outputId, allStateIds, resolvedConfiguration);
+    if (activeStateCount > 0) {
+      included.add(outputId);
+    }
+  }
+  return included;
+}
+
+export function deriveIncludedOutputIds(
   rows: NormalizedSolverRow[],
   resolvedConfiguration: ResolvedConfigurationForSolve,
   appConfig: AppConfigRegistry,
-): string[] | undefined {
-  const stateIdsByOutput = collectStateIdsByOutput(rows);
-  const allRequired: string[] = [];
-  const activeRequired: string[] = [];
-
-  for (const [outputId, allStateIds] of stateIdsByOutput) {
-    const metadata = appConfig.output_roles[outputId];
-    if (!metadata) continue;
-    if (!metadata.demand_required && metadata.output_role !== 'optional_activity') continue;
-    allRequired.push(outputId);
-    const { activeStateCount } = deriveOutputPathwayStateIds(outputId, allStateIds, resolvedConfiguration);
-    if (activeStateCount > 0) {
-      activeRequired.push(outputId);
-    }
-  }
-
-  // When every required-service output has active pathways it is a full-model
-  // run — return undefined so callers skip the scoping path.
-  return activeRequired.length >= allRequired.length ? undefined : activeRequired;
+): Set<string> {
+  const directlyIncluded = deriveDirectlyIncludedOutputIds(rows, resolvedConfiguration);
+  return expandIncludedOutputsForDependencies(rows, resolvedConfiguration, appConfig, directlyIncluded);
 }
 
 export function deriveOutputRunStatuses(
@@ -220,15 +217,7 @@ export function deriveOutputRunStatuses(
   appConfig: AppConfigRegistry,
 ): Record<string, DerivedOutputRunStatus> {
   const stateIdsByOutput = collectStateIdsByOutput(rows);
-
-  // Scope is derived entirely from which required-service outputs have at
-  // least one active pathway.  No separate seed-scope metadata is needed.
-  const derivedSeeds = deriveSeedOutputIds(rows, resolvedConfiguration, appConfig);
-  const hasScopedRun = derivedSeeds !== undefined;
-  const seedOutputIds = new Set(derivedSeeds ?? []);
-  const expandedOutputIds = hasScopedRun
-    ? expandIncludedOutputsForDependencies(rows, resolvedConfiguration, appConfig, seedOutputIds)
-    : null;
+  const includedOutputIds = deriveIncludedOutputIds(rows, resolvedConfiguration, appConfig);
 
   return Array.from(stateIdsByOutput.entries()).reduce<Record<string, DerivedOutputRunStatus>>(
     (statuses, [outputId, allStateIds]) => {
@@ -238,23 +227,19 @@ export function deriveOutputRunStatuses(
         allStateIds,
         resolvedConfiguration,
       );
-      const isFullModel = !hasScopedRun;
-      const isSeedScoped = hasScopedRun && seedOutputIds.has(outputId);
-      const isAutoIncludedDependency = hasScopedRun
-        && !isSeedScoped
-        && !!expandedOutputIds?.has(outputId);
-      const inRun = isFullModel || isSeedScoped || isAutoIncludedDependency;
-      const hasPositiveDemandInRun = outputMetadata.demand_required
+      const directlyActive = pathwayStateIds.activeStateCount > 0;
+      const isAutoIncludedDependency = !directlyActive && includedOutputIds.has(outputId);
+      const inRun = directlyActive || isAutoIncludedDependency;
+      const hasDemand = !!resolvedConfiguration.serviceDemandByOutput[outputId];
+      const hasPositiveDemandInRun = hasDemand
         && inRun
         && Object.values(resolvedConfiguration.serviceDemandByOutput[outputId] ?? {})
           .some((value) => value > 0);
-      const runParticipation: OutputRunParticipation = isFullModel
-        ? 'full_model'
-        : isSeedScoped
-          ? 'seed_scope'
-          : isAutoIncludedDependency
-            ? 'auto_included_dependency'
-            : 'excluded_from_run';
+      const runParticipation: OutputRunParticipation = directlyActive
+        ? 'active_pathways'
+        : isAutoIncludedDependency
+          ? 'auto_included_dependency'
+          : 'excluded_from_run';
 
       statuses[outputId] = {
         outputId,
@@ -264,7 +249,7 @@ export function deriveOutputRunStatuses(
         isDisabled: pathwayStateIds.activeStateCount === 0,
         inRun,
         runParticipation,
-        demandParticipation: outputMetadata.demand_required
+        demandParticipation: hasDemand
           ? (inRun ? 'active_in_run' : 'excluded_from_run')
           : 'not_applicable',
         supplyParticipation: outputMetadata.output_role === 'endogenous_supply_commodity'
@@ -275,10 +260,9 @@ export function deriveOutputRunStatuses(
               : 'excluded_from_run')
           : 'not_applicable',
         hasPositiveDemandInRun,
-        isSeedScoped,
+        isDirectlyActive: directlyActive,
         isAutoIncludedDependency,
         isExcludedFromRun: !inRun,
-        isFullModel,
       };
       return statuses;
     },

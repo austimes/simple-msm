@@ -88,7 +88,7 @@ function buildRunParticipationBadge(
   status: DerivedOutputRunStatus,
 ): RightSidebarBadge | null {
   switch (status.runParticipation) {
-    case 'seed_scope':
+    case 'active_pathways':
       return {
         key: 'active-output',
         label: 'Active in this run',
@@ -150,10 +150,10 @@ function buildSupplyBadge(status: DerivedOutputRunStatus): RightSidebarBadge | n
 }
 
 function buildDetail(status: DerivedOutputRunStatus): string {
-  let detail = 'Included in the full-model run.';
+  let detail = 'Has active pathways and participates in this solve.';
 
   switch (status.runParticipation) {
-    case 'seed_scope':
+    case 'active_pathways':
       detail = 'Has active pathways and participates in this solve.';
       break;
     case 'auto_included_dependency':

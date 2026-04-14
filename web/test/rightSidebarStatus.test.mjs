@@ -16,7 +16,7 @@ function readJson(relativePath) {
 }
 
 describe('getRightSidebarStatusPresentation', () => {
-  test('distinguishes seed scope, dependency inclusion, and excluded outputs in buildings-only runs', () => {
+  test('distinguishes active pathways, dependency inclusion, and excluded outputs in buildings-only runs', () => {
     const configuration = readJson('../src/configurations/buildings-endogenous.json');
     const statuses = deriveOutputRunStatusesForConfiguration(pkg, configuration);
 
@@ -37,15 +37,16 @@ describe('getRightSidebarStatusPresentation', () => {
     assert.ok(
       electricity.badges.some((badge) => badge.label === 'Endogenous supply in this run'),
     );
+    // Electricity has mode=optimize with all states active, so it's directly active
     assert.ok(
-      electricity.badges.some((badge) => badge.label === 'Auto-included dependency'),
+      electricity.badges.some((badge) => badge.label === 'Active in this run'),
     );
     assert.ok(
       passengerRoad.badges.some((badge) => badge.label === 'Demand excluded from this run'),
     );
     assert.equal(passengerRoad.isDisabled, true);
     assert.equal(passengerRoad.isDimmed, true);
-    assert.match(electricity.detail, /depends on it/i);
+    assert.match(electricity.detail, /active pathways/i);
     assert.match(passengerRoad.detail, /excluded/i);
   });
 

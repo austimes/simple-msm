@@ -29,22 +29,23 @@ function outputSetFromRequest(request) {
 }
 
 describe('deriveOutputRunStatusesForConfiguration', () => {
-  test('matches the buildings-endogenous seed-scope and effective-run semantics', () => {
+  test('matches the buildings-endogenous run semantics', () => {
     const configuration = readJson('../src/configurations/buildings-endogenous.json');
     const statuses = deriveOutputRunStatusesForConfiguration(pkg, configuration);
     const request = buildSolveRequest(pkg, configuration);
 
     assert.equal(
       statuses.residential_building_services.runParticipation,
-      'seed_scope',
+      'active_pathways',
     );
     assert.equal(
       statuses.commercial_building_services.runParticipation,
-      'seed_scope',
+      'active_pathways',
     );
+    // Electricity has mode=optimize with all states active, so it's directly active
     assert.equal(
       statuses.electricity.runParticipation,
-      'auto_included_dependency',
+      'active_pathways',
     );
     assert.equal(
       statuses.passenger_road_transport.runParticipation,
@@ -350,9 +351,9 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
 
     assert.deepEqual(new Set(expandedOutputIds), new Set(['service', 'electricity']));
     assert.deepEqual(statuses.service.activeStateIds, ['service_electric']);
-    assert.equal(statuses.service.runParticipation, 'full_model');
-    assert.equal(statuses.electricity.runParticipation, 'full_model');
-    assert.equal(statuses.hydrogen.runParticipation, 'full_model');
+    assert.equal(statuses.service.runParticipation, 'active_pathways');
+    assert.equal(statuses.electricity.runParticipation, 'active_pathways');
+    assert.equal(statuses.hydrogen.runParticipation, 'active_pathways');
   });
 
   test('buildSolveRequest scopes out disabled outputs instead of throwing', () => {
@@ -378,7 +379,7 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
 
     const statuses = deriveOutputRunStatusesForConfiguration(pkg, configuration);
 
-    assert.equal(statuses.residential_building_services.runParticipation, 'seed_scope');
+    assert.equal(statuses.residential_building_services.runParticipation, 'active_pathways');
     assert.equal(statuses.electricity.runParticipation, 'auto_included_dependency');
     assert.equal(statuses.electricity.inRun, true);
   });

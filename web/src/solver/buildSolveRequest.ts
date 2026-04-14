@@ -8,8 +8,7 @@ import {
   type SolveRequest,
 } from './contract.ts';
 import {
-  deriveSeedOutputIds,
-  expandIncludedOutputsForDependencies,
+  deriveIncludedOutputIds,
 } from './solveScope.ts';
 import {
   normalizeSolverRows,
@@ -79,27 +78,26 @@ function createRequestId(): string {
 function filterSolveRequestForOutputs(
   rows: NormalizedSolverRow[],
   configuration: ResolvedConfigurationForSolve,
-  effectiveOutputIds: Set<string>,
-  activeRequiredServiceIds: Set<string>,
+  includedOutputIds: Set<string>,
 ): { rows: NormalizedSolverRow[]; configuration: ResolvedConfigurationForSolve } {
-  const filteredRows = rows.filter((row) => effectiveOutputIds.has(row.outputId));
+  const filteredRows = rows.filter((row) => includedOutputIds.has(row.outputId));
 
   const filteredControlsByOutput: Record<string, Record<string, ResolvedSolveControl>> = {};
-  for (const outputId of effectiveOutputIds) {
+  for (const outputId of includedOutputIds) {
     if (configuration.controlsByOutput[outputId]) {
       filteredControlsByOutput[outputId] = configuration.controlsByOutput[outputId];
     }
   }
 
   const filteredServiceDemandByOutput: Record<string, Record<string, number>> = {};
-  for (const outputId of effectiveOutputIds) {
+  for (const outputId of includedOutputIds) {
     if (configuration.serviceDemandByOutput[outputId]) {
       filteredServiceDemandByOutput[outputId] = configuration.serviceDemandByOutput[outputId];
     }
   }
 
   const filteredExternalCommodityDemandByCommodity: Record<string, Record<string, number>> = {};
-  for (const outputId of activeRequiredServiceIds) {
+  for (const outputId of includedOutputIds) {
     if (configuration.externalCommodityDemandByCommodity[outputId]) {
       filteredExternalCommodityDemandByCommodity[outputId]
         = configuration.externalCommodityDemandByCommodity[outputId];
@@ -158,34 +156,17 @@ export function buildSolveRequest(
   const objectiveCostLookup = buildObjectiveCostLookup(pkg.sectorStates);
   const resolvedConfiguration = resolveConfigurationForSolve(configuration, pkg.appConfig);
 
-  // Scope is derived from active pathways — required-service outputs with at
-  // least one active pathway form the seed set.
-  const derivedSeeds = deriveSeedOutputIds(allRows, resolvedConfiguration, pkg.appConfig);
-
-  if (!derivedSeeds) {
-    // Full-model run — every required-service output has active pathways.
-    return {
-      contractVersion: SOLVER_CONTRACT_VERSION,
-      requestId: createRequestId(),
-      rows: allRows,
-      configuration: resolvedConfiguration,
-      objectiveCost: resolveObjectiveCostMetadata(allRows, objectiveCostLookup),
-    };
-  }
-
-  const seedOutputIdSet = new Set(derivedSeeds);
-  const expandedOutputIds = expandIncludedOutputsForDependencies(
-    allRows,
-    resolvedConfiguration,
-    pkg.appConfig,
-    seedOutputIdSet,
-  );
+  const includedOutputIds = deriveIncludedOutputIds(allRows, resolvedConfiguration, pkg.appConfig);
   const filtered = filterSolveRequestForOutputs(
     allRows,
     resolvedConfiguration,
-    expandedOutputIds,
-    seedOutputIdSet,
+    includedOutputIds,
   );
+
+  if (filtered.rows.length === 0) {
+    throw new Error('No outputs are active in this solve configuration.');
+  }
+
   return {
     contractVersion: SOLVER_CONTRACT_VERSION,
     requestId: createRequestId(),

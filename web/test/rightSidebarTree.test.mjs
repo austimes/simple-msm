@@ -16,14 +16,13 @@ function buildStatus(outputId, overrides = {}) {
     activeStateCount: overrides.activeStateCount ?? activeStateIds.length,
     isDisabled,
     inRun,
-    runParticipation: overrides.runParticipation ?? (isExcludedFromRun ? 'excluded_from_run' : 'full_model'),
+    runParticipation: overrides.runParticipation ?? (isExcludedFromRun ? 'excluded_from_run' : 'active_pathways'),
     demandParticipation: overrides.demandParticipation ?? (isExcludedFromRun ? 'excluded_from_run' : 'active_in_run'),
     supplyParticipation: overrides.supplyParticipation ?? 'not_applicable',
     hasPositiveDemandInRun: overrides.hasPositiveDemandInRun ?? inRun,
-    isSeedScoped: overrides.isSeedScoped ?? false,
+    isDirectlyActive: overrides.isDirectlyActive ?? !isExcludedFromRun,
     isAutoIncludedDependency: overrides.isAutoIncludedDependency ?? false,
     isExcludedFromRun,
-    isFullModel: overrides.isFullModel ?? !isExcludedFromRun,
   };
 }
 

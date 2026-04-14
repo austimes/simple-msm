@@ -34,8 +34,8 @@ function buildServiceControls(singlePathOutputIds, extras = {}) {
     }
   }
   controls.electricity = extras.electricity ?? { mode: 'externalized' };
-  controls.land_sequestration = { mode: 'optimize', disabled_state_ids: ['removals_negative_emissions__land_sequestration__biological_sink'] };
-  controls.engineered_removals = { mode: 'optimize', disabled_state_ids: ['removals_negative_emissions__engineered_removals__daccs'] };
+  controls.land_sequestration = { mode: 'optimize', active_state_ids: [] };
+  controls.engineered_removals = { mode: 'optimize', active_state_ids: [] };
   return { ...controls, ...(extras.additional ?? {}) };
 }
 
@@ -291,11 +291,10 @@ describe('buildings only with electricity endogenous (optimize) — scaled deman
     assert.equal(request.configuration.controlsByOutput.electricity?.['2025']?.mode, 'optimize');
   });
 
-  test('external electricity demand is excluded for scoped solve', () => {
-    assert.equal(
-      request.configuration.externalCommodityDemandByCommodity.electricity,
-      undefined,
-      'external electricity demand should be excluded when electricity is auto-expanded',
+  test('external electricity demand is preserved for auto-included electricity', () => {
+    assert.ok(
+      request.configuration.externalCommodityDemandByCommodity.electricity != null,
+      'external electricity demand should be preserved when electricity is in the run',
     );
   });
 });
