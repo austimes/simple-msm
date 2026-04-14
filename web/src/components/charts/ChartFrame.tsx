@@ -7,6 +7,7 @@ void React;
 export interface ChartLegendItem {
   key: string;
   label: string;
+  legendLabel?: string;
   color: string;
   dashArray?: string;
   kind?: 'fill' | 'line';
@@ -97,9 +98,14 @@ export function ChartFrame({
         {legendItems.length > 0 ? (
           <div className="stacked-chart-legend" aria-label={`${title} legend`}>
             {legendItems.map((entry) => (
-              <span key={entry.key} className="stacked-chart-legend-item">
+              <span
+                key={entry.key}
+                className="stacked-chart-legend-item"
+                title={entry.label}
+                aria-label={entry.label}
+              >
                 <LegendSwatch color={entry.color} dashArray={entry.dashArray} kind={entry.kind} />
-                <span>{entry.label}</span>
+                <span>{entry.legendLabel ?? entry.label}</span>
               </span>
             ))}
           </div>

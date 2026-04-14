@@ -1,7 +1,7 @@
 import Ajv2020 from 'ajv/dist/2020';
 import type { ErrorObject } from 'ajv';
-import referenceConfigurationText from '@root/web/src/configurations/reference.json?raw';
-import configurationSchemaText from '@root/web/src/app_config/configuration_schema.json?raw';
+import referenceConfigurationText from '../configurations/reference.json?raw';
+import configurationSchemaText from '../app_config/configuration_schema.json?raw';
 import { resolveConfigurationDocument } from './demandResolution.ts';
 import type { AppConfigRegistry, ConfigurationDocument, ConfigurationResidualOverlays, ResidualOverlayRow } from './types.ts';
 
@@ -17,9 +17,13 @@ class ConfigurationValidationError extends Error {
   }
 }
 
-function parseJsonObject<T>(raw: string, label: string): T {
+function parseJsonObject<T>(raw: unknown, label: string): T {
+  if (raw && typeof raw === 'object') {
+    return raw as T;
+  }
+
   try {
-    return JSON.parse(raw) as T;
+    return JSON.parse(String(raw)) as T;
   } catch (error) {
     const detail = error instanceof Error ? error.message : 'Unknown parse failure';
     throw new Error(`Failed to parse ${label}: ${detail}`);
@@ -110,7 +114,7 @@ export function validateConfigurationDocument(
 }
 
 export function parseConfigurationDocument(
-  raw: string,
+  raw: string | unknown,
   appConfig?: AppConfigRegistry,
   label = 'configuration document',
 ): ConfigurationDocument {

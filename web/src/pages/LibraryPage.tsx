@@ -1,5 +1,10 @@
 import { useMemo, useState } from 'react';
 import {
+  buildStateCommodityLegendLabel,
+  buildStateMetricLegendLabel,
+  getPresentation,
+} from '../data/chartPresentation.ts';
+import {
   buildInputCommoditySeries,
   buildSectorStateFamilies,
   buildSectorStateFamilySearchText,
@@ -7,8 +12,8 @@ import {
   buildSectorSubsectorIndex,
   type SectorStateTrajectory,
 } from '../data/libraryInsights';
+import { getCommodityMetadata } from '../data/commodityMetadata.ts';
 import { usePackageStore } from '../data/packageStore';
-import { getSeriesColor } from '../data/seriesColors.ts';
 import type { AssumptionLedgerEntry, SectorState, SourceLedgerEntry } from '../data/types';
 import LineChart, { type LineChartSeries } from './library/LineChart';
 import LibrarySidebarFrame from './library/LibrarySidebarFrame';
@@ -69,6 +74,14 @@ function formatUnitLabel(unit: string): string {
 
 function buildCostUnitLabel(currency: string, outputUnit: string): string {
   return `${formatUnitLabel(currency)} per ${formatUnitLabel(outputUnit)}`;
+}
+
+function resolveCommodityLabel(commodityId: string): string {
+  try {
+    return getCommodityMetadata(commodityId).label;
+  } catch {
+    return commodityId;
+  }
 }
 
 function resolveSharedUnitLabel(units: string[], mixedLabel = 'Mixed units'): string {
@@ -233,14 +246,20 @@ export default function LibraryPage() {
     visibleTrajectories.find((trajectory) => trajectory.stateId === resolvedSelectedTrajectoryId) ?? null;
 
   const colorByTrajectoryId = useMemo(() => {
-    return new Map(visibleTrajectories.map((trajectory) => [trajectory.stateId, getSeriesColor('state', trajectory.stateId)]));
+    return new Map(
+      visibleTrajectories.map((trajectory) => [
+        trajectory.stateId,
+        getPresentation('state', trajectory.stateId, trajectory.label).color,
+      ]),
+    );
   }, [visibleTrajectories]);
 
   const metricSeries = useMemo(() => {
     const selectSeries = (trajectory: SectorStateTrajectory, metricKey: string): LineChartSeries => ({
       key: `${trajectory.stateId}::${metricKey}`,
       label: trajectory.label,
-      color: colorByTrajectoryId.get(trajectory.stateId) ?? getSeriesColor('state', trajectory.stateId),
+      legendLabel: getPresentation('state', trajectory.stateId, trajectory.label).legendLabel,
+      color: colorByTrajectoryId.get(trajectory.stateId) ?? getPresentation('state', trajectory.stateId, trajectory.label).color,
       active: trajectory.stateId === resolvedSelectedTrajectoryId,
       values: trajectory.points.map((point) => ({
         year: point.year,
@@ -266,11 +285,13 @@ export default function LibraryPage() {
           ...selectSeries(trajectory, 'energy'),
           key: `${trajectory.stateId}::energy`,
           label: `${trajectory.label} · energy`,
+          legendLabel: buildStateMetricLegendLabel(trajectory.stateId, 'energy'),
         },
         {
           ...selectSeries(trajectory, 'process'),
           key: `${trajectory.stateId}::process`,
           label: `${trajectory.label} · process`,
+          legendLabel: buildStateMetricLegendLabel(trajectory.stateId, 'process'),
           dashArray: '7 5',
         },
       ]),
@@ -281,7 +302,7 @@ export default function LibraryPage() {
     return visibleTrajectories.map((trajectory) => ({
       stateId: trajectory.stateId,
       label: trajectory.label,
-      color: colorByTrajectoryId.get(trajectory.stateId) ?? getSeriesColor('state', trajectory.stateId),
+      color: colorByTrajectoryId.get(trajectory.stateId) ?? getPresentation('state', trajectory.stateId, trajectory.label).color,
       active: trajectory.stateId === resolvedSelectedTrajectoryId,
     }));
   }, [colorByTrajectoryId, resolvedSelectedTrajectoryId, visibleTrajectories]);
@@ -378,8 +399,9 @@ export default function LibraryPage() {
       .flatMap((family) => {
         return buildInputCommoditySeries(family).map<LineChartSeries>((entry) => ({
           key: `${family.stateId}::${entry.commodity}`,
-          label: `${family.label} · ${entry.commodity}`,
-          color: colorByTrajectoryId.get(family.stateId) ?? getSeriesColor('state', family.stateId),
+          label: `${family.label} · ${resolveCommodityLabel(entry.commodity)}`,
+          legendLabel: buildStateCommodityLegendLabel(family.stateId, entry.commodity),
+          color: colorByTrajectoryId.get(family.stateId) ?? getPresentation('state', family.stateId, family.label).color,
           dashArray: dashByCommodity.get(entry.commodity),
           active: family.stateId === resolvedSelectedTrajectoryId,
           values: entry.values,

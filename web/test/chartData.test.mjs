@@ -12,6 +12,11 @@ import {
 } from '../src/results/chartData.ts';
 import { buildSolverContributionRows } from '../src/results/resultContributions.ts';
 
+const PATHWAY_INCUMBENT_ID = 'generic_industrial_heat__medium_temperature_heat__fossil';
+const PATHWAY_INCUMBENT_LABEL = 'Medium-temperature incumbent mixed-fuel heat';
+const PATHWAY_ELECTRIFIED_ID = 'generic_industrial_heat__medium_temperature_heat__electrified';
+const PATHWAY_ELECTRIFIED_LABEL = 'Medium-temperature electrified heat';
+
 function buildRequest(respectMaxShare) {
   return {
     contractVersion: SOLVER_CONTRACT_VERSION,
@@ -23,8 +28,8 @@ function buildRequest(respectMaxShare) {
         outputRole: 'required_service',
         outputLabel: 'Heat',
         year: 2030,
-        stateId: 'heat_a',
-        stateLabel: 'Heat A',
+        stateId: PATHWAY_INCUMBENT_ID,
+        stateLabel: PATHWAY_INCUMBENT_LABEL,
         sector: 'test',
         subsector: 'test',
         region: 'national',
@@ -44,8 +49,8 @@ function buildRequest(respectMaxShare) {
         outputRole: 'required_service',
         outputLabel: 'Heat',
         year: 2030,
-        stateId: 'heat_b',
-        stateLabel: 'Heat B',
+        stateId: PATHWAY_ELECTRIFIED_ID,
+        stateLabel: PATHWAY_ELECTRIFIED_LABEL,
         sector: 'test',
         subsector: 'test',
         region: 'national',
@@ -65,8 +70,8 @@ function buildRequest(respectMaxShare) {
         outputRole: 'required_service',
         outputLabel: 'Heat',
         year: 2035,
-        stateId: 'heat_a',
-        stateLabel: 'Heat A',
+        stateId: PATHWAY_INCUMBENT_ID,
+        stateLabel: PATHWAY_INCUMBENT_LABEL,
         sector: 'test',
         subsector: 'test',
         region: 'national',
@@ -86,8 +91,8 @@ function buildRequest(respectMaxShare) {
         outputRole: 'required_service',
         outputLabel: 'Heat',
         year: 2035,
-        stateId: 'heat_b',
-        stateLabel: 'Heat B',
+        stateId: PATHWAY_ELECTRIFIED_ID,
+        stateLabel: PATHWAY_ELECTRIFIED_LABEL,
         sector: 'test',
         subsector: 'test',
         region: 'national',
@@ -163,8 +168,8 @@ function buildResult() {
           outputId: 'heat',
           outputLabel: 'Heat',
           year: 2030,
-          stateId: 'heat_a',
-          stateLabel: 'Heat A',
+          stateId: PATHWAY_INCUMBENT_ID,
+          stateLabel: PATHWAY_INCUMBENT_LABEL,
           activity: 80,
           share: 0.8,
           rawMaxShare: 0.4,
@@ -174,8 +179,8 @@ function buildResult() {
           outputId: 'heat',
           outputLabel: 'Heat',
           year: 2030,
-          stateId: 'heat_b',
-          stateLabel: 'Heat B',
+          stateId: PATHWAY_ELECTRIFIED_ID,
+          stateLabel: PATHWAY_ELECTRIFIED_LABEL,
           activity: 20,
           share: 0.2,
           rawMaxShare: null,
@@ -185,8 +190,8 @@ function buildResult() {
           outputId: 'heat',
           outputLabel: 'Heat',
           year: 2035,
-          stateId: 'heat_a',
-          stateLabel: 'Heat A',
+          stateId: PATHWAY_INCUMBENT_ID,
+          stateLabel: PATHWAY_INCUMBENT_LABEL,
           activity: 40,
           share: 0.4,
           rawMaxShare: 0.2,
@@ -196,8 +201,8 @@ function buildResult() {
           outputId: 'heat',
           outputLabel: 'Heat',
           year: 2035,
-          stateId: 'heat_b',
-          stateLabel: 'Heat B',
+          stateId: PATHWAY_ELECTRIFIED_ID,
+          stateLabel: PATHWAY_ELECTRIFIED_LABEL,
           activity: 60,
           share: 0.6,
           rawMaxShare: null,
@@ -436,6 +441,10 @@ test('emissions charts expose tCO2e axis labels and preserve negative removals',
     sectorChart.series.find((series) => series.key === 'buildings')?.color,
     '#2563eb',
   );
+  assert.equal(
+    sectorChart.series.find((series) => series.key === 'buildings')?.legendLabel,
+    'Buildings',
+  );
   assert.deepEqual(
     sectorChart.series.find((series) => series.label === 'removals_negative_emissions')?.values,
     [
@@ -446,6 +455,10 @@ test('emissions charts expose tCO2e axis labels and preserve negative removals',
   assert.equal(
     sectorChart.series.find((series) => series.key === 'removals_negative_emissions')?.color,
     '#0f766e',
+  );
+  assert.equal(
+    sectorChart.series.find((series) => series.key === 'removals_negative_emissions')?.legendLabel,
+    'Removals',
   );
   assert.deepEqual(
     subsectorChart.series.find((series) => series.label === 'engineered_removals')?.values,
@@ -458,6 +471,10 @@ test('emissions charts expose tCO2e axis labels and preserve negative removals',
     subsectorChart.series.find((series) => series.key === 'engineered_removals')?.color,
     '#0891b2',
   );
+  assert.equal(
+    subsectorChart.series.find((series) => series.key === 'engineered_removals')?.legendLabel,
+    'Eng removals',
+  );
 });
 
 test('buildPathwayChartCards returns output and cap views for selectable outputs', () => {
@@ -467,17 +484,23 @@ test('buildPathwayChartCards returns output and cap views for selectable outputs
   assert.equal(cards[0].outputId, 'heat');
   assert.equal(cards[0].outputChart.yAxisLabel, 'PJ');
   assert.match(cards[0].capChart.yAxisLabel, /current cap denominator/i);
+  assert.equal(cards[0].respectMaxShare, true);
+  assert.match(cards[0].note, /normalizing across active pathways/i);
   assert.equal(cards[0].outputChart.series.length, 2);
-  assert.equal(cards[0].outputChart.series[0]?.key, 'heat_a');
+  assert.equal(cards[0].outputChart.series[0]?.key, PATHWAY_INCUMBENT_ID);
   assert.deepEqual(
-    cards[0].outputChart.series.find((series) => series.label === 'Heat A')?.values,
+    cards[0].outputChart.series.find((series) => series.label === PATHWAY_INCUMBENT_LABEL)?.values,
     [
       { year: 2030, value: 80 },
       { year: 2035, value: 40 },
     ],
   );
+  assert.equal(
+    cards[0].outputChart.series.find((series) => series.key === PATHWAY_INCUMBENT_ID)?.legendLabel,
+    'Incumbent',
+  );
   assert.deepEqual(
-    cards[0].capChart.series.find((series) => series.label === 'Heat A')?.values,
+    cards[0].capChart.series.find((series) => series.label === PATHWAY_INCUMBENT_LABEL)?.values,
     [
       { year: 2030, value: 28.57142857142857 },
       { year: 2035, value: 16.666666666666668 },
@@ -489,8 +512,10 @@ test('buildPathwayChartCards keeps cap context visible when max-share enforcemen
   const cards = buildPathwayChartCards(buildRequest(false), buildResult());
 
   assert.equal(cards.length, 1);
+  assert.equal(cards[0].respectMaxShare, false);
+  assert.match(cards[0].note, /ignored in this solve/i);
   assert.deepEqual(
-    cards[0].capChart.series.find((series) => series.label === 'Heat B')?.values,
+    cards[0].capChart.series.find((series) => series.label === PATHWAY_ELECTRIFIED_LABEL)?.values,
     [
       { year: 2030, value: 71.42857142857143 },
       { year: 2035, value: 83.33333333333334 },
@@ -766,6 +791,7 @@ test('fuel consumption chart keeps only fuels and converts all series to PJ', ()
   );
   assert.equal(chart.series.find((series) => series.key === 'coal')?.color, '#1f2937');
   assert.equal(chart.series.find((series) => series.key === 'natural_gas')?.color, '#6b7280');
+  assert.equal(chart.series.find((series) => series.key === 'natural_gas')?.legendLabel, 'Gas');
   assert.deepEqual(
     chart.series.find((series) => series.label === 'Electricity')?.values,
     [
@@ -774,6 +800,7 @@ test('fuel consumption chart keeps only fuels and converts all series to PJ', ()
     ],
   );
   assert.equal(chart.series.find((series) => series.key === 'electricity')?.color, '#f59e0b');
+  assert.equal(chart.series.find((series) => series.key === 'electricity')?.legendLabel, 'Elec');
 });
 
 test('cost by component chart exposes the objective cost unit on the y-axis', () => {
@@ -788,6 +815,7 @@ test('cost by component chart exposes the objective cost unit on the y-axis', ()
   assert.equal(chart.series.find((series) => series.key === 'conversion')?.color, '#2563eb');
   assert.equal(chart.series.find((series) => series.key === 'commodity')?.color, '#64748b');
   assert.equal(chart.series.find((series) => series.key === 'carbon')?.color, '#b91c1c');
+  assert.equal(chart.series.find((series) => series.key === 'conversion')?.legendLabel, 'Conversion');
 });
 
 test('removals charts use canonical metric ids with fixed colors', () => {
@@ -887,4 +915,6 @@ test('removals charts use canonical metric ids with fixed colors', () => {
 
   assert.equal(series.find((entry) => entry.key === 'activity')?.color, '#16a34a');
   assert.equal(series.find((entry) => entry.key === 'max_activity')?.color, '#475569');
+  assert.equal(series.find((entry) => entry.key === 'activity')?.legendLabel, 'Activity');
+  assert.equal(series.find((entry) => entry.key === 'max_activity')?.legendLabel, 'Max activity');
 });

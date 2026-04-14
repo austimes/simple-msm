@@ -236,8 +236,8 @@ test('pathway and removals cards keep only the card heading on the run page', ()
         outputRole: 'required_service',
         outputLabel: 'Electricity supply',
         year: 2030,
-        stateId: 'electricity_grid',
-        stateLabel: 'Grid mix',
+        stateId: 'electricity__grid_supply__incumbent_thermal_mix',
+        stateLabel: 'Incumbent thermal-heavy grid mix',
         sector: 'power',
         subsector: 'electricity_supply',
         region: 'national',
@@ -257,8 +257,8 @@ test('pathway and removals cards keep only the card heading on the run page', ()
         outputRole: 'required_service',
         outputLabel: 'Electricity supply',
         year: 2030,
-        stateId: 'electricity_peaker',
-        stateLabel: 'Peaker fleet',
+        stateId: 'electricity__grid_supply__policy_frontier',
+        stateLabel: 'Policy frontier grid supply',
         sector: 'power',
         subsector: 'electricity_supply',
         region: 'national',
@@ -278,8 +278,8 @@ test('pathway and removals cards keep only the card heading on the run page', ()
         outputRole: 'optional_activity',
         outputLabel: 'Engineered removals',
         year: 2030,
-        stateId: 'dac',
-        stateLabel: 'DAC',
+        stateId: 'removals_negative_emissions__engineered_removals__daccs',
+        stateLabel: 'Direct air capture with storage (DACCS)',
         sector: 'removals_negative_emissions',
         subsector: 'engineered_removals',
         region: 'national',
@@ -354,8 +354,8 @@ test('pathway and removals cards keep only the card heading on the run page', ()
           outputId: 'electricity_supply',
           outputLabel: 'Electricity supply',
           year: 2030,
-          stateId: 'electricity_grid',
-          stateLabel: 'Grid mix',
+          stateId: 'electricity__grid_supply__incumbent_thermal_mix',
+          stateLabel: 'Incumbent thermal-heavy grid mix',
           activity: 7,
           share: 0.7,
           rawMaxShare: 0.8,
@@ -365,8 +365,8 @@ test('pathway and removals cards keep only the card heading on the run page', ()
           outputId: 'electricity_supply',
           outputLabel: 'Electricity supply',
           year: 2030,
-          stateId: 'electricity_peaker',
-          stateLabel: 'Peaker fleet',
+          stateId: 'electricity__grid_supply__policy_frontier',
+          stateLabel: 'Policy frontier grid supply',
           activity: 3,
           share: 0.3,
           rawMaxShare: 0.5,
@@ -376,8 +376,8 @@ test('pathway and removals cards keep only the card heading on the run page', ()
           outputId: 'engineered_removals',
           outputLabel: 'Engineered removals',
           year: 2030,
-          stateId: 'dac',
-          stateLabel: 'DAC',
+          stateId: 'removals_negative_emissions__engineered_removals__daccs',
+          stateLabel: 'Direct air capture with storage (DACCS)',
           activity: 4,
           share: 1,
           rawMaxShare: null,
@@ -412,4 +412,10 @@ test('pathway and removals cards keep only the card heading on the run page', ()
   assert.doesNotMatch(html, /Activity vs max activity over time/);
   assert.doesNotMatch(html, /<figcaption class="stacked-chart-title">Electricity supply Pathway Output<\/figcaption>/);
   assert.doesNotMatch(html, /<figcaption class="stacked-chart-title">Engineered removals<\/figcaption>/);
+  assert.match(html, />Incumbent</);
+  assert.match(html, />Frontier</);
+  assert.match(html, />Activity</);
+  assert.match(html, />Max activity</);
+  assert.match(html, /title="Incumbent thermal-heavy grid mix"/);
+  assert.match(html, /title="Policy frontier grid supply"/);
 });
