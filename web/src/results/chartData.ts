@@ -6,7 +6,7 @@ import type {
   SolveStateShareSummary,
 } from '../solver/contract';
 import { getCommodityMetadata } from '../data/commodityMetadata.ts';
-import { getSeriesColor } from '../data/seriesColors.ts';
+import { getPresentation } from '../data/chartPresentation.ts';
 import type { ResultContributionRow } from './resultContributions.ts';
 
 const ABSOLUTE_EMISSIONS_AXIS_LABEL = 'Emissions (tCO2e)';
@@ -15,6 +15,7 @@ const FUEL_CONSUMPTION_AXIS_LABEL = 'PJ';
 export interface StackedSeries {
   key: string;
   label: string;
+  legendLabel?: string;
   color: string;
   values: Array<{ year: number; value: number }>;
 }
@@ -36,6 +37,8 @@ export interface LineChartData {
 export interface PathwayChartCardData {
   outputId: string;
   outputLabel: string;
+  respectMaxShare: boolean;
+  note: string;
   outputChart: StackedChartData;
   capChart: LineChartData;
 }
@@ -66,8 +69,11 @@ function buildShareLookup(
 function buildSeries(
   grouped: Map<string, Map<number, number>>,
   years: number[],
-  labelFn: (key: string) => string,
-  colorForKey: (key: string) => string,
+  options: {
+    labelForKey: (key: string) => string;
+    legendLabelForKey?: (key: string) => string;
+    colorForKey: (key: string) => string;
+  },
 ): StackedSeries[] {
   const series: StackedSeries[] = [];
 
@@ -76,15 +82,34 @@ function buildSeries(
     const hasNonZero = values.some((v) => v.value !== 0);
     if (!hasNonZero) continue;
 
+    const label = options.labelForKey(key);
+
     series.push({
       key,
-      label: labelFn(key),
-      color: colorForKey(key),
+      label,
+      legendLabel: options.legendLabelForKey?.(key),
+      color: options.colorForKey(key),
       values,
     });
   }
 
   return series;
+}
+
+function stripOverlayPrefix(key: string): string {
+  return key.replace(/^overlay:/, '');
+}
+
+function buildCapChartNote(respectMaxShare: boolean): string {
+  return respectMaxShare
+    ? 'Cap chart shows effective max share after normalizing across active pathways.'
+    : 'Cap chart shows effective max share across active pathways even when max-share enforcement is ignored in this solve.';
+}
+
+function resolveOutputLabel(request: SolveRequest, outputId: string): string {
+  const first = request.rows.find((row) => row.outputId === outputId);
+
+  return first?.outputLabel ?? outputId;
 }
 
 function formatObjectiveCostAxisLabelFromMetadata(objectiveCost?: SolveObjectiveCostMetadata): string {
@@ -133,8 +158,11 @@ export function buildEmissionsBySectorChart(
     series: buildSeries(
       grouped,
       years,
-      (key) => labelLookup.get(key) ?? key,
-      (key) => getSeriesColor('sector', key.replace(/^overlay:/, '')),
+      {
+        labelForKey: (key) => labelLookup.get(key) ?? key,
+        legendLabelForKey: (key) => getPresentation('sector', stripOverlayPrefix(key), labelLookup.get(key) ?? key).legendLabel,
+        colorForKey: (key) => getPresentation('sector', stripOverlayPrefix(key), labelLookup.get(key) ?? key).color,
+      },
     ),
   };
 }
@@ -163,8 +191,11 @@ export function buildFuelConsumptionChart(
     series: buildSeries(
       grouped,
       years,
-      (key) => getCommodityMetadata(key).label,
-      (key) => getSeriesColor('commodity', key),
+      {
+        labelForKey: (key) => getCommodityMetadata(key).label,
+        legendLabelForKey: (key) => getPresentation('commodity', key, getCommodityMetadata(key).label).legendLabel,
+        colorForKey: (key) => getPresentation('commodity', key, getCommodityMetadata(key).label).color,
+      },
     ),
   };
 }
@@ -173,6 +204,7 @@ export function buildDemandOverTimeChart(request: SolveRequest): StackedChartDat
   const years = request.configuration.years;
   const demandByOutput = request.configuration.serviceDemandByOutput;
   const grouped = new Map<string, Map<number, number>>();
+  const outputLabelById = new Map<string, string>();
 
   for (const [outputId, yearTable] of Object.entries(demandByOutput)) {
     const yearMap = new Map<number, number>();
@@ -181,13 +213,18 @@ export function buildDemandOverTimeChart(request: SolveRequest): StackedChartDat
       yearMap.set(year, value);
     }
     grouped.set(outputId, yearMap);
+    outputLabelById.set(outputId, resolveOutputLabel(request, outputId));
   }
 
   return {
     title: 'Service Demand Over Time',
     yAxisLabel: 'Demand',
     years,
-    series: buildSeries(grouped, years, (key) => key, (key) => getSeriesColor('state', key)),
+    series: buildSeries(grouped, years, {
+      labelForKey: (key) => outputLabelById.get(key) ?? key,
+      legendLabelForKey: (key) => getPresentation('output', key, outputLabelById.get(key) ?? key).legendLabel,
+      colorForKey: (key) => getPresentation('output', key, outputLabelById.get(key) ?? key).color,
+    }),
   };
 }
 
@@ -257,7 +294,11 @@ export function buildDemandBySectorChart(request: SolveRequest): LineChartData {
     title: 'Demand by Sector',
     yAxisLabel: `% of ${baseYear}`,
     years,
-    series: buildSeries(grouped, years, (key) => key, (key) => getSeriesColor('sector', key)),
+    series: buildSeries(grouped, years, {
+      labelForKey: (key) => key,
+      legendLabelForKey: (key) => getPresentation('sector', key, key).legendLabel,
+      colorForKey: (key) => getPresentation('sector', key, key).color,
+    }),
   };
 }
 
@@ -289,7 +330,11 @@ export function buildDemandBySubsectorChart(request: SolveRequest): StackedChart
     title: 'Demand by Sub-sector',
     yAxisLabel: 'Demand',
     years,
-    series: buildSeries(grouped, years, (key) => key, (key) => getSeriesColor('subsector', key)),
+    series: buildSeries(grouped, years, {
+      labelForKey: (key) => key,
+      legendLabelForKey: (key) => getPresentation('subsector', key, key).legendLabel,
+      colorForKey: (key) => getPresentation('subsector', key, key).color,
+    }),
   };
 }
 
@@ -329,8 +374,11 @@ export function buildEmissionsBySubsectorChart(
     series: buildSeries(
       grouped,
       years,
-      (key) => labelLookup.get(key) ?? key,
-      (key) => getSeriesColor('subsector', key.replace(/^overlay:/, '')),
+      {
+        labelForKey: (key) => labelLookup.get(key) ?? key,
+        legendLabelForKey: (key) => getPresentation('subsector', stripOverlayPrefix(key), labelLookup.get(key) ?? key).legendLabel,
+        colorForKey: (key) => getPresentation('subsector', stripOverlayPrefix(key), labelLookup.get(key) ?? key).color,
+      },
     ),
   };
 }
@@ -366,8 +414,11 @@ export function buildCostByComponentChart(
     series: buildSeries(
       grouped,
       years,
-      (key) => componentLabels[key] ?? key,
-      (key) => getSeriesColor('cost_component', key),
+      {
+        labelForKey: (key) => componentLabels[key] ?? key,
+        legendLabelForKey: (key) => getPresentation('cost_component', key, componentLabels[key] ?? key).legendLabel,
+        colorForKey: (key) => getPresentation('cost_component', key, componentLabels[key] ?? key).color,
+      },
     ),
   };
 }
@@ -377,6 +428,7 @@ export function buildPathwayChartCards(
   result: SolveResult,
 ): PathwayChartCardData[] {
   const years = request.configuration.years;
+  const respectMaxShare = request.configuration.options.respectMaxShare;
   const outputRows = new Map<string, { outputLabel: string; outputUnit: string; stateIds: Set<string> }>();
 
   for (const row of request.rows) {
@@ -426,6 +478,8 @@ export function buildPathwayChartCards(
       return {
         outputId,
         outputLabel: metadata.outputLabel,
+        respectMaxShare,
+        note: buildCapChartNote(respectMaxShare),
         outputChart: {
           title: `${metadata.outputLabel} Pathway Output`,
           yAxisLabel: metadata.outputUnit,
@@ -433,8 +487,11 @@ export function buildPathwayChartCards(
           series: buildSeries(
             outputGrouped,
             years,
-            (key) => stateLabelById.get(key) ?? key,
-            (key) => getSeriesColor('state', key),
+            {
+              labelForKey: (key) => stateLabelById.get(key) ?? key,
+              legendLabelForKey: (key) => getPresentation('state', key, stateLabelById.get(key) ?? key).legendLabel,
+              colorForKey: (key) => getPresentation('state', key, stateLabelById.get(key) ?? key).color,
+            },
           ),
         },
         capChart: {
@@ -444,8 +501,11 @@ export function buildPathwayChartCards(
           series: buildSeries(
             capGrouped,
             years,
-            (key) => stateLabelById.get(key) ?? key,
-            (key) => getSeriesColor('state', key),
+            {
+              labelForKey: (key) => stateLabelById.get(key) ?? key,
+              legendLabelForKey: (key) => getPresentation('state', key, stateLabelById.get(key) ?? key).legendLabel,
+              colorForKey: (key) => getPresentation('state', key, stateLabelById.get(key) ?? key).color,
+            },
           ),
         },
       } satisfies PathwayChartCardData;
@@ -510,8 +570,11 @@ export function buildRemovalsChartCards(
         series: buildSeries(
           grouped,
           years,
-          (key) => (key === 'activity' ? 'Activity' : key === 'max_activity' ? 'Max activity' : key),
-          (key) => getSeriesColor('metric', key),
+          {
+            labelForKey: (key) => (key === 'activity' ? 'Activity' : key === 'max_activity' ? 'Max activity' : key),
+            legendLabelForKey: (key) => getPresentation('metric', key, key === 'activity' ? 'Activity' : 'Max activity').legendLabel,
+            colorForKey: (key) => getPresentation('metric', key, key === 'activity' ? 'Activity' : 'Max activity').color,
+          },
         ),
       },
     } satisfies RemovalsChartCardData;

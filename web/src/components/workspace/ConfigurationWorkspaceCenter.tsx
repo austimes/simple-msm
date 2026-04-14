@@ -13,7 +13,7 @@ import {
   type PathwayChartCardData,
   type RemovalsChartCardData,
 } from '../../results/chartData';
-import { buildAllContributionRows } from '../../results/resultContributions.ts';
+import { buildAllContributionRows, buildSolverContributionRows } from '../../results/resultContributions.ts';
 import { usePackageStore } from '../../data/packageStore.ts';
 import type { ConfigurationDocument } from '../../data/types.ts';
 import type { SolveRequest, SolveResult } from '../../solver/contract.ts';
@@ -103,7 +103,7 @@ export interface ConfigurationWorkspaceCenterProps {
   phase: SolvePhase;
   result: SolveResult | null;
   request: SolveRequest | null;
-  solvedConfiguration: ConfigurationDocument | null;
+  solvedConfiguration?: ConfigurationDocument | null;
   error: string | null;
   failure: ConfigurationSolveFailure | null;
 }
@@ -118,17 +118,22 @@ export default function ConfigurationWorkspaceCenter({
 }: ConfigurationWorkspaceCenterProps) {
   const residualOverlays2025 = usePackageStore((s) => s.residualOverlays2025);
 
-  const hasSolvedSnapshot = request != null && result != null && solvedConfiguration != null;
+  const hasSolvedSnapshot = request != null && result != null;
   const showCharts = hasSolvedSnapshot && phase !== 'error';
 
   const contributions = useMemo(
     () =>
-      request && result && solvedConfiguration
-        ? buildAllContributionRows(request, result, residualOverlays2025, solvedConfiguration)
+      request && result
+        ? solvedConfiguration
+          ? buildAllContributionRows(request, result, residualOverlays2025, solvedConfiguration)
+          : buildSolverContributionRows(request, result)
         : [],
     [request, result, residualOverlays2025, solvedConfiguration],
   );
-  const years = request?.configuration.years ?? [];
+  const years = useMemo(
+    () => request?.configuration.years ?? [],
+    [request?.configuration.years],
+  );
 
   const demandBySectorChart = useMemo(
     () => (request ? buildDemandBySectorChart(request) : null),

@@ -5,21 +5,29 @@ import { parseCsv } from './parseCsv.ts';
 import { buildDefaultResidualOverlays, loadDefaultConfiguration } from './configurationDocumentLoader.ts';
 import type { EmissionEntry, PackageData, SectorState, ServiceDemandAnchorRow, ServiceDemandAnchorType, ResidualOverlayRow, ResidualOverlayDomain, CommodityBalance2025Row, EmissionsBalance2025Row } from './types.ts';
 
-const packageTextFiles = normalizePackageTextFiles(
-  import.meta.glob<string>(
-    [
-      '../../../aus_phase1_sector_state_library/README.md',
-      '../../../aus_phase1_sector_state_library/data/*.csv',
-      '../../../aus_phase1_sector_state_library/data/*.json',
-      '../../../aus_phase1_sector_state_library/docs/**/*.md',
-    ],
-    {
-      eager: true,
-      import: 'default',
-      query: '?raw',
-    },
-  ),
-);
+function loadPackageTextFiles(): Record<string, string> {
+  if (typeof import.meta.glob !== 'function') {
+    return {};
+  }
+
+  return normalizePackageTextFiles(
+    import.meta.glob<string>(
+      [
+        '../../../aus_phase1_sector_state_library/README.md',
+        '../../../aus_phase1_sector_state_library/data/*.csv',
+        '../../../aus_phase1_sector_state_library/data/*.json',
+        '../../../aus_phase1_sector_state_library/docs/**/*.md',
+      ],
+      {
+        eager: true,
+        import: 'default',
+        query: '?raw',
+      },
+    ),
+  );
+}
+
+const packageTextFiles = loadPackageTextFiles();
 
 function requirePackageFile(path: string): string {
   const file = packageTextFiles[path];
@@ -191,9 +199,28 @@ function toEmissionsBalance2025Row(row: Record<string, string>): EmissionsBalanc
 }
 
 export function loadPackage(): PackageData {
+  const appConfig = loadAppConfig();
+  if (Object.keys(packageTextFiles).length === 0) {
+    const enrichment = buildPackageEnrichment({});
+    const defaultConfiguration = loadDefaultConfiguration(appConfig);
+    defaultConfiguration.residual_overlays = buildDefaultResidualOverlays([]);
+
+    return {
+      sectorStates: [],
+      serviceDemandAnchors2025: [],
+      residualOverlays2025: [],
+      commodityBalance2025: [],
+      emissionsBalance2025: [],
+      readme: '',
+      phase2Memo: '',
+      enrichment,
+      appConfig,
+      defaultConfiguration,
+    };
+  }
+
   const rows = parseCsv(requirePackageFile('data/sector_state_curves_balanced.csv'));
   const anchorRows = parseCsv(requirePackageFile('data/service_demand_anchors_2025.csv'));
-  const appConfig = loadAppConfig();
   const serviceDemandAnchors2025 = anchorRows.map(toServiceDemandAnchorRow);
   const residualOverlays2025 = parseCsv(requirePackageFile('data/residual_overlays_2025.csv')).map(toResidualOverlayRow);
   const commodityBalance2025 = parseCsv(requirePackageFile('data/commodity_balance_2025.csv')).map(toCommodityBalance2025Row);

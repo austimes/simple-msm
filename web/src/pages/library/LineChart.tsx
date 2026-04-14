@@ -28,6 +28,7 @@ void React;
 export interface LineChartSeries {
   key: string;
   label: string;
+  legendLabel?: string;
   color: string;
   values: Array<{
     year: number;
@@ -224,7 +225,7 @@ export default function LineChart({
                   active={entry.active}
                   activeSeriesPresent={activeSeriesPresent}
                 />
-                <span>{entry.label}</span>
+                <span>{entry.legendLabel ?? entry.label}</span>
               </>
             );
 
@@ -234,11 +235,13 @@ export default function LineChart({
                 type="button"
                 className={itemClassName}
                 onClick={() => onSelectSeries(entry)}
+                title={entry.label}
+                aria-label={entry.label}
               >
                 {content}
               </button>
             ) : (
-              <span key={entry.key} className={itemClassName}>
+              <span key={entry.key} className={itemClassName} title={entry.label} aria-label={entry.label}>
                 {content}
               </span>
             );

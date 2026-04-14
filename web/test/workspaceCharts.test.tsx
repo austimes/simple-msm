@@ -14,7 +14,8 @@ const emissionsChart: StackedChartData = {
   series: [
     {
       key: 'buildings',
-      label: 'Buildings',
+      label: 'Buildings sector total',
+      legendLabel: 'Buildings',
       color: '#2563eb',
       values: [
         { year: 2030, value: 52 },
@@ -23,7 +24,8 @@ const emissionsChart: StackedChartData = {
     },
     {
       key: 'removals',
-      label: 'Removals',
+      label: 'Removals negative emissions',
+      legendLabel: 'Removals',
       color: '#0f766e',
       values: [
         { year: 2030, value: -14 },
@@ -40,7 +42,8 @@ const demandChart: LineChartData = {
   series: [
     {
       key: 'industry',
-      label: 'Industry',
+      label: 'Generic industrial heat',
+      legendLabel: 'Ind heat',
       color: '#7c3aed',
       values: [
         { year: 2030, value: 100 },
@@ -49,7 +52,8 @@ const demandChart: LineChartData = {
     },
     {
       key: 'transport',
-      label: 'Transport',
+      label: 'Road transport',
+      legendLabel: 'Transport',
       color: '#d97706',
       values: [
         { year: 2030, value: 100 },
@@ -74,6 +78,8 @@ describe('workspace Recharts wrappers', () => {
     assert.match(html, />Buildings</);
     assert.match(html, />Removals</);
     assert.match(html, />Net</);
+    assert.match(html, /title="Buildings sector total"/);
+    assert.match(html, /title="Removals negative emissions"/);
     assert.match(html, /data-series-key="removals"/);
     assert.match(html, /data-negative-points="2"/);
     assert.match(html, /data-series-key="__net"/);
@@ -104,8 +110,10 @@ describe('workspace Recharts wrappers', () => {
     assert.match(html, /class="stacked-chart-shell"/);
     assert.match(html, /aria-label="Demand by Sector legend"/);
     assert.match(html, /aria-label="Reset y-axis range for Demand by Sector"/);
-    assert.match(html, />Industry</);
+    assert.match(html, />Ind heat</);
     assert.match(html, />Transport</);
+    assert.match(html, /title="Generic industrial heat"/);
+    assert.match(html, /title="Road transport"/);
   });
 
   test('empty-state charts keep the existing message without rendering a reset control', () => {

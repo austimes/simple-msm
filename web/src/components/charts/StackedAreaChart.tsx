@@ -94,6 +94,7 @@ export default function StackedAreaChart({
   const legendItems = series.map((entry) => ({
     key: entry.key,
     label: entry.label,
+    legendLabel: entry.legendLabel,
     color: entry.color,
   }));
 

@@ -63,6 +63,7 @@ export function summarizeSeries<
   TSeries extends {
     key: string;
     label: string;
+    legendLabel?: string;
     color: string;
     values: ReadonlyArray<{ value: number | null }>;
   },
@@ -184,4 +185,3 @@ export function buildDivergingRows(years: number[], series: ReadonlyArray<Stacke
     netValues,
   };
 }
-

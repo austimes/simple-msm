@@ -9,7 +9,8 @@ const years = [2030, 2035, 2040];
 const series: LineChartSeries[] = [
   {
     key: 'state-a',
-    label: 'State A',
+    label: 'Medium-temperature incumbent mixed-fuel heat',
+    legendLabel: 'Incumbent',
     color: '#0f766e',
     active: true,
     values: [
@@ -20,7 +21,8 @@ const series: LineChartSeries[] = [
   },
   {
     key: 'state-b',
-    label: 'State B',
+    label: 'Medium-temperature electrified heat',
+    legendLabel: 'Electrified',
     color: '#b45309',
     dashArray: '7 5',
     active: false,
@@ -49,6 +51,7 @@ describe('library Recharts line chart wrapper', () => {
     assert.match(html, /data-series-key="state-a"/);
     assert.match(html, /data-null-points="1"/);
     assert.match(html, /data-active="true"/);
+    assert.match(html, /Medium-temperature incumbent mixed-fuel heat/);
   });
 
   test('active series styling still appears when the legend is shown', () => {
@@ -67,7 +70,9 @@ describe('library Recharts line chart wrapper', () => {
     assert.match(html, /class="library-chart-legend"/);
     assert.match(html, /library-chart-legend-item library-chart-legend-item--active library-chart-legend-item--static/);
     assert.match(html, /library-chart-legend-swatch--dash/);
-    assert.match(html, />State A</);
-    assert.match(html, />State B</);
+    assert.match(html, />Incumbent</);
+    assert.match(html, />Electrified</);
+    assert.match(html, /title="Medium-temperature incumbent mixed-fuel heat"/);
+    assert.match(html, /aria-label="Medium-temperature electrified heat"/);
   });
 });
