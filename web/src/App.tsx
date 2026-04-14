@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import AppLayout from './layouts/AppLayout';
 
 const ConfigurationWorkspacePage = lazy(() => import('./pages/ConfigurationWorkspacePage'));
+const AdditionalityPage = lazy(() => import('./pages/AdditionalityPage'));
 const ComparePage = lazy(() => import('./pages/ComparePage'));
 const LibraryPage = lazy(() => import('./pages/LibraryPage'));
 const ModelFormulationPage = lazy(() => import('./pages/ModelFormulationPage'));
@@ -17,6 +18,7 @@ export default function App() {
           <Route element={<AppLayout />}>
             <Route index element={<ConfigurationWorkspacePage />} />
             <Route path="configurations" element={<Navigate to="/" replace />} />
+            <Route path="additionality" element={<AdditionalityPage />} />
             <Route path="compare" element={<ComparePage />} />
             <Route path="library" element={<LibraryPage />} />
             <Route path="state-schema" element={<StateSchemaPage />} />

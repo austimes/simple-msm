@@ -416,6 +416,130 @@ body {
   padding-bottom: 32px;
 }
 
+.page--additionality {
+  padding-bottom: 32px;
+}
+
+.additionality-price-grid {
+  display: grid;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.additionality-price-row {
+  display: grid;
+  grid-template-columns: minmax(0, 220px) minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+
+.additionality-price-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.additionality-price-levels {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.additionality-price-pill {
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: #ffffff;
+  color: var(--color-text-muted);
+  padding: 7px 12px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: capitalize;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.additionality-price-pill:hover {
+  border-color: rgba(43, 108, 176, 0.35);
+  color: var(--color-primary);
+}
+
+.additionality-price-pill--active {
+  background: var(--color-primary-bg);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.additionality-price-summary,
+.additionality-status-line,
+.additionality-skipped-note {
+  margin-top: 16px;
+}
+
+.additionality-price-summary,
+.additionality-status-line,
+.additionality-skipped-note,
+.additionality-issue-list li {
+  color: var(--color-text-muted);
+  font-size: 14px;
+}
+
+.additionality-issue-list {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 8px;
+}
+
+.additionality-summary-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.additionality-summary-card {
+  margin-top: 24px;
+}
+
+.additionality-summary-card strong {
+  display: block;
+  margin-top: 10px;
+  font-size: 28px;
+  line-height: 1.1;
+}
+
+.additionality-table-shell {
+  margin-top: 16px;
+  overflow-x: auto;
+}
+
+.additionality-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 880px;
+}
+
+.additionality-table thead th {
+  text-align: left;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  padding: 0 0 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.additionality-table th,
+.additionality-table td {
+  padding: 12px 12px 12px 0;
+  vertical-align: top;
+}
+
+.additionality-table tbody tr + tr td {
+  border-top: 1px solid rgba(226, 232, 240, 0.8);
+}
+
 .compare-inline-error {
   margin-top: 16px;
 }
@@ -2686,6 +2810,10 @@ body {
   }
 
   .library-trajectory-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .additionality-price-row {
     grid-template-columns: 1fr;
   }
 
