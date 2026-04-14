@@ -217,6 +217,7 @@ export interface PackageEnrichment {
 }
 
 export interface SectorState {
+  family_id: string;
   sector: string;
   subsector: string;
   service_or_output_name: string;

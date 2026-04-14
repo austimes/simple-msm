@@ -65,6 +65,7 @@ function parseBool(raw) {
 
 function toSectorState(row) {
   return {
+    family_id: row['family_id'] ?? row['service_or_output_name'],
     sector: row['sector'],
     subsector: row['subsector'],
     service_or_output_name: row['service_or_output_name'],
@@ -102,6 +103,20 @@ function toSectorState(row) {
     times_or_vedalang_mapping_notes: row['times_or_vedalang_mapping_notes'],
     would_expand_to_explicit_capacity: parseBool(row['would_expand_to_explicit_capacity?'] ?? ''),
     would_expand_to_process_chain: parseBool(row['would_expand_to_process_chain?'] ?? ''),
+    energy_co2e: parseNum(row['energy_co2e']),
+    process_co2e: parseNum(row['process_co2e']),
+    state_stage_family: row['state_stage_family'] ?? '',
+    state_stage_rank: parseNum(row['state_stage_rank']),
+    state_stage_code: row['state_stage_code'] ?? '',
+    state_sort_key: row['state_sort_key'] ?? '',
+    state_label_standardized: row['state_label_standardized'] ?? '',
+    is_default_incumbent_2025: parseBool(row['is_default_incumbent_2025'] ?? ''),
+    state_option_rank: parseNum(row['state_option_rank']),
+    state_option_code: row['state_option_code'] ?? '',
+    state_option_label: row['state_option_label'] ?? '',
+    balance_tuning_flag: parseBool(row['balance_tuning_flag'] ?? ''),
+    balance_tuning_note: row['balance_tuning_note'] ?? '',
+    benchmark_balance_note: row['benchmark_balance_note'] ?? '',
   };
 }
 

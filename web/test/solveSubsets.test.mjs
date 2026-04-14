@@ -2,7 +2,7 @@
  * Subset solve tests — verifies the solver can run on isolated
  * sectors/outputs with correct dependency expansion.
  *
- * Run:  npx tsx --test test/solveSubsets.test.mjs
+ * Run:  bunx tsx --test test/solveSubsets.test.mjs
  */
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

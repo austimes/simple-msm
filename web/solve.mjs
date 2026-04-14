@@ -4,11 +4,11 @@
  * as the web app: parseCsv -> resolveConfigurationDocument -> buildSolveRequest -> solveWithLpAdapter
  *
  * Usage:
- *   npx msm <config>                           # solve one config
- *   npx msm <config> <config> ...              # batch solve
- *   npx msm compare <config> <config>          # compare two configs
- *   npx msm list                               # list built-in configs
- *   npx msm --all                              # batch solve all built-ins
+ *   bun run msm <config>                       # solve one config
+ *   bun run msm <config> <config> ...          # batch solve
+ *   bun run msm compare <config> <config>      # compare two configs
+ *   bun run msm list                           # list built-in configs
+ *   bun run msm --all                          # batch solve all built-ins
  *
  * A <config> is a file path (e.g. ./my-config.json) or a built-in id
  * (e.g. steel-optimize). Built-in ids resolve to src/configurations/<id>.json.
@@ -41,11 +41,11 @@ class UsageError extends Error {
 
 const HELP_TEXT = `
 Usage:
-  npx msm <config>                     Solve one config
-  npx msm <config> <config> ...        Batch solve multiple configs
-  npx msm compare <config> <config>    Compare two config runs
-  npx msm list                         List built-in configs
-  npx msm --all                        Batch solve all built-ins
+  bun run msm <config>                 Solve one config
+  bun run msm <config> <config> ...    Batch solve multiple configs
+  bun run msm compare <config> <config> Compare two config runs
+  bun run msm list                     List built-in configs
+  bun run msm --all                    Batch solve all built-ins
 
 A <config> is a file path or a built-in id (resolves to src/configurations/<id>.json).
 Scope is derived dynamically from active pathways.
@@ -320,7 +320,7 @@ function resolveConfigReference(raw) {
     if (!existsSync(absPath)) throw new Error();
     return absPath;
   } catch {
-    throw new UsageError(`Unknown built-in config "${raw}". Run "npx msm list" to see available configs.`);
+    throw new UsageError(`Unknown built-in config "${raw}". Run "bun run msm list" to see available configs.`);
   }
 }
 
@@ -749,7 +749,7 @@ function parseCli(argv) {
     return { command: 'batch', json, quiet, solverOnly };
   }
 
-  if (positionals.length === 0) throw new UsageError('A config argument is required. Run "npx msm list" to see built-in configs.');
+  if (positionals.length === 0) throw new UsageError('A config argument is required. Run "bun run msm list" to see built-in configs.');
   if (positionals.length === 1) return { command: 'solve', json, quiet, solverOnly, config: resolveConfigReference(positionals[0]) };
 
   return {

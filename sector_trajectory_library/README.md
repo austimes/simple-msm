@@ -19,11 +19,11 @@ It is designed to keep data, explanation, and validation together rather than sp
 
 ### Family-scoped authoring
 
-Each `family_id` owns its state table, demand anchor, README, and validation note together in one folder. Shared ledgers and shared curve tables live under `shared/`.
+Each `family_id` owns its state table, demand anchor, README, and validation note together in one folder. Shared ledgers, the family registry, and shared curve tables live under `shared/`.
 
 ### State table structure
 
-`families/<family_id>/family_states.csv` is the canonical authored trajectory table. Inputs, emissions, source ids, assumption ids, and rollout limits stay embedded in that table for contributor ergonomics and explainability.
+`families/<family_id>/family_states.csv` is the canonical authored trajectory table. Inputs, emissions, source ids, assumption ids, and rollout limits stay embedded in that table for contributor ergonomics and explainability. Family-level metadata such as sector, subsector, region, output unit, and the default incumbent state remain in `shared/families.csv` rather than being duplicated into every state row.
 
 ### Demand and curve structure
 
@@ -40,6 +40,7 @@ The `validation/` and `exports/legacy/` folders hold generated compatibility and
 - `families/<family_id>/demand.csv` — family anchor and linked growth curve
 - `families/<family_id>/README.md` — family context and caveats
 - `families/<family_id>/validation.md` — family validation expectations
+- `schema/*.json` — JSON-schema companions for the family registry and row tables
 - `shared/*.csv` — ledgers, owners, commodities, growth, price, carbon, and external commodity demand tables
 - `overlays/residual_overlays.csv` — package-owned residual closure layer
 - `validation/*.csv` — baseline validation outputs
@@ -51,4 +52,4 @@ Structural validation expects every family listed in `shared/families.csv` to ha
 
 ## Web App Relationship
 
-The web explorer and solver should load `shared/families.csv`, the shared ledgers and curves, each family-local `family_states.csv`, each family-local `demand.csv`, the overlay table, and the committed generated diagnostics / legacy exports needed for compatibility.
+The web explorer and solver should load `shared/families.csv`, the shared ledgers and curves, each family-local `family_states.csv`, each family-local `demand.csv`, the schema companions used for documentation, the overlay table, and the committed generated diagnostics / legacy exports needed for compatibility.

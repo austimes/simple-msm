@@ -24,9 +24,11 @@ test('StateSchemaPageContent renders documentation guidance, milestone years, an
   assert.match(html, />State Schema</);
   assert.match(html, /Documentation only/);
   assert.match(html, /does not provide a submission form/i);
+  assert.match(html, /shared\/families\.csv/);
+  assert.match(html, /raw row structure/i);
   assert.match(html, /2050/);
   assert.match(html, /state_id/);
   assert.match(html, /input_commodities/);
   assert.match(html, /confidence_rating/);
-  assert.match(html, /Representative CSV-style row snippet/);
+  assert.match(html, /Representative raw CSV row snippet/);
 });

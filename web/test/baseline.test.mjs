@@ -2,7 +2,7 @@
  * Baseline test — pins every subsector to its least-ambitious (incumbent)
  * state and verifies the solver produces a clean optimal solution.
  *
- * Run:  npx tsx --test test/baseline.test.mjs
+ * Run:  bunx tsx --test test/baseline.test.mjs
  */
 import assert from 'node:assert/strict';
 import test from 'node:test';

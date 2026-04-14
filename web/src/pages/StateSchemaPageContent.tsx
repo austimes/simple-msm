@@ -70,9 +70,14 @@ export default function StateSchemaPageContent({
     <div className="page page--state-schema">
       <h1>State Schema</h1>
       <p>
-        This page defines the structure of a family-scoped state contribution in the same shape as
-        {' '}<code>families/&lt;family_id&gt;/family_states.csv</code>, so another modeller can understand what would be
-        directly appendable to the packaged library.
+        This page defines the raw row structure stored in
+        {' '}<code>families/&lt;family_id&gt;/family_states.csv</code>, so another modeller can understand what is directly
+        appendable to the packaged library.
+      </p>
+      <p>
+        The explorer also joins those raw rows to <code>shared/families.csv</code> for family-level metadata such as
+        sector, subsector, region, and output units. Those joined registry fields are useful context, but they are not
+        additional columns in <code>family_states.csv</code>.
       </p>
 
       <section className="configuration-overview-grid">
@@ -124,28 +129,26 @@ export default function StateSchemaPageContent({
         <p>
           A state is defined here as a <strong>state family</strong>, not a single row. The stable
           identifier is `state_id`, and the contribution is the set of state-year rows attached to
-          that family across the required milestone years.
+          one `family_id` across the required milestone years.
         </p>
         <p>
-          Within one family, `sector`, `subsector`, `service_or_output_name`, `region`, and
-          `state_id` should stay fixed. The year-varying rows then carry the milestone-specific
-          costs, coefficients, emissions, and rollout limits.
+          Within the raw CSV, `family_id` and `state_id` identify the contribution. Family-level
+          metadata such as `sector`, `subsector`, `service_or_output_name`, `region`, `output_unit`,
+          and `output_quantity_basis` stay in <code>shared/families.csv</code> and are joined in by
+          the app rather than duplicated into every state row.
         </p>
         <div className="library-tag-list">
-          <span className="library-tag">sector</span>
-          <span className="library-tag">subsector</span>
-          <span className="library-tag">service_or_output_name</span>
-          <span className="library-tag">region</span>
+          <span className="library-tag">family_id</span>
           <span className="library-tag">state_id</span>
+          <span className="library-tag">year</span>
         </div>
       </section>
 
       <section className="configuration-panel">
         <h2>Current package conventions</h2>
         <p>
-          The current packaged library uses `region = AUS` only. The field still matters in the
-          schema, because future state families for another geography or calibrated variant would
-          need to keep `region` internally consistent within that family.
+          The current packaged library uses `region = AUS` only. That region value is held in
+          {' '}<code>shared/families.csv</code> and joined onto the raw state rows by the loader.
         </p>
         <dl className="configuration-key-value-list">
           <div>
@@ -158,7 +161,7 @@ export default function StateSchemaPageContent({
           </div>
           <div>
             <dt>Contribution unit</dt>
-            <dd>One `state_id` family across all milestone years</dd>
+            <dd>One `state_id` across all milestone years within one `family_id`</dd>
           </div>
         </dl>
       </section>
@@ -174,6 +177,11 @@ export default function StateSchemaPageContent({
           <li>
             Store array-like fields as JSON-encoded values inside a single CSV cell, not as
             exploded columns.
+          </li>
+          <li>
+            Keep family registry fields such as sector, region, and output unit in
+            {' '}<code>shared/families.csv</code> rather than duplicating them into
+            {' '}<code>family_states.csv</code>.
           </li>
           <li>
             Keep `input_commodities`, `input_coefficients`, and `input_units` aligned
@@ -195,13 +203,19 @@ export default function StateSchemaPageContent({
         {exampleFamily ? (
           <>
             <p>
-              The example below uses one real packaged state family so the row shape is concrete
-              rather than inferred from field names alone.
+              The example below uses one real packaged state family so the raw row shape is concrete
+              rather than inferred from field names alone. The family summary also shows the joined
+              registry metadata that the app resolves from <code>shared/families.csv</code>.
             </p>
 
             <div className="state-schema-summary-grid">
               <article className="configuration-demand-card">
                 <h3>Family summary</h3>
+                <p className="library-inline-note">
+                  Sector, subsector, region, output unit, and output quantity basis are joined from
+                  {' '}<code>shared/families.csv</code>; the remaining identity and cost fields below are
+                  carried directly in the raw state rows.
+                </p>
                 <dl className="configuration-key-value-list">
                   <div>
                     <dt>state_id</dt>
@@ -284,9 +298,8 @@ export default function StateSchemaPageContent({
             </div>
 
             <p className="library-inline-note">
-              Representative CSV-style row snippet for the {exampleFamily.representativeRow.year}
-              {' '}
-              milestone, including literal JSON-encoded array fields:
+              Representative raw CSV row snippet for the {exampleFamily.representativeRow.year}
+              {' '}milestone, including literal JSON-encoded array fields:
             </p>
             <pre className="results-code-block state-schema-code-block">
               {exampleFamily.representativeRowSnippet}
@@ -300,8 +313,9 @@ export default function StateSchemaPageContent({
       <section className="configuration-panel">
         <h2>Field dictionary</h2>
         <p>
-          Every CSV column is listed below with its requiredness, schema type, family behaviour,
-          meaning, and CSV encoding notes.
+          Every <code>family_states.csv</code> column is listed below with its requiredness, schema
+          type, family behaviour, meaning, and CSV encoding notes. Joined family-registry metadata
+          from <code>shared/families.csv</code> sits outside this row-level dictionary.
         </p>
         {schemaSections.length > 0 ? (
           <div className="methods-section-stack">

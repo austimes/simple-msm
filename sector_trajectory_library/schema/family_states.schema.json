@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Family state rows",
   "type": "object",
-  "description": "Schema for rows in families/<family_id>/family_states.csv. Array-like fields are stored as JSON-encoded strings in the CSV export.",
+  "description": "Schema for rows in families/<family_id>/family_states.csv. Family-level metadata such as sector, subsector, region, output unit, and default incumbent state live in shared/families.csv rather than being duplicated into each row. Array-like fields are stored as JSON-encoded strings in the CSV export.",
   "required": [
     "family_id",
     "state_id",
@@ -52,15 +52,19 @@
     "benchmark_balance_note"
   ],
   "properties": {
+    "family_id": {
+      "type": "string",
+      "description": "Canonical family identifier. Must match the folder name and the entry in shared/families.csv."
+    },
+    "state_id": {
+      "type": "string",
+      "description": "Stable state-family identifier repeated across milestone years. In this Phase 1 export it is unique within each (year, region) slice."
+    },
     "year": {
       "type": "integer",
       "minimum": 2025,
       "maximum": 2050,
       "description": "Milestone year represented by this state-year row. Phase 1 expects 2025, 2030, 2035, 2040, 2045, and 2050."
-    },
-    "state_id": {
-      "type": "string",
-      "description": "Stable state-family identifier repeated across milestone years. In this Phase 1 export it is unique within each (year, region) slice."
     },
     "state_label": {
       "type": "string",
@@ -154,6 +158,10 @@
       "type": "string",
       "description": "JSON-encoded array of source IDs stored in one CSV cell. IDs should resolve to entries in source_ledger.csv when that companion ledger is supplied."
     },
+    "assumption_ids": {
+      "type": "string",
+      "description": "JSON-encoded array of assumption IDs stored in one CSV cell. IDs should resolve to entries in assumptions_ledger.csv when that companion ledger is supplied."
+    },
     "evidence_summary": {
       "type": "string",
       "description": "Short summary of the evidence base supporting the row values."
@@ -161,10 +169,6 @@
     "derivation_method": {
       "type": "string",
       "description": "Brief description of how the row was synthesized, scaled, interpolated, or calibrated from sources."
-    },
-    "assumption_ids": {
-      "type": "string",
-      "description": "JSON-encoded array of assumption IDs stored in one CSV cell. IDs should resolve to entries in assumptions_ledger.csv when that companion ledger is supplied."
     },
     "confidence_rating": {
       "type": "string",
@@ -196,9 +200,73 @@
       "type": "boolean",
       "description": "Boolean flag indicating whether this state would likely expand into a more explicit process-chain representation in a future model."
     },
-    "family_id": {
+    "energy_co2e": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Convenience scalar for the row's direct energy CO2e intensity, typically matching the CO2e entry in energy_emissions_by_pollutant when that pollutant is present. Used by downstream loaders and diagnostics for faster access."
+    },
+    "process_co2e": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Convenience scalar for the row's process CO2e intensity, typically matching the CO2e entry in process_emissions_by_pollutant when that pollutant is present."
+    },
+    "state_stage_family": {
       "type": "string",
-      "description": "Canonical family identifier. Must match the folder name and the entry in shared/families.csv."
+      "description": "Broad transition-stage grouping used to cluster related states for ordering and presentation, for example incumbent or progression."
+    },
+    "state_stage_rank": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Numeric ordering key for the high-level transition-stage group. Lower values sort earlier."
+    },
+    "state_stage_code": {
+      "type": "string",
+      "description": "Short machine-friendly code for the transition-stage group, such as incumbent or ambition1."
+    },
+    "state_sort_key": {
+      "type": "string",
+      "description": "Stable composite sort key used by the explorer to keep state ordering deterministic across views."
+    },
+    "state_label_standardized": {
+      "type": "string",
+      "description": "Standardized presentation label used where the app needs a normalized cross-family naming convention."
+    },
+    "is_default_incumbent_2025": {
+      "type": "boolean",
+      "description": "Boolean flag marking the packaged default incumbent option for 2025. The app uses this to derive default anchors and baseline selections."
+    },
+    "state_option_rank": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Numeric ordering key within a transition stage when multiple option variants exist."
+    },
+    "state_option_code": {
+      "type": "string",
+      "description": "Short machine-friendly code for the option variant within a stage."
+    },
+    "state_option_label": {
+      "type": "string",
+      "description": "Human-readable option label within a stage, used in UI labels and exported summaries."
+    },
+    "balance_tuning_flag": {
+      "type": "boolean",
+      "description": "Boolean flag indicating that the row received explicit balance-oriented calibration or tuning treatment in the packaged library."
+    },
+    "balance_tuning_note": {
+      "type": "string",
+      "description": "Short note describing any balance-oriented calibration applied to the row."
+    },
+    "benchmark_balance_note": {
+      "type": "string",
+      "description": "Optional note on how the row should be interpreted against package-level benchmark and closure diagnostics."
     }
   },
   "$id": "schema/family_states.schema.json"

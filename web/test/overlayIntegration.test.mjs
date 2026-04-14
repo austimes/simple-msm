@@ -4,7 +4,7 @@
  * Uses synthetic inline fixtures so tests are deterministic and
  * independent of the real CSV data.
  *
- * Run:  npx tsx --test test/overlayIntegration.test.mjs
+ * Run:  bunx tsx --test test/overlayIntegration.test.mjs
  */
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
