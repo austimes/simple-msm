@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schema/carbon_price_curves.schema.json",
+  "title": "Carbon price curves",
+  "type": "object",
+  "required": [
+    "carbon_price_curve_id",
+    "label",
+    "unit",
+    "2025",
+    "2030",
+    "2035",
+    "2040",
+    "2045",
+    "2050",
+    "provenance_note"
+  ],
+  "properties": {
+    "2025": {
+      "type": [
+        "string",
+        "number"
+      ],
+      "description": "Field 2025 in Carbon price curves."
+    },
+    "2030": {
+      "type": [
+        "string",
+        "number"
+      ],
+      "description": "Field 2030 in Carbon price curves."
+    },
+    "2035": {
+      "type": [
+        "string",
+        "number"
+      ],
+      "description": "Field 2035 in Carbon price curves."
+    },
+    "2040": {
+      "type": [
+        "string",
+        "number"
+      ],
+      "description": "Field 2040 in Carbon price curves."
+    },
+    "2045": {
+      "type": [
+        "string",
+        "number"
+      ],
+      "description": "Field 2045 in Carbon price curves."
+    },
+    "2050": {
+      "type": [
+        "string",
+        "number"
+      ],
+      "description": "Field 2050 in Carbon price curves."
+    },
+    "carbon_price_curve_id": {
+      "type": [
+        "string",
+        "number"
+      ],
+      "description": "Field carbon_price_curve_id in Carbon price curves."
+    },
+    "label": {
+      "type": [
+        "string",
+        "number"
+      ],
+      "description": "Field label in Carbon price curves."
+    },
+    "unit": {
+      "type": [
+        "string",
+        "number"
+      ],
+      "description": "Field unit in Carbon price curves."
+    },
+    "provenance_note": {
+      "type": [
+        "string",
+        "number"
+      ],
+      "description": "Field provenance_note in Carbon price curves."
+    }
+  }
+}

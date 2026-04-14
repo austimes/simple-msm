@@ -17,7 +17,7 @@ function readText(relativePath: string): string {
 }
 
 const schemaInfo = buildPackageEnrichment({
-  'data/sector_states_schema.json': readText('../../aus_phase1_sector_state_library/data/sector_states_schema.json'),
+  'schema/family_states.schema.json': readText('../../sector_trajectory_library/schema/family_states.schema.json'),
 }).sectorStatesSchema;
 
 describe('stateSchemaModel', () => {

@@ -147,16 +147,17 @@ function ensureResidualOverlays(configuration, overlayRows) {
 // Load package and configurations
 // ---------------------------------------------------------------------------
 
-const DATA = '../../aus_phase1_sector_state_library/data';
+const LEGACY = '../../sector_trajectory_library/exports/legacy';
+const OVERLAYS = '../../sector_trajectory_library/overlays';
 
-const sectorStates = parseCsv(readText(`${DATA}/sector_state_curves_balanced.csv`)).map(toSectorState);
+const sectorStates = parseCsv(readText(`${LEGACY}/sector_state_curves_balanced.csv`)).map(toSectorState);
 const appConfig = loadAppConfig();
 
-const anchorRows = parseCsv(readText(`${DATA}/service_demand_anchors_2025.csv`)).map(toServiceDemandAnchorRow);
+const anchorRows = parseCsv(readText(`${LEGACY}/service_demand_anchors_2025.csv`)).map(toServiceDemandAnchorRow);
 const csvAnchors = deriveBaselineAnchorsFromPackage(anchorRows, appConfig.output_roles);
 appConfig.baseline_activity_anchors = { ...appConfig.baseline_activity_anchors, ...csvAnchors };
 
-const residualOverlays2025 = parseCsv(readText(`${DATA}/residual_overlays_2025.csv`)).map(toResidualOverlayRow);
+const residualOverlays2025 = parseCsv(readText(`${OVERLAYS}/residual_overlays.csv`)).map(toResidualOverlayRow);
 
 const pkg = { sectorStates, appConfig, residualOverlays2025 };
 

@@ -250,7 +250,7 @@
     "share_smoothing": {
       "enabled": false,
       "max_delta_pp": 20,
-      "notes": "Generic rollout proxy. Because the current sector_state_curves_balanced.csv does not contain numeric uptake-rate fields, max share change per milestone period is the simple app-level uptake limiter."
+      "notes": "Generic rollout proxy. Because the current family_states.csv tables do not contain numeric uptake-rate fields, max share change per milestone period is the simple app-level uptake limiter."
     }
   }
 }

@@ -170,7 +170,7 @@ function toEmissionsBalance2025Row(row) {
 }
 
 export function loadPkg() {
-  const csvText = readText('../../aus_phase1_sector_state_library/data/sector_state_curves_balanced.csv');
+  const csvText = readText('../../sector_trajectory_library/exports/legacy/sector_state_curves_balanced.csv');
   const sectorStates = parseCsv(csvText).map(toSectorState);
   const appConfig = loadAppConfig();
   return { sectorStates, appConfig };
@@ -179,13 +179,13 @@ export function loadPkg() {
 export function loadFormulationFixtureData() {
   const pkg = loadPkg();
   const residualOverlays2025 = parseCsv(
-    readText('../../aus_phase1_sector_state_library/data/residual_overlays_2025.csv'),
+    readText('../../sector_trajectory_library/overlays/residual_overlays.csv'),
   ).map(toResidualOverlayRow);
   const commodityBalance2025 = parseCsv(
-    readText('../../aus_phase1_sector_state_library/data/commodity_balance_2025.csv'),
+    readText('../../sector_trajectory_library/validation/baseline_commodity_balance.csv'),
   ).map(toCommodityBalance2025Row);
   const emissionsBalance2025 = parseCsv(
-    readText('../../aus_phase1_sector_state_library/data/emissions_balance_2025.csv'),
+    readText('../../sector_trajectory_library/validation/baseline_emissions_balance.csv'),
   ).map(toEmissionsBalance2025Row);
 
   return {

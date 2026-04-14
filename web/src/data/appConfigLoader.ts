@@ -1,8 +1,4 @@
 import outputRolesText from '../app_config/output_roles.json?raw';
-import baselineActivityAnchorsText from '../app_config/baseline_activity_anchors.json?raw';
-import demandGrowthPresetsText from '../app_config/demand_growth_presets.json?raw';
-import commodityPricePresetsText from '../app_config/commodity_price_presets.json?raw';
-import carbonPricePresetsText from '../app_config/carbon_price_presets.json?raw';
 import explanationTagRulesText from '../app_config/explanation_tag_rules.json?raw';
 import type { AppConfigRegistry } from './types.ts';
 
@@ -22,22 +18,10 @@ function parseJsonObject<T>(raw: unknown, label: string): T {
 export function loadAppConfig(): AppConfigRegistry {
   return {
     output_roles: parseJsonObject(outputRolesText, 'output_roles.json'),
-    baseline_activity_anchors: parseJsonObject(
-      baselineActivityAnchorsText,
-      'baseline_activity_anchors.json',
-    ),
-    demand_growth_presets: parseJsonObject(
-      demandGrowthPresetsText,
-      'demand_growth_presets.json',
-    ),
-    commodity_price_presets: parseJsonObject(
-      commodityPricePresetsText,
-      'commodity_price_presets.json',
-    ),
-    carbon_price_presets: parseJsonObject(
-      carbonPricePresetsText,
-      'carbon_price_presets.json',
-    ),
+    baseline_activity_anchors: {},
+    demand_growth_presets: {},
+    commodity_price_presets: {},
+    carbon_price_presets: {},
     explanation_tag_rules: parseJsonObject(
       explanationTagRulesText,
       'explanation_tag_rules.json',

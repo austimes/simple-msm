@@ -278,12 +278,12 @@ function loadAppConfig() {
 }
 
 function loadPackage() {
-  const csvText = readTextRelative('../aus_phase1_sector_state_library/data/sector_state_curves_balanced.csv');
+  const csvText = readTextRelative('../sector_trajectory_library/exports/legacy/sector_state_curves_balanced.csv');
   const sectorStates = parseCsv(csvText).map(toSectorState);
   const appConfig = loadAppConfig();
 
   // Parse anchor CSV and merge into appConfig (same logic as browser path)
-  const anchorCsvText = readTextRelative('../aus_phase1_sector_state_library/data/service_demand_anchors_2025.csv');
+  const anchorCsvText = readTextRelative('../sector_trajectory_library/exports/legacy/service_demand_anchors_2025.csv');
   const anchorRows = parseCsv(anchorCsvText).map(toServiceDemandAnchorRow);
   const csvAnchors = deriveBaselineAnchorsFromPackage(anchorRows, appConfig.output_roles);
   appConfig.baseline_activity_anchors = {
@@ -292,7 +292,7 @@ function loadPackage() {
   };
 
   const residualOverlays2025 = parseCsv(
-    readTextRelative('../aus_phase1_sector_state_library/data/residual_overlays_2025.csv'),
+    readTextRelative('../sector_trajectory_library/overlays/residual_overlays.csv'),
   ).map(toResidualOverlayRow);
 
   const normalizedRows = normalizeSolverRows({ sectorStates, appConfig });

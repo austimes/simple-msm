@@ -64,7 +64,7 @@ function loadAppConfig() {
 
 const jsonAnchors = readJson('../public/app_config/baseline_activity_anchors.json');
 const outputRoles = readJson('../public/app_config/output_roles.json');
-const anchorCsvText = readText('../../aus_phase1_sector_state_library/data/service_demand_anchors_2025.csv');
+const anchorCsvText = readText('../../sector_trajectory_library/exports/legacy/service_demand_anchors_2025.csv');
 const anchorRows = parseCsv(anchorCsvText).map(toServiceDemandAnchorRow);
 const csvAnchors = deriveBaselineAnchorsFromPackage(anchorRows, outputRoles);
 

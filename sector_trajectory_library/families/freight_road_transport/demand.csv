@@ -1,0 +1,2 @@
+family_id,anchor_year,anchor_value,unit,demand_growth_curve_id,anchor_status,source_family,coverage_note,notes
+freight_road_transport,2025,249000000000.0,tkm,simple_sector_growth_central__freight_road_transport,official_direct,BITRE Yearbook 2024 freight chapter,Anchored to 2023–24 road freight task (~249 billion tonne-km).,Migrated from the Phase 1 anchor table without changing the baseline value.

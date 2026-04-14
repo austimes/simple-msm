@@ -11,18 +11,77 @@ import type { ConfigurationDocument } from './types.ts';
 
 // --- Built-in configuration loading (Vite eager import) ---
 
-function loadConfigurationModules(pattern: string): Record<string, string> {
-  if (typeof import.meta.glob !== 'function') {
+interface NodeDirectoryEntryLike {
+  isDirectory(): boolean;
+  name: string;
+}
+
+interface NodeFsLike {
+  existsSync(path: string): boolean;
+  readdirSync(path: string, options: { withFileTypes: true }): NodeDirectoryEntryLike[];
+  readFileSync(path: string, encoding: 'utf8'): string;
+}
+
+interface NodePathLike {
+  dirname(path: string): string;
+  join(...paths: string[]): string;
+  resolve(...paths: string[]): string;
+}
+
+interface NodeUrlLike {
+  fileURLToPath(url: string | URL): string;
+}
+
+function getNodeBuiltin<T>(specifier: string): T | null {
+  const processLike = (globalThis as { process?: { getBuiltinModule?: (name: string) => T | undefined } }).process;
+  if (!processLike?.getBuiltinModule) {
+    return null;
+  }
+
+  return processLike.getBuiltinModule(specifier)
+    ?? processLike.getBuiltinModule(specifier.replace(/^node:/, ''))
+    ?? null;
+}
+
+function loadConfigurationModulesFromFileSystem(
+  relativeDirectory: string,
+  keyPrefix: string,
+): Record<string, string> {
+  const fs = getNodeBuiltin<NodeFsLike>('node:fs');
+  const path = getNodeBuiltin<NodePathLike>('node:path');
+  const url = getNodeBuiltin<NodeUrlLike>('node:url');
+
+  if (!fs || !path || !url) {
     return {};
   }
 
-  return import.meta.glob<string>(
-    pattern,
-    { eager: true, import: 'default', query: '?raw' },
-  );
+  const moduleDir = path.dirname(url.fileURLToPath(import.meta.url));
+  const rootDir = path.resolve(moduleDir, relativeDirectory);
+  if (!fs.existsSync(rootDir)) {
+    return {};
+  }
+
+  const modules: Record<string, string> = {};
+  for (const entry of fs.readdirSync(rootDir, { withFileTypes: true })) {
+    if (entry.isDirectory() || !entry.name.endsWith('.json')) {
+      continue;
+    }
+
+    const absolutePath = path.join(rootDir, entry.name);
+    modules[`${keyPrefix}/${entry.name}`] = fs.readFileSync(absolutePath, 'utf8');
+  }
+
+  return modules;
 }
 
-const builtinConfigModules = loadConfigurationModules('/src/configurations/*.json');
+const builtinConfigModules =
+  typeof import.meta.glob === 'function'
+    ? import.meta.glob<string>('/src/configurations/*.json', {
+        eager: true,
+        import: 'default',
+        query: '?raw',
+      })
+    : loadConfigurationModulesFromFileSystem('../configurations', '/src/configurations');
 
 interface ConfigurationCollectionEntry {
   source: string;
@@ -147,7 +206,14 @@ export function loadBuiltinConfigurations(): ConfigurationDocument[] {
 // --- User configuration persistence (repo-backed via dev server API) ---
 
 // Bundled user configs loaded at build time (for production / static builds)
-const userConfigModules = loadConfigurationModules('/src/configurations/user/*.json');
+const userConfigModules =
+  typeof import.meta.glob === 'function'
+    ? import.meta.glob<string>('/src/configurations/user/*.json', {
+        eager: true,
+        import: 'default',
+        query: '?raw',
+      })
+    : loadConfigurationModulesFromFileSystem('../configurations/user', '/src/configurations/user');
 
 export function loadUserConfigurations(): ConfigurationDocument[] {
   return parseConfigurationCollection(userConfigModules, false);

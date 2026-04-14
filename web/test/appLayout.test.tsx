@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import AppLayout from '../src/layouts/AppLayout.tsx';
 
-test('AppLayout includes the State Schema, Methods, and Model Formulation nav items in the top-level order', () => {
+test('AppLayout includes the Explorer, State Schema, Methods, and Model Formulation nav items in the top-level order', () => {
   const html = renderToStaticMarkup(
     <MemoryRouter initialEntries={['/model-formulation']}>
       <Routes>
@@ -17,15 +17,15 @@ test('AppLayout includes the State Schema, Methods, and Model Formulation nav it
     </MemoryRouter>,
   );
 
-  const runIndex = html.indexOf('>Run<');
+  const explorerIndex = html.indexOf('>Explorer<');
   const compareIndex = html.indexOf('>Compare<');
   const libraryIndex = html.indexOf('>Library<');
   const stateSchemaIndex = html.indexOf('>State Schema<');
   const methodsIndex = html.indexOf('>Methods<');
   const modelFormulationIndex = html.indexOf('>Model Formulation<');
 
-  assert.ok(runIndex >= 0, 'expected Run nav item');
-  assert.ok(compareIndex > runIndex, 'expected Compare after Run');
+  assert.ok(explorerIndex >= 0, 'expected Explorer nav item');
+  assert.ok(compareIndex > explorerIndex, 'expected Compare after Explorer');
   assert.ok(libraryIndex > compareIndex, 'expected Library after Compare');
   assert.ok(stateSchemaIndex > libraryIndex, 'expected State Schema after Library');
   assert.ok(methodsIndex > stateSchemaIndex, 'expected Methods after State Schema');

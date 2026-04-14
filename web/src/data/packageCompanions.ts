@@ -20,7 +20,7 @@ interface JsonSchemaDocument {
   properties?: Record<string, JsonSchemaProperty>;
 }
 
-const PACKAGE_IMPORT_PREFIX = '../../../aus_phase1_sector_state_library/';
+const PACKAGE_IMPORT_PREFIX = '../../../sector_trajectory_library/';
 
 function titleizeSegment(value: string): string {
   return value
@@ -86,7 +86,7 @@ function toAssumptionLedgerEntry(row: Record<string, string>): AssumptionLedgerE
 function toSchemaInfo(raw: string | undefined, warnings: string[]): PackageSchemaInfo | null {
   const document = parseOptionalJsonObject<JsonSchemaDocument>(
     raw,
-    'data/sector_states_schema.json',
+    'schema/family_states.schema.json',
     warnings,
   );
 
@@ -135,10 +135,11 @@ export function buildPackageEnrichment(textFiles: Record<string, string>): Packa
   const warnings: string[] = [];
   const sectorDerivations = Object.fromEntries(
     Object.entries(textFiles)
-      .filter(([path]) => path.startsWith('docs/sector_derivations/') && path.endsWith('.md') && path !== 'docs/sector_derivations/README.md')
+      .filter(([path]) => path.startsWith('families/') && path.endsWith('/README.md'))
       .map(([path, content]) => {
         const doc = toCompanionDoc(path, content);
-        return [doc.key, doc];
+        const familyId = path.split('/')[1] ?? doc.key;
+        return [familyId, { ...doc, key: familyId }];
       }),
   );
 
@@ -146,17 +147,17 @@ export function buildPackageEnrichment(textFiles: Record<string, string>): Packa
     availablePaths: Object.keys(textFiles).sort((left, right) => left.localeCompare(right)),
     warnings,
     readme: textFiles['README.md'] ?? '',
-    phase2Memo: textFiles['docs/phase2_recommendations.md'] ?? '',
-    methodsOverview: textFiles['docs/methods_overview.md'] ?? '',
-    calibrationValidation: textFiles['docs/calibration_validation.md'] ?? '',
-    uncertaintyConfidence: textFiles['docs/uncertainty_confidence.md'] ?? '',
-    sourceLedger: textFiles['data/source_ledger.csv']
-      ? parseCsv(textFiles['data/source_ledger.csv']).map(toSourceLedgerEntry)
+    phase2Memo: '',
+    methodsOverview: '',
+    calibrationValidation: '',
+    uncertaintyConfidence: '',
+    sourceLedger: textFiles['shared/source_ledger.csv']
+      ? parseCsv(textFiles['shared/source_ledger.csv']).map(toSourceLedgerEntry)
       : [],
-    assumptionsLedger: textFiles['data/assumptions_ledger.csv']
-      ? parseCsv(textFiles['data/assumptions_ledger.csv']).map(toAssumptionLedgerEntry)
+    assumptionsLedger: textFiles['shared/assumptions_ledger.csv']
+      ? parseCsv(textFiles['shared/assumptions_ledger.csv']).map(toAssumptionLedgerEntry)
       : [],
-    sectorStatesSchema: toSchemaInfo(textFiles['data/sector_states_schema.json'], warnings),
+    sectorStatesSchema: toSchemaInfo(textFiles['schema/family_states.schema.json'], warnings),
     sectorDerivations,
   };
 }

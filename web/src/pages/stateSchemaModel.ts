@@ -92,6 +92,7 @@ const FIELD_SECTION_BY_NAME: Record<string, StateSchemaSectionTitle> = {
   times_or_vedalang_mapping_notes: 'Expansion and future mapping',
   'would_expand_to_explicit_capacity?': 'Expansion and future mapping',
   'would_expand_to_process_chain?': 'Expansion and future mapping',
+  family_id: 'Expansion and future mapping',
 };
 
 const FAMILY_CONSTANT_FIELDS = new Set([
@@ -111,6 +112,7 @@ const FAMILY_CONSTANT_FIELDS = new Set([
   'times_or_vedalang_mapping_notes',
   'would_expand_to_explicit_capacity?',
   'would_expand_to_process_chain?',
+  'family_id',
 ]);
 
 const CSV_ARRAY_FIELDS = new Set([

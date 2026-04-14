@@ -67,11 +67,11 @@ This is mainly a usability and interpretability improvement.
 
 ## What the updated data products are
 
-### 1. Updated main sector-state table
+### 1. Updated main sector-state tables
 
-**`sector_state_curves_balanced.csv`**
+**`shared/families.csv` + `families/<family_id>/family_states.csv`**
 
-This is the updated version of the original sector-state curves table.
+This is the canonical explicit model interface in the restructured package.
 
 At a high level, it differs from the earlier main table in three ways:
 
@@ -80,41 +80,39 @@ At a high level, it differs from the earlier main table in three ways:
 - and the table now carries more explicit cues about default incumbent choices and balance-oriented adjustments.
 
 Conceptually, this remains the main explicit representation of the modeled economy.
+The old `exports/legacy/sector_state_curves_balanced.csv` file is now just a generated compatibility export.
 
-### 2. New present-day demand/activity table
+### 2. Present-day demand/activity tables
 
-**`service_demand_anchors_2025.csv`**
+**`families/<family_id>/demand.csv` + `shared/external_commodity_demands.csv`**
 
-This is a new companion table that provides a reasonable 2025 anchor for the modeled sectors/services.
+These tables provide the present-day anchors for modeled sectors/services and externally demanded commodities.
 
 Its role is to say, in effect:
 
 - what the present-day quantity of each modeled service/output roughly is, and
 - what the implied energy/emissions look like if the default incumbent state is used.
 
-This is the main new table that helps avoid under-counting simply because demand was underspecified.
+This is the main new authored layer that helps avoid under-counting simply because demand was underspecified.
+The old `exports/legacy/service_demand_anchors_2025.csv` file is now just a generated compatibility export.
 
-### 3. New residual overlay tables
+### 3. New residual overlay table
 
-**`residual_energy_overlay_sectors_2025.csv`**
+**`overlays/residual_overlays.csv`**
 
-This table represents omitted sectors or subsectors that still matter for **commodity use** and **direct energy emissions**, but are not explicitly modeled as sector-state choices.
+This table represents omitted sectors or subsectors that still matter for **commodity use**, **direct energy emissions**, or **net-sink accounting**, but are not explicitly modeled as family-state choices.
 
-**`residual_nonenergy_emissions_overlays_2025.csv`**
-
-This table represents omitted emissions sources that are needed for **emissions accounting** but are not naturally represented as modeled commodity demand.
-
-Together, these tables make the missing parts of the economy visible instead of leaving them implicit.
+It makes the missing parts of the economy visible instead of leaving them implicit.
 
 ### 4. New balance / check tables
 
-**`commodity_balance_2025.csv`**
+**`validation/baseline_commodity_balance.csv`**
 
 This is a diagnostic table for checking whether the updated explicit sectors plus overlays give a reasonable ball-park view of commodity/final-energy use.
 
 It is best thought of as a **check against benchmarks**, not as the core model input.
 
-**`emissions_balance_2025.csv`**
+**`validation/baseline_emissions_balance.csv`**
 
 This is the equivalent diagnostic table for emissions. It shows how the explicit modeled sectors plus the overlay layers line up against benchmark emissions totals.
 
@@ -122,7 +120,7 @@ Again, this is a **check table**, not the core modeled layer.
 
 ### 5. Optional helper table
 
-**`state_options_index.csv`**
+**`exports/legacy/state_options_index.csv`**
 
 This is only a convenience extract of state labels/orderings.
 
@@ -145,16 +143,18 @@ They are useful as QA views, but they are not conceptually required to understan
 At a high level, the updated pack can be thought of as three layers:
 
 ### A. Explicit modeled layer
-- `sector_state_curves_balanced.csv`
+- `shared/families.csv`
+- `families/<family_id>/family_states.csv`
 
 ### B. Present-day anchor / closure layer
-- `service_demand_anchors_2025.csv`
-- `residual_energy_overlay_sectors_2025.csv`
-- `residual_nonenergy_emissions_overlays_2025.csv`
+- `families/<family_id>/demand.csv`
+- `shared/external_commodity_demands.csv`
+- `overlays/residual_overlays.csv`
 
 ### C. Diagnostic / validation layer
-- `commodity_balance_2025.csv`
-- `emissions_balance_2025.csv`
+- `validation/baseline_commodity_balance.csv`
+- `validation/baseline_emissions_balance.csv`
+- `validation/baseline_electricity_balance.csv`
 
 That is the simplest conceptual framing of what has changed.
 

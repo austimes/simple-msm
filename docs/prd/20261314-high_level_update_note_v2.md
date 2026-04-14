@@ -32,7 +32,7 @@ The biggest change in this revision is the overlay structure.
 
 Instead of keeping separate overlay tables for different accounting purposes, the pack now provides one long-form table:
 
-- `residual_overlays_2025.csv`
+- `overlays/residual_overlays.csv`
 
 That table covers omitted-sector closure rows and makes them usable in a more direct way.
 
@@ -69,18 +69,18 @@ The intent is:
 
 ## What the main data products are now
 
-### 1. Updated main sector-state table
-**`sector_state_curves_balanced.csv`**
+### 1. Updated main sector-state tables
+**`shared/families.csv` + `families/<family_id>/family_states.csv`**
 
-This remains the main explicit model table.
+This is now the main explicit model interface.
 
 ### 2. Present-day demand/activity anchors
-**`service_demand_anchors_2025.csv`**
+**`families/<family_id>/demand.csv` + `shared/external_commodity_demands.csv`**
 
-This remains the 2025 anchor table for modeled service/output quantities.
+These remain the present-day anchor tables for modeled service/output quantities and externally demanded commodities.
 
 ### 3. Unified residual overlay table
-**`residual_overlays_2025.csv`**
+**`overlays/residual_overlays.csv`**
 
 This is now the main omitted-sector closure table.
 
@@ -93,12 +93,12 @@ It is the table that tells you what has to be overlaid onto:
 to get a more honest present-day national picture.
 
 ### 4. Balance check tables
-**`commodity_balance_2025.csv`** and **`emissions_balance_2025.csv`**
+**`validation/baseline_commodity_balance.csv`** and **`validation/baseline_emissions_balance.csv`**
 
 These remain diagnostic check tables. They show how the explicit modeled layer plus the overlay layer line up against the benchmark totals.
 
 ### 5. Optional helper
-**`state_options_index.csv`**
+**`exports/legacy/state_options_index.csv`**
 
 This is still only a convenience extract. It is not part of the core conceptual change.
 
@@ -107,15 +107,18 @@ This is still only a convenience extract. It is not part of the core conceptual 
 At this point the pack can be thought of as three layers:
 
 ### A. Explicit modeled layer
-- `sector_state_curves_balanced.csv`
+- `shared/families.csv`
+- `families/<family_id>/family_states.csv`
 
 ### B. Present-day anchor and omitted-sector closure layer
-- `service_demand_anchors_2025.csv`
-- `residual_overlays_2025.csv`
+- `families/<family_id>/demand.csv`
+- `shared/external_commodity_demands.csv`
+- `overlays/residual_overlays.csv`
 
 ### C. Diagnostic / validation layer
-- `commodity_balance_2025.csv`
-- `emissions_balance_2025.csv`
+- `validation/baseline_commodity_balance.csv`
+- `validation/baseline_emissions_balance.csv`
+- `validation/baseline_electricity_balance.csv`
 
 ## What this update is not trying to do
 

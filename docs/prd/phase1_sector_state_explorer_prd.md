@@ -4,7 +4,7 @@
 Version: 0.1  
 Date: 2026-04-06  
 Status: draft for implementation  
-Primary input package: `aus_phase1_sector_state_library.zip`
+Primary input package: `sector_trajectory_library/`
 
 ## 1. Product summary
 
@@ -37,18 +37,14 @@ The app should load and use the following existing artifacts directly:
 
 | File | Purpose in app |
 |---|---|
-| `data/sector_states.csv` | Core state-year rows used by explorer and solver |
-| `data/sector_states_schema.json` | Validation and field documentation |
-| `data/source_ledger.csv` | Source/provenance view |
-| `data/assumptions_ledger.csv` | Assumption/provenance view |
-| `data/calibration_summary.csv` | Baseline validation tab and default demand anchors |
-| `data/uncertainty_summary.csv` | Uncertainty tab and sensitivity hints |
-| `data/commodity_taxonomy.csv` | Commodity definitions and canonical units |
-| `docs/methods_overview.md` | Global methods page |
-| `docs/sector_derivations/*.md` | Sector explainer pages |
-| `docs/calibration_validation.md` | Calibration page |
-| `docs/uncertainty_confidence.md` | Uncertainty page |
-| `docs/phase2_recommendations.md` | Caveats and expansion-path page |
+| `families/<family_id>/family_states.csv` | Core state-year rows used by explorer and solver |
+| `schema/family_states.schema.json` | Validation and field documentation |
+| `shared/source_ledger.csv` | Source/provenance view |
+| `shared/assumptions_ledger.csv` | Assumption/provenance view |
+| `validation/family_validation_summary.csv` | Baseline validation summary |
+| `shared/commodities.csv` | Commodity definitions and canonical units |
+| `families/<family_id>/README.md` | Family explainer pages |
+| `families/<family_id>/validation.md` | Family validation notes |
 
 ## 4. Key product assumptions
 
@@ -891,11 +887,10 @@ app/
     compare.py
     exports.py
   data/
-    sector_states.csv
+    family_states.csv
     source_ledger.csv
     assumptions_ledger.csv
-    calibration_summary.csv
-    uncertainty_summary.csv
+    family_validation_summary.csv
     commodity_taxonomy.csv
     docs/...
   app_config/

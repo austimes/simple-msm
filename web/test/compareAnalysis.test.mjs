@@ -99,7 +99,7 @@ test('packaged reference configuration solves as a stable baseline on the Result
     appConfig,
     'reference_configuration.json',
   );
-  const sectorStates = parseCsv(readText('../../aus_phase1_sector_state_library/data/sector_state_curves_balanced.csv'))
+  const sectorStates = parseCsv(readText('../../sector_trajectory_library/exports/legacy/sector_state_curves_balanced.csv'))
     .map(toSectorState);
   const pkg = {
     sectorStates,
@@ -124,7 +124,7 @@ test('compare analysis builds heuristic decomposition and narratives from the bu
     appConfig,
     'reference_configuration.json',
   );
-  const sectorStates = parseCsv(readText('../../aus_phase1_sector_state_library/data/sector_state_curves_balanced.csv'))
+  const sectorStates = parseCsv(readText('../../sector_trajectory_library/exports/legacy/sector_state_curves_balanced.csv'))
     .map(toSectorState);
   const pkg = {
     sectorStates,

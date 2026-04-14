@@ -1,0 +1,2 @@
+family_id,anchor_year,anchor_value,unit,demand_growth_curve_id,anchor_status,source_family,coverage_note,notes
+livestock_output_bundle,2025,31134.94,A$m_output_2024,simple_sector_growth_central__livestock_output_bundle,synthetic_inherited,Phase 1 reference scenario v0.2,Inherited coarse agricultural output-bundle anchor from the Phase 1 calibration build.,Migrated from the Phase 1 anchor table without changing the baseline value.

@@ -1,0 +1,2 @@
+commodity_id,anchor_year,anchor_value,unit,demand_growth_curve_id,anchor_status,source_family,coverage_note,notes
+electricity,2025,144018720.570146,MWh,simple_sector_growth_central__external__electricity,derived_balance,Derived = official total generation benchmark - explicit modelled end-use electricity.,"Residual electricity-supply output required to reach total generation, covering omitted-sector final demand plus losses/own-use.",Migrated from the Phase 1 external electricity balance anchor.
