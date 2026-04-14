@@ -372,7 +372,9 @@ describe('road transport with BEV (needs electricity)', () => {
 
   test('BEV is the active state', () => {
     const activeShares = result.reporting.stateShares.filter((s) => s.activity > 1e-6);
-    for (const year of CONFIGURATION_YEARS) {
+    // The base year (2025) forces incumbent states, so BEV is only expected from 2030 onward.
+    const postBaseYears = CONFIGURATION_YEARS.filter((y) => y > 2025);
+    for (const year of postBaseYears) {
       const matches = activeShares.filter(
         (s) => s.outputId === 'passenger_road_transport' && s.year === year,
       );
