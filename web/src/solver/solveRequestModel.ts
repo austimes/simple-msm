@@ -8,6 +8,7 @@ import type {
 } from '../data/types.ts';
 import { normalizeCommodityInput } from '../data/commodityMetadata.ts';
 import { resolveConfigurationDocument } from '../data/demandResolution.ts';
+import { derivePathwayStateIds } from '../data/pathwaySemantics.ts';
 import type {
   NormalizedSolverRow,
   ResolvedCommodityPriceSeries,
@@ -45,6 +46,57 @@ function collectIncumbentStateIdsByOutput(
   return new Map(
     Array.from(byOutput.entries()).map(([outputId, ids]) => [outputId, Array.from(ids)]),
   );
+}
+
+function collectStateIdsByOutputYear(
+  sectorStates: Pick<SectorState, 'service_or_output_name' | 'year' | 'state_id'>[] | undefined,
+): Map<string, Map<number, string[]>> {
+  const byOutputYear = new Map<string, Map<number, Set<string>>>();
+
+  for (const row of sectorStates ?? []) {
+    let byYear = byOutputYear.get(row.service_or_output_name);
+    if (!byYear) {
+      byYear = new Map();
+      byOutputYear.set(row.service_or_output_name, byYear);
+    }
+
+    let ids = byYear.get(row.year);
+    if (!ids) {
+      ids = new Set();
+      byYear.set(row.year, ids);
+    }
+
+    ids.add(row.state_id);
+  }
+
+  return new Map(
+    Array.from(byOutputYear.entries()).map(([outputId, byYear]) => [
+      outputId,
+      new Map(Array.from(byYear.entries()).map(([year, ids]) => [year, Array.from(ids)])),
+    ]),
+  );
+}
+
+function hasConfiguredActiveStates(
+  outputId: string,
+  years: readonly number[],
+  control: ConfigurationServiceControl | undefined,
+  defaultMode: AppConfigRegistry['output_roles'][string]['default_control_mode'],
+  stateIdsByOutputYear: Map<string, Map<number, string[]>>,
+): boolean {
+  const byYear = stateIdsByOutputYear.get(outputId);
+
+  for (const year of years) {
+    const availableStateIds = byYear?.get(year) ?? [];
+    const unforcedControl = resolveControlForYear(control, defaultMode, year);
+    const derived = derivePathwayStateIds(availableStateIds, unforcedControl);
+
+    if (derived.activeStateIds.length > 0) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function resolveControlForYear(
@@ -158,11 +210,21 @@ export function resolveConfigurationForSolve(
   const resolvedConfiguration = resolveConfigurationDocument(configuration, appConfig);
   const years = [...resolvedConfiguration.years];
   const incumbentByOutput = collectIncumbentStateIdsByOutput(sectorStates);
+  const stateIdsByOutputYear = collectStateIdsByOutputYear(sectorStates);
   const controlsByOutput = Object.entries(appConfig.output_roles).reduce<
     Record<string, Record<string, ResolvedSolveControl>>
   >((resolved, [outputId, metadata]) => {
+    const shouldForceIncumbent = hasConfiguredActiveStates(
+      outputId,
+      years,
+      resolvedConfiguration.service_controls[outputId],
+      metadata.default_control_mode,
+      stateIdsByOutputYear,
+    );
     resolved[outputId] = years.reduce<Record<string, ResolvedSolveControl>>((controlsByYear, year) => {
-      const forced = year === BASE_YEAR ? incumbentByOutput.get(outputId) : undefined;
+      const forced = year === BASE_YEAR && shouldForceIncumbent
+        ? incumbentByOutput.get(outputId)
+        : undefined;
       controlsByYear[yearKey(year)] = resolveControlForYear(
         resolvedConfiguration.service_controls[outputId],
         metadata.default_control_mode,
