@@ -1,6 +1,8 @@
 # Web App
 
-`web/` is the standalone front end for `simple-msm`. It loads the checked-in Phase 1 sector-state library, restores one active configuration document, builds a normalized solve request, and runs the LP solve in-browser.
+`web/` is the thin front end for the trajectory library in `simple-msm`. It loads the checked-in `sector_trajectory_library/`, restores one active configuration document, builds a normalized solve request, and runs the LP solve in-browser so the package can be explored, optimized, compared, and explained interactively.
+
+The app is a usability layer around the trajectory library rather than the primary product. Its job is to make the package easier to interrogate, test, and communicate.
 
 ## Configuration Model
 
