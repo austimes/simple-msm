@@ -8,6 +8,10 @@ import type {
   DemandGrowthPreset,
 } from './types.ts';
 
+interface ResolveConfigurationDocumentOptions {
+  allowMismatchedResolvedTables?: boolean;
+}
+
 function yearKey(year: number): ConfigurationYearKey {
   return String(year) as ConfigurationYearKey;
 }
@@ -356,6 +360,7 @@ export function resolveConfigurationDocument(
   configuration: ConfigurationDocument,
   appConfig: AppConfigRegistry,
   label = 'configuration document',
+  options: ResolveConfigurationDocumentOptions = {},
 ): ConfigurationDocument {
   if (configuration.demand_generation.mode === 'manual_table') {
     return {
@@ -369,16 +374,18 @@ export function resolveConfigurationDocument(
   const serviceResolution = resolveServiceDemandTables(configuration, appConfig, preset);
   const externalResolution = resolveExternalCommodityDemandTables(configuration, appConfig, preset);
 
-  assertCompatibleResolvedTables(
-    configuration.service_demands,
-    serviceResolution.tables,
-    `${label} service_demands`,
-  );
-  assertCompatibleResolvedTables(
-    configuration.external_commodity_demands,
-    externalResolution.tables,
-    `${label} external_commodity_demands`,
-  );
+  if (!options.allowMismatchedResolvedTables) {
+    assertCompatibleResolvedTables(
+      configuration.service_demands,
+      serviceResolution.tables,
+      `${label} service_demands`,
+    );
+    assertCompatibleResolvedTables(
+      configuration.external_commodity_demands,
+      externalResolution.tables,
+      `${label} external_commodity_demands`,
+    );
+  }
 
   return {
     ...configuration,
