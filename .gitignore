@@ -1,4 +1,5 @@
 .DS_Store
+.claude/
 .orc/
 node_modules/
 aus_phase1_sector_state_library.zip
