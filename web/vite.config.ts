@@ -168,6 +168,23 @@ export default defineConfig({
       '@root': path.resolve(__dirname, '..'),
     },
   },
+  build: {
+    rolldownOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules/react-dom')) {
+            return 'vendor-react-dom';
+          }
+          if (id.includes('node_modules/recharts') || id.includes('node_modules/d3-') || id.includes('node_modules/react-smooth')) {
+            return 'vendor-recharts';
+          }
+          if (id.includes('node_modules/ajv')) {
+            return 'vendor-ajv';
+          }
+        },
+      },
+    },
+  },
   server: {
     fs: {
       allow: [path.resolve(__dirname, '..')],

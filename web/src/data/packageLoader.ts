@@ -155,34 +155,38 @@ function loadPackageTextFilesFromFileSystem(): Record<string, string> {
   return files;
 }
 
-function loadPackageTextFiles(): Record<string, string> {
+async function loadPackageTextFiles(): Promise<Record<string, string>> {
   try {
-    return normalizePackageTextFiles(
-      import.meta.glob<string>(
-        [
-          '../../../sector_trajectory_library/README.md',
-          '../../../sector_trajectory_library/manifest.json',
-          '../../../sector_trajectory_library/schema/*.json',
-          '../../../sector_trajectory_library/shared/*.csv',
-          '../../../sector_trajectory_library/families/*/*.csv',
-          '../../../sector_trajectory_library/families/*/*.md',
-          '../../../sector_trajectory_library/overlays/*.csv',
-          '../../../sector_trajectory_library/validation/*.csv',
-          '../../../sector_trajectory_library/exports/legacy/*.csv',
-        ],
-        {
-          eager: true,
-          import: 'default',
-          query: '?raw',
-        },
+    const lazyModules = import.meta.glob<string>(
+      [
+        '../../../sector_trajectory_library/README.md',
+        '../../../sector_trajectory_library/manifest.json',
+        '../../../sector_trajectory_library/schema/*.json',
+        '../../../sector_trajectory_library/shared/*.csv',
+        '../../../sector_trajectory_library/families/*/*.csv',
+        '../../../sector_trajectory_library/families/*/*.md',
+        '../../../sector_trajectory_library/overlays/*.csv',
+        '../../../sector_trajectory_library/validation/*.csv',
+        '../../../sector_trajectory_library/exports/legacy/*.csv',
+        '!../../../sector_trajectory_library/exports/legacy/sector_state_curves_balanced.csv',
+      ],
+      {
+        import: 'default',
+        query: '?raw',
+      },
+    );
+    const entries = await Promise.all(
+      Object.entries(lazyModules).map(
+        async ([key, loader]) => [key, await loader()] as const,
       ),
     );
+    return normalizePackageTextFiles(Object.fromEntries(entries));
   } catch {
     return loadPackageTextFilesFromFileSystem();
   }
 }
 
-const packageTextFiles = loadPackageTextFiles();
+const packageTextFiles = await loadPackageTextFiles();
 
 function requirePackageFile(path: string): string {
   const file = packageTextFiles[path];

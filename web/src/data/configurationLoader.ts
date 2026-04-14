@@ -74,18 +74,22 @@ function loadConfigurationModulesFromFileSystem(
   return modules;
 }
 
-const builtinConfigModules =
-  (() => {
-    try {
-      return import.meta.glob<string>('/src/configurations/*.json', {
-        eager: true,
-        import: 'default',
-        query: '?raw',
-      });
-    } catch {
-      return loadConfigurationModulesFromFileSystem('../configurations', '/src/configurations');
-    }
-  })();
+const builtinConfigModules = await (async () => {
+  try {
+    const lazyModules = import.meta.glob<string>('/src/configurations/*.json', {
+      import: 'default',
+      query: '?raw',
+    });
+    const entries = await Promise.all(
+      Object.entries(lazyModules).map(
+        async ([key, loader]) => [key, await loader()] as const,
+      ),
+    );
+    return Object.fromEntries(entries) as Record<string, string>;
+  } catch {
+    return loadConfigurationModulesFromFileSystem('../configurations', '/src/configurations');
+  }
+})();
 
 interface ConfigurationCollectionEntry {
   source: string;
