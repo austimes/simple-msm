@@ -70,7 +70,7 @@ That thin layer is there so you can:
 
 - get the app running quickly,
 - inspect trajectories and families,
-- compare cost and emissions outcomes,
+- inspect cost and emissions outcomes,
 - test how assumptions change results,
 - and trace results back to package evidence, assumptions, and family-local context.
 
@@ -81,7 +81,7 @@ The app matters because it makes the library easier to use and interrogate, but 
 ```text
 .
 ├── sector_trajectory_library/  # Canonical authored trajectory package
-├── web/                        # Thin interaction layer for explore / solve / compare workflows
+├── web/                        # Thin interaction layer for explore / solve / explain workflows
 └── docs/prd/                   # Historical PRD and product notes
 ```
 

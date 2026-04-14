@@ -415,15 +415,12 @@ export default function ModelFormulationPageContent({
       <section className="configuration-panel">
         <h2>Related documentation</h2>
         <p>
-          `Methods` covers provenance, calibration, and caveats. `Model Formulation` covers the
-          equations and solve wiring. `State Schema` covers the row and field dictionary.
+          `Methods` covers provenance, calibration, caveats, and the remaining schema summary.
+          `Model Formulation` covers the equations and solve wiring.
         </p>
         <div className="configuration-action-row">
           <Link className="configuration-button configuration-button--ghost" to="/methods">
             Open Methods
-          </Link>
-          <Link className="configuration-button configuration-button--ghost" to="/state-schema">
-            Open State Schema
           </Link>
         </div>
       </section>

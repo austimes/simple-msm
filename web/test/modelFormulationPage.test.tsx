@@ -32,5 +32,5 @@ test('ModelFormulationPageContent renders the formulation, source references, an
   assert.match(html, /not included in `buildSolveRequest\.ts`/);
   assert.match(html, /not solved in `lpAdapter\.ts`/);
   assert.match(html, /href="\/methods"/);
-  assert.match(html, /href="\/state-schema"/);
+  assert.doesNotMatch(html, /href="\/state-schema"/);
 });

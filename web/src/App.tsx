@@ -4,11 +4,9 @@ import AppLayout from './layouts/AppLayout';
 
 const ConfigurationWorkspacePage = lazy(() => import('./pages/ConfigurationWorkspacePage'));
 const AdditionalityPage = lazy(() => import('./pages/AdditionalityPage'));
-const ComparePage = lazy(() => import('./pages/ComparePage'));
 const LibraryPage = lazy(() => import('./pages/LibraryPage'));
 const ModelFormulationPage = lazy(() => import('./pages/ModelFormulationPage'));
 const MethodsPage = lazy(() => import('./pages/MethodsPage'));
-const StateSchemaPage = lazy(() => import('./pages/StateSchemaPage'));
 
 export default function App() {
   return (
@@ -19,9 +17,9 @@ export default function App() {
             <Route index element={<ConfigurationWorkspacePage />} />
             <Route path="configurations" element={<Navigate to="/" replace />} />
             <Route path="additionality" element={<AdditionalityPage />} />
-            <Route path="compare" element={<ComparePage />} />
+            <Route path="compare" element={<Navigate to="/" replace />} />
             <Route path="library" element={<LibraryPage />} />
-            <Route path="state-schema" element={<StateSchemaPage />} />
+            <Route path="state-schema" element={<Navigate to="/methods" replace />} />
             <Route path="methods" element={<MethodsPage />} />
             <Route path="model-formulation" element={<ModelFormulationPage />} />
           </Route>

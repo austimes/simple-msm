@@ -4,9 +4,7 @@ import { NavLink, Outlet } from 'react-router-dom';
 const navItems = [
   { to: '/', label: 'Explorer' },
   { to: '/additionality', label: 'Additionality' },
-  { to: '/compare', label: 'Compare' },
   { to: '/library', label: 'Library' },
-  { to: '/state-schema', label: 'State Schema' },
   { to: '/methods', label: 'Methods' },
   { to: '/model-formulation', label: 'Model Formulation' },
 ] as const;

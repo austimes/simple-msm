@@ -1,6 +1,6 @@
 # Web App
 
-`web/` is the thin front end for the trajectory library in `simple-msm`. It loads the checked-in `sector_trajectory_library/`, restores one active configuration document, builds a normalized solve request, and runs the LP solve in-browser so the package can be explored, optimized, compared, and explained interactively.
+`web/` is the thin front end for the trajectory library in `simple-msm`. It loads the checked-in `sector_trajectory_library/`, restores one active configuration document, builds a normalized solve request, and runs the LP solve in-browser so the package can be explored, optimized, and explained interactively.
 
 The app is a usability layer around the trajectory library rather than the primary product. Its job is to make the package easier to interrogate, test, and communicate.
 
@@ -38,8 +38,7 @@ bun run test
 - `src/components/workspace/` — configuration workspace UI, including import/export and metadata editing.
 - `src/data/` — package loading, configuration loading, browser persistence, and demand resolution.
 - `src/solver/` — normalized solve-request construction, worker bridge, and LP adapter.
-- `src/compare/` — heuristic compare planning and reporting.
-- `test/` — regression coverage for configuration documents, demand resolution, solves, compare flows, and package companions.
+- `test/` — regression coverage for configuration documents, demand resolution, solves, page rendering, and package companions.
 
 ## Contributor Notes
 

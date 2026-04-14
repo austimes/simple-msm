@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
 import MethodsSchemaSummaryCard from '../src/pages/MethodsSchemaSummaryCard.tsx';
 
-test('Methods schema summary links to the dedicated State Schema page', () => {
+test('Methods schema summary renders counts without a dedicated State Schema link', () => {
   const html = renderToStaticMarkup(
     <MemoryRouter>
       <MethodsSchemaSummaryCard
@@ -20,7 +20,9 @@ test('Methods schema summary links to the dedicated State Schema page', () => {
     </MemoryRouter>,
   );
 
-  assert.match(html, /Open State Schema/);
-  assert.match(html, /href="\/state-schema"/);
+  assert.match(html, /Schema fields/);
+  assert.match(html, /Required fields/);
+  assert.match(html, /dedicated State Schema page has been removed/);
+  assert.doesNotMatch(html, /href="\/state-schema"/);
   assert.doesNotMatch(html, /Why it matters here/);
 });

@@ -1,5 +1,4 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
 import type { PackageSchemaInfo } from '../data/types';
 
 interface MethodsSchemaSummaryCardProps {
@@ -15,8 +14,8 @@ export default function MethodsSchemaSummaryCard({
       <p>
         The packaged library includes a JSON schema for{' '}
         <code>families/&lt;family_id&gt;/family_states.csv</code>.
-        The dedicated State Schema page explains the contribution unit, milestone-year expectations,
-        CSV encodings, and every field in plain language.
+        This card keeps the field-count summary in the app now that the dedicated State Schema page
+        has been removed.
       </p>
       <div className="configuration-stat-grid">
         <div className="configuration-stat-card">
@@ -27,11 +26,6 @@ export default function MethodsSchemaSummaryCard({
           <span>Required fields</span>
           <strong>{schemaInfo.requiredFields.length}</strong>
         </div>
-      </div>
-      <div className="configuration-action-row">
-        <Link className="configuration-button configuration-button--ghost" to="/state-schema">
-          Open State Schema
-        </Link>
       </div>
     </section>
   );
