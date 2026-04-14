@@ -4,7 +4,7 @@
  * Verifies that overlay CSV files parse correctly, that default-include
  * filtering works, and that aggregation totals match expected 2025 values.
  *
- * Run:  npx tsx --test test/balanceDiagnostics.test.mjs
+ * Run:  bunx tsx --test test/balanceDiagnostics.test.mjs
  */
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';

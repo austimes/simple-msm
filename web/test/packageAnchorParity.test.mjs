@@ -5,7 +5,7 @@
  * match the hardcoded values in baseline_activity_anchors.json, and that
  * demand resolution produces correct 2025 values when using the merged anchors.
  *
- * Run:  npx tsx --test test/packageAnchorParity.test.mjs
+ * Run:  bunx tsx --test test/packageAnchorParity.test.mjs
  */
 import assert from 'node:assert/strict';
 import test from 'node:test';

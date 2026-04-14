@@ -11,7 +11,9 @@ type StateSchemaSectionTitle =
   | 'Inputs and emissions'
   | 'Constraints and availability'
   | 'Evidence and confidence'
-  | 'Expansion and future mapping';
+  | 'Expansion and future mapping'
+  | 'Derived metrics and ordering'
+  | 'Balance and calibration';
 
 type FieldFamilyBehaviour = 'Constant across a state family' | 'Can vary by year';
 
@@ -52,19 +54,16 @@ const SECTION_TITLES: StateSchemaSectionTitle[] = [
   'Constraints and availability',
   'Evidence and confidence',
   'Expansion and future mapping',
+  'Derived metrics and ordering',
+  'Balance and calibration',
 ];
 
 const FIELD_SECTION_BY_NAME: Record<string, StateSchemaSectionTitle> = {
-  sector: 'Identity and family context',
-  subsector: 'Identity and family context',
-  service_or_output_name: 'Identity and family context',
-  region: 'Identity and family context',
+  family_id: 'Identity and family context',
   year: 'Identity and family context',
   state_id: 'Identity and family context',
   state_label: 'Identity and family context',
   state_description: 'Identity and family context',
-  output_unit: 'Output and cost basis',
-  output_quantity_basis: 'Output and cost basis',
   output_cost_per_unit: 'Output and cost basis',
   cost_basis_year: 'Output and cost basis',
   currency: 'Output and cost basis',
@@ -83,36 +82,52 @@ const FIELD_SECTION_BY_NAME: Record<string, StateSchemaSectionTitle> = {
   rollout_limit_notes: 'Constraints and availability',
   availability_conditions: 'Constraints and availability',
   source_ids: 'Evidence and confidence',
+  assumption_ids: 'Evidence and confidence',
   evidence_summary: 'Evidence and confidence',
   derivation_method: 'Evidence and confidence',
-  assumption_ids: 'Evidence and confidence',
   confidence_rating: 'Evidence and confidence',
   review_notes: 'Evidence and confidence',
   candidate_expansion_pathway: 'Expansion and future mapping',
   times_or_vedalang_mapping_notes: 'Expansion and future mapping',
   'would_expand_to_explicit_capacity?': 'Expansion and future mapping',
   'would_expand_to_process_chain?': 'Expansion and future mapping',
-  family_id: 'Expansion and future mapping',
+  energy_co2e: 'Derived metrics and ordering',
+  process_co2e: 'Derived metrics and ordering',
+  state_stage_family: 'Derived metrics and ordering',
+  state_stage_rank: 'Derived metrics and ordering',
+  state_stage_code: 'Derived metrics and ordering',
+  state_sort_key: 'Derived metrics and ordering',
+  state_label_standardized: 'Derived metrics and ordering',
+  is_default_incumbent_2025: 'Derived metrics and ordering',
+  state_option_rank: 'Derived metrics and ordering',
+  state_option_code: 'Derived metrics and ordering',
+  state_option_label: 'Derived metrics and ordering',
+  balance_tuning_flag: 'Balance and calibration',
+  balance_tuning_note: 'Balance and calibration',
+  benchmark_balance_note: 'Balance and calibration',
 };
 
 const FAMILY_CONSTANT_FIELDS = new Set([
-  'sector',
-  'subsector',
-  'service_or_output_name',
-  'region',
+  'family_id',
   'state_id',
   'state_label',
   'state_description',
-  'output_unit',
-  'output_quantity_basis',
   'cost_basis_year',
   'currency',
   'emissions_units',
+  'state_stage_family',
+  'state_stage_rank',
+  'state_stage_code',
+  'state_sort_key',
+  'state_label_standardized',
+  'is_default_incumbent_2025',
+  'state_option_rank',
+  'state_option_code',
+  'state_option_label',
   'candidate_expansion_pathway',
   'times_or_vedalang_mapping_notes',
   'would_expand_to_explicit_capacity?',
   'would_expand_to_process_chain?',
-  'family_id',
 ]);
 
 const CSV_ARRAY_FIELDS = new Set([
@@ -126,10 +141,7 @@ const CSV_ARRAY_FIELDS = new Set([
 ]);
 
 const CSV_SNIPPET_FIELDS = [
-  'sector',
-  'subsector',
-  'service_or_output_name',
-  'region',
+  'family_id',
   'year',
   'state_id',
   'state_label',
@@ -142,6 +154,9 @@ const CSV_SNIPPET_FIELDS = [
   'source_ids',
   'assumption_ids',
   'confidence_rating',
+  'state_stage_code',
+  'state_option_code',
+  'is_default_incumbent_2025',
 ] as const;
 
 function getFieldFamilyBehaviour(fieldName: string): FieldFamilyBehaviour {
@@ -202,14 +217,8 @@ function toCsvCell(value: string): string {
 
 function encodeCsvValue(row: SectorState, fieldName: (typeof CSV_SNIPPET_FIELDS)[number]): string {
   switch (fieldName) {
-    case 'sector':
-      return row.sector;
-    case 'subsector':
-      return row.subsector;
-    case 'service_or_output_name':
-      return row.service_or_output_name;
-    case 'region':
-      return row.region;
+    case 'family_id':
+      return row.family_id;
     case 'year':
       return String(row.year);
     case 'state_id':
@@ -234,6 +243,12 @@ function encodeCsvValue(row: SectorState, fieldName: (typeof CSV_SNIPPET_FIELDS)
       return JSON.stringify(row.assumption_ids);
     case 'confidence_rating':
       return row.confidence_rating;
+    case 'state_stage_code':
+      return row.state_stage_code;
+    case 'state_option_code':
+      return row.state_option_code;
+    case 'is_default_incumbent_2025':
+      return String(row.is_default_incumbent_2025);
   }
 }
 

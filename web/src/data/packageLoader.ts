@@ -372,6 +372,7 @@ function toSectorState(
   row: Record<string, string>,
 ): SectorState {
   return {
+    family_id: row['family_id'],
     sector: family.sector,
     subsector: family.subsector,
     service_or_output_name: family.service_or_output_name,

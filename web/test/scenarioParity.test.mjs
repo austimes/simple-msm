@@ -4,7 +4,7 @@
  * Runs both configurations through the shared runScenario() helper and asserts
  * structural and numerical equivalence where expected.
  *
- * Run:  npx tsx --test test/scenarioParity.test.mjs
+ * Run:  bunx tsx --test test/scenarioParity.test.mjs
  */
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';

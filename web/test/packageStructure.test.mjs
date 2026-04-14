@@ -11,6 +11,10 @@ function readText(relativePath) {
   return readFileSync(join(PACKAGE_ROOT, relativePath), 'utf8');
 }
 
+function parseHeader(relativePath) {
+  return readText(relativePath).split(/\r?\n/, 1)[0].split(',');
+}
+
 function parseJsonArray(raw, label) {
   try {
     return JSON.parse(raw);
@@ -89,4 +93,20 @@ test('sector trajectory library package structure is internally consistent', () 
   for (const row of externalCommodityDemands) {
     assert.equal(demandCurveIds.has(row.demand_growth_curve_id), true, `external commodity ${row.commodity_id} demand curve must resolve`);
   }
+});
+
+test('schema companions stay aligned with the authored CSV headers', () => {
+  const familiesSchema = JSON.parse(readText('schema/families.schema.json'));
+  assert.deepEqual(
+    Object.keys(familiesSchema.properties ?? {}),
+    parseHeader('shared/families.csv'),
+    'families.schema.json should match shared/families.csv header order exactly',
+  );
+
+  const familyStatesSchema = JSON.parse(readText('schema/family_states.schema.json'));
+  assert.deepEqual(
+    Object.keys(familyStatesSchema.properties ?? {}),
+    parseHeader('families/electricity/family_states.csv'),
+    'family_states.schema.json should match family_states.csv header order exactly',
+  );
 });

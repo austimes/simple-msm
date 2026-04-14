@@ -6,17 +6,8 @@
 
 ```bash
 cd web
-npm install
-npm run dev
-```
-
-Other common commands:
-
-```bash
-cd web
-npm run build
-npm run lint
-npx tsx --test test/*.test.mjs
+bun install
+bun run dev
 ```
 
 ## Why This Exists
@@ -47,11 +38,12 @@ That explainability layer is part of the product itself, not an optional documen
 
 The canonical authored package is [`sector_trajectory_library/`](/Users/gre538/code/simple-msm/sector_trajectory_library/README.md).
 
-- `shared/families.csv` is the family registry.
+- `shared/families.csv` is the family registry that holds family-level metadata such as sector, region, output unit, and default incumbent state.
 - `families/<family_id>/family_states.csv` is the current authored state-year trajectory table for that family.
 - `families/<family_id>/demand.csv` stores the family demand anchor and linked shared growth curve.
 - `families/<family_id>/README.md` and `families/<family_id>/validation.md` keep family-local context and validation expectations beside the data.
 - `shared/` holds the shared ledgers, commodity taxonomy, growth curves, price curves, carbon price curves, owner assignments, and external commodity demand tables.
+- `schema/` holds JSON-schema companions for the family registry and family-state rows.
 - `overlays/` holds package-owned residual closure inputs.
 - `validation/` and `exports/legacy/` hold committed diagnostics and compatibility outputs.
 

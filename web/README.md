@@ -18,8 +18,8 @@ There is no separate user-facing packaged-reference-plus-overlay workflow.
 ## Run It
 
 ```bash
-npm install
-npm run dev
+bun install
+bun run dev
 ```
 
 Open the local URL printed by Vite.
@@ -27,9 +27,9 @@ Open the local URL printed by Vite.
 ## Quality Checks
 
 ```bash
-npm run lint
-npm run build
-npx tsx --test test/*.test.mjs
+bun run lint
+bun run build
+bun run test
 ```
 
 ## Main Folders
