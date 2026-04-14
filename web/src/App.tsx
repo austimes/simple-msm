@@ -3,6 +3,7 @@ import AppLayout from './layouts/AppLayout';
 import ConfigurationWorkspacePage from './pages/ConfigurationWorkspacePage';
 import ComparePage from './pages/ComparePage';
 import LibraryPage from './pages/LibraryPage';
+import ModelFormulationPage from './pages/ModelFormulationPage';
 import MethodsPage from './pages/MethodsPage';
 import StateSchemaPage from './pages/StateSchemaPage';
 export default function App() {
@@ -16,6 +17,7 @@ export default function App() {
           <Route path="library" element={<LibraryPage />} />
           <Route path="state-schema" element={<StateSchemaPage />} />
           <Route path="methods" element={<MethodsPage />} />
+          <Route path="model-formulation" element={<ModelFormulationPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

@@ -518,8 +518,43 @@ body {
 
 .page--library,
 .page--methods,
-.page--state-schema {
+.page--state-schema,
+.page--model-formulation {
   padding-bottom: 32px;
+}
+
+.model-formulation-pipeline,
+.model-formulation-equation-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  margin-top: 16px;
+}
+
+.model-formulation-equation {
+  margin: 12px 0 0;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(35, 78, 125, 0.14);
+  background:
+    linear-gradient(180deg, rgba(239, 246, 255, 0.94), rgba(255, 255, 255, 0.98));
+  color: #12304f;
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
+.model-formulation-equation code {
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    'Liberation Mono',
+    'Courier New',
+    monospace;
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 .library-sidebar-layout {
@@ -1488,6 +1523,30 @@ body {
 
 .state-schema-milestone-table .library-mini-table-row {
   grid-template-columns: repeat(7, minmax(140px, 1fr));
+}
+
+.model-formulation-symbol-table .library-mini-table-row {
+  grid-template-columns:
+    minmax(120px, 0.6fr)
+    minmax(260px, 1.8fr);
+}
+
+.model-formulation-objective-table .library-mini-table-row {
+  grid-template-columns: repeat(5, minmax(120px, 1fr));
+}
+
+.model-formulation-source-table .library-mini-table-row {
+  grid-template-columns:
+    minmax(220px, 1.2fr)
+    minmax(220px, 1fr)
+    minmax(280px, 1.6fr);
+  align-items: start;
+}
+
+.model-formulation-symbol-table .library-mini-table-row > span,
+.model-formulation-objective-table .library-mini-table-row > span,
+.model-formulation-source-table .library-mini-table-row > span {
+  overflow-wrap: anywhere;
 }
 
 .state-schema-field-table .library-mini-table-row {
