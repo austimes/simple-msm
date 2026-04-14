@@ -140,7 +140,7 @@ export function buildConfiguration(appConfig, overrides = {}) {
 
 /**
  * Build and solve a request, scoping to the given output IDs by
- * deactivating pathways for all other required-service outputs.
+ * deactivating pathways for all other non-supply outputs.
  */
 export function solveScoped(pkg, configuration, seedOutputIds) {
   let effectiveConfiguration = configuration;
@@ -150,9 +150,9 @@ export function solveScoped(pkg, configuration, seedOutputIds) {
     const adjustedControls = { ...effectiveConfiguration.service_controls };
 
     for (const [outputId, meta] of Object.entries(pkg.appConfig.output_roles)) {
-      if (!meta.demand_required) continue;
+      if (meta.participates_in_commodity_balance) continue;
       if (seedSet.has(outputId)) continue;
-      // Deactivate pathways for out-of-scope required services.
+      // Deactivate pathways for out-of-scope outputs.
       adjustedControls[outputId] = {
         ...(adjustedControls[outputId] ?? {}),
         active_state_ids: [],
