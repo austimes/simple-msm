@@ -1,4 +1,7 @@
 [
+  "reference-base",
+  "reference-all",
+  "full-model-incumbents",
   "agriculture-only",
   "cement-only",
   "steel-incumbent",
@@ -9,7 +12,6 @@
   "industrial-heat-fossil",
   "industrial-heat-electrified",
   "freight-diesel",
-  "full-model-incumbents",
   "land-sequestration-only",
   "removals-both",
   "agriculture-removals-endogenous"

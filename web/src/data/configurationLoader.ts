@@ -91,6 +91,27 @@ const builtinConfigModules = await (async () => {
   }
 })();
 
+function parseConfigurationIndex(modules: Record<string, string>): string[] | null {
+  const entry = Object.entries(modules).find(([path]) => path.endsWith('/_index.json') || path.endsWith('_index.json'));
+  if (!entry) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(entry[1]) as unknown;
+    if (!Array.isArray(parsed)) {
+      return null;
+    }
+
+    return parsed
+      .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+      .map((value) => value.trim());
+  } catch {
+    console.warn(`Failed to parse configuration index: ${entry[0]}`);
+    return null;
+  }
+}
+
 interface ConfigurationCollectionEntry {
   source: string;
   configuration: ConfigurationDocument;
@@ -205,7 +226,23 @@ export function isReadonlyConfiguration(configuration: ConfigurationDocument): b
 
 export function loadBuiltinConfigurations(): ConfigurationDocument[] {
   if (!cachedBuiltinConfigs) {
-    cachedBuiltinConfigs = parseConfigurationCollection(builtinConfigModules, true);
+    const parsed = parseConfigurationCollection(builtinConfigModules, true);
+    const index = parseConfigurationIndex(builtinConfigModules);
+
+    if (index) {
+      const configsById = new Map<string, ConfigurationDocument>();
+      for (const config of parsed) {
+        const id = getConfigurationDocumentId(config);
+        if (id) {
+          configsById.set(id, config);
+        }
+      }
+      cachedBuiltinConfigs = index
+        .map((id) => configsById.get(id) ?? null)
+        .filter((config): config is ConfigurationDocument => config != null);
+    } else {
+      cachedBuiltinConfigs = parsed;
+    }
   }
 
   return cachedBuiltinConfigs;

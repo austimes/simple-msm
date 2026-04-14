@@ -34,7 +34,7 @@ describe('getConfigurationSaveActionState', () => {
   test('disables Save for dirty built-in configurations', () => {
     assert.deepEqual(
       getConfigurationSaveActionState({
-        activeConfigurationId: 'reference',
+        activeConfigurationId: 'reference-base',
         activeConfigurationReadonly: true,
         isConfigurationDirty: true,
       }),

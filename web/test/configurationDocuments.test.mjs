@@ -215,6 +215,15 @@ test('configuration loader rejects partial overlay documents instead of merging 
   assert.deepEqual(warnings, ['Failed to parse configuration document: /src/configurations/overlay-like.json']);
 });
 
+test('builtin configuration loader follows the tracked index list', async () => {
+  const { loadBuiltinConfigurations } = await loadViteModule('/src/data/configurationLoader.ts');
+  const builtinIds = loadBuiltinConfigurations()
+    .map((config) => config.app_metadata?.id)
+    .filter((id) => typeof id === 'string');
+
+  assert.deepEqual(builtinIds, readJson('../src/configurations/_index.json'));
+});
+
 test('editing a loaded user configuration marks the workspace dirty for Save overwrite', async () => {
   const { usePackageStore } = await loadViteModule('/src/data/packageStore.ts');
   const userConfiguration = structuredClone(readJson('../src/configurations/buildings-endogenous.json'));
@@ -301,7 +310,6 @@ test('bundled configurations and reference assets default respect_max_share to t
   }
 
   const referenceAssetPaths = [
-    '../src/configurations/reference.json',
     '../public/app_config/reference_configuration.json',
     '../public/app_config/reference_configuration_v02.json',
   ];

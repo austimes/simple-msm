@@ -57,6 +57,11 @@ function cloneConfiguration(configuration: ConfigurationDocument): Configuration
   return structuredClone(configuration);
 }
 
+function getDefaultBuiltinConfiguration(): ConfigurationDocument | null {
+  const builtins = loadBuiltinConfigurations();
+  return builtins.find((config) => getConfigurationId(config) === 'reference-base') ?? builtins[0] ?? null;
+}
+
 function sortNestedValue(value: unknown): unknown {
   if (Array.isArray(value)) {
     return value.map(sortNestedValue);
@@ -148,8 +153,7 @@ export const usePackageStore = create<PackageStore>((set, get) => {
     }
   } else {
     // No persisted draft — load the first builtin configuration as the default
-    const builtins = loadBuiltinConfigurations();
-    const defaultConfig = builtins.find((config) => getConfigurationId(config) === 'reference') ?? builtins[0];
+    const defaultConfig = getDefaultBuiltinConfiguration();
 
     if (defaultConfig) {
       const defaultConfigId = getConfigurationId(defaultConfig) ?? defaultConfig.name;
@@ -244,9 +248,28 @@ export const usePackageStore = create<PackageStore>((set, get) => {
       commitConfigurationEdit(nextConfiguration);
     },
     resetCurrentConfiguration: () => {
-      const nextConfiguration = cloneConfiguration(get().defaultConfiguration);
       const persistenceError = clearPersistedConfigurationDraft();
       persistConfigMeta(null);
+
+      const defaultConfig = getDefaultBuiltinConfiguration();
+      if (defaultConfig) {
+        const defaultConfigId = getConfigurationId(defaultConfig) ?? defaultConfig.name;
+        const nextConfiguration = cloneConfiguration(defaultConfig);
+
+        set({
+          currentConfiguration: nextConfiguration,
+          currentConfigurationSource: 'configuration',
+          activeConfigurationId: defaultConfigId,
+          activeConfigurationReadonly: isReadonlyConfiguration(defaultConfig),
+          baseConfiguration: cloneConfiguration(nextConfiguration),
+          isConfigurationDirty: false,
+          persistenceNotice: 'Reset to the default built-in configuration and cleared the browser-local document.',
+          persistenceError,
+        });
+        return;
+      }
+
+      const nextConfiguration = cloneConfiguration(get().defaultConfiguration);
 
       set({
         currentConfiguration: nextConfiguration,

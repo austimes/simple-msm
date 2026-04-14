@@ -8,10 +8,10 @@ export function selectInitialAdditionalityPair(
     .map((configuration) => getConfigurationId(configuration))
     .filter((id): id is string => id != null);
 
-  if (ids.includes('the-base-case') && ids.includes('the-full-monty')) {
+  if (ids.includes('reference-base') && ids.includes('reference-all')) {
     return {
-      baseConfigId: 'the-base-case',
-      targetConfigId: 'the-full-monty',
+      baseConfigId: 'reference-base',
+      targetConfigId: 'reference-all',
     };
   }
 

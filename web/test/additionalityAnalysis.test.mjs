@@ -52,65 +52,19 @@ function assertConsistentDelta(entry) {
 }
 
 function buildBaseCase() {
-  const reference = readJson('../src/configurations/reference.json');
-  const configuration = resolveConfigurationDocument(
-    {
-      ...reference,
-      name: 'The Base Case',
-      app_metadata: {
-        id: 'the-base-case',
-      },
-    },
+  return resolveConfigurationDocument(
+    readJson('../src/configurations/reference-base.json'),
     pkg.appConfig,
-    'the-base-case',
+    'reference-base',
   );
-
-  return configuration;
 }
 
 function buildFullMonty() {
-  const configuration = buildBaseCase();
-  configuration.name = 'The Full Monty';
-  configuration.description = 'Adds one decarbonized pathway option per major output while keeping all non-state settings fixed.';
-  configuration.app_metadata = {
-    id: 'the-full-monty',
-  };
-  configuration.service_controls.residential_building_services.active_state_ids = [
-    'buildings__residential__incumbent_mixed_fuels',
-    'buildings__residential__electrified_efficiency',
-  ];
-  configuration.service_controls.commercial_building_services.active_state_ids = [
-    'buildings__commercial__incumbent_mixed_fuels',
-    'buildings__commercial__electrified_efficiency',
-  ];
-  configuration.service_controls.passenger_road_transport.active_state_ids = [
-    'road_transport__passenger_road__ice_fleet',
-    'road_transport__passenger_road__bev',
-  ];
-  configuration.service_controls.freight_road_transport.active_state_ids = [
-    'road_transport__freight_road__diesel',
-    'road_transport__freight_road__bev',
-  ];
-  configuration.service_controls.low_temperature_heat.active_state_ids = [
-    'generic_industrial_heat__low_temperature_heat__fossil',
-    'generic_industrial_heat__low_temperature_heat__electrified',
-  ];
-  configuration.service_controls.medium_temperature_heat.active_state_ids = [
-    'generic_industrial_heat__medium_temperature_heat__fossil',
-    'generic_industrial_heat__medium_temperature_heat__electrified',
-  ];
-  configuration.service_controls.high_temperature_heat.active_state_ids = [
-    'generic_industrial_heat__high_temperature_heat__fossil',
-    'generic_industrial_heat__high_temperature_heat__electrified',
-  ];
-  configuration.service_controls.land_sequestration.active_state_ids = [
-    'removals_negative_emissions__land_sequestration__biological_sink',
-  ];
-  configuration.service_controls.engineered_removals.active_state_ids = [
-    'removals_negative_emissions__engineered_removals__daccs',
-  ];
-
-  return resolveConfigurationDocument(configuration, pkg.appConfig, 'the-full-monty');
+  return resolveConfigurationDocument(
+    readJson('../src/configurations/reference-all.json'),
+    pkg.appConfig,
+    'reference-all',
+  );
 }
 
 function buildSolvedResult(request, objectiveValue) {
@@ -210,21 +164,36 @@ function hasActiveState(request, outputId, stateId) {
 }
 
 describe('additionality analysis', () => {
-  test('derives the expected state-toggle atoms for the-base-case vs the-full-monty', () => {
+  test('derives the expected state-toggle atoms for reference-base vs reference-all', () => {
     const atoms = deriveAdditionalityAtoms(buildBaseCase(), buildFullMonty(), pkg);
 
-    assert.equal(atoms.length, 9);
+    assert.equal(atoms.length, 24);
     assert.deepEqual(
       atoms.map((atom) => `${atom.outputLabel}|${atom.stateLabel}|${atom.action}`),
       [
+        'Cement equivalent|Deep-abatement cement with CCS|enable',
+        'Cement equivalent|Low-clinker and alternative-fuels cement|enable',
+        'Commercial building services|Deep-electric commercial services|enable',
         'Commercial building services|Electrified efficient commercial services|enable',
-        'Engineered removals|Direct air capture with storage (DACCS)|enable',
+        'Cropping and horticulture output bundle|Mitigated cropping and horticulture bundle|enable',
+        'Crude steel|CCS-influenced BF-BOF steel|enable',
+        'Crude steel|Hydrogen DRI-electric steel|enable',
+        'Crude steel|Scrap EAF steel|enable',
+        'Electricity supply|Deep-clean firmed grid supply|enable',
+        'Electricity supply|Policy frontier grid supply|enable',
         'Freight road transport|Battery-electric road freight|enable',
+        'Freight road transport|Efficient diesel road freight|enable',
+        'Freight road transport|Hydrogen fuel-cell road freight|enable',
         'High-temperature heat|High-temperature electrified heat|enable',
-        'Land sequestration|Biological land sequestration|enable',
+        'High-temperature heat|High-temperature low-carbon fuels|enable',
+        'Livestock output bundle|Mitigated livestock output bundle|enable',
         'Low-temperature heat|Low-temperature electrified heat|enable',
+        'Low-temperature heat|Low-temperature low-carbon fuels|enable',
         'Medium-temperature heat|Medium-temperature electrified heat|enable',
+        'Medium-temperature heat|Medium-temperature low-carbon fuels|enable',
         'Passenger road transport|Battery-electric passenger road fleet|enable',
+        'Passenger road transport|Hybrid-heavy passenger road fleet|enable',
+        'Residential building services|Deep-electric residential services|enable',
         'Residential building services|Electrified efficient residential services|enable',
       ],
     );
@@ -233,7 +202,7 @@ describe('additionality analysis', () => {
   test('validation rejects mode differences', () => {
     const base = buildBaseCase();
     const target = buildBaseCase();
-    target.service_controls.electricity.mode = 'optimize';
+    target.service_controls.electricity.mode = 'externalized';
 
     const issues = validateAdditionalityPair(base, target, pkg);
 
@@ -335,11 +304,11 @@ describe('additionality analysis', () => {
     const analysis = await runAdditionalityAnalysis(
       {
         baseConfiguration: buildBaseCase(),
-        baseConfigId: 'the-base-case',
+        baseConfigId: 'reference-base',
         commoditySelections: {},
         pkg,
         targetConfiguration: buildFullMonty(),
-        targetConfigId: 'the-full-monty',
+        targetConfigId: 'reference-all',
       },
       {
         solve: async (request) => solveWithLpAdapter(request),
@@ -368,33 +337,56 @@ describe('additionality analysis', () => {
     const analysis = await runAdditionalityAnalysis(
       {
         baseConfiguration: buildBaseCase(),
-        baseConfigId: 'the-base-case',
+        baseConfigId: 'reference-base',
         commoditySelections: {},
         pkg,
         targetConfiguration: buildFullMonty(),
-        targetConfigId: 'the-full-monty',
+        targetConfigId: 'reference-all',
       },
       {
         solve: async (request) => {
-          const landOn = request.rows.some((row) => row.outputId === 'land_sequestration');
-          const daccsOn = request.rows.some((row) => row.outputId === 'engineered_removals');
+          const commercialDeepElectricOn = hasActiveState(
+            request,
+            'commercial_building_services',
+            'buildings__commercial__deep_electric',
+          );
+          const commercialEfficiencyOn = hasActiveState(
+            request,
+            'commercial_building_services',
+            'buildings__commercial__electrified_efficiency',
+          );
 
-          if (landOn && !daccsOn) {
+          if (commercialDeepElectricOn && !commercialEfficiencyOn) {
             return buildErroredResult(
               request,
-              'Forced candidate failure while biological sequestration is enabled without DACCS.',
+              'Forced candidate failure while deep-electric commercial services are enabled without the efficient commercial pathway.',
             );
           }
 
           const score = [
+            ['cement_equivalent', 'cement_clinker__cement_equivalent__ccs_deep', 5],
+            ['cement_equivalent', 'cement_clinker__cement_equivalent__low_clinker_alt_fuels', 4],
+            ['commercial_building_services', 'buildings__commercial__deep_electric', 1],
             ['commercial_building_services', 'buildings__commercial__electrified_efficiency', 4],
-            ['engineered_removals', 'removals_negative_emissions__engineered_removals__daccs', 9],
+            ['cropping_horticulture_output_bundle', 'agriculture__cropping_horticulture__mitigated', 4],
+            ['crude_steel', 'steel__crude_steel__bf_bof_ccs_transition', 6],
+            ['crude_steel', 'steel__crude_steel__h2_dri_electric', 9],
+            ['crude_steel', 'steel__crude_steel__scrap_eaf', 7],
+            ['electricity', 'electricity__grid_supply__deep_clean_firmed', 8],
+            ['electricity', 'electricity__grid_supply__policy_frontier', 7],
             ['freight_road_transport', 'road_transport__freight_road__bev', 6],
+            ['freight_road_transport', 'road_transport__freight_road__efficient_diesel', 3],
+            ['freight_road_transport', 'road_transport__freight_road__fcev_h2', 5],
             ['high_temperature_heat', 'generic_industrial_heat__high_temperature_heat__electrified', 7],
-            ['land_sequestration', 'removals_negative_emissions__land_sequestration__biological_sink', 5],
+            ['high_temperature_heat', 'generic_industrial_heat__high_temperature_heat__low_carbon_fuels', 4],
+            ['livestock_output_bundle', 'agriculture__livestock__mitigated', 3],
             ['low_temperature_heat', 'generic_industrial_heat__low_temperature_heat__electrified', 8],
+            ['low_temperature_heat', 'generic_industrial_heat__low_temperature_heat__low_carbon_fuels', 4],
             ['medium_temperature_heat', 'generic_industrial_heat__medium_temperature_heat__electrified', 3],
+            ['medium_temperature_heat', 'generic_industrial_heat__medium_temperature_heat__low_carbon_fuels', 2],
             ['passenger_road_transport', 'road_transport__passenger_road__bev', 10],
+            ['passenger_road_transport', 'road_transport__passenger_road__hybrid_transition', 3],
+            ['residential_building_services', 'buildings__residential__deep_electric', 1],
             ['residential_building_services', 'buildings__residential__electrified_efficiency', 2],
           ].reduce((sum, [outputId, stateId, weight]) => (
             sum + (hasActiveState(request, outputId, stateId) ? weight : 0)

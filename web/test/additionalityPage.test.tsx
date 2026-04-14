@@ -13,7 +13,7 @@ function buildProps(overrides = {}) {
       error: null,
       validationIssues: [],
     },
-    baseConfigId: 'the-base-case',
+    baseConfigId: 'reference-base',
     commodityOptions: [
       { id: 'electricity', label: 'Electricity' },
       { id: 'natural_gas', label: 'Natural gas' },
@@ -23,13 +23,13 @@ function buildProps(overrides = {}) {
       natural_gas: 'medium',
     },
     configurations: [
-      { id: 'the-base-case', label: 'The Base Case' },
-      { id: 'the-full-monty', label: 'The Full Monty' },
+      { id: 'reference-base', label: 'reference-base' },
+      { id: 'reference-all', label: 'reference-all' },
     ],
     onBaseConfigChange: () => {},
     onCommoditySelectionChange: () => {},
     onTargetConfigChange: () => {},
-    targetConfigId: 'the-full-monty',
+    targetConfigId: 'reference-all',
     ...overrides,
   };
 }
@@ -88,8 +88,8 @@ describe('AdditionalityPage', () => {
             error: null,
             validationIssues: [],
             report: {
-              baseConfigId: 'the-base-case',
-              targetConfigId: 'the-full-monty',
+              baseConfigId: 'reference-base',
+              targetConfigId: 'reference-all',
               baseMetrics: {
                 objective: 100,
                 cumulativeEmissions: 400,
