@@ -8,6 +8,7 @@ import {
   buildEmissionsBySubsectorChart,
   buildFuelConsumptionChart,
   buildPathwayChartCards,
+  buildRemovalsChartCards,
 } from '../src/results/chartData.ts';
 import { buildSolverContributionRows } from '../src/results/resultContributions.ts';
 
@@ -431,6 +432,10 @@ test('emissions charts expose tCO2e axis labels and preserve negative removals',
       { year: 2035, value: 24 },
     ],
   );
+  assert.equal(
+    sectorChart.series.find((series) => series.key === 'buildings')?.color,
+    '#2563eb',
+  );
   assert.deepEqual(
     sectorChart.series.find((series) => series.label === 'removals_negative_emissions')?.values,
     [
@@ -438,12 +443,20 @@ test('emissions charts expose tCO2e axis labels and preserve negative removals',
       { year: 2035, value: -5 },
     ],
   );
+  assert.equal(
+    sectorChart.series.find((series) => series.key === 'removals_negative_emissions')?.color,
+    '#0f766e',
+  );
   assert.deepEqual(
-    subsectorChart.series.find((series) => series.label === 'removals_negative_emissions')?.values,
+    subsectorChart.series.find((series) => series.label === 'engineered_removals')?.values,
     [
       { year: 2030, value: -20 },
       { year: 2035, value: -5 },
     ],
+  );
+  assert.equal(
+    subsectorChart.series.find((series) => series.key === 'engineered_removals')?.color,
+    '#0891b2',
   );
 });
 
@@ -455,6 +468,7 @@ test('buildPathwayChartCards returns output and cap views for selectable outputs
   assert.equal(cards[0].outputChart.yAxisLabel, 'PJ');
   assert.match(cards[0].capChart.yAxisLabel, /current cap denominator/i);
   assert.equal(cards[0].outputChart.series.length, 2);
+  assert.equal(cards[0].outputChart.series[0]?.key, 'heat_a');
   assert.deepEqual(
     cards[0].outputChart.series.find((series) => series.label === 'Heat A')?.values,
     [
@@ -750,6 +764,8 @@ test('fuel consumption chart keeps only fuels and converts all series to PJ', ()
       { year: 2035, value: 0 },
     ],
   );
+  assert.equal(chart.series.find((series) => series.key === 'coal')?.color, '#1f2937');
+  assert.equal(chart.series.find((series) => series.key === 'natural_gas')?.color, '#6b7280');
   assert.deepEqual(
     chart.series.find((series) => series.label === 'Electricity')?.values,
     [
@@ -757,6 +773,7 @@ test('fuel consumption chart keeps only fuels and converts all series to PJ', ()
       { year: 2035, value: 0 },
     ],
   );
+  assert.equal(chart.series.find((series) => series.key === 'electricity')?.color, '#f59e0b');
 });
 
 test('cost by component chart exposes the objective cost unit on the y-axis', () => {
@@ -768,4 +785,106 @@ test('cost by component chart exposes the objective cost unit on the y-axis', ()
 
   assert.equal(chart.title, 'Cost by Component');
   assert.equal(chart.yAxisLabel, 'AUD 2024');
+  assert.equal(chart.series.find((series) => series.key === 'conversion')?.color, '#2563eb');
+  assert.equal(chart.series.find((series) => series.key === 'commodity')?.color, '#64748b');
+  assert.equal(chart.series.find((series) => series.key === 'carbon')?.color, '#b91c1c');
+});
+
+test('removals charts use canonical metric ids with fixed colors', () => {
+  const request = {
+    contractVersion: SOLVER_CONTRACT_VERSION,
+    requestId: 'chart-data-removals-metrics',
+    rows: [
+      {
+        rowId: 'dac::2030',
+        outputId: 'engineered_removals',
+        outputRole: 'optional_activity',
+        outputLabel: 'Engineered removals',
+        year: 2030,
+        stateId: 'removals_negative_emissions__engineered_removals__daccs',
+        stateLabel: 'DACCS',
+        sector: 'removals_negative_emissions',
+        subsector: 'engineered_removals',
+        region: 'national',
+        outputUnit: 'tCO2',
+        conversionCostPerUnit: 1,
+        inputs: [],
+        directEmissions: [],
+        bounds: {
+          minShare: null,
+          maxShare: null,
+          maxActivity: 12,
+        },
+      },
+    ],
+    objectiveCost: {
+      currency: 'AUD_2024',
+      costBasisYear: 2024,
+    },
+    configuration: {
+      name: 'Removals metric colors',
+      description: null,
+      years: [2030],
+      controlsByOutput: {},
+      serviceDemandByOutput: {
+        engineered_removals: { 2030: 0 },
+      },
+      externalCommodityDemandByCommodity: {},
+      commodityPriceByCommodity: {},
+      carbonPriceByYear: { 2030: 0 },
+      options: {
+        respectMaxShare: true,
+        respectMaxActivity: true,
+        softConstraints: false,
+        shareSmoothing: {
+          enabled: false,
+          maxDeltaPp: null,
+        },
+      },
+    },
+  };
+
+  const result = {
+    contractVersion: SOLVER_CONTRACT_VERSION,
+    requestId: 'chart-data-removals-metrics',
+    status: 'solved',
+    engine: { name: 'yalps', worker: true },
+    summary: {
+      rowCount: 1,
+      yearCount: 1,
+      outputCount: 1,
+      serviceDemandOutputCount: 1,
+      externalCommodityCount: 0,
+    },
+    reporting: {
+      commodityBalances: [],
+      stateShares: [
+        {
+          outputId: 'engineered_removals',
+          outputLabel: 'Engineered removals',
+          year: 2030,
+          stateId: 'removals_negative_emissions__engineered_removals__daccs',
+          stateLabel: 'DACCS',
+          activity: 4,
+          share: 1,
+          rawMaxShare: null,
+          effectiveMaxShare: null,
+        },
+      ],
+      bindingConstraints: [],
+      softConstraintViolations: [],
+    },
+    raw: null,
+    diagnostics: [],
+    timingsMs: {
+      total: 0,
+      solve: 0,
+    },
+  };
+
+  const cards = buildRemovalsChartCards(request, result);
+  const series = cards[0]?.activityChart.series ?? [];
+
+  assert.equal(series.find((entry) => entry.key === 'activity')?.color, '#16a34a');
+  assert.equal(series.find((entry) => entry.key === 'max_activity')?.color, '#475569');
 });

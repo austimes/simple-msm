@@ -6,13 +6,9 @@ import type {
   SolveStateShareSummary,
 } from '../solver/contract';
 import { getCommodityMetadata } from '../data/commodityMetadata.ts';
+import { getSeriesColor } from '../data/seriesColors.ts';
 import type { ResultContributionRow } from './resultContributions.ts';
 
-const CHART_PALETTE = [
-  '#2563eb', '#dc2626', '#059669', '#d97706', '#7c3aed',
-  '#db2777', '#0891b2', '#65a30d', '#ea580c', '#4f46e5',
-  '#0d9488', '#ca8a04',
-];
 const ABSOLUTE_EMISSIONS_AXIS_LABEL = 'Emissions (tCO2e)';
 const FUEL_CONSUMPTION_AXIS_LABEL = 'PJ';
 
@@ -67,17 +63,13 @@ function buildShareLookup(
   return map;
 }
 
-function assignColor(index: number): string {
-  return CHART_PALETTE[index % CHART_PALETTE.length];
-}
-
 function buildSeries(
   grouped: Map<string, Map<number, number>>,
   years: number[],
   labelFn: (key: string) => string,
+  colorForKey: (key: string) => string,
 ): StackedSeries[] {
   const series: StackedSeries[] = [];
-  let colorIdx = 0;
 
   for (const [key, yearMap] of grouped) {
     const values = years.map((y) => ({ year: y, value: yearMap.get(y) ?? 0 }));
@@ -87,10 +79,9 @@ function buildSeries(
     series.push({
       key,
       label: labelFn(key),
-      color: assignColor(colorIdx),
+      color: colorForKey(key),
       values,
     });
-    colorIdx++;
   }
 
   return series;
@@ -139,7 +130,12 @@ export function buildEmissionsBySectorChart(
     title: 'Emissions by Sector',
     yAxisLabel: ABSOLUTE_EMISSIONS_AXIS_LABEL,
     years,
-    series: buildSeries(grouped, years, (key) => labelLookup.get(key) ?? key),
+    series: buildSeries(
+      grouped,
+      years,
+      (key) => labelLookup.get(key) ?? key,
+      (key) => getSeriesColor('sector', key.replace(/^overlay:/, '')),
+    ),
   };
 }
 
@@ -164,7 +160,12 @@ export function buildFuelConsumptionChart(
     title: 'Fuel Consumption',
     yAxisLabel: FUEL_CONSUMPTION_AXIS_LABEL,
     years,
-    series: buildSeries(grouped, years, (key) => getCommodityMetadata(key).label),
+    series: buildSeries(
+      grouped,
+      years,
+      (key) => getCommodityMetadata(key).label,
+      (key) => getSeriesColor('commodity', key),
+    ),
   };
 }
 
@@ -186,7 +187,7 @@ export function buildDemandOverTimeChart(request: SolveRequest): StackedChartDat
     title: 'Service Demand Over Time',
     yAxisLabel: 'Demand',
     years,
-    series: buildSeries(grouped, years, (key) => key),
+    series: buildSeries(grouped, years, (key) => key, (key) => getSeriesColor('state', key)),
   };
 }
 
@@ -256,7 +257,7 @@ export function buildDemandBySectorChart(request: SolveRequest): LineChartData {
     title: 'Demand by Sector',
     yAxisLabel: `% of ${baseYear}`,
     years,
-    series: buildSeries(grouped, years, (key) => key),
+    series: buildSeries(grouped, years, (key) => key, (key) => getSeriesColor('sector', key)),
   };
 }
 
@@ -288,7 +289,7 @@ export function buildDemandBySubsectorChart(request: SolveRequest): StackedChart
     title: 'Demand by Sub-sector',
     yAxisLabel: 'Demand',
     years,
-    series: buildSeries(grouped, years, (key) => key),
+    series: buildSeries(grouped, years, (key) => key, (key) => getSeriesColor('subsector', key)),
   };
 }
 
@@ -301,7 +302,8 @@ export function buildEmissionsBySubsectorChart(
   for (const row of contributions) {
     if (row.metric !== 'emissions') continue;
 
-    const key = row.sourceKind === 'overlay' ? `overlay:${row.overlayId}` : row.sectorId;
+    const key = row.sourceKind === 'overlay' ? `overlay:${row.overlayId}` : row.subsectorId;
+    if (!key) continue;
     let yearMap = grouped.get(key);
     if (!yearMap) {
       yearMap = new Map<number, number>();
@@ -313,15 +315,23 @@ export function buildEmissionsBySubsectorChart(
   const labelLookup = new Map<string, string>();
   for (const row of contributions) {
     if (row.metric !== 'emissions') continue;
-    const key = row.sourceKind === 'overlay' ? `overlay:${row.overlayId}` : row.sectorId;
-    if (!labelLookup.has(key)) labelLookup.set(key, row.sourceKind === 'overlay' ? row.sourceLabel : row.sectorLabel);
+    const key = row.sourceKind === 'overlay' ? `overlay:${row.overlayId}` : row.subsectorId;
+    if (!key) continue;
+    if (!labelLookup.has(key)) {
+      labelLookup.set(key, row.sourceKind === 'overlay' ? row.sourceLabel : (row.subsectorLabel ?? key));
+    }
   }
 
   return {
     title: 'Emissions by Sub-sector',
     yAxisLabel: ABSOLUTE_EMISSIONS_AXIS_LABEL,
     years,
-    series: buildSeries(grouped, years, (key) => labelLookup.get(key) ?? key),
+    series: buildSeries(
+      grouped,
+      years,
+      (key) => labelLookup.get(key) ?? key,
+      (key) => getSeriesColor('subsector', key.replace(/^overlay:/, '')),
+    ),
   };
 }
 
@@ -341,11 +351,10 @@ export function buildCostByComponentChart(
   for (const row of contributions) {
     if (row.metric !== 'cost' || row.costComponent === null) continue;
 
-    const label = componentLabels[row.costComponent] ?? row.costComponent;
-    let yearMap = grouped.get(label);
+    let yearMap = grouped.get(row.costComponent);
     if (!yearMap) {
       yearMap = new Map<number, number>();
-      grouped.set(label, yearMap);
+      grouped.set(row.costComponent, yearMap);
     }
     yearMap.set(row.year, (yearMap.get(row.year) ?? 0) + row.value);
   }
@@ -354,7 +363,12 @@ export function buildCostByComponentChart(
     title: 'Cost by Component',
     yAxisLabel: formatObjectiveCostAxisLabelFromMetadata(objectiveCost),
     years,
-    series: buildSeries(grouped, years, (key) => key),
+    series: buildSeries(
+      grouped,
+      years,
+      (key) => componentLabels[key] ?? key,
+      (key) => getSeriesColor('cost_component', key),
+    ),
   };
 }
 
@@ -384,24 +398,27 @@ export function buildPathwayChartCards(
     .map(([outputId, metadata]) => {
       const outputGrouped = new Map<string, Map<number, number>>();
       const capGrouped = new Map<string, Map<number, number>>();
+      const stateLabelById = new Map<string, string>();
 
       for (const share of result.reporting.stateShares) {
         if (share.outputId !== outputId) {
           continue;
         }
 
-        let outputYearMap = outputGrouped.get(share.stateLabel);
+        stateLabelById.set(share.stateId, share.stateLabel);
+
+        let outputYearMap = outputGrouped.get(share.stateId);
         if (!outputYearMap) {
           outputYearMap = new Map<number, number>();
-          outputGrouped.set(share.stateLabel, outputYearMap);
+          outputGrouped.set(share.stateId, outputYearMap);
         }
         outputYearMap.set(share.year, share.activity);
 
         const effectiveMaxShare = share.effectiveMaxShare ?? 0;
-        let capYearMap = capGrouped.get(share.stateLabel);
+        let capYearMap = capGrouped.get(share.stateId);
         if (!capYearMap) {
           capYearMap = new Map<number, number>();
-          capGrouped.set(share.stateLabel, capYearMap);
+          capGrouped.set(share.stateId, capYearMap);
         }
         capYearMap.set(share.year, effectiveMaxShare * 100);
       }
@@ -413,13 +430,23 @@ export function buildPathwayChartCards(
           title: `${metadata.outputLabel} Pathway Output`,
           yAxisLabel: metadata.outputUnit,
           years,
-          series: buildSeries(outputGrouped, years, (key) => key),
+          series: buildSeries(
+            outputGrouped,
+            years,
+            (key) => stateLabelById.get(key) ?? key,
+            (key) => getSeriesColor('state', key),
+          ),
         },
         capChart: {
           title: `${metadata.outputLabel} Pathway Cap`,
           yAxisLabel: 'Effective max share of output (current cap denominator)',
           years,
-          series: buildSeries(capGrouped, years, (key) => key),
+          series: buildSeries(
+            capGrouped,
+            years,
+            (key) => stateLabelById.get(key) ?? key,
+            (key) => getSeriesColor('state', key),
+          ),
         },
       } satisfies PathwayChartCardData;
     });
@@ -467,9 +494,9 @@ export function buildRemovalsChartCards(
     }
 
     const grouped = new Map<string, Map<number, number>>();
-    grouped.set('Activity', activityByYear);
+    grouped.set('activity', activityByYear);
     if (maxActivityByYear.size > 0) {
-      grouped.set('Max activity', maxActivityByYear);
+      grouped.set('max_activity', maxActivityByYear);
     }
 
     return {
@@ -480,7 +507,12 @@ export function buildRemovalsChartCards(
         title: `${metadata.outputLabel}`,
         yAxisLabel: metadata.outputUnit,
         years,
-        series: buildSeries(grouped, years, (key) => key),
+        series: buildSeries(
+          grouped,
+          years,
+          (key) => (key === 'activity' ? 'Activity' : key === 'max_activity' ? 'Max activity' : key),
+          (key) => getSeriesColor('metric', key),
+        ),
       },
     } satisfies RemovalsChartCardData;
   });

@@ -24,6 +24,8 @@ export interface ResultContributionRow {
   sourceLabel: string;
   sectorId: string;
   sectorLabel: string;
+  subsectorId: string | null;
+  subsectorLabel: string | null;
   commodityId: string | null;
   costComponent: 'conversion' | 'commodity' | 'carbon' | null;
   overlayId: string | null;
@@ -80,6 +82,8 @@ export function buildSolverContributionRows(
         sourceLabel: row.stateLabel,
         sectorId: row.sector,
         sectorLabel: row.sector,
+        subsectorId: row.subsector,
+        subsectorLabel: row.subsector,
         commodityId: null,
         costComponent: null,
         overlayId: null,
@@ -104,6 +108,8 @@ export function buildSolverContributionRows(
         sourceLabel: row.stateLabel,
         sectorId: row.sector,
         sectorLabel: row.sector,
+        subsectorId: row.subsector,
+        subsectorLabel: row.subsector,
         commodityId: input.commodityId,
         costComponent: null,
         overlayId: null,
@@ -123,6 +129,8 @@ export function buildSolverContributionRows(
         sourceLabel: row.stateLabel,
         sectorId: row.sector,
         sectorLabel: row.sector,
+        subsectorId: row.subsector,
+        subsectorLabel: row.subsector,
         commodityId: null,
         costComponent: 'conversion',
         overlayId: null,
@@ -150,6 +158,8 @@ export function buildSolverContributionRows(
         sourceLabel: row.stateLabel,
         sectorId: row.sector,
         sectorLabel: row.sector,
+        subsectorId: row.subsector,
+        subsectorLabel: row.subsector,
         commodityId: null,
         costComponent: 'commodity',
         overlayId: null,
@@ -173,6 +183,8 @@ export function buildSolverContributionRows(
         sourceLabel: row.stateLabel,
         sectorId: row.sector,
         sectorLabel: row.sector,
+        subsectorId: row.subsector,
+        subsectorLabel: row.subsector,
         commodityId: null,
         costComponent: 'carbon',
         overlayId: null,
@@ -205,6 +217,8 @@ export function buildOverlayContributionRows(
         sourceLabel: p.overlayLabel,
         sectorId: p.overlayId,
         sectorLabel: p.overlayLabel,
+        subsectorId: p.overlayId,
+        subsectorLabel: p.overlayLabel,
         commodityId: null,
         costComponent: null,
         overlayId: p.overlayId,
@@ -228,6 +242,8 @@ export function buildOverlayContributionRows(
         sourceLabel: p.overlayLabel,
         sectorId: p.overlayId,
         sectorLabel: p.overlayLabel,
+        subsectorId: p.overlayId,
+        subsectorLabel: p.overlayLabel,
         commodityId: p.commodity,
         costComponent: null,
         overlayId: p.overlayId,
@@ -247,6 +263,8 @@ export function buildOverlayContributionRows(
         sourceLabel: p.overlayLabel,
         sectorId: p.overlayId,
         sectorLabel: p.overlayLabel,
+        subsectorId: p.overlayId,
+        subsectorLabel: p.overlayLabel,
         commodityId: null,
         costComponent: 'commodity',
         overlayId: p.overlayId,
@@ -266,6 +284,8 @@ export function buildOverlayContributionRows(
         sourceLabel: p.overlayLabel,
         sectorId: p.overlayId,
         sectorLabel: p.overlayLabel,
+        subsectorId: p.overlayId,
+        subsectorLabel: p.overlayLabel,
         commodityId: null,
         costComponent: 'conversion',
         overlayId: p.overlayId,
@@ -288,6 +308,8 @@ export function buildOverlayContributionRows(
         sourceLabel: p.overlayLabel,
         sectorId: p.overlayId,
         sectorLabel: p.overlayLabel,
+        subsectorId: p.overlayId,
+        subsectorLabel: p.overlayLabel,
         commodityId: null,
         costComponent: 'carbon',
         overlayId: p.overlayId,
