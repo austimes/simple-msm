@@ -40,22 +40,28 @@ export interface AdditionalitySkippedCandidate {
   message: string;
 }
 
+export interface AdditionalityMetricSnapshot {
+  objective: number;
+  cumulativeEmissions: number;
+  electricityDemand2050: number;
+}
+
 export interface AdditionalitySequenceEntry {
   step: number;
   atom: AdditionalityAtom;
-  objectiveBefore: number;
-  objectiveAfter: number;
-  deltaFromCurrent: number;
-  absDelta: number;
+  metricsBefore: AdditionalityMetricSnapshot;
+  metricsAfter: AdditionalityMetricSnapshot;
+  metricsDeltaFromCurrent: AdditionalityMetricSnapshot;
+  absObjectiveDelta: number;
   skippedCandidateCount: number;
 }
 
 export interface AdditionalityReport {
   baseConfigId: string;
   targetConfigId: string;
-  baseObjective: number;
-  targetObjective: number;
-  totalDelta: number;
+  baseMetrics: AdditionalityMetricSnapshot;
+  targetMetrics: AdditionalityMetricSnapshot;
+  totalObjectiveDelta: number;
   atomCount: number;
   solveCount: number;
   sequence: AdditionalitySequenceEntry[];
@@ -115,15 +121,17 @@ interface AdditionalityOutputStateCatalogEntry {
 interface AdditionalityCandidate {
   atom: AdditionalityAtom;
   config: ConfigurationDocument;
-  objectiveAfter: number;
-  deltaFromCurrent: number;
-  absDelta: number;
+  metricsAfter: AdditionalityMetricSnapshot;
+  metricsDeltaFromCurrent: AdditionalityMetricSnapshot;
+  absObjectiveDelta: number;
 }
 
 const EMPTY_PROGRESS: AdditionalityProgress = {
   completed: 0,
   totalExpected: 0,
 };
+const ELECTRICITY_COMMODITY = 'electricity';
+const ELECTRICITY_DEMAND_YEAR = 2050;
 
 class AdditionalityCancelledError extends Error {
   constructor() {
@@ -195,7 +203,7 @@ function compareAtoms(left: AdditionalityAtom, right: AdditionalityAtom): number
 }
 
 function compareCandidates(left: AdditionalityCandidate, right: AdditionalityCandidate): number {
-  return right.absDelta - left.absDelta
+  return right.absObjectiveDelta - left.absObjectiveDelta
     || compareAtoms(left.atom, right.atom);
 }
 
@@ -255,12 +263,83 @@ function formatBuildFailure(prefix: string, error: unknown): string {
   return `${prefix} build failed: ${failure.headline}`;
 }
 
-function getObjectiveValue(result: SolveResult): number {
-  if (result.status === 'error' || !Number.isFinite(result.raw?.objectiveValue)) {
-    throw new Error(formatSolveFailure('Solve', result));
+function sumDirectEmissions(row: SolveRequest['rows'][number]): number {
+  return row.directEmissions.reduce((total, entry) => total + entry.value, 0);
+}
+
+function sumSpecificInputCoefficient(
+  inputs: SolveRequest['rows'][number]['inputs'],
+  commodityId: string,
+): number {
+  return inputs.reduce((total, input) => {
+    return input.commodityId === commodityId ? total + input.coefficient : total;
+  }, 0);
+}
+
+function subtractMetricSnapshots(
+  after: AdditionalityMetricSnapshot,
+  before: AdditionalityMetricSnapshot,
+): AdditionalityMetricSnapshot {
+  return {
+    objective: after.objective - before.objective,
+    cumulativeEmissions: after.cumulativeEmissions - before.cumulativeEmissions,
+    electricityDemand2050: after.electricityDemand2050 - before.electricityDemand2050,
+  };
+}
+
+function buildMetricSnapshot(
+  label: string,
+  request: SolveRequest,
+  result: SolveResult,
+): AdditionalityMetricSnapshot {
+  if (result.status === 'error') {
+    throw new Error(formatSolveFailure(label, result));
   }
 
-  return result.raw!.objectiveValue!;
+  if (!result.raw) {
+    throw new Error(`${label} evaluation failed: solve result is missing raw artifact data.`);
+  }
+
+  const objective = result.raw.objectiveValue;
+  if (objective == null || !Number.isFinite(objective)) {
+    throw new Error(formatSolveFailure(label, result));
+  }
+
+  if (!Array.isArray(result.raw.variables)) {
+    throw new Error(`${label} evaluation failed: solve result is missing raw variable data.`);
+  }
+
+  const variableValues = new Map(
+    result.raw.variables.map((entry) => [entry.id, entry.value]),
+  );
+  let cumulativeEmissions = 0;
+  let electricityDemand2050 = request.configuration.externalCommodityDemandByCommodity[
+    ELECTRICITY_COMMODITY
+  ]?.[String(ELECTRICITY_DEMAND_YEAR)] ?? 0;
+
+  for (const row of request.rows) {
+    const activityVariableId = `activity:${row.rowId}`;
+    const activity = variableValues.get(activityVariableId);
+    if (typeof activity !== 'number' || !Number.isFinite(activity)) {
+      throw new Error(
+        `${label} evaluation failed: missing or invalid activity variable "${activityVariableId}".`,
+      );
+    }
+
+    cumulativeEmissions += activity * sumDirectEmissions(row);
+    if (row.year === ELECTRICITY_DEMAND_YEAR) {
+      electricityDemand2050 += activity * sumSpecificInputCoefficient(
+        row.inputs,
+        ELECTRICITY_COMMODITY,
+      );
+    }
+  }
+
+  return {
+    objective,
+    cumulativeEmissions,
+    electricityDemand2050,
+  };
 }
 
 function toProgress(
@@ -578,10 +657,10 @@ export async function runAdditionalityAnalysis(
     onProgress?.(toProgress(completed, totalExpected));
   }
 
-  async function evaluateObjective(
+  async function evaluateMetrics(
     configuration: ConfigurationDocument,
     label: string,
-  ): Promise<{ objective: number } | { error: string }> {
+  ): Promise<AdditionalityMetricSnapshot | { error: string }> {
     checkCancelled(isCancelled);
     let request: SolveRequest;
 
@@ -596,9 +675,7 @@ export async function runAdditionalityAnalysis(
 
     try {
       const result = await solveRequest(request);
-      return {
-        objective: getObjectiveValue(result),
-      };
+      return buildMetricSnapshot(label, request, result);
     } catch (error) {
       if (error instanceof AdditionalityCancelledError) {
         throw error;
@@ -612,7 +689,7 @@ export async function runAdditionalityAnalysis(
     }
   }
 
-  const baseEvaluation = await evaluateObjective(prepared.baseConfiguration, 'Base configuration');
+  const baseEvaluation = await evaluateMetrics(prepared.baseConfiguration, 'Base configuration');
   if ('error' in baseEvaluation) {
     return {
       phase: 'error',
@@ -623,7 +700,7 @@ export async function runAdditionalityAnalysis(
     };
   }
 
-  const targetEvaluation = await evaluateObjective(prepared.targetConfiguration, 'Target configuration');
+  const targetEvaluation = await evaluateMetrics(prepared.targetConfiguration, 'Target configuration');
   if ('error' in targetEvaluation) {
     return {
       phase: 'error',
@@ -635,7 +712,7 @@ export async function runAdditionalityAnalysis(
   }
 
   let currentConfiguration = structuredClone(prepared.baseConfiguration);
-  let currentObjective = baseEvaluation.objective;
+  let currentMetrics = baseEvaluation;
   let remainingAtoms = [...prepared.atoms];
 
   for (let step = 1; remainingAtoms.length > 0; step += 1) {
@@ -652,7 +729,7 @@ export async function runAdditionalityAnalysis(
         atom,
         catalog,
       );
-      const evaluation = await evaluateObjective(
+      const evaluation = await evaluateMetrics(
         candidateConfiguration,
         `Candidate ${step}: ${atom.outputLabel} / ${atom.stateLabel}`,
       );
@@ -667,12 +744,13 @@ export async function runAdditionalityAnalysis(
         continue;
       }
 
+      const metricsDeltaFromCurrent = subtractMetricSnapshots(evaluation, currentMetrics);
       const candidate: AdditionalityCandidate = {
         atom,
         config: candidateConfiguration,
-        objectiveAfter: evaluation.objective,
-        deltaFromCurrent: evaluation.objective - currentObjective,
-        absDelta: Math.abs(evaluation.objective - currentObjective),
+        metricsAfter: evaluation,
+        metricsDeltaFromCurrent,
+        absObjectiveDelta: Math.abs(metricsDeltaFromCurrent.objective),
       };
 
       if (!bestCandidate || compareCandidates(candidate, bestCandidate) < 0) {
@@ -684,9 +762,9 @@ export async function runAdditionalityAnalysis(
       const report: AdditionalityReport = {
         baseConfigId: options.baseConfigId,
         targetConfigId: options.targetConfigId,
-        baseObjective: baseEvaluation.objective,
-        targetObjective: targetEvaluation.objective,
-        totalDelta: targetEvaluation.objective - baseEvaluation.objective,
+        baseMetrics: baseEvaluation,
+        targetMetrics: targetEvaluation,
+        totalObjectiveDelta: targetEvaluation.objective - baseEvaluation.objective,
         atomCount: prepared.atoms.length,
         solveCount: completed,
         sequence,
@@ -706,24 +784,24 @@ export async function runAdditionalityAnalysis(
     sequence.push({
       step,
       atom: bestCandidate.atom,
-      objectiveBefore: currentObjective,
-      objectiveAfter: bestCandidate.objectiveAfter,
-      deltaFromCurrent: bestCandidate.deltaFromCurrent,
-      absDelta: bestCandidate.absDelta,
+      metricsBefore: currentMetrics,
+      metricsAfter: bestCandidate.metricsAfter,
+      metricsDeltaFromCurrent: bestCandidate.metricsDeltaFromCurrent,
+      absObjectiveDelta: bestCandidate.absObjectiveDelta,
       skippedCandidateCount,
     });
 
     currentConfiguration = bestCandidate.config;
-    currentObjective = bestCandidate.objectiveAfter;
+    currentMetrics = bestCandidate.metricsAfter;
     remainingAtoms = remainingAtoms.filter((atom) => atom.key !== bestCandidate.atom.key);
   }
 
   const report: AdditionalityReport = {
     baseConfigId: options.baseConfigId,
     targetConfigId: options.targetConfigId,
-    baseObjective: baseEvaluation.objective,
-    targetObjective: targetEvaluation.objective,
-    totalDelta: targetEvaluation.objective - baseEvaluation.objective,
+    baseMetrics: baseEvaluation,
+    targetMetrics: targetEvaluation,
+    totalObjectiveDelta: targetEvaluation.objective - baseEvaluation.objective,
     atomCount: prepared.atoms.length,
     solveCount: completed,
     sequence,

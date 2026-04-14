@@ -90,9 +90,17 @@ describe('AdditionalityPage', () => {
             report: {
               baseConfigId: 'the-base-case',
               targetConfigId: 'the-full-monty',
-              baseObjective: 100,
-              targetObjective: 118,
-              totalDelta: 18,
+              baseMetrics: {
+                objective: 100,
+                cumulativeEmissions: 400,
+                electricityDemand2050: 120,
+              },
+              targetMetrics: {
+                objective: 118,
+                cumulativeEmissions: 370,
+                electricityDemand2050: 144,
+              },
+              totalObjectiveDelta: 18,
               atomCount: 2,
               solveCount: 5,
               sequence: [
@@ -106,10 +114,22 @@ describe('AdditionalityPage', () => {
                     stateLabel: 'Battery-electric passenger road fleet',
                     action: 'enable',
                   },
-                  objectiveBefore: 100,
-                  objectiveAfter: 110,
-                  deltaFromCurrent: 10,
-                  absDelta: 10,
+                  metricsBefore: {
+                    objective: 100,
+                    cumulativeEmissions: 400,
+                    electricityDemand2050: 120,
+                  },
+                  metricsAfter: {
+                    objective: 110,
+                    cumulativeEmissions: 385,
+                    electricityDemand2050: 132,
+                  },
+                  metricsDeltaFromCurrent: {
+                    objective: 10,
+                    cumulativeEmissions: -15,
+                    electricityDemand2050: 12,
+                  },
+                  absObjectiveDelta: 10,
                   skippedCandidateCount: 0,
                 },
                 {
@@ -122,10 +142,22 @@ describe('AdditionalityPage', () => {
                     stateLabel: 'Low-temperature electrified heat',
                     action: 'enable',
                   },
-                  objectiveBefore: 110,
-                  objectiveAfter: 118,
-                  deltaFromCurrent: 8,
-                  absDelta: 8,
+                  metricsBefore: {
+                    objective: 110,
+                    cumulativeEmissions: 385,
+                    electricityDemand2050: 132,
+                  },
+                  metricsAfter: {
+                    objective: 118,
+                    cumulativeEmissions: 370,
+                    electricityDemand2050: 144,
+                  },
+                  metricsDeltaFromCurrent: {
+                    objective: 8,
+                    cumulativeEmissions: -15,
+                    electricityDemand2050: 12,
+                  },
+                  absObjectiveDelta: 8,
                   skippedCandidateCount: 1,
                 },
               ],
@@ -150,7 +182,13 @@ describe('AdditionalityPage', () => {
       />,
     );
 
-    assert.match(html, /Greedy additionality sequence/);
+    assert.match(html, /Objective delta/);
+    assert.match(html, /Cumulative emissions delta/);
+    assert.match(html, /2050 electricity demand delta/);
+    assert.match(
+      html,
+      /Steps are ordered by greedy objective delta; the companion charts reuse that order for other metrics\./,
+    );
     assert.match(html, /Base objective/);
     assert.match(html, /Target objective/);
     assert.match(html, /Ordered steps/);

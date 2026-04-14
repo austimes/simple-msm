@@ -85,6 +85,17 @@ function formatAction(action: 'enable' | 'disable'): string {
   return action === 'enable' ? 'Enable' : 'Disable';
 }
 
+function buildOrderedStepLabel(
+  step: number,
+  atom: {
+    outputLabel: string;
+    action: 'enable' | 'disable';
+    stateLabel: string;
+  },
+): string {
+  return `${step}. ${atom.outputLabel}: ${formatAction(atom.action)} ${atom.stateLabel}`;
+}
+
 function buildStatusLine(analysisState: AdditionalityAnalysisState): string {
   switch (analysisState.phase) {
     case 'idle':
@@ -132,6 +143,22 @@ export function AdditionalityPageView({
   const report = analysisState.report;
   const statusLine = buildStatusLine(analysisState);
   const priceSummary = buildPriceSummary(commodityOptions, commoditySelections);
+  const orderedLabels = report?.sequence.map((entry) => buildOrderedStepLabel(entry.step, entry.atom)) ?? [];
+  const objectiveChartData = report?.sequence.map((entry, index) => ({
+    key: `${entry.atom.key}:objective`,
+    label: orderedLabels[index] ?? '',
+    value: entry.metricsDeltaFromCurrent.objective,
+  })) ?? [];
+  const emissionsChartData = report?.sequence.map((entry, index) => ({
+    key: `${entry.atom.key}:emissions`,
+    label: orderedLabels[index] ?? '',
+    value: entry.metricsDeltaFromCurrent.cumulativeEmissions,
+  })) ?? [];
+  const electricityChartData = report?.sequence.map((entry, index) => ({
+    key: `${entry.atom.key}:electricity`,
+    label: orderedLabels[index] ?? '',
+    value: entry.metricsDeltaFromCurrent.electricityDemand2050,
+  })) ?? [];
 
   return (
     <div className="page page--additionality">
@@ -236,15 +263,15 @@ export function AdditionalityPageView({
           <section className="additionality-summary-grid">
             <article className="configuration-panel additionality-summary-card">
               <h2>Base objective</h2>
-              <strong>{formatObjective(report.baseObjective)}</strong>
+              <strong>{formatObjective(report.baseMetrics.objective)}</strong>
             </article>
             <article className="configuration-panel additionality-summary-card">
               <h2>Target objective</h2>
-              <strong>{formatObjective(report.targetObjective)}</strong>
+              <strong>{formatObjective(report.targetMetrics.objective)}</strong>
             </article>
             <article className="configuration-panel additionality-summary-card">
               <h2>Total delta</h2>
-              <strong>{formatSignedDelta(report.totalDelta)}</strong>
+              <strong>{formatSignedDelta(report.totalObjectiveDelta)}</strong>
             </article>
             <article className="configuration-panel additionality-summary-card">
               <h2>Atoms</h2>
@@ -263,16 +290,42 @@ export function AdditionalityPageView({
             </section>
           ) : null}
 
-          <section className="configuration-panel">
-            <HorizontalDeltaBarChart
-              title="Greedy additionality sequence"
-              valueFormatter={(value) => formatSignedDelta(value)}
-              data={report.sequence.map((entry) => ({
-                key: entry.atom.key,
-                label: `${entry.step}. ${entry.atom.outputLabel}: ${formatAction(entry.atom.action)} ${entry.atom.stateLabel}`,
-                value: entry.deltaFromCurrent,
-              }))}
-            />
+          <section>
+            <p className="additionality-status-line">
+              Steps are ordered by greedy objective delta; the companion charts reuse that order for other metrics.
+            </p>
+            <div className="additionality-chart-grid">
+              <article className="configuration-panel">
+                <HorizontalDeltaBarChart
+                  title="Objective delta"
+                  valueFormatter={(value) => formatSignedDelta(value)}
+                  data={objectiveChartData}
+                  positiveLegendLabel="Increase objective"
+                  negativeLegendLabel="Decrease objective"
+                  showCategoryAxis
+                />
+              </article>
+              <article className="configuration-panel">
+                <HorizontalDeltaBarChart
+                  title="Cumulative emissions delta"
+                  valueFormatter={(value) => formatSignedDelta(value)}
+                  data={emissionsChartData}
+                  positiveLegendLabel="Increase emissions"
+                  negativeLegendLabel="Decrease emissions"
+                  showCategoryAxis={false}
+                />
+              </article>
+              <article className="configuration-panel">
+                <HorizontalDeltaBarChart
+                  title="2050 electricity demand delta"
+                  valueFormatter={(value) => formatSignedDelta(value)}
+                  data={electricityChartData}
+                  positiveLegendLabel="Increase electricity demand"
+                  negativeLegendLabel="Decrease electricity demand"
+                  showCategoryAxis={false}
+                />
+              </article>
+            </div>
           </section>
 
           <section className="configuration-panel">
@@ -297,9 +350,9 @@ export function AdditionalityPageView({
                       <td>{entry.atom.outputLabel}</td>
                       <td>{entry.atom.stateLabel}</td>
                       <td>{formatAction(entry.atom.action)}</td>
-                      <td>{formatSignedDelta(entry.deltaFromCurrent)}</td>
-                      <td>{formatDetailedObjective(entry.objectiveBefore)}</td>
-                      <td>{formatDetailedObjective(entry.objectiveAfter)}</td>
+                      <td>{formatSignedDelta(entry.metricsDeltaFromCurrent.objective)}</td>
+                      <td>{formatDetailedObjective(entry.metricsBefore.objective)}</td>
+                      <td>{formatDetailedObjective(entry.metricsAfter.objective)}</td>
                     </tr>
                   ))}
                 </tbody>

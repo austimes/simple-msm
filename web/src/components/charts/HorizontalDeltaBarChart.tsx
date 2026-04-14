@@ -27,9 +27,12 @@ export interface HorizontalDeltaBarDatum {
   value: number;
 }
 
-interface HorizontalDeltaBarChartProps {
+export interface HorizontalDeltaBarChartProps {
   data: HorizontalDeltaBarDatum[];
   height?: number;
+  negativeLegendLabel?: string;
+  positiveLegendLabel?: string;
+  showCategoryAxis?: boolean;
   title: string;
   valueFormatter?: (value: number) => string;
 }
@@ -61,6 +64,9 @@ function resolveDomain(values: number[]): [number, number] {
 export default function HorizontalDeltaBarChart({
   data,
   height,
+  negativeLegendLabel = 'Decrease',
+  positiveLegendLabel = 'Increase',
+  showCategoryAxis = true,
   title,
   valueFormatter = defaultFormatter,
 }: HorizontalDeltaBarChartProps) {
@@ -78,14 +84,16 @@ export default function HorizontalDeltaBarChart({
   const positiveCount = data.filter((entry) => entry.value > 0).length;
   const negativeCount = data.filter((entry) => entry.value < 0).length;
   const zeroCount = data.length - positiveCount - negativeCount;
+  const chartLeftMargin = showCategoryAxis ? 180 : 24;
+  const categoryAxisWidth = showCategoryAxis ? 172 : 0;
 
   return (
     <ChartFrame
       title={title}
       height={chartHeight}
       legendItems={[
-        { key: 'increase', label: 'Increase objective', color: POSITIVE_COLOR },
-        { key: 'decrease', label: 'Decrease objective', color: NEGATIVE_COLOR },
+        { key: 'increase', label: positiveLegendLabel, color: POSITIVE_COLOR },
+        { key: 'decrease', label: negativeLegendLabel, color: NEGATIVE_COLOR },
       ]}
       summaryItems={[
         { key: 'increase', label: `${positiveCount} increases` },
@@ -99,7 +107,7 @@ export default function HorizontalDeltaBarChart({
           layout="vertical"
           margin={{
             ...WORKSPACE_CHART_MARGIN,
-            left: 180,
+            left: chartLeftMargin,
           }}
         >
           <CartesianGrid
@@ -118,7 +126,8 @@ export default function HorizontalDeltaBarChart({
           <YAxis
             type="category"
             dataKey="label"
-            width={172}
+            width={categoryAxisWidth}
+            hide={!showCategoryAxis}
             tickLine={false}
             axisLine={false}
             tick={CHART_AXIS_TICK_STYLE}

@@ -23,6 +23,34 @@ function clone(value) {
   return structuredClone(value);
 }
 
+function assertClose(actual, expected, message) {
+  assert.ok(Math.abs(actual - expected) < 1e-6, `${message}: expected ${expected}, got ${actual}`);
+}
+
+function assertFiniteMetrics(snapshot) {
+  assert.equal(Number.isFinite(snapshot.objective), true);
+  assert.equal(Number.isFinite(snapshot.cumulativeEmissions), true);
+  assert.equal(Number.isFinite(snapshot.electricityDemand2050), true);
+}
+
+function assertConsistentDelta(entry) {
+  assertClose(
+    entry.metricsDeltaFromCurrent.objective,
+    entry.metricsAfter.objective - entry.metricsBefore.objective,
+    'objective delta stays internally consistent',
+  );
+  assertClose(
+    entry.metricsDeltaFromCurrent.cumulativeEmissions,
+    entry.metricsAfter.cumulativeEmissions - entry.metricsBefore.cumulativeEmissions,
+    'emissions delta stays internally consistent',
+  );
+  assertClose(
+    entry.metricsDeltaFromCurrent.electricityDemand2050,
+    entry.metricsAfter.electricityDemand2050 - entry.metricsBefore.electricityDemand2050,
+    '2050 electricity demand delta stays internally consistent',
+  );
+}
+
 function buildBaseCase() {
   const reference = readJson('../src/configurations/reference.json');
   const configuration = resolveConfigurationDocument(
@@ -116,7 +144,10 @@ function buildSolvedResult(request, objectiveValue) {
       notes: [],
       solutionStatus: 'optimal',
       objectiveValue,
-      variables: [],
+      variables: request.rows.map((row) => ({
+        id: `activity:${row.rowId}`,
+        value: 1,
+      })),
     },
     diagnostics: [],
     timingsMs: {
@@ -317,11 +348,20 @@ describe('additionality analysis', () => {
 
     assert.equal(analysis.phase, 'success');
     assert.ok(analysis.report);
+    assertFiniteMetrics(analysis.report.baseMetrics);
+    assertFiniteMetrics(analysis.report.targetMetrics);
     assert.equal(analysis.report.sequence.length, analysis.report.atomCount);
-    assert.ok(Math.abs(
-      analysis.report.sequence[analysis.report.sequence.length - 1].objectiveAfter
-      - analysis.report.targetObjective,
-    ) < 1e-6);
+    for (const entry of analysis.report.sequence) {
+      assertFiniteMetrics(entry.metricsBefore);
+      assertFiniteMetrics(entry.metricsAfter);
+      assertFiniteMetrics(entry.metricsDeltaFromCurrent);
+      assertConsistentDelta(entry);
+    }
+    assertClose(
+      analysis.report.sequence[analysis.report.sequence.length - 1].metricsAfter.objective,
+      analysis.report.targetMetrics.objective,
+      'final greedy objective reaches the target objective',
+    );
   });
 
   test('records skipped intermediate candidates and continues when other candidates remain solvable', async () => {
@@ -369,5 +409,11 @@ describe('additionality analysis', () => {
     assert.ok(analysis.report);
     assert.ok(analysis.report.skippedCandidates.length >= 1);
     assert.ok(analysis.report.sequence.some((entry) => entry.skippedCandidateCount >= 1));
+    for (const entry of analysis.report.sequence) {
+      assertFiniteMetrics(entry.metricsBefore);
+      assertFiniteMetrics(entry.metricsAfter);
+      assertFiniteMetrics(entry.metricsDeltaFromCurrent);
+      assertConsistentDelta(entry);
+    }
   });
 });
