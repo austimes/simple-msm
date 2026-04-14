@@ -43,6 +43,7 @@ export function loadAppConfig() {
     baseline_activity_anchors: readJson('../public/app_config/baseline_activity_anchors.json'),
     demand_growth_presets: readJson('../public/app_config/demand_growth_presets.json'),
     commodity_price_presets: readJson('../public/app_config/commodity_price_presets.json'),
+    carbon_price_presets: readJson('../public/app_config/carbon_price_presets.json'),
     explanation_tag_rules: readJson('../public/app_config/explanation_tag_rules.json'),
   };
 }
@@ -104,11 +105,96 @@ function toSectorState(row) {
   };
 }
 
+function parseEmptyNull(raw) {
+  if (!raw || raw.trim() === '') return null;
+  return raw;
+}
+
+function toResidualOverlayRow(row) {
+  return {
+    overlay_id: row['overlay_id'],
+    overlay_label: row['overlay_label'],
+    overlay_domain: row['overlay_domain'],
+    official_accounting_bucket: row['official_accounting_bucket'],
+    year: Number(row['year']),
+    commodity: parseEmptyNull(row['commodity']),
+    final_energy_pj_2025: parseNum(row['final_energy_pj_2025']),
+    native_unit: row['native_unit'] ?? '',
+    native_quantity_2025: parseNum(row['native_quantity_2025']),
+    direct_energy_emissions_mtco2e_2025: parseNum(row['direct_energy_emissions_mtco2e_2025']),
+    other_emissions_mtco2e_2025: parseNum(row['other_emissions_mtco2e_2025']),
+    carbon_billable_emissions_mtco2e_2025: parseNum(row['carbon_billable_emissions_mtco2e_2025']),
+    default_price_basis: row['default_price_basis'] ?? '',
+    default_price_per_native_unit_aud_2024: parseNum(row['default_price_per_native_unit_aud_2024']),
+    default_commodity_cost_audm_2024: parseNum(row['default_commodity_cost_audm_2024']),
+    default_fixed_noncommodity_cost_audm_2024: parseNum(row['default_fixed_noncommodity_cost_audm_2024']),
+    default_total_cost_ex_carbon_audm_2024: parseNum(row['default_total_cost_ex_carbon_audm_2024']),
+    default_include: parseBool(row['default_include'] ?? ''),
+    allocation_method: row['allocation_method'] ?? '',
+    cost_basis_note: row['cost_basis_note'] ?? '',
+    notes: row['notes'] ?? '',
+  };
+}
+
+function toCommodityBalance2025Row(row) {
+  return {
+    commodity: row['commodity'],
+    benchmark_stream: row['benchmark_stream'],
+    official_benchmark_pj_2025: parseNum(row['official_benchmark_pj_2025']),
+    explicit_gross_model_inputs_pj_2025: parseNum(row['explicit_gross_model_inputs_pj_2025']),
+    explicit_benchmark_mapped_pj_2025: parseNum(row['explicit_benchmark_mapped_pj_2025']),
+    residual_overlay_pj_2025: parseNum(row['residual_overlay_pj_2025']),
+    balanced_total_pj_2025: parseNum(row['balanced_total_pj_2025']),
+    difference_to_benchmark_pj_2025: parseNum(row['difference_to_benchmark_pj_2025']),
+    native_unit: row['native_unit'],
+    official_benchmark_native_2025: parseNum(row['official_benchmark_native_2025']),
+    explicit_gross_model_inputs_native_2025: parseNum(row['explicit_gross_model_inputs_native_2025']),
+    explicit_benchmark_mapped_native_2025: parseNum(row['explicit_benchmark_mapped_native_2025']),
+    residual_overlay_native_2025: parseNum(row['residual_overlay_native_2025']),
+    balanced_total_native_2025: parseNum(row['balanced_total_native_2025']),
+    notes: row['notes'],
+  };
+}
+
+function toEmissionsBalance2025Row(row) {
+  return {
+    official_category: row['official_category'],
+    official_mtco2e_2025: parseNum(row['official_mtco2e_2025']),
+    explicit_model_mtco2e_2025: parseNum(row['explicit_model_mtco2e_2025']),
+    residual_energy_overlay_mtco2e_2025: parseNum(row['residual_energy_overlay_mtco2e_2025']),
+    residual_nonenergy_overlay_mtco2e_2025: parseNum(row['residual_nonenergy_overlay_mtco2e_2025']),
+    balanced_total_mtco2e_2025: parseNum(row['balanced_total_mtco2e_2025']),
+    difference_to_official_mtco2e_2025: parseNum(row['difference_to_official_mtco2e_2025']),
+    note: row['note'],
+  };
+}
+
 export function loadPkg() {
   const csvText = readText('../../aus_phase1_sector_state_library/data/sector_state_curves_balanced.csv');
   const sectorStates = parseCsv(csvText).map(toSectorState);
   const appConfig = loadAppConfig();
   return { sectorStates, appConfig };
+}
+
+export function loadFormulationFixtureData() {
+  const pkg = loadPkg();
+  const residualOverlays2025 = parseCsv(
+    readText('../../aus_phase1_sector_state_library/data/residual_overlays_2025.csv'),
+  ).map(toResidualOverlayRow);
+  const commodityBalance2025 = parseCsv(
+    readText('../../aus_phase1_sector_state_library/data/commodity_balance_2025.csv'),
+  ).map(toCommodityBalance2025Row);
+  const emissionsBalance2025 = parseCsv(
+    readText('../../aus_phase1_sector_state_library/data/emissions_balance_2025.csv'),
+  ).map(toEmissionsBalance2025Row);
+
+  return {
+    ...pkg,
+    currentConfiguration: loadReferenceConfiguration(),
+    residualOverlays2025,
+    commodityBalance2025,
+    emissionsBalance2025,
+  };
 }
 
 export function loadReferenceConfiguration() {

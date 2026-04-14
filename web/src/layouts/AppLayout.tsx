@@ -7,6 +7,7 @@ const navItems = [
   { to: '/library', label: 'Library' },
   { to: '/state-schema', label: 'State Schema' },
   { to: '/methods', label: 'Methods' },
+  { to: '/model-formulation', label: 'Model Formulation' },
 ] as const;
 
 export default function AppLayout(): React.JSX.Element {
