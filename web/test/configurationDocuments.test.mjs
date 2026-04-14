@@ -6,6 +6,7 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { resolveConfigurationDocument } from '../src/data/demandResolution.ts';
 import { buildSolveRequest } from '../src/solver/buildSolveRequest.ts';
+import { deriveOutputRunStatusesForConfiguration } from '../src/solver/solveScope.ts';
 import { createServer } from 'vite';
 import { loadPkg } from './solverTestUtils.mjs';
 
@@ -236,9 +237,17 @@ test('editing a loaded user configuration marks the workspace dirty for Save ove
 
   usePackageStore.getState().setDemandPreset(nextPresetId);
 
+  const packageState = usePackageStore.getState();
+  const updatedConfiguration = usePackageStore.getState().currentConfiguration;
+
   assert.equal(usePackageStore.getState().isConfigurationDirty, true);
   assert.equal(usePackageStore.getState().activeConfigurationId, userConfiguration.app_metadata.id);
   assert.equal(usePackageStore.getState().activeConfigurationReadonly, false);
+  assert.equal(updatedConfiguration.demand_generation.preset_id, nextPresetId);
+  assert.equal(updatedConfiguration.demand_generation.service_growth_rates_pct_per_year, null);
+  assert.equal(updatedConfiguration.demand_generation.external_commodity_growth_rates_pct_per_year, null);
+  assert.doesNotThrow(() => deriveOutputRunStatusesForConfiguration(packageState, updatedConfiguration));
+  assert.doesNotThrow(() => buildSolveRequest(packageState, updatedConfiguration));
 });
 test('user configuration API saves files using app_metadata.id', async () => {
   const server = await createServer({

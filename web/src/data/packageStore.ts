@@ -5,6 +5,7 @@ import {
   persistConfigurationDraft,
   persistConfigMeta,
 } from './configurationDraftStorage.ts';
+import { resolveConfigurationDocument } from './demandResolution.ts';
 import { loadPackage } from './packageLoader.ts';
 import type {
   ConfigurationControlMode,
@@ -348,7 +349,15 @@ export const usePackageStore = create<PackageStore>((set, get) => {
 
       nextConfiguration.demand_generation.service_growth_rates_pct_per_year = null;
       nextConfiguration.demand_generation.external_commodity_growth_rates_pct_per_year = null;
-      commitConfigurationEdit(nextConfiguration);
+      const resolvedConfiguration = resolveConfigurationDocument(
+        nextConfiguration,
+        get().appConfig,
+        'active configuration',
+        { allowMismatchedResolvedTables: true },
+      );
+      resolvedConfiguration.demand_generation.service_growth_rates_pct_per_year = null;
+      resolvedConfiguration.demand_generation.external_commodity_growth_rates_pct_per_year = null;
+      commitConfigurationEdit(resolvedConfiguration);
     },
     setRespectMaxShare: (enabled) => {
       const nextConfiguration = cloneConfiguration(get().currentConfiguration);
