@@ -558,20 +558,106 @@ body {
 }
 
 .library-sidebar-layout {
+  --library-sidebar-expanded-width: 320px;
+  --library-sidebar-collapsed-width: 48px;
+  --library-sidebar-width: var(--library-sidebar-expanded-width);
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
+  grid-template-columns: var(--library-sidebar-width) minmax(0, 1fr);
   gap: 16px;
   margin-top: 24px;
   align-items: start;
 }
 
-.library-sidebar {
-  position: sticky;
-  top: 16px;
+.library-sidebar-layout--collapsed {
+  --library-sidebar-width: var(--library-sidebar-collapsed-width);
 }
 
-.library-sidebar .library-filter-strip {
-  margin-top: 0;
+.library-sidebar {
+  position: sticky;
+  top: calc(var(--header-height) + 16px);
+  height: calc(100vh - var(--header-height) - 32px);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: var(--color-surface);
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.05);
+}
+
+.library-sidebar--collapsed {
+  align-items: stretch;
+}
+
+.library-sidebar__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 20px 20px 0;
+}
+
+.library-sidebar__title {
+  margin: 0;
+  min-width: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.library-sidebar__toggle {
+  flex: 0 0 auto;
+  inline-size: 28px;
+  block-size: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: #f8fafc;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.library-sidebar__toggle:hover {
+  background: var(--color-primary-bg);
+  border-color: rgba(43, 108, 176, 0.18);
+  color: var(--color-primary);
+}
+
+.library-sidebar__rail {
+  display: flex;
+  justify-content: center;
+  padding: 20px 0 0;
+}
+
+.library-sidebar__toggle--rail {
+  inline-size: 32px;
+  block-size: 32px;
+}
+
+.library-sidebar__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.library-sidebar__body[hidden] {
+  display: none;
+}
+
+.library-sidebar-intro {
+  display: grid;
+  gap: 12px;
+}
+
+.library-sidebar-intro .library-clear-button {
+  justify-self: start;
 }
 
 .library-sidebar .library-chip-row {
@@ -586,10 +672,12 @@ body {
   grid-column: span 1;
 }
 
-.library-filter-strip,
+.library-main-content {
+  min-width: 0;
+}
+
 .library-list-panel,
-.library-detail-panel,
-.library-coefficient-panel {
+.library-detail-panel {
   margin-top: 16px;
 }
 
@@ -597,15 +685,16 @@ body {
   display: grid;
   gap: 16px;
   margin-top: 16px;
-}
-
-.library-trajectory-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .library-filter-strip {
   display: grid;
   gap: 18px;
+}
+
+.library-trajectory-grid > .library-chart-card {
+  margin-top: 0;
 }
 
 .library-chip-section {
@@ -2535,6 +2624,33 @@ body {
   margin-top: 8px;
 }
 
+@media (max-width: 1200px) {
+  .library-trajectory-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 960px) {
+  .library-sidebar-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .library-sidebar {
+    position: static;
+    top: auto;
+    height: auto;
+  }
+
+  .library-sidebar__body {
+    overflow: visible;
+  }
+
+  .library-sidebar__rail {
+    justify-content: flex-start;
+    padding: 16px 20px;
+  }
+}
+
 @media (max-width: 720px) {
   .app-header {
     height: auto;
@@ -2552,24 +2668,25 @@ body {
     padding: 16px;
   }
 
-  .library-layout {
-    grid-template-columns: 1fr;
-  }
-
   .library-field--wide {
     grid-column: auto;
   }
 
+  .library-sidebar__header,
+  .library-sidebar__body {
+    padding-inline: 16px;
+  }
+
+  .library-sidebar__header {
+    padding-top: 16px;
+  }
+
+  .library-sidebar__rail {
+    padding: 16px;
+  }
+
   .library-trajectory-grid {
     grid-template-columns: 1fr;
-  }
-
-  .library-filter-panel {
-    position: static;
-  }
-
-  .library-filter-panel .library-filter-grid {
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   }
 
   .library-detail-hero {
