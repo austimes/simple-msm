@@ -36,7 +36,7 @@ That explainability layer is part of the product itself, not an optional documen
 
 ## What The Library Looks Like Today
 
-The canonical authored package is [`sector_trajectory_library/`](/Users/gre538/code/simple-msm/sector_trajectory_library/README.md).
+The canonical authored package is [`sector_trajectory_library/`](./sector_trajectory_library/README.md).
 
 - `shared/families.csv` is the family registry that holds family-level metadata such as sector, region, output unit, and default incumbent state.
 - `families/<family_id>/family_states.csv` is the current authored state-year trajectory table for that family.
@@ -64,7 +64,7 @@ The intent is for the trajectory library to keep data, explanation, and validati
 
 ## Thin Usability Layer
 
-[`web/`](/Users/gre538/code/simple-msm/web/README.md) is the thin usability, optimization, and explainability layer around the package. It loads the checked-in `sector_trajectory_library/`, turns the current configuration into a normalized solve request, and runs the solve in-browser.
+[`web/`](./web/README.md) is the thin usability, optimization, and explainability layer around the package. It loads the checked-in `sector_trajectory_library/`, turns the current configuration into a normalized solve request, and runs the solve in-browser.
 
 That thin layer is there so you can:
 
@@ -95,6 +95,6 @@ The app matters because it makes the library easier to use and interrogate, but 
 
 ## Further Reading
 
-- [sector_trajectory_library/README.md](/Users/gre538/code/simple-msm/sector_trajectory_library/README.md)
-- [web/README.md](/Users/gre538/code/simple-msm/web/README.md)
-- [docs/prd/phase1_sector_state_explorer_prd_v02.md](/Users/gre538/code/simple-msm/docs/prd/phase1_sector_state_explorer_prd_v02.md)
+- [sector_trajectory_library/README.md](./sector_trajectory_library/README.md)
+- [web/README.md](./web/README.md)
+- [docs/prd/phase1_sector_state_explorer_prd_v02.md](./docs/prd/phase1_sector_state_explorer_prd_v02.md)
