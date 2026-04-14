@@ -143,6 +143,11 @@ export function AdditionalityPageView({
   const statusLine = buildStatusLine(analysisState);
   const priceSummary = buildPriceSummary(commodityOptions, commoditySelections);
   const orderedLabels = report?.sequence.map((entry) => buildOrderedStepLabel(entry.atom)) ?? [];
+  const orderedStepItems = report?.sequence.map((entry, index) => ({
+    key: entry.atom.key,
+    label: orderedLabels[index] ?? '',
+    step: entry.step,
+  })) ?? [];
   const sharedChartHeight = report
     ? Math.max(320, report.sequence.length * 24 + 96)
     : 320;
@@ -296,41 +301,60 @@ export function AdditionalityPageView({
             <p className="additionality-status-line">
               Steps are ordered by greedy objective delta; the companion charts reuse that order for other metrics.
             </p>
-            <div className="additionality-chart-grid">
-              <article className="configuration-panel">
-                <HorizontalDeltaBarChart
-                  title="Objective delta"
-                  valueFormatter={(value) => formatSignedDelta(value)}
-                  data={objectiveChartData}
-                  externalCategoryLabels={orderedLabels}
-                  height={sharedChartHeight}
-                  positiveLegendLabel="Increase objective"
-                  negativeLegendLabel="Decrease objective"
-                  showCategoryAxis={false}
-                />
-              </article>
-              <article className="configuration-panel">
-                <HorizontalDeltaBarChart
-                  title="Cumulative emissions delta"
-                  valueFormatter={(value) => formatSignedDelta(value)}
-                  data={emissionsChartData}
-                  height={sharedChartHeight}
-                  positiveLegendLabel="Increase emissions"
-                  negativeLegendLabel="Decrease emissions"
-                  showCategoryAxis={false}
-                />
-              </article>
-              <article className="configuration-panel">
-                <HorizontalDeltaBarChart
-                  title="2050 electricity demand delta"
-                  valueFormatter={(value) => formatSignedDelta(value)}
-                  data={electricityChartData}
-                  height={sharedChartHeight}
-                  positiveLegendLabel="Increase electricity demand"
-                  negativeLegendLabel="Decrease electricity demand"
-                  showCategoryAxis={false}
-                />
-              </article>
+            <div className="additionality-chart-layout">
+              <aside className="additionality-step-list-shell" aria-label="Greedy ordered steps">
+                <ol
+                  className="additionality-step-list"
+                  style={{ height: `${sharedChartHeight}px` }}
+                >
+                  {orderedStepItems.map((item) => (
+                    <li
+                      key={`${item.key}:step-list`}
+                      className="additionality-step-list-item"
+                      title={`${item.step}. ${item.label}`}
+                    >
+                      <span className="additionality-step-list-index">{item.step}.</span>
+                      <span className="additionality-step-list-text">{item.label}</span>
+                    </li>
+                  ))}
+                </ol>
+              </aside>
+
+              <div className="additionality-chart-grid">
+                <article className="configuration-panel">
+                  <HorizontalDeltaBarChart
+                    title="Objective delta"
+                    valueFormatter={(value) => formatSignedDelta(value)}
+                    data={objectiveChartData}
+                    height={sharedChartHeight}
+                    positiveLegendLabel="Increase objective"
+                    negativeLegendLabel="Decrease objective"
+                    showCategoryAxis={false}
+                  />
+                </article>
+                <article className="configuration-panel">
+                  <HorizontalDeltaBarChart
+                    title="Cumulative emissions delta"
+                    valueFormatter={(value) => formatSignedDelta(value)}
+                    data={emissionsChartData}
+                    height={sharedChartHeight}
+                    positiveLegendLabel="Increase emissions"
+                    negativeLegendLabel="Decrease emissions"
+                    showCategoryAxis={false}
+                  />
+                </article>
+                <article className="configuration-panel">
+                  <HorizontalDeltaBarChart
+                    title="2050 electricity demand delta"
+                    valueFormatter={(value) => formatSignedDelta(value)}
+                    data={electricityChartData}
+                    height={sharedChartHeight}
+                    positiveLegendLabel="Increase electricity demand"
+                    negativeLegendLabel="Decrease electricity demand"
+                    showCategoryAxis={false}
+                  />
+                </article>
+              </div>
             </div>
           </section>
 

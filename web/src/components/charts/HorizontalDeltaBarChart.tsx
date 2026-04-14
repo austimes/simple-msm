@@ -29,7 +29,6 @@ export interface HorizontalDeltaBarDatum {
 
 export interface HorizontalDeltaBarChartProps {
   data: HorizontalDeltaBarDatum[];
-  externalCategoryLabels?: string[];
   height?: number;
   negativeLegendLabel?: string;
   positiveLegendLabel?: string;
@@ -64,7 +63,6 @@ function resolveDomain(values: number[]): [number, number] {
 
 export default function HorizontalDeltaBarChart({
   data,
-  externalCategoryLabels,
   height,
   negativeLegendLabel = 'Decrease',
   positiveLegendLabel = 'Increase',
@@ -88,9 +86,6 @@ export default function HorizontalDeltaBarChart({
   const zeroCount = data.length - positiveCount - negativeCount;
   const chartLeftMargin = showCategoryAxis ? 180 : 24;
   const categoryAxisWidth = showCategoryAxis ? 172 : 0;
-  const visibleExternalCategoryLabels = externalCategoryLabels?.length
-    ? data.map((entry, index) => externalCategoryLabels[index] ?? entry.label)
-    : null;
 
   return (
     <ChartFrame
@@ -106,79 +101,57 @@ export default function HorizontalDeltaBarChart({
         { key: 'zero', label: `${zeroCount} zero-delta steps` },
       ]}
     >
-      <div className={`horizontal-delta-chart-inner${visibleExternalCategoryLabels ? ' horizontal-delta-chart-inner--with-external-labels' : ''}`}>
-        {visibleExternalCategoryLabels ? (
-          <ol
-            className="horizontal-delta-chart-external-labels"
-            aria-label={`${title} ordered steps`}
-          >
-            {visibleExternalCategoryLabels.map((label, index) => (
-              <li
-                key={`${data[index]?.key ?? index}:external-label`}
-                className="horizontal-delta-chart-external-label-item"
-                title={label}
-              >
-                <span className="horizontal-delta-chart-external-label-index">{index + 1}.</span>
-                <span className="horizontal-delta-chart-external-label-text">{label}</span>
-              </li>
+      <ResponsiveContainer {...buildResponsiveContainerProps(chartHeight)}>
+        <BarChart
+          data={data}
+          layout="vertical"
+          margin={{
+            ...WORKSPACE_CHART_MARGIN,
+            left: chartLeftMargin,
+          }}
+        >
+          <CartesianGrid
+            stroke={CHART_GRID_STROKE}
+            strokeDasharray={CHART_GRID_DASHARRAY}
+            horizontal={false}
+          />
+          <XAxis
+            type="number"
+            domain={domain}
+            tickLine={false}
+            axisLine={false}
+            tick={CHART_AXIS_TICK_STYLE}
+            tickFormatter={valueFormatter}
+          />
+          <YAxis
+            type="category"
+            dataKey="label"
+            width={categoryAxisWidth}
+            hide={!showCategoryAxis}
+            tickLine={false}
+            axisLine={false}
+            tick={CHART_AXIS_TICK_STYLE}
+          />
+          <ReferenceLine x={0} stroke="#334155" strokeWidth={1.5} />
+          <Tooltip
+            cursor={{ fill: 'rgba(148, 163, 184, 0.10)' }}
+            formatter={(value) => {
+              const numericValue = typeof value === 'number'
+                ? value
+                : Number(value ?? 0);
+              return valueFormatter(Number.isFinite(numericValue) ? numericValue : 0);
+            }}
+          />
+          <Bar dataKey="value" radius={[6, 6, 6, 6]} isAnimationActive={false}>
+            {data.map((entry) => (
+              <Cell
+                key={entry.key}
+                fill={entry.value > 0 ? POSITIVE_COLOR : entry.value < 0 ? NEGATIVE_COLOR : ZERO_COLOR}
+              />
             ))}
-          </ol>
-        ) : null}
-
-        <div className="horizontal-delta-chart-plot">
-          <ResponsiveContainer {...buildResponsiveContainerProps(chartHeight)}>
-            <BarChart
-              data={data}
-              layout="vertical"
-              margin={{
-                ...WORKSPACE_CHART_MARGIN,
-                left: chartLeftMargin,
-              }}
-            >
-              <CartesianGrid
-                stroke={CHART_GRID_STROKE}
-                strokeDasharray={CHART_GRID_DASHARRAY}
-                horizontal={false}
-              />
-              <XAxis
-                type="number"
-                domain={domain}
-                tickLine={false}
-                axisLine={false}
-                tick={CHART_AXIS_TICK_STYLE}
-                tickFormatter={valueFormatter}
-              />
-              <YAxis
-                type="category"
-                dataKey="label"
-                width={categoryAxisWidth}
-                hide={!showCategoryAxis}
-                tickLine={false}
-                axisLine={false}
-                tick={CHART_AXIS_TICK_STYLE}
-              />
-              <ReferenceLine x={0} stroke="#334155" strokeWidth={1.5} />
-              <Tooltip
-                cursor={{ fill: 'rgba(148, 163, 184, 0.10)' }}
-                formatter={(value) => {
-                  const numericValue = typeof value === 'number'
-                    ? value
-                    : Number(value ?? 0);
-                  return valueFormatter(Number.isFinite(numericValue) ? numericValue : 0);
-                }}
-              />
-              <Bar dataKey="value" radius={[6, 6, 6, 6]} isAnimationActive={false}>
-                {data.map((entry) => (
-                  <Cell
-                    key={entry.key}
-                    fill={entry.value > 0 ? POSITIVE_COLOR : entry.value < 0 ? NEGATIVE_COLOR : ZERO_COLOR}
-                  />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
     </ChartFrame>
   );
 }

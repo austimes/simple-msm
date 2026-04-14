@@ -185,7 +185,7 @@ describe('AdditionalityPage', () => {
     assert.match(html, /Objective delta/);
     assert.match(html, /Cumulative emissions delta/);
     assert.match(html, /2050 electricity demand delta/);
-    assert.match(html, /horizontal-delta-chart-external-labels/);
+    assert.match(html, /additionality-step-list/);
     assert.match(html, /1\./);
     assert.match(
       html,
