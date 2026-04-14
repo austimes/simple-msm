@@ -11,18 +11,10 @@ import type { ConfigurationDocument } from './types.ts';
 
 // --- Built-in configuration loading (Vite eager import) ---
 
-function loadConfigurationModules(pattern: string): Record<string, string> {
-  if (typeof import.meta.glob !== 'function') {
-    return {};
-  }
-
-  return import.meta.glob<string>(
-    pattern,
-    { eager: true, import: 'default', query: '?raw' },
-  );
-}
-
-const builtinConfigModules = loadConfigurationModules('/src/configurations/*.json');
+const builtinConfigModules = import.meta.glob<string>(
+  '/src/configurations/*.json',
+  { eager: true, import: 'default', query: '?raw' },
+);
 
 interface ConfigurationCollectionEntry {
   source: string;
@@ -147,7 +139,10 @@ export function loadBuiltinConfigurations(): ConfigurationDocument[] {
 // --- User configuration persistence (repo-backed via dev server API) ---
 
 // Bundled user configs loaded at build time (for production / static builds)
-const userConfigModules = loadConfigurationModules('/src/configurations/user/*.json');
+const userConfigModules = import.meta.glob<string>(
+  '/src/configurations/user/*.json',
+  { eager: true, import: 'default', query: '?raw' },
+);
 
 export function loadUserConfigurations(): ConfigurationDocument[] {
   return parseConfigurationCollection(userConfigModules, false);

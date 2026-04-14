@@ -5,29 +5,21 @@ import { parseCsv } from './parseCsv.ts';
 import { buildDefaultResidualOverlays, loadDefaultConfiguration } from './configurationDocumentLoader.ts';
 import type { EmissionEntry, PackageData, SectorState, ServiceDemandAnchorRow, ServiceDemandAnchorType, ResidualOverlayRow, ResidualOverlayDomain, CommodityBalance2025Row, EmissionsBalance2025Row } from './types.ts';
 
-function loadPackageTextFiles(): Record<string, string> {
-  if (typeof import.meta.glob !== 'function') {
-    return {};
-  }
-
-  return normalizePackageTextFiles(
-    import.meta.glob<string>(
-      [
-        '../../../aus_phase1_sector_state_library/README.md',
-        '../../../aus_phase1_sector_state_library/data/*.csv',
-        '../../../aus_phase1_sector_state_library/data/*.json',
-        '../../../aus_phase1_sector_state_library/docs/**/*.md',
-      ],
-      {
-        eager: true,
-        import: 'default',
-        query: '?raw',
-      },
-    ),
-  );
-}
-
-const packageTextFiles = loadPackageTextFiles();
+const packageTextFiles = normalizePackageTextFiles(
+  import.meta.glob<string>(
+    [
+      '../../../aus_phase1_sector_state_library/README.md',
+      '../../../aus_phase1_sector_state_library/data/*.csv',
+      '../../../aus_phase1_sector_state_library/data/*.json',
+      '../../../aus_phase1_sector_state_library/docs/**/*.md',
+    ],
+    {
+      eager: true,
+      import: 'default',
+      query: '?raw',
+    },
+  ),
+);
 
 function requirePackageFile(path: string): string {
   const file = packageTextFiles[path];
