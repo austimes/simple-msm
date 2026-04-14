@@ -8,6 +8,7 @@ import {
   type SectorStateTrajectory,
 } from '../data/libraryInsights';
 import { usePackageStore } from '../data/packageStore';
+import { getSeriesColor } from '../data/seriesColors.ts';
 import type { AssumptionLedgerEntry, SectorState, SourceLedgerEntry } from '../data/types';
 import LineChart, { type LineChartSeries } from './library/LineChart';
 import LibrarySidebarFrame from './library/LibrarySidebarFrame';
@@ -41,7 +42,6 @@ const EMPTY_FILTERS: LibraryFilters = {
   assumptionId: '',
 };
 
-const TRAJECTORY_COLORS = ['#0f766e', '#b45309', '#1d4ed8', '#be123c', '#7c3aed', '#0f766e'];
 const COEFFICIENT_DASH_PATTERNS = [undefined, '7 5', '3 4', '10 4 2 4', '2 3'];
 
 const numberFormatter = new Intl.NumberFormat('en-AU', {
@@ -233,16 +233,14 @@ export default function LibraryPage() {
     visibleTrajectories.find((trajectory) => trajectory.stateId === resolvedSelectedTrajectoryId) ?? null;
 
   const colorByTrajectoryId = useMemo(() => {
-    return new Map(
-      visibleTrajectories.map((trajectory, index) => [trajectory.stateId, TRAJECTORY_COLORS[index % TRAJECTORY_COLORS.length]]),
-    );
+    return new Map(visibleTrajectories.map((trajectory) => [trajectory.stateId, getSeriesColor('state', trajectory.stateId)]));
   }, [visibleTrajectories]);
 
   const metricSeries = useMemo(() => {
     const selectSeries = (trajectory: SectorStateTrajectory, metricKey: string): LineChartSeries => ({
       key: `${trajectory.stateId}::${metricKey}`,
       label: trajectory.label,
-      color: colorByTrajectoryId.get(trajectory.stateId) ?? TRAJECTORY_COLORS[0],
+      color: colorByTrajectoryId.get(trajectory.stateId) ?? getSeriesColor('state', trajectory.stateId),
       active: trajectory.stateId === resolvedSelectedTrajectoryId,
       values: trajectory.points.map((point) => ({
         year: point.year,
@@ -283,7 +281,7 @@ export default function LibraryPage() {
     return visibleTrajectories.map((trajectory) => ({
       stateId: trajectory.stateId,
       label: trajectory.label,
-      color: colorByTrajectoryId.get(trajectory.stateId) ?? TRAJECTORY_COLORS[0],
+      color: colorByTrajectoryId.get(trajectory.stateId) ?? getSeriesColor('state', trajectory.stateId),
       active: trajectory.stateId === resolvedSelectedTrajectoryId,
     }));
   }, [colorByTrajectoryId, resolvedSelectedTrajectoryId, visibleTrajectories]);
@@ -381,7 +379,7 @@ export default function LibraryPage() {
         return buildInputCommoditySeries(family).map<LineChartSeries>((entry) => ({
           key: `${family.stateId}::${entry.commodity}`,
           label: `${family.label} · ${entry.commodity}`,
-          color: colorByTrajectoryId.get(family.stateId) ?? TRAJECTORY_COLORS[0],
+          color: colorByTrajectoryId.get(family.stateId) ?? getSeriesColor('state', family.stateId),
           dashArray: dashByCommodity.get(entry.commodity),
           active: family.stateId === resolvedSelectedTrajectoryId,
           values: entry.values,
