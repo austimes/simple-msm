@@ -2,6 +2,7 @@
 .orc/
 node_modules/
 aus_phase1_sector_state_library.zip
+aus_phase1_sector_state_library/
 
 # Beads / Dolt files (added by bd init)
 .dolt/
