@@ -23,9 +23,10 @@ test('ModelFormulationPageContent renders the formulation, source references, an
     html,
     /resolved_value_y = anchor \* \(1 \+ growth_rate_pct_per_year \/ 100\)\^\(y - anchor_year\)/,
   );
-  assert.match(html, /sector_state_curves_balanced\.csv/);
-  assert.match(html, /residual_overlays_2025\.csv/);
-  assert.match(html, /commodity_price_presets\.json/);
+  assert.match(html, /shared\/families\.csv/);
+  assert.match(html, /families\/\*\/family_states\.csv/);
+  assert.match(html, /overlays\/residual_overlays\.csv/);
+  assert.match(html, /shared\/commodity_price_curves\.csv/);
   assert.match(html, /carbon_price/);
   assert.match(html, /Overlays are not part of the LP core/);
   assert.match(html, /not included in `buildSolveRequest\.ts`/);

@@ -75,7 +75,7 @@ describe('modelFormulationModel', () => {
     assert.ok(model.overlaySummary.totalResidualNonEnergyEmissions > 0);
 
     const overlayMapping = model.sourceMapping.find(
-      (row) => row.source === 'residual_overlays_2025.csv',
+      (row) => row.source === 'overlays/residual_overlays.csv',
     );
 
     assert.ok(overlayMapping, 'expected residual overlay source mapping row');

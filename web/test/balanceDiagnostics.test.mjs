@@ -39,11 +39,12 @@ function parseEmptyNull(raw) {
 
 // --- Load CSVs ---
 
-const DATA = '../../aus_phase1_sector_state_library/data';
+const OVERLAYS = '../../sector_trajectory_library/overlays';
+const VALIDATION = '../../sector_trajectory_library/validation';
 
-const overlayRows = parseCsv(readText(`${DATA}/residual_overlays_2025.csv`));
-const commodityBalanceRows = parseCsv(readText(`${DATA}/commodity_balance_2025.csv`));
-const emissionsBalanceRows = parseCsv(readText(`${DATA}/emissions_balance_2025.csv`));
+const overlayRows = parseCsv(readText(`${OVERLAYS}/residual_overlays.csv`));
+const commodityBalanceRows = parseCsv(readText(`${VALIDATION}/baseline_commodity_balance.csv`));
+const emissionsBalanceRows = parseCsv(readText(`${VALIDATION}/baseline_emissions_balance.csv`));
 
 // --- Typed rows for diagnostics module ---
 
@@ -76,7 +77,7 @@ const typedOverlays = overlayRows.map((r) => ({
 // =============================================================================
 
 describe('Overlay parsing', () => {
-  it('residual_overlays_2025.csv loads 39 data rows', () => {
+  it('residual_overlays.csv loads 39 data rows', () => {
     assert.equal(overlayRows.length, 39);
   });
 
@@ -95,11 +96,11 @@ describe('Overlay parsing', () => {
     assert.equal(sink.length, 1);
   });
 
-  it('commodity_balance_2025.csv loads 7 data rows', () => {
+  it('baseline_commodity_balance.csv loads 7 data rows', () => {
     assert.equal(commodityBalanceRows.length, 7);
   });
 
-  it('emissions_balance_2025.csv loads 10 data rows', () => {
+  it('baseline_emissions_balance.csv loads 10 data rows', () => {
     assert.equal(emissionsBalanceRows.length, 10);
   });
 });
@@ -177,14 +178,14 @@ describe('Aggregation totals', () => {
 // =============================================================================
 
 describe('Diagnostic table cross-checks', () => {
-  it('commodity_balance_2025 total row difference_to_benchmark_pj_2025 is 0', () => {
+  it('baseline_commodity_balance total row difference_to_benchmark_pj_2025 is 0', () => {
     const totalRow = commodityBalanceRows.find((r) => r['commodity'] === 'total');
-    assert.ok(totalRow, 'Expected a "total" row in commodity_balance_2025.csv');
+    assert.ok(totalRow, 'Expected a "total" row in baseline_commodity_balance.csv');
     const diff = parseNum(totalRow['difference_to_benchmark_pj_2025']);
     assert.equal(diff, 0.0, `Expected difference 0, got ${diff}`);
   });
 
-  it('emissions_balance_2025 positive-sectors row difference ≈ 0', () => {
+  it('baseline_emissions_balance positive-sectors row difference ≈ 0', () => {
     const positiveRow = emissionsBalanceRows.find((r) =>
       r['official_category']?.startsWith('Positive-emitting'),
     );

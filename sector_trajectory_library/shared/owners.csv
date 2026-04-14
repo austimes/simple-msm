@@ -1,0 +1,3 @@
+owner_id,owner_name,team,role,contact,status
+core_library_team,Core Library Team,simple-msm,Maintainer,repo://simple-msm,active
+core_model_review,Core Model Review,simple-msm,Reviewer,repo://simple-msm,active

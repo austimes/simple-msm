@@ -1,11 +1,11 @@
 {
-  "residential_building_services": {
+  "cement_equivalent": {
     "output_role": "required_service",
     "anchor_kind": "service_demand",
     "anchor_year": 2025,
-    "value": 477000000,
-    "unit": "GJ_service_eq",
-    "provenance_note": "App-owned 2025 default anchor for fast configuration setup. Not part of the research library evidence."
+    "value": 9600000,
+    "unit": "t_cement_equivalent",
+    "provenance_note": "Phase 1 reference scenario v0.2 — Inherited cement-equivalent output anchor from the Phase 1 calibration build."
   },
   "commercial_building_services": {
     "output_role": "required_service",
@@ -13,71 +13,7 @@
     "anchor_year": 2025,
     "value": 314000000,
     "unit": "GJ_service_eq",
-    "provenance_note": "App-owned 2025 default anchor for fast configuration setup. Not part of the research library evidence."
-  },
-  "passenger_road_transport": {
-    "output_role": "required_service",
-    "anchor_kind": "service_demand",
-    "anchor_year": 2025,
-    "value": 293414730000,
-    "unit": "pkm",
-    "provenance_note": "App-owned 2025 default anchor for fast configuration setup. Not part of the research library evidence."
-  },
-  "freight_road_transport": {
-    "output_role": "required_service",
-    "anchor_kind": "service_demand",
-    "anchor_year": 2025,
-    "value": 249000000000,
-    "unit": "tkm",
-    "provenance_note": "App-owned 2025 default anchor for fast configuration setup. Not part of the research library evidence."
-  },
-  "low_temperature_heat": {
-    "output_role": "required_service",
-    "anchor_kind": "service_demand",
-    "anchor_year": 2025,
-    "value": 120000000,
-    "unit": "GJ_useful_heat",
-    "provenance_note": "App-owned 2025 default anchor for fast configuration setup. Not part of the research library evidence."
-  },
-  "medium_temperature_heat": {
-    "output_role": "required_service",
-    "anchor_kind": "service_demand",
-    "anchor_year": 2025,
-    "value": 140000000,
-    "unit": "GJ_useful_heat",
-    "provenance_note": "App-owned 2025 default anchor for fast configuration setup. Not part of the research library evidence."
-  },
-  "high_temperature_heat": {
-    "output_role": "required_service",
-    "anchor_kind": "service_demand",
-    "anchor_year": 2025,
-    "value": 170000000,
-    "unit": "GJ_useful_heat",
-    "provenance_note": "App-owned 2025 default anchor for fast configuration setup. Not part of the research library evidence."
-  },
-  "crude_steel": {
-    "output_role": "required_service",
-    "anchor_kind": "service_demand",
-    "anchor_year": 2025,
-    "value": 5700000,
-    "unit": "t_crude_steel",
-    "provenance_note": "App-owned 2025 default anchor for fast configuration setup. Not part of the research library evidence."
-  },
-  "cement_equivalent": {
-    "output_role": "required_service",
-    "anchor_kind": "service_demand",
-    "anchor_year": 2025,
-    "value": 9600000,
-    "unit": "t_cement_equivalent",
-    "provenance_note": "App-owned 2025 default anchor for fast configuration setup. Not part of the research library evidence."
-  },
-  "livestock_output_bundle": {
-    "output_role": "required_service",
-    "anchor_kind": "service_demand",
-    "anchor_year": 2025,
-    "value": 31134.94,
-    "unit": "A$m_output_2024",
-    "provenance_note": "App-owned 2025 default anchor for fast configuration setup. Not part of the research library evidence."
+    "provenance_note": "Australian Energy Update 2025 Table 5 / Table 11 — Aligned to 2023–24 commercial final energy use as the incumbent service-demand anchor."
   },
   "cropping_horticulture_output_bundle": {
     "output_role": "required_service",
@@ -85,23 +21,87 @@
     "anchor_year": 2025,
     "value": 36576.29,
     "unit": "A$m_output_2024",
-    "provenance_note": "App-owned 2025 default anchor for fast configuration setup. Not part of the research library evidence."
+    "provenance_note": "Phase 1 reference scenario v0.2 — Inherited coarse agricultural output-bundle anchor from the Phase 1 calibration build."
   },
-  "land_sequestration": {
+  "crude_steel": {
     "output_role": "required_service",
     "anchor_kind": "service_demand",
     "anchor_year": 2025,
-    "value": 0,
-    "unit": "tCO2e_sequestered",
-    "provenance_note": "App-owned 2025 default anchor for fast configuration setup. Not part of the research library evidence."
+    "value": 5700000,
+    "unit": "t_crude_steel",
+    "provenance_note": "Phase 1 reference scenario v0.2 — Inherited crude steel output anchor from the Phase 1 calibration build."
   },
   "engineered_removals": {
     "output_role": "required_service",
     "anchor_kind": "service_demand",
     "anchor_year": 2025,
     "value": 0,
-    "unit": "tCO2e_removed",
-    "provenance_note": "App-owned 2025 default anchor for fast configuration setup. Not part of the research library evidence."
+    "unit": "tCO2_removed",
+    "provenance_note": "Migrated family default — Migrated from the Phase 1 package without changing anchor semantics."
+  },
+  "freight_road_transport": {
+    "output_role": "required_service",
+    "anchor_kind": "service_demand",
+    "anchor_year": 2025,
+    "value": 249000000000,
+    "unit": "tkm",
+    "provenance_note": "BITRE Yearbook 2024 freight chapter — Anchored to 2023–24 road freight task (~249 billion tonne-km)."
+  },
+  "high_temperature_heat": {
+    "output_role": "required_service",
+    "anchor_kind": "service_demand",
+    "anchor_year": 2025,
+    "value": 170000000,
+    "unit": "GJ_useful_heat",
+    "provenance_note": "Phase 1 reference scenario v0.2 — Inherited high-temperature useful-heat anchor from the synthetic Phase 1 calibration build; broad manufacturing proxy."
+  },
+  "land_sequestration": {
+    "output_role": "required_service",
+    "anchor_kind": "service_demand",
+    "anchor_year": 2025,
+    "value": 0,
+    "unit": "tCO2_removed",
+    "provenance_note": "Migrated family default — Migrated from the Phase 1 package without changing anchor semantics."
+  },
+  "livestock_output_bundle": {
+    "output_role": "required_service",
+    "anchor_kind": "service_demand",
+    "anchor_year": 2025,
+    "value": 31134.94,
+    "unit": "A$m_output_2024",
+    "provenance_note": "Phase 1 reference scenario v0.2 — Inherited coarse agricultural output-bundle anchor from the Phase 1 calibration build."
+  },
+  "low_temperature_heat": {
+    "output_role": "required_service",
+    "anchor_kind": "service_demand",
+    "anchor_year": 2025,
+    "value": 120000000,
+    "unit": "GJ_useful_heat",
+    "provenance_note": "Phase 1 reference scenario v0.2 — Inherited low-temperature useful-heat anchor from the synthetic Phase 1 calibration build; broad manufacturing proxy."
+  },
+  "medium_temperature_heat": {
+    "output_role": "required_service",
+    "anchor_kind": "service_demand",
+    "anchor_year": 2025,
+    "value": 140000000,
+    "unit": "GJ_useful_heat",
+    "provenance_note": "Phase 1 reference scenario v0.2 — Inherited medium-temperature useful-heat anchor from the synthetic Phase 1 calibration build; broad manufacturing proxy."
+  },
+  "passenger_road_transport": {
+    "output_role": "required_service",
+    "anchor_kind": "service_demand",
+    "anchor_year": 2025,
+    "value": 293414730000,
+    "unit": "pkm",
+    "provenance_note": "BITRE Yearbook 2024 Table 5.1 — Anchored to 2023–24 road passenger task represented by passenger cars plus buses (276.2 + 17.2 = 293.4 billion pkm)."
+  },
+  "residential_building_services": {
+    "output_role": "required_service",
+    "anchor_kind": "service_demand",
+    "anchor_year": 2025,
+    "value": 477000000,
+    "unit": "GJ_service_eq",
+    "provenance_note": "Australian Energy Update 2025 Table 5 / Table 11 — Aligned to 2023–24 residential final energy use as the incumbent service-demand anchor."
   },
   "electricity": {
     "output_role": "endogenous_supply_commodity",
@@ -109,6 +109,6 @@
     "anchor_year": 2025,
     "value": 144018720,
     "unit": "MWh",
-    "provenance_note": "Residual external electricity-demand anchor for fast externalized-price configuration setup. Not part of the research library evidence."
+    "provenance_note": "Derived = official total generation benchmark - explicit modelled end-use electricity. — Residual electricity-supply output required to reach total generation, covering omitted-sector final demand plus losses/own-use."
   }
 }

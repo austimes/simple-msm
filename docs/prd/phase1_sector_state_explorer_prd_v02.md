@@ -3,7 +3,7 @@
 Version: 0.2  
 Date: 2026-04-07  
 Status: revised after demand-path clarification  
-Primary input package: `aus_phase1_sector_state_library.zip`
+Primary input package: `sector_trajectory_library/`
 
 ## 1. Product summary
 
@@ -50,9 +50,9 @@ The app must work with the files that are physically present now:
 
 | File | Mandatory use |
 |---|---|
-| `data/sector_states.csv` | Core state-year rows used by explorer, configuration workspace, and solver |
+| `families/<family_id>/family_states.csv` | Core state-year rows used by explorer, configuration workspace, and solver |
 | `README.md` | High-level methods/about/trust page |
-| `docs/phase2_recommendations.md` | Caveats, maturity notes, and expansion-path page |
+| `families/<family_id>/README.md` | Caveats, maturity notes, and expansion-path page |
 
 ## 3.2 Optional enrichment inputs
 
@@ -60,20 +60,17 @@ The README references additional ledgers and notes that are not physically prese
 
 Optional future enrichments:
 
-- `data/sector_states_schema.json`
-- `data/source_ledger.csv`
-- `data/assumptions_ledger.csv`
-- `data/calibration_summary.csv`
-- `data/uncertainty_summary.csv`
-- `data/commodity_taxonomy.csv`
-- `docs/methods_overview.md`
-- `docs/sector_derivations/*`
-- `docs/calibration_validation.md`
-- `docs/uncertainty_confidence.md`
+- `schema/family_states.schema.json`
+- `shared/source_ledger.csv`
+- `shared/assumptions_ledger.csv`
+- `shared/commodities.csv`
+- `validation/family_validation_summary.csv`
+- `families/*/README.md`
+- `families/*/validation.md`
 
 ## 3.3 Consequence for v1 trust features
 
-Because the current zip does not include separate source and assumption ledgers, v1 trust/explainer features must rely primarily on fields embedded in `sector_states.csv`:
+Because the current zip does not include separate source and assumption ledgers, v1 trust/explainer features must rely primarily on fields embedded in `family_states.csv`:
 
 - `source_ids`
 - `assumption_ids`
@@ -598,7 +595,7 @@ Because the current zip is light, v1 Methods/Trust should be based on:
 
 - `README.md`
 - `docs/phase2_recommendations.md`
-- embedded state-level evidence fields from `sector_states.csv`
+- embedded state-level evidence fields from `family_states.csv`
 
 Recommended tabs:
 
@@ -835,7 +832,7 @@ The build is acceptable only if all of the following are true.
 ### 17.1 Data and trust
 
 - The app runs using the files currently present in the zip.
-- Every state detail view exposes the evidence and confidence fields embedded in `sector_states.csv`.
+- Every state detail view exposes the evidence and confidence fields embedded in `family_states.csv`.
 - README and Phase 2 memo are visible in-app.
 
 ### 17.2 Configuration control

@@ -1,0 +1,2 @@
+family_id,anchor_year,anchor_value,unit,demand_growth_curve_id,anchor_status,source_family,coverage_note,notes
+low_temperature_heat,2025,120000000.0,GJ_useful_heat,simple_sector_growth_central__low_temperature_heat,synthetic_inherited,Phase 1 reference scenario v0.2,Inherited low-temperature useful-heat anchor from the synthetic Phase 1 calibration build; broad manufacturing proxy.,Migrated from the Phase 1 anchor table without changing the baseline value.

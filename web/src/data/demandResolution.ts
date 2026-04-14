@@ -124,6 +124,32 @@ function generateValueTable(
   }, {});
 }
 
+function generateValueTableFromMultipliers(
+  anchor: number,
+  multipliersByYear: Record<string, number>,
+  years: readonly number[],
+  yearOverrides: ConfigurationDemandGeneration['year_overrides'],
+  id: string,
+): Record<string, number> {
+  const decimalPlaces = countDecimalPlaces(anchor);
+
+  return years.reduce<Record<string, number>>((resolved, year) => {
+    const key = yearKey(year);
+    const overrideValue = yearOverrides?.[key]?.[id];
+
+    if (typeof overrideValue === 'number') {
+      resolved[key] = overrideValue;
+      return resolved;
+    }
+
+    const multiplier = typeof multipliersByYear[key] === 'number'
+      ? multipliersByYear[key]
+      : 0;
+    resolved[key] = roundToPlaces(anchor * multiplier, decimalPlaces);
+    return resolved;
+  }, {});
+}
+
 function assertCompatibleResolvedTables(
   rawTables: Record<string, ConfigurationYearValueTable> | undefined,
   resolvedTables: Record<string, Record<string, number>>,
@@ -203,14 +229,24 @@ function resolveServiceDemandTables(
   }, {});
 
   const tables = serviceIds.reduce<Record<string, Record<string, number>>>((resolved, outputId) => {
-    resolved[outputId] = generateValueTable(
-      anchors[outputId],
-      growthRates[outputId],
-      configuration.years,
-      configuration.demand_generation.anchor_year,
-      configuration.demand_generation.year_overrides,
-      outputId,
-    );
+    const overrideRate = configuration.demand_generation.service_growth_rates_pct_per_year?.[outputId];
+    const presetMultipliers = preset.milestone_multipliers_by_output?.[outputId];
+    resolved[outputId] = typeof overrideRate === 'number' || !presetMultipliers
+      ? generateValueTable(
+          anchors[outputId],
+          growthRates[outputId],
+          configuration.years,
+          configuration.demand_generation.anchor_year,
+          configuration.demand_generation.year_overrides,
+          outputId,
+        )
+      : generateValueTableFromMultipliers(
+          anchors[outputId],
+          presetMultipliers,
+          configuration.years,
+          configuration.demand_generation.year_overrides,
+          outputId,
+        );
     return resolved;
   }, {});
 
@@ -264,14 +300,24 @@ function resolveExternalCommodityDemandTables(
   }, {});
 
   const tables = externalCommodityIds.reduce<Record<string, Record<string, number>>>((resolved, commodityId) => {
-    resolved[commodityId] = generateValueTable(
-      anchors[commodityId],
-      growthRates[commodityId],
-      configuration.years,
-      configuration.demand_generation.anchor_year,
-      configuration.demand_generation.year_overrides,
-      commodityId,
-    );
+    const overrideRate = configuration.demand_generation.external_commodity_growth_rates_pct_per_year?.[commodityId];
+    const presetMultipliers = preset.milestone_multipliers_by_external_commodity?.[commodityId];
+    resolved[commodityId] = typeof overrideRate === 'number' || !presetMultipliers
+      ? generateValueTable(
+          anchors[commodityId],
+          growthRates[commodityId],
+          configuration.years,
+          configuration.demand_generation.anchor_year,
+          configuration.demand_generation.year_overrides,
+          commodityId,
+        )
+      : generateValueTableFromMultipliers(
+          anchors[commodityId],
+          presetMultipliers,
+          configuration.years,
+          configuration.demand_generation.year_overrides,
+          commodityId,
+        );
     return resolved;
   }, {});
 

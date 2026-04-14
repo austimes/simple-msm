@@ -20,27 +20,23 @@ test('optional companions can be absent without blocking package enrichment', ()
 test('optional companions are parsed into enrichment data when they are present', () => {
   const enrichment = buildPackageEnrichment({
     'README.md': '# Package README\n\n## What is included\n\nCore rows only.',
-    'docs/phase2_recommendations.md': '# Phase 2\n\n## Final recommendation\n\nKeep going.',
-    'docs/methods_overview.md': '# Methods overview\n\n## Cost convention\n\nUse conversion costs.',
-    'docs/calibration_validation.md': '# Calibration\n\n## Overall calibration judgement\n\nGood enough for Phase 1.',
-    'docs/uncertainty_confidence.md': '# Uncertainty\n\n## Bottom line\n\nKeep uncertainty visible.',
-    'docs/sector_derivations/steel.md': '# Steel derivation\n\n## Why this output was chosen\n\nSteel needs an explicit hard-to-abate route.',
-    'data/source_ledger.csv': [
+    'families/steel/README.md': '# Steel family\n\n## What the family represents\n\nSteel needs an explicit hard-to-abate route.',
+    'shared/source_ledger.csv': [
       'source_id,citation,publication_date,institution,url_or_document_location,parameters_informed,quality_authority_notes',
       'S001,Official baseline,2025,Authority,example.com,Calibration,Primary source',
     ].join('\n'),
-    'data/assumptions_ledger.csv': [
+    'shared/assumptions_ledger.csv': [
       'assumption_id,assumption_statement,rationale,affected_sectors_parameters,sensitivity_importance,proposed_validation_route',
       'A001,Keep baseline aligned,Staggered official releases,All sectors,High,Refresh next year',
     ].join('\n'),
-    'data/sector_states_schema.json': JSON.stringify({
-      title: 'Sector states schema',
+    'schema/family_states.schema.json': JSON.stringify({
+      title: 'Family states schema',
       description: 'Schema for sector rows.',
-      required: ['sector', 'source_ids'],
+      required: ['family_id', 'source_ids'],
       properties: {
-        sector: {
+        family_id: {
           type: 'string',
-          description: 'Sector name.',
+          description: 'Family id.',
         },
         source_ids: {
           type: 'string',
@@ -51,32 +47,32 @@ test('optional companions are parsed into enrichment data when they are present'
   });
 
   assert.equal(enrichment.readme.startsWith('# Package README'), true);
-  assert.equal(enrichment.phase2Memo.startsWith('# Phase 2'), true);
-  assert.equal(enrichment.methodsOverview.includes('Cost convention'), true);
-  assert.equal(enrichment.calibrationValidation.includes('Overall calibration judgement'), true);
-  assert.equal(enrichment.uncertaintyConfidence.includes('Bottom line'), true);
+  assert.equal(enrichment.phase2Memo, '');
+  assert.equal(enrichment.methodsOverview, '');
+  assert.equal(enrichment.calibrationValidation, '');
+  assert.equal(enrichment.uncertaintyConfidence, '');
   assert.equal(enrichment.sourceLedger[0].sourceId, 'S001');
   assert.equal(enrichment.assumptionsLedger[0].assumptionId, 'A001');
   assert.equal(enrichment.sectorStatesSchema?.requiredFields.includes('source_ids'), true);
   assert.deepEqual(
     enrichment.sectorStatesSchema?.fields.map((field) => field.name),
-    ['sector', 'source_ids'],
+    ['family_id', 'source_ids'],
   );
-  assert.equal(enrichment.sectorStatesSchema?.fields[0].description, 'Sector name.');
+  assert.equal(enrichment.sectorStatesSchema?.fields[0].description, 'Family id.');
   assert.equal(
     enrichment.sectorStatesSchema?.fields[1].description,
     'JSON-encoded source IDs.',
   );
-  assert.equal(enrichment.sectorDerivations.steel.title, 'Steel derivation');
+  assert.equal(enrichment.sectorDerivations.steel.title, 'Steel family');
   assert.deepEqual(enrichment.warnings, []);
 });
 
 test('normalizePackageTextFiles strips the package import prefix from glob keys', () => {
   const normalized = normalizePackageTextFiles({
-    '../../../aus_phase1_sector_state_library/data/source_ledger.csv': 'x',
+    '../../../sector_trajectory_library/shared/source_ledger.csv': 'x',
   });
 
   assert.deepEqual(normalized, {
-    'data/source_ledger.csv': 'x',
+    'shared/source_ledger.csv': 'x',
   });
 });

@@ -114,6 +114,8 @@ export interface DemandGrowthPreset {
   description: string;
   annual_growth_rates_pct_per_year: Record<string, number>;
   external_commodity_growth_rates_pct_per_year: Record<string, number>;
+  milestone_multipliers_by_output?: Record<string, Record<string, number>>;
+  milestone_multipliers_by_external_commodity?: Record<string, Record<string, number>>;
   provenance_note: string;
 }
 

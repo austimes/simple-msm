@@ -311,7 +311,7 @@ export default function MethodsPage() {
   }, [confidenceCounts]);
 
   const optionalCompanionCount = useMemo(() => {
-    return enrichment.availablePaths.filter((path) => path !== 'data/sector_state_curves_balanced.csv').length;
+    return enrichment.availablePaths.filter((path) => path !== 'exports/legacy/sector_state_curves_balanced.csv').length;
   }, [enrichment.availablePaths]);
 
   return (

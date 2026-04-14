@@ -1,0 +1,2 @@
+family_id,anchor_year,anchor_value,unit,demand_growth_curve_id,anchor_status,source_family,coverage_note,notes
+commercial_building_services,2025,314000000.0,GJ_service_eq,simple_sector_growth_central__commercial_building_services,official_direct,Australian Energy Update 2025 Table 5 / Table 11,Aligned to 2023–24 commercial final energy use as the incumbent service-demand anchor.,Migrated from the Phase 1 anchor table without changing the baseline value.

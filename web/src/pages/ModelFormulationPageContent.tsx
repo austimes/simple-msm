@@ -314,8 +314,8 @@ export default function ModelFormulationPageContent({
         <h2>Source mapping</h2>
         <p>
           This table ties the page back to the exact package files and app registries that shape the
-          LP. It is the shortest route from `sector_state_curves_balanced.csv` and the active JSON
-          configuration to the symbols and equations above.
+          LP. It is the shortest route from `shared/families.csv`, `families/*/family_states.csv`,
+          and the active JSON configuration to the symbols and equations above.
         </p>
 
         <div className="library-mini-table model-formulation-source-table">
@@ -337,7 +337,7 @@ export default function ModelFormulationPageContent({
       <section className="configuration-panel">
         <h2>How overlays are added after the LP</h2>
         <p>
-          Residual overlays are loaded from `residual_overlays_2025.csv` and then used only for
+          Residual overlays are loaded from `overlays/residual_overlays.csv` and then used only for
           2025 accounting closure. They are fixed layers for omitted sectors, not a second solve.
         </p>
         <ul className="methods-list">
@@ -351,8 +351,9 @@ export default function ModelFormulationPageContent({
           <strong>Overlays are not part of the LP core.</strong>
           <p>
             The LP solves the explicit state rows only. Residual overlays are added after the LP so
-            `commodity_balance_2025.csv` and `emissions_balance_2025.csv` can show how the packaged
-            2025 benchmark closes once omitted sectors are layered back in.
+            `validation/baseline_commodity_balance.csv` and
+            `validation/baseline_emissions_balance.csv` can show how the packaged 2025 benchmark
+            closes once omitted sectors are layered back in.
           </p>
         </div>
 

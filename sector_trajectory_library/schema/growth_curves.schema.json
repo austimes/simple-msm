@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schema/growth_curves.schema.json",
+  "title": "Demand growth curves",
+  "type": "object",
+  "required": [
+    "demand_growth_curve_id",
+    "label",
+    "description",
+    "2025",
+    "2030",
+    "2035",
+    "2040",
+    "2045",
+    "2050",
+    "provenance_note"
+  ],
+  "properties": {
+    "2025": {
+      "type": [
+        "string",
+        "number"
+      ],
+      "description": "Field 2025 in Demand growth curves."
+    },
+    "2030": {
+      "type": [
+        "string",
+        "number"
+      ],
+      "description": "Field 2030 in Demand growth curves."
+    },
+    "2035": {
+      "type": [
+        "string",
+        "number"
+      ],
+      "description": "Field 2035 in Demand growth curves."
+    },
+    "2040": {
+      "type": [
+        "string",
+        "number"
+      ],
+      "description": "Field 2040 in Demand growth curves."
+    },
+    "2045": {
+      "type": [
+        "string",
+        "number"
+      ],
+      "description": "Field 2045 in Demand growth curves."
+    },
+    "2050": {
+      "type": [
+        "string",
+        "number"
+      ],
+      "description": "Field 2050 in Demand growth curves."
+    },
+    "demand_growth_curve_id": {
+      "type": [
+        "string",
+        "number"
+      ],
+      "description": "Field demand_growth_curve_id in Demand growth curves."
+    },
+    "label": {
+      "type": [
+        "string",
+        "number"
+      ],
+      "description": "Field label in Demand growth curves."
+    },
+    "description": {
+      "type": [
+        "string",
+        "number"
+      ],
+      "description": "Field description in Demand growth curves."
+    },
+    "provenance_note": {
+      "type": [
+        "string",
+        "number"
+      ],
+      "description": "Field provenance_note in Demand growth curves."
+    }
+  }
+}

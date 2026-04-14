@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schema/families.schema.json",
+  "title": "Trajectory families registry",
+  "description": "Schema for shared/families.csv.",
+  "type": "object",
+  "required": [
+    "family_id",
+    "sector",
+    "subsector",
+    "service_or_output_name",
+    "region",
+    "output_role",
+    "output_unit",
+    "output_quantity_basis",
+    "default_incumbent_state_id",
+    "maintainer_owner_id",
+    "review_owner_id",
+    "family_status",
+    "family_maturity",
+    "notes"
+  ],
+  "properties": {
+    "family_id": {
+      "type": "string",
+      "description": "Field family_id in the family registry."
+    },
+    "sector": {
+      "type": "string",
+      "description": "Field sector in the family registry."
+    },
+    "subsector": {
+      "type": "string",
+      "description": "Field subsector in the family registry."
+    },
+    "service_or_output_name": {
+      "type": "string",
+      "description": "Field service_or_output_name in the family registry."
+    },
+    "region": {
+      "type": "string",
+      "description": "Field region in the family registry."
+    },
+    "output_role": {
+      "type": "string",
+      "description": "Field output_role in the family registry."
+    },
+    "output_unit": {
+      "type": "string",
+      "description": "Field output_unit in the family registry."
+    },
+    "output_quantity_basis": {
+      "type": "string",
+      "description": "Field output_quantity_basis in the family registry."
+    },
+    "default_incumbent_state_id": {
+      "type": "string",
+      "description": "Field default_incumbent_state_id in the family registry."
+    },
+    "maintainer_owner_id": {
+      "type": "string",
+      "description": "Field maintainer_owner_id in the family registry."
+    },
+    "review_owner_id": {
+      "type": "string",
+      "description": "Field review_owner_id in the family registry."
+    },
+    "family_status": {
+      "type": "string",
+      "description": "Field family_status in the family registry."
+    },
+    "family_maturity": {
+      "type": "string",
+      "description": "Field family_maturity in the family registry."
+    },
+    "notes": {
+      "type": "string",
+      "description": "Field notes in the family registry."
+    }
+  }
+}

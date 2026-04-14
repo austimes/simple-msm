@@ -141,8 +141,8 @@ export const MODEL_FORMULATION_PIPELINE_STEPS: ModelFormulationPipelineStep[] = 
   {
     title: '1. State library rows',
     summary:
-      'Load state-year rows with output units, non-commodity conversion costs, commodity-input coefficients, direct emissions, and rollout bounds.',
-    artifacts: ['sector_state_curves_balanced.csv'],
+      'Load family-scoped state-year rows with output units, non-commodity conversion costs, commodity-input coefficients, direct emissions, and rollout bounds.',
+    artifacts: ['shared/families.csv', 'families/*/family_states.csv'],
   },
   {
     title: '2. Configuration resolution',
@@ -152,8 +152,8 @@ export const MODEL_FORMULATION_PIPELINE_STEPS: ModelFormulationPipelineStep[] = 
       'output_roles.json',
       'demandResolution.ts',
       'solveRequestModel.ts',
-      'commodity_price_presets.json',
-      'carbon_price_presets.json',
+      'shared/commodity_price_curves.csv',
+      'shared/carbon_price_curves.csv',
     ],
   },
   {
@@ -173,9 +173,9 @@ export const MODEL_FORMULATION_PIPELINE_STEPS: ModelFormulationPipelineStep[] = 
     summary:
       'Layer fixed 2025 residual overlays back onto commodity and emissions accounting after the LP for diagnostic closure.',
     artifacts: [
-      'residual_overlays_2025.csv',
-      'commodity_balance_2025.csv',
-      'emissions_balance_2025.csv',
+      'overlays/residual_overlays.csv',
+      'validation/baseline_commodity_balance.csv',
+      'validation/baseline_emissions_balance.csv',
     ],
   },
 ];
@@ -234,31 +234,31 @@ export const MODEL_FORMULATION_COMMODITY_BALANCE_EQUATIONS: ModelFormulationEqua
 
 export const MODEL_FORMULATION_SOURCE_MAPPING: ModelFormulationSourceMappingRow[] = [
   {
-    source: 'sector_state_curves_balanced.csv',
+    source: 'shared/families.csv + families/*/family_states.csv',
     mapsTo: 'row activities, coefficients, emissions, min_share, max_share, max_activity',
     howItEnters:
-      'Normalized into solver rows so each state-year becomes one LP activity variable.',
+      'Joined and normalized into solver rows so each state-year becomes one LP activity variable.',
   },
   {
-    source: 'service_demand_anchors_2025.csv + baseline_activity_anchors.json',
+    source: 'families/*/demand.csv + shared/external_commodity_demands.csv',
     mapsTo: '2025 anchors',
     howItEnters:
       'Provide anchor values when demand tables are generated from anchor-year starting points.',
   },
   {
-    source: 'demand_growth_presets.json + currentConfiguration.demand_generation',
+    source: 'shared/demand_growth_curves.csv + currentConfiguration.demand_generation',
     mapsTo: 'resolved service and external commodity demand tables',
     howItEnters:
       'Resolve the D_o,y and X_c,y tables before solve, with year_overrides replacing the growth formula when present.',
   },
   {
-    source: 'commodity_price_presets.json + currentConfiguration.commodity_pricing',
+    source: 'shared/commodity_price_curves.csv + currentConfiguration.commodity_pricing',
     mapsTo: 'p_c,y',
     howItEnters:
       'Resolve the per-commodity exogenous price path used for inputs that stay outside the endogenous commodity balance.',
   },
   {
-    source: 'carbon_price_presets.json or currentConfiguration.carbon_price',
+    source: 'shared/carbon_price_curves.csv or currentConfiguration.carbon_price',
     mapsTo: 'carbon_y',
     howItEnters:
       'Resolve the direct-emissions carbon-price path used in the row objective.',
@@ -270,13 +270,13 @@ export const MODEL_FORMULATION_SOURCE_MAPPING: ModelFormulationSourceMappingRow[
       'Determine whether rows behave as required services, endogenous supply commodities, or optional activities, then apply control-mode filtering.',
   },
   {
-    source: 'residual_overlays_2025.csv',
+    source: 'overlays/residual_overlays.csv',
     mapsTo: 'post-solve accounting overlays, not LP variables',
     howItEnters:
       'Stay outside buildSolveRequest.ts and lpAdapter.ts, then close omitted 2025 sectors in diagnostic reporting.',
   },
   {
-    source: 'commodity_balance_2025.csv + emissions_balance_2025.csv',
+    source: 'validation/baseline_commodity_balance.csv + validation/baseline_emissions_balance.csv',
     mapsTo: '2025 closure diagnostics',
     howItEnters:
       'Provide the benchmark tables used to explain how explicit modeled rows plus residual overlays close the 2025 package balances.',

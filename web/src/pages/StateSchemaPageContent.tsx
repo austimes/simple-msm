@@ -70,9 +70,9 @@ export default function StateSchemaPageContent({
     <div className="page page--state-schema">
       <h1>State Schema</h1>
       <p>
-        This page defines the structure of a sector-state contribution in the same shape as
-        `sector_state_curves_balanced.csv`, so another modeller can understand what would be directly appendable
-        to the packaged library.
+        This page defines the structure of a family-scoped state contribution in the same shape as
+        {' '}<code>families/&lt;family_id&gt;/family_states.csv</code>, so another modeller can understand what would be
+        directly appendable to the packaged library.
       </p>
 
       <section className="configuration-overview-grid">
@@ -333,7 +333,7 @@ export default function StateSchemaPageContent({
           </div>
         ) : (
           <p>
-            The optional `sector_states_schema.json` companion was not packaged, so the explorer
+            The optional `family_states.schema.json` companion was not packaged, so the explorer
             cannot show the field dictionary for this build.
           </p>
         )}

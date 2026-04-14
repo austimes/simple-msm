@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schema/price_curves.schema.json",
+  "title": "Commodity price curves",
+  "type": "object",
+  "required": [
+    "commodity_id",
+    "price_curve_id",
+    "label",
+    "unit",
+    "2025",
+    "2030",
+    "2035",
+    "2040",
+    "2045",
+    "2050",
+    "provenance_note"
+  ],
+  "properties": {
+    "2025": {
+      "type": [
+        "string",
+        "number"
+      ],
+      "description": "Field 2025 in Commodity price curves."
+    },
+    "2030": {
+      "type": [
+        "string",
+        "number"
+      ],
+      "description": "Field 2030 in Commodity price curves."
+    },
+    "2035": {
+      "type": [
+        "string",
+        "number"
+      ],
+      "description": "Field 2035 in Commodity price curves."
+    },
+    "2040": {
+      "type": [
+        "string",
+        "number"
+      ],
+      "description": "Field 2040 in Commodity price curves."
+    },
+    "2045": {
+      "type": [
+        "string",
+        "number"
+      ],
+      "description": "Field 2045 in Commodity price curves."
+    },
+    "2050": {
+      "type": [
+        "string",
+        "number"
+      ],
+      "description": "Field 2050 in Commodity price curves."
+    },
+    "commodity_id": {
+      "type": [
+        "string",
+        "number"
+      ],
+      "description": "Field commodity_id in Commodity price curves."
+    },
+    "price_curve_id": {
+      "type": [
+        "string",
+        "number"
+      ],
+      "description": "Field price_curve_id in Commodity price curves."
+    },
+    "label": {
+      "type": [
+        "string",
+        "number"
+      ],
+      "description": "Field label in Commodity price curves."
+    },
+    "unit": {
+      "type": [
+        "string",
+        "number"
+      ],
+      "description": "Field unit in Commodity price curves."
+    },
+    "provenance_note": {
+      "type": [
+        "string",
+        "number"
+      ],
+      "description": "Field provenance_note in Commodity price curves."
+    }
+  }
+}
