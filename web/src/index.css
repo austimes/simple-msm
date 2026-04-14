@@ -1115,6 +1115,58 @@ body {
   height: var(--chart-height);
 }
 
+.horizontal-delta-chart-inner {
+  height: 100%;
+}
+
+.horizontal-delta-chart-inner--with-external-labels {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  align-items: stretch;
+}
+
+.horizontal-delta-chart-external-labels {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 0;
+  padding: 12px 0 30px;
+}
+
+.horizontal-delta-chart-external-label-item {
+  min-height: 0;
+  flex: 1 1 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  justify-items: end;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.horizontal-delta-chart-external-label-index {
+  color: #475569;
+}
+
+.horizontal-delta-chart-external-label-text {
+  min-width: 0;
+  width: 100%;
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.horizontal-delta-chart-plot {
+  min-width: 0;
+  height: 100%;
+}
+
 .stacked-chart-canvas .recharts-cartesian-axis-line,
 .stacked-chart-canvas .recharts-cartesian-axis-tick-line,
 .library-chart-plot .recharts-cartesian-axis-line,
@@ -1135,6 +1187,22 @@ body {
 }
 
 @container (max-width: 40rem) {
+  .horizontal-delta-chart-inner--with-external-labels {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .horizontal-delta-chart-external-labels {
+    padding: 0;
+    max-height: 180px;
+    overflow-y: auto;
+  }
+
+  .horizontal-delta-chart-external-label-item {
+    min-height: 22px;
+    flex: 0 0 auto;
+  }
+
   .stacked-chart-legend {
     display: flex;
     flex-wrap: wrap;

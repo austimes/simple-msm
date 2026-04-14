@@ -185,6 +185,8 @@ describe('AdditionalityPage', () => {
     assert.match(html, /Objective delta/);
     assert.match(html, /Cumulative emissions delta/);
     assert.match(html, /2050 electricity demand delta/);
+    assert.match(html, /horizontal-delta-chart-external-labels/);
+    assert.match(html, /1\./);
     assert.match(
       html,
       /Steps are ordered by greedy objective delta; the companion charts reuse that order for other metrics\./,

@@ -86,14 +86,13 @@ function formatAction(action: 'enable' | 'disable'): string {
 }
 
 function buildOrderedStepLabel(
-  step: number,
   atom: {
     outputLabel: string;
     action: 'enable' | 'disable';
     stateLabel: string;
   },
 ): string {
-  return `${step}. ${atom.outputLabel}: ${formatAction(atom.action)} ${atom.stateLabel}`;
+  return `${atom.outputLabel}: ${formatAction(atom.action)} ${atom.stateLabel}`;
 }
 
 function buildStatusLine(analysisState: AdditionalityAnalysisState): string {
@@ -143,7 +142,10 @@ export function AdditionalityPageView({
   const report = analysisState.report;
   const statusLine = buildStatusLine(analysisState);
   const priceSummary = buildPriceSummary(commodityOptions, commoditySelections);
-  const orderedLabels = report?.sequence.map((entry) => buildOrderedStepLabel(entry.step, entry.atom)) ?? [];
+  const orderedLabels = report?.sequence.map((entry) => buildOrderedStepLabel(entry.atom)) ?? [];
+  const sharedChartHeight = report
+    ? Math.max(320, report.sequence.length * 24 + 96)
+    : 320;
   const objectiveChartData = report?.sequence.map((entry, index) => ({
     key: `${entry.atom.key}:objective`,
     label: orderedLabels[index] ?? '',
@@ -300,9 +302,11 @@ export function AdditionalityPageView({
                   title="Objective delta"
                   valueFormatter={(value) => formatSignedDelta(value)}
                   data={objectiveChartData}
+                  externalCategoryLabels={orderedLabels}
+                  height={sharedChartHeight}
                   positiveLegendLabel="Increase objective"
                   negativeLegendLabel="Decrease objective"
-                  showCategoryAxis
+                  showCategoryAxis={false}
                 />
               </article>
               <article className="configuration-panel">
@@ -310,6 +314,7 @@ export function AdditionalityPageView({
                   title="Cumulative emissions delta"
                   valueFormatter={(value) => formatSignedDelta(value)}
                   data={emissionsChartData}
+                  height={sharedChartHeight}
                   positiveLegendLabel="Increase emissions"
                   negativeLegendLabel="Decrease emissions"
                   showCategoryAxis={false}
@@ -320,6 +325,7 @@ export function AdditionalityPageView({
                   title="2050 electricity demand delta"
                   valueFormatter={(value) => formatSignedDelta(value)}
                   data={electricityChartData}
+                  height={sharedChartHeight}
                   positiveLegendLabel="Increase electricity demand"
                   negativeLegendLabel="Decrease electricity demand"
                   showCategoryAxis={false}
