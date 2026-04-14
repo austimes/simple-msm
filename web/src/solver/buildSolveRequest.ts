@@ -154,7 +154,7 @@ export function buildSolveRequest(
 ): SolveRequest {
   const allRows = normalizeSolverRows(pkg);
   const objectiveCostLookup = buildObjectiveCostLookup(pkg.sectorStates);
-  const resolvedConfiguration = resolveConfigurationForSolve(configuration, pkg.appConfig);
+  const resolvedConfiguration = resolveConfigurationForSolve(configuration, pkg.appConfig, pkg.sectorStates);
 
   const includedOutputIds = deriveIncludedOutputIds(allRows, resolvedConfiguration, pkg.appConfig);
   const filtered = filterSolveRequestForOutputs(

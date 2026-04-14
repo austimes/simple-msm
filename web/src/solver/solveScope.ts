@@ -275,7 +275,7 @@ export function deriveOutputRunStatusesForConfiguration(
   configuration: ConfigurationDocument,
 ): Record<string, DerivedOutputRunStatus> {
   const rows = normalizeSolverRows(pkg);
-  const resolvedConfiguration = resolveConfigurationForSolve(configuration, pkg.appConfig);
+  const resolvedConfiguration = resolveConfigurationForSolve(configuration, pkg.appConfig, pkg.sectorStates);
   return deriveOutputRunStatuses(
     rows,
     configuration,

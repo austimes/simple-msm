@@ -4,6 +4,7 @@ import type {
   PackageData,
   ConfigurationDocument,
   ConfigurationServiceControl,
+  SectorState,
 } from '../data/types.ts';
 import { normalizeCommodityInput } from '../data/commodityMetadata.ts';
 import { resolveConfigurationDocument } from '../data/demandResolution.ts';
@@ -23,17 +24,44 @@ function resolveYearValue(table: Record<string, number> | undefined, year: numbe
   return typeof value === 'number' ? value : 0;
 }
 
+const BASE_YEAR = 2025;
+
+function collectIncumbentStateIdsByOutput(
+  sectorStates: Pick<SectorState, 'service_or_output_name' | 'year' | 'state_id' | 'is_default_incumbent_2025'>[] | undefined,
+): Map<string, string[]> {
+  const byOutput = new Map<string, Set<string>>();
+
+  for (const row of sectorStates ?? []) {
+    if (row.year !== BASE_YEAR || !row.is_default_incumbent_2025) continue;
+
+    let ids = byOutput.get(row.service_or_output_name);
+    if (!ids) {
+      ids = new Set<string>();
+      byOutput.set(row.service_or_output_name, ids);
+    }
+    ids.add(row.state_id);
+  }
+
+  return new Map(
+    Array.from(byOutput.entries()).map(([outputId, ids]) => [outputId, Array.from(ids)]),
+  );
+}
+
 function resolveControlForYear(
   control: ConfigurationServiceControl | undefined,
   defaultMode: AppConfigRegistry['output_roles'][string]['default_control_mode'],
   year: number,
+  forcedActiveStateIds?: string[],
 ): ResolvedSolveControl {
   const overrideKey = yearKey(year) as keyof NonNullable<ConfigurationServiceControl['year_overrides']>;
   const override = control?.year_overrides?.[overrideKey] ?? null;
 
   return {
     mode: override?.mode ?? control?.mode ?? defaultMode,
-    activeStateIds: override?.active_state_ids ?? control?.active_state_ids ?? null,
+    activeStateIds: forcedActiveStateIds
+      ?? override?.active_state_ids
+      ?? control?.active_state_ids
+      ?? null,
     targetValue: override?.target_value ?? control?.target_value ?? null,
   };
 }
@@ -125,17 +153,21 @@ export function normalizeSolverRows(
 export function resolveConfigurationForSolve(
   configuration: ConfigurationDocument,
   appConfig: AppConfigRegistry,
+  sectorStates?: Pick<SectorState, 'service_or_output_name' | 'year' | 'state_id' | 'is_default_incumbent_2025'>[],
 ): ResolvedConfigurationForSolve {
   const resolvedConfiguration = resolveConfigurationDocument(configuration, appConfig);
   const years = [...resolvedConfiguration.years];
+  const incumbentByOutput = collectIncumbentStateIdsByOutput(sectorStates);
   const controlsByOutput = Object.entries(appConfig.output_roles).reduce<
     Record<string, Record<string, ResolvedSolveControl>>
   >((resolved, [outputId, metadata]) => {
     resolved[outputId] = years.reduce<Record<string, ResolvedSolveControl>>((controlsByYear, year) => {
+      const forced = year === BASE_YEAR ? incumbentByOutput.get(outputId) : undefined;
       controlsByYear[yearKey(year)] = resolveControlForYear(
         resolvedConfiguration.service_controls[outputId],
         metadata.default_control_mode,
         year,
+        forced,
       );
       return controlsByYear;
     }, {});
