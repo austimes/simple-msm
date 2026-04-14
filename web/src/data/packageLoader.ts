@@ -156,7 +156,7 @@ function loadPackageTextFilesFromFileSystem(): Record<string, string> {
 }
 
 function loadPackageTextFiles(): Record<string, string> {
-  if (typeof import.meta.glob === 'function') {
+  try {
     return normalizePackageTextFiles(
       import.meta.glob<string>(
         [
@@ -177,9 +177,9 @@ function loadPackageTextFiles(): Record<string, string> {
         },
       ),
     );
+  } catch {
+    return loadPackageTextFilesFromFileSystem();
   }
-
-  return loadPackageTextFilesFromFileSystem();
 }
 
 const packageTextFiles = loadPackageTextFiles();

@@ -75,13 +75,17 @@ function loadConfigurationModulesFromFileSystem(
 }
 
 const builtinConfigModules =
-  typeof import.meta.glob === 'function'
-    ? import.meta.glob<string>('/src/configurations/*.json', {
+  (() => {
+    try {
+      return import.meta.glob<string>('/src/configurations/*.json', {
         eager: true,
         import: 'default',
         query: '?raw',
-      })
-    : loadConfigurationModulesFromFileSystem('../configurations', '/src/configurations');
+      });
+    } catch {
+      return loadConfigurationModulesFromFileSystem('../configurations', '/src/configurations');
+    }
+  })();
 
 interface ConfigurationCollectionEntry {
   source: string;
@@ -207,13 +211,17 @@ export function loadBuiltinConfigurations(): ConfigurationDocument[] {
 
 // Bundled user configs loaded at build time (for production / static builds)
 const userConfigModules =
-  typeof import.meta.glob === 'function'
-    ? import.meta.glob<string>('/src/configurations/user/*.json', {
+  (() => {
+    try {
+      return import.meta.glob<string>('/src/configurations/user/*.json', {
         eager: true,
         import: 'default',
         query: '?raw',
-      })
-    : loadConfigurationModulesFromFileSystem('../configurations/user', '/src/configurations/user');
+      });
+    } catch {
+      return loadConfigurationModulesFromFileSystem('../configurations/user', '/src/configurations/user');
+    }
+  })();
 
 export function loadUserConfigurations(): ConfigurationDocument[] {
   return parseConfigurationCollection(userConfigModules, false);
