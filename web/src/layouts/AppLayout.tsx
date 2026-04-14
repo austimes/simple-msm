@@ -2,7 +2,7 @@ import React from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 
 const navItems = [
-  { to: '/', label: 'Run' },
+  { to: '/', label: 'Explorer' },
   { to: '/compare', label: 'Compare' },
   { to: '/library', label: 'Library' },
   { to: '/state-schema', label: 'State Schema' },
@@ -14,7 +14,7 @@ export default function AppLayout(): React.JSX.Element {
   return (
     <div className="app-layout">
       <header className="app-header">
-        <div className="app-title">Phase 1 Sector State Explorer</div>
+        <div className="app-title">Simple MSM</div>
         <nav className="app-nav">
           {navItems.map(({ to, label }) => (
             <NavLink
