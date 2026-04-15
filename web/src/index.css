@@ -1227,6 +1227,45 @@ body {
   color: var(--color-text-muted);
 }
 
+.waterfall-chart-header-summary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.waterfall-chart-header-pill {
+  border: 1px solid rgba(203, 213, 225, 0.9);
+  border-radius: 999px;
+  background: #f8fafc;
+  color: var(--color-text-muted);
+  padding: 4px 9px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.waterfall-chart-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.waterfall-chart-step-label {
+  pointer-events: none;
+}
+
+.waterfall-chart-grid-line,
+.waterfall-chart-zero-line,
+.waterfall-chart-connector {
+  vector-effect: non-scaling-stroke;
+}
+
+.waterfall-chart-bar {
+  shape-rendering: geometricPrecision;
+}
+
 .chart-data-summary {
   position: absolute;
   width: 1px;

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import HorizontalDeltaBarChart from '../components/charts/HorizontalDeltaBarChart.tsx';
+import HorizontalWaterfallChart from '../components/charts/HorizontalWaterfallChart.tsx';
 import { usePackageStore } from '../data/packageStore.ts';
 import {
   fetchUserConfigurations,
@@ -13,7 +13,10 @@ import {
   type AdditionalityAnalysisState,
 } from '../additionality/additionalityAnalysis.ts';
 import { useAdditionalityAnalysis } from '../hooks/useAdditionalityAnalysis.ts';
-import { selectInitialAdditionalityPair } from './additionalityPageModel.ts';
+import {
+  buildAdditionalityWaterfallRows,
+  selectInitialAdditionalityPair,
+} from './additionalityPageModel.ts';
 
 void React;
 
@@ -151,33 +154,27 @@ export function AdditionalityPageView({
   const sharedChartHeight = report
     ? Math.max(320, report.sequence.length * 24 + 96)
     : 320;
-  const objectiveChartData = report?.sequence.map((entry, index) => ({
-    key: `${entry.atom.key}:objective`,
-    label: orderedLabels[index] ?? '',
-    value: entry.metricsDeltaFromCurrent.objective,
-  })) ?? [];
-  const emissionsChartData = report?.sequence.map((entry, index) => ({
-    key: `${entry.atom.key}:emissions`,
-    label: orderedLabels[index] ?? '',
-    value: entry.metricsDeltaFromCurrent.cumulativeEmissions,
-  })) ?? [];
-  const electricityChartData = report?.sequence.map((entry, index) => ({
-    key: `${entry.atom.key}:electricity`,
-    label: orderedLabels[index] ?? '',
-    value: entry.metricsDeltaFromCurrent.electricityDemand2050,
-  })) ?? [];
+  const objectiveWaterfallData = report
+    ? buildAdditionalityWaterfallRows(report.sequence, 'objective', orderedLabels)
+    : [];
+  const emissionsWaterfallData = report
+    ? buildAdditionalityWaterfallRows(report.sequence, 'cumulativeEmissions', orderedLabels)
+    : [];
+  const electricityWaterfallData = report
+    ? buildAdditionalityWaterfallRows(report.sequence, 'electricityDemand2050', orderedLabels)
+    : [];
 
   return (
     <div className="page page--additionality">
       <h1>Additionality</h1>
       <p>
         Compare two saved configurations, hold commodity prices constant as a page-local
-        sensitivity, and rank pathway state toggles by their greedy marginal effect on the
-        solve objective.
+        sensitivity, and trace how the greedy transition sequence builds the difference
+        between the base and target configurations.
       </p>
 
       <section className="configuration-panel configuration-panel--hero">
-        <span className="configuration-badge">State-toggle tornado</span>
+        <span className="configuration-badge">State-toggle delta decomposition</span>
         <div className="configuration-form-grid">
           <label className="configuration-field">
             <span>Base configuration</span>
@@ -299,7 +296,9 @@ export function AdditionalityPageView({
 
           <section>
             <p className="additionality-status-line">
-              Steps are ordered by greedy objective delta; the companion charts reuse that order for other metrics.
+              These waterfalls are sequence-based and path-dependent: each step shows the
+              incremental change from the prior greedy state, and the full sequence sums to
+              the base-to-target delta.
             </p>
             <div className="additionality-chart-layout">
               <aside className="additionality-step-list-shell" aria-label="Greedy ordered steps">
@@ -322,33 +321,42 @@ export function AdditionalityPageView({
 
               <div className="additionality-chart-grid">
                 <article className="configuration-panel">
-                  <HorizontalDeltaBarChart
-                    title="Objective delta"
+                  <HorizontalWaterfallChart
+                    title="Objective delta waterfall"
                     valueFormatter={(value) => formatSignedDelta(value)}
-                    data={objectiveChartData}
+                    data={objectiveWaterfallData}
                     height={sharedChartHeight}
+                    baseValue={report.baseMetrics.objective}
+                    targetValue={report.targetMetrics.objective}
+                    totalDelta={report.targetMetrics.objective - report.baseMetrics.objective}
                     positiveLegendLabel="Increase objective"
                     negativeLegendLabel="Decrease objective"
                     showCategoryAxis={false}
                   />
                 </article>
                 <article className="configuration-panel">
-                  <HorizontalDeltaBarChart
-                    title="Cumulative emissions delta"
+                  <HorizontalWaterfallChart
+                    title="Cumulative emissions delta waterfall"
                     valueFormatter={(value) => formatSignedDelta(value)}
-                    data={emissionsChartData}
+                    data={emissionsWaterfallData}
                     height={sharedChartHeight}
+                    baseValue={report.baseMetrics.cumulativeEmissions}
+                    targetValue={report.targetMetrics.cumulativeEmissions}
+                    totalDelta={report.targetMetrics.cumulativeEmissions - report.baseMetrics.cumulativeEmissions}
                     positiveLegendLabel="Increase emissions"
                     negativeLegendLabel="Decrease emissions"
                     showCategoryAxis={false}
                   />
                 </article>
                 <article className="configuration-panel">
-                  <HorizontalDeltaBarChart
-                    title="2050 electricity demand delta"
+                  <HorizontalWaterfallChart
+                    title="2050 electricity demand delta waterfall"
                     valueFormatter={(value) => formatSignedDelta(value)}
-                    data={electricityChartData}
+                    data={electricityWaterfallData}
                     height={sharedChartHeight}
+                    baseValue={report.baseMetrics.electricityDemand2050}
+                    targetValue={report.targetMetrics.electricityDemand2050}
+                    totalDelta={report.targetMetrics.electricityDemand2050 - report.baseMetrics.electricityDemand2050}
                     positiveLegendLabel="Increase electricity demand"
                     negativeLegendLabel="Decrease electricity demand"
                     showCategoryAxis={false}

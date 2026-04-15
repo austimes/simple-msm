@@ -182,20 +182,25 @@ describe('AdditionalityPage', () => {
       />,
     );
 
-    assert.match(html, /Objective delta/);
-    assert.match(html, /Cumulative emissions delta/);
-    assert.match(html, /2050 electricity demand delta/);
+    assert.match(html, /Objective delta waterfall/);
+    assert.match(html, /Cumulative emissions delta waterfall/);
+    assert.match(html, /2050 electricity demand delta waterfall/);
     assert.match(html, /additionality-step-list/);
     assert.match(html, /1\./);
     assert.match(
       html,
-      /Steps are ordered by greedy objective delta; the companion charts reuse that order for other metrics\./,
+      /These waterfalls are sequence-based and path-dependent: each step shows the incremental change from the prior greedy state, and the full sequence sums to the base-to-target delta\./,
     );
     assert.match(html, /Base objective/);
     assert.match(html, /Target objective/);
     assert.match(html, /Ordered steps/);
     assert.match(html, /Battery-electric passenger road fleet/);
     assert.match(html, /Skipped candidates: 1/);
+    assert.match(html, /State-toggle delta decomposition/);
+    assert.match(
+      html,
+      /trace how the greedy transition sequence builds the difference between the base and target configurations\./i,
+    );
   });
 
   test('renders loading progress and the current price scenario summary', () => {
