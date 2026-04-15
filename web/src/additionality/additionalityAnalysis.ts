@@ -43,6 +43,8 @@ export interface AdditionalitySkippedCandidate {
 export interface AdditionalityMetricSnapshot {
   objective: number;
   cumulativeEmissions: number;
+  // Intentionally raw MWh so page-level formatting can convert to TWh while
+  // preserving parity with solver reporting totalDemand for electricity in 2050.
   electricityDemand2050: number;
 }
 
@@ -313,6 +315,8 @@ function buildMetricSnapshot(
     result.raw.variables.map((entry) => [entry.id, entry.value]),
   );
   let cumulativeEmissions = 0;
+  // Keep electricity demand in raw MWh: exogenous demand plus modeled electricity
+  // inputs should align with solver reporting commodityBalances[].totalDemand.
   let electricityDemand2050 = request.configuration.externalCommodityDemandByCommodity[
     ELECTRICITY_COMMODITY
   ]?.[String(ELECTRICITY_DEMAND_YEAR)] ?? 0;

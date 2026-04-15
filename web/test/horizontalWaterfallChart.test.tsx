@@ -40,6 +40,8 @@ describe('HorizontalWaterfallChart', () => {
         baseValue={100}
         targetValue={92}
         totalDelta={-8}
+        valueFormatter={(value) => `delta(${value})`}
+        absoluteValueFormatter={(value) => `abs(${value})`}
         positiveLegendLabel="Increase objective"
         negativeLegendLabel="Decrease objective"
         showCategoryAxis={false}
@@ -49,20 +51,20 @@ describe('HorizontalWaterfallChart', () => {
     assert.match(html, /aria-label="Objective delta waterfall legend"/);
     assert.match(html, />Increase objective</);
     assert.match(html, />Decrease objective</);
-    assert.match(html, /Base 100\.00/);
-    assert.match(html, /Target 92\.00/);
-    assert.match(html, /Δ -8\.00/);
-    assert.match(html, /Base: 100\.00/);
-    assert.match(html, /Target: 92\.00/);
-    assert.match(html, /Total delta: -8\.00/);
+    assert.match(html, /Base abs\(100\)/);
+    assert.match(html, /Target abs\(92\)/);
+    assert.match(html, /Δ delta\(-8\)/);
+    assert.match(html, /Base: abs\(100\)/);
+    assert.match(html, /Target: abs\(92\)/);
+    assert.match(html, /Total delta: delta\(-8\)/);
     assert.match(html, /class="waterfall-chart-zero-line"/);
     assert.match(html, /class="waterfall-chart-connector"/);
     assert.match(html, /data-delta="12"/);
     assert.match(html, /data-delta="-20"/);
     assert.match(html, /data-delta="0"/);
-    assert.match(html, /Passenger road transport: \+12\.00/);
-    assert.match(html, /High-temperature heat: -20\.00/);
-    assert.match(html, /Steady state: 0\.00/);
+    assert.match(html, /Passenger road transport: delta\(12\)/);
+    assert.match(html, /High-temperature heat: delta\(-20\)/);
+    assert.match(html, /Steady state: delta\(0\)/);
   });
 
   test('renders category-axis labels when requested', () => {

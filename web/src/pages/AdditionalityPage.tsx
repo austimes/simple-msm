@@ -15,19 +15,15 @@ import {
 import { useAdditionalityAnalysis } from '../hooks/useAdditionalityAnalysis.ts';
 import {
   buildAdditionalityWaterfallRows,
+  getAdditionalityMetricPresentation,
   selectInitialAdditionalityPair,
 } from './additionalityPageModel.ts';
 
 void React;
 
-const compactNumberFormatter = new Intl.NumberFormat('en-AU', {
-  notation: 'compact',
-  maximumFractionDigits: 2,
-});
-
-const numberFormatter = new Intl.NumberFormat('en-AU', {
-  maximumFractionDigits: 2,
-});
+const objectiveMetricPresentation = getAdditionalityMetricPresentation('objective');
+const emissionsMetricPresentation = getAdditionalityMetricPresentation('cumulativeEmissions');
+const electricityMetricPresentation = getAdditionalityMetricPresentation('electricityDemand2050');
 
 interface AdditionalityConfigurationOption {
   description?: string;
@@ -57,31 +53,6 @@ function dedupeConfigurations(configurations: ConfigurationDocument[]): Configur
 
   return Array.from(deduped.values())
     .sort((left, right) => left.name.localeCompare(right.name));
-}
-
-function formatObjective(value: number | null | undefined): string {
-  if (value == null) {
-    return '—';
-  }
-
-  return compactNumberFormatter.format(value);
-}
-
-function formatDetailedObjective(value: number | null | undefined): string {
-  if (value == null) {
-    return '—';
-  }
-
-  return numberFormatter.format(value);
-}
-
-function formatSignedDelta(value: number | null | undefined): string {
-  if (value == null) {
-    return '—';
-  }
-
-  const sign = value > 0 ? '+' : '';
-  return `${sign}${numberFormatter.format(value)}`;
 }
 
 function formatAction(action: 'enable' | 'disable'): string {
@@ -155,13 +126,13 @@ export function AdditionalityPageView({
     ? Math.max(320, report.sequence.length * 24 + 96)
     : 320;
   const objectiveWaterfallData = report
-    ? buildAdditionalityWaterfallRows(report.sequence, 'objective', orderedLabels)
+    ? buildAdditionalityWaterfallRows(report.sequence, objectiveMetricPresentation.metric, orderedLabels)
     : [];
   const emissionsWaterfallData = report
-    ? buildAdditionalityWaterfallRows(report.sequence, 'cumulativeEmissions', orderedLabels)
+    ? buildAdditionalityWaterfallRows(report.sequence, emissionsMetricPresentation.metric, orderedLabels)
     : [];
   const electricityWaterfallData = report
-    ? buildAdditionalityWaterfallRows(report.sequence, 'electricityDemand2050', orderedLabels)
+    ? buildAdditionalityWaterfallRows(report.sequence, electricityMetricPresentation.metric, orderedLabels)
     : [];
 
   return (
@@ -267,15 +238,15 @@ export function AdditionalityPageView({
           <section className="additionality-summary-grid">
             <article className="configuration-panel additionality-summary-card">
               <h2>Base objective</h2>
-              <strong>{formatObjective(report.baseMetrics.objective)}</strong>
+              <strong>{objectiveMetricPresentation.formatAbsoluteValue(report.baseMetrics.objective)}</strong>
             </article>
             <article className="configuration-panel additionality-summary-card">
               <h2>Target objective</h2>
-              <strong>{formatObjective(report.targetMetrics.objective)}</strong>
+              <strong>{objectiveMetricPresentation.formatAbsoluteValue(report.targetMetrics.objective)}</strong>
             </article>
             <article className="configuration-panel additionality-summary-card">
               <h2>Total delta</h2>
-              <strong>{formatSignedDelta(report.totalObjectiveDelta)}</strong>
+              <strong>{objectiveMetricPresentation.formatSignedValue(report.totalObjectiveDelta)}</strong>
             </article>
             <article className="configuration-panel additionality-summary-card">
               <h2>Atoms</h2>
@@ -323,7 +294,8 @@ export function AdditionalityPageView({
                 <article className="configuration-panel">
                   <HorizontalWaterfallChart
                     title="Objective delta waterfall"
-                    valueFormatter={(value) => formatSignedDelta(value)}
+                    valueFormatter={objectiveMetricPresentation.formatSignedValue}
+                    absoluteValueFormatter={objectiveMetricPresentation.formatAbsoluteValue}
                     data={objectiveWaterfallData}
                     height={sharedChartHeight}
                     baseValue={report.baseMetrics.objective}
@@ -337,7 +309,8 @@ export function AdditionalityPageView({
                 <article className="configuration-panel">
                   <HorizontalWaterfallChart
                     title="Cumulative emissions delta waterfall"
-                    valueFormatter={(value) => formatSignedDelta(value)}
+                    valueFormatter={emissionsMetricPresentation.formatSignedValue}
+                    absoluteValueFormatter={emissionsMetricPresentation.formatAbsoluteValue}
                     data={emissionsWaterfallData}
                     height={sharedChartHeight}
                     baseValue={report.baseMetrics.cumulativeEmissions}
@@ -351,7 +324,8 @@ export function AdditionalityPageView({
                 <article className="configuration-panel">
                   <HorizontalWaterfallChart
                     title="2050 electricity demand delta waterfall"
-                    valueFormatter={(value) => formatSignedDelta(value)}
+                    valueFormatter={electricityMetricPresentation.formatSignedValue}
+                    absoluteValueFormatter={electricityMetricPresentation.formatAbsoluteValue}
                     data={electricityWaterfallData}
                     height={sharedChartHeight}
                     baseValue={report.baseMetrics.electricityDemand2050}
@@ -376,9 +350,15 @@ export function AdditionalityPageView({
                     <th scope="col">Output</th>
                     <th scope="col">State</th>
                     <th scope="col">Action</th>
-                    <th scope="col">Signed delta</th>
-                    <th scope="col">Objective before</th>
-                    <th scope="col">Objective after</th>
+                    <th scope="col">{objectiveMetricPresentation.tableHeaders.delta}</th>
+                    <th scope="col">{objectiveMetricPresentation.tableHeaders.before}</th>
+                    <th scope="col">{objectiveMetricPresentation.tableHeaders.after}</th>
+                    <th scope="col">{emissionsMetricPresentation.tableHeaders.delta}</th>
+                    <th scope="col">{emissionsMetricPresentation.tableHeaders.before}</th>
+                    <th scope="col">{emissionsMetricPresentation.tableHeaders.after}</th>
+                    <th scope="col">{electricityMetricPresentation.tableHeaders.delta}</th>
+                    <th scope="col">{electricityMetricPresentation.tableHeaders.before}</th>
+                    <th scope="col">{electricityMetricPresentation.tableHeaders.after}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -388,9 +368,15 @@ export function AdditionalityPageView({
                       <td>{entry.atom.outputLabel}</td>
                       <td>{entry.atom.stateLabel}</td>
                       <td>{formatAction(entry.atom.action)}</td>
-                      <td>{formatSignedDelta(entry.metricsDeltaFromCurrent.objective)}</td>
-                      <td>{formatDetailedObjective(entry.metricsBefore.objective)}</td>
-                      <td>{formatDetailedObjective(entry.metricsAfter.objective)}</td>
+                      <td>{objectiveMetricPresentation.formatSignedValue(entry.metricsDeltaFromCurrent.objective)}</td>
+                      <td>{objectiveMetricPresentation.formatAbsoluteValue(entry.metricsBefore.objective)}</td>
+                      <td>{objectiveMetricPresentation.formatAbsoluteValue(entry.metricsAfter.objective)}</td>
+                      <td>{emissionsMetricPresentation.formatSignedValue(entry.metricsDeltaFromCurrent.cumulativeEmissions)}</td>
+                      <td>{emissionsMetricPresentation.formatAbsoluteValue(entry.metricsBefore.cumulativeEmissions)}</td>
+                      <td>{emissionsMetricPresentation.formatAbsoluteValue(entry.metricsAfter.cumulativeEmissions)}</td>
+                      <td>{electricityMetricPresentation.formatSignedValue(entry.metricsDeltaFromCurrent.electricityDemand2050)}</td>
+                      <td>{electricityMetricPresentation.formatAbsoluteValue(entry.metricsBefore.electricityDemand2050)}</td>
+                      <td>{electricityMetricPresentation.formatAbsoluteValue(entry.metricsAfter.electricityDemand2050)}</td>
                     </tr>
                   ))}
                 </tbody>

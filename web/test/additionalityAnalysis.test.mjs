@@ -163,6 +163,12 @@ function hasActiveState(request, outputId, stateId) {
   return Object.values(controlsByYear).some((control) => (control.activeStateIds ?? []).includes(stateId));
 }
 
+function findCommodityBalance(result, commodityId, year) {
+  return result.reporting.commodityBalances.find((entry) => (
+    entry.commodityId === commodityId && entry.year === year
+  )) ?? null;
+}
+
 describe('additionality analysis', () => {
   test('derives the expected state-toggle atoms for reference-base vs reference-all', () => {
     const atoms = deriveAdditionalityAtoms(buildBaseCase(), buildFullMonty(), pkg);
@@ -330,6 +336,47 @@ describe('additionality analysis', () => {
       analysis.report.sequence[analysis.report.sequence.length - 1].metricsAfter.objective,
       analysis.report.targetMetrics.objective,
       'final greedy objective reaches the target objective',
+    );
+  });
+
+  test('keeps 2050 electricity demand in raw MWh aligned with solver reporting totalDemand', async () => {
+    const solveCalls = [];
+    const analysis = await runAdditionalityAnalysis(
+      {
+        baseConfiguration: buildBaseCase(),
+        baseConfigId: 'reference-base',
+        commoditySelections: {},
+        pkg,
+        targetConfiguration: buildFullMonty(),
+        targetConfigId: 'reference-all',
+      },
+      {
+        solve: async (request) => {
+          const result = await solveWithLpAdapter(request);
+          solveCalls.push({ request, result });
+          return result;
+        },
+      },
+    );
+
+    assert.equal(analysis.phase, 'success');
+    assert.ok(analysis.report);
+    assert.ok(solveCalls.length >= 2);
+
+    const baseElectricity2050 = findCommodityBalance(solveCalls[0].result, 'electricity', 2050);
+    const targetElectricity2050 = findCommodityBalance(solveCalls[1].result, 'electricity', 2050);
+
+    assert.ok(baseElectricity2050);
+    assert.ok(targetElectricity2050);
+    assertClose(
+      analysis.report.baseMetrics.electricityDemand2050,
+      baseElectricity2050.totalDemand,
+      'base 2050 electricity demand stays in raw MWh and matches solver reporting',
+    );
+    assertClose(
+      analysis.report.targetMetrics.electricityDemand2050,
+      targetElectricity2050.totalDemand,
+      'target 2050 electricity demand stays in raw MWh and matches solver reporting',
     );
   });
 

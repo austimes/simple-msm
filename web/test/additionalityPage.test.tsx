@@ -91,16 +91,16 @@ describe('AdditionalityPage', () => {
               baseConfigId: 'reference-base',
               targetConfigId: 'reference-all',
               baseMetrics: {
-                objective: 100,
-                cumulativeEmissions: 400,
-                electricityDemand2050: 120,
+                objective: 12_340_000_000,
+                cumulativeEmissions: 842_110_000,
+                electricityDemand2050: 292_523_236.87,
               },
               targetMetrics: {
-                objective: 118,
-                cumulativeEmissions: 370,
-                electricityDemand2050: 144,
+                objective: 12_980_000_000,
+                cumulativeEmissions: 799_230_000,
+                electricityDemand2050: 378_053_448.99,
               },
-              totalObjectiveDelta: 18,
+              totalObjectiveDelta: 640_000_000,
               atomCount: 2,
               solveCount: 5,
               sequence: [
@@ -115,21 +115,21 @@ describe('AdditionalityPage', () => {
                     action: 'enable',
                   },
                   metricsBefore: {
-                    objective: 100,
-                    cumulativeEmissions: 400,
-                    electricityDemand2050: 120,
+                    objective: 12_340_000_000,
+                    cumulativeEmissions: 842_110_000,
+                    electricityDemand2050: 292_523_236.87,
                   },
                   metricsAfter: {
-                    objective: 110,
-                    cumulativeEmissions: 385,
-                    electricityDemand2050: 132,
+                    objective: 12_740_000_000,
+                    cumulativeEmissions: 822_110_000,
+                    electricityDemand2050: 332_523_236.87,
                   },
                   metricsDeltaFromCurrent: {
-                    objective: 10,
-                    cumulativeEmissions: -15,
-                    electricityDemand2050: 12,
+                    objective: 400_000_000,
+                    cumulativeEmissions: -20_000_000,
+                    electricityDemand2050: 40_000_000,
                   },
-                  absObjectiveDelta: 10,
+                  absObjectiveDelta: 400_000_000,
                   skippedCandidateCount: 0,
                 },
                 {
@@ -143,21 +143,21 @@ describe('AdditionalityPage', () => {
                     action: 'enable',
                   },
                   metricsBefore: {
-                    objective: 110,
-                    cumulativeEmissions: 385,
-                    electricityDemand2050: 132,
+                    objective: 12_740_000_000,
+                    cumulativeEmissions: 822_110_000,
+                    electricityDemand2050: 332_523_236.87,
                   },
                   metricsAfter: {
-                    objective: 118,
-                    cumulativeEmissions: 370,
-                    electricityDemand2050: 144,
+                    objective: 12_980_000_000,
+                    cumulativeEmissions: 799_230_000,
+                    electricityDemand2050: 378_053_448.99,
                   },
                   metricsDeltaFromCurrent: {
-                    objective: 8,
-                    cumulativeEmissions: -15,
-                    electricityDemand2050: 12,
+                    objective: 240_000_000,
+                    cumulativeEmissions: -22_880_000,
+                    electricityDemand2050: 45_530_212.12,
                   },
-                  absObjectiveDelta: 8,
+                  absObjectiveDelta: 240_000_000,
                   skippedCandidateCount: 1,
                 },
               ],
@@ -193,7 +193,25 @@ describe('AdditionalityPage', () => {
     );
     assert.match(html, /Base objective/);
     assert.match(html, /Target objective/);
+    assert.match(html, /\$12\.34B/);
+    assert.match(html, /\$12\.98B/);
+    assert.match(html, /\+\$0\.64B/);
+    assert.match(html, /Base \$12\.34B/);
+    assert.match(html, /Target 799\.23 MtCO2e/);
+    assert.match(html, /Target 378\.05 TWh/);
+    assert.match(html, /\+\$0\.12B/);
+    assert.match(html, /-21\.44 MtCO2e/);
+    assert.match(html, /\+42\.77 TWh/);
     assert.match(html, /Ordered steps/);
+    assert.match(html, /Cost Δ \(\$B\)/);
+    assert.match(html, /Cost before \(\$B\)/);
+    assert.match(html, /Cost after \(\$B\)/);
+    assert.match(html, /Emissions Δ \(MtCO2e\)/);
+    assert.match(html, /Emissions before \(MtCO2e\)/);
+    assert.match(html, /Emissions after \(MtCO2e\)/);
+    assert.match(html, /Electricity Δ \(TWh\)/);
+    assert.match(html, /Electricity 2050 before \(TWh\)/);
+    assert.match(html, /Electricity 2050 after \(TWh\)/);
     assert.match(html, /Battery-electric passenger road fleet/);
     assert.match(html, /Skipped candidates: 1/);
     assert.match(html, /State-toggle delta decomposition/);

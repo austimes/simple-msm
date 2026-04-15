@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import type { AdditionalityReport } from '../src/additionality/additionalityAnalysis.ts';
-import { buildAdditionalityWaterfallRows } from '../src/pages/additionalityPageModel.ts';
+import {
+  buildAdditionalityWaterfallRows,
+  getAdditionalityMetricPresentation,
+} from '../src/pages/additionalityPageModel.ts';
 
 function buildSequence(
   deltas: Array<{
@@ -56,6 +59,35 @@ function buildSequence(
 }
 
 describe('additionalityPageModel', () => {
+  test('formats cost presentation values in billions of AUD', () => {
+    const metric = getAdditionalityMetricPresentation('objective');
+
+    assert.equal(metric.unitLabel, '$B');
+    assert.equal(metric.convertRawToDisplay(12_345_000_000), 12.345);
+    assert.equal(metric.formatAbsoluteValue(12_345_000_000), '$12.35B');
+    assert.equal(metric.formatSignedValue(640_000_000), '+$0.64B');
+    assert.equal(metric.formatSignedValue(-640_000_000), '-$0.64B');
+  });
+
+  test('formats emissions presentation values in megatonnes of CO2e', () => {
+    const metric = getAdditionalityMetricPresentation('cumulativeEmissions');
+
+    assert.equal(metric.unitLabel, 'MtCO2e');
+    assert.equal(metric.convertRawToDisplay(842_110_000), 842.11);
+    assert.equal(metric.formatAbsoluteValue(842_110_000), '842.11 MtCO2e');
+    assert.equal(metric.formatSignedValue(-42_880_000), '-42.88 MtCO2e');
+  });
+
+  test('formats 2050 electricity demand from raw MWh into TWh', () => {
+    const metric = getAdditionalityMetricPresentation('electricityDemand2050');
+
+    assert.equal(metric.unitLabel, 'TWh');
+    assert.equal(metric.convertRawToDisplay(292_523_236.87), 292.52323687);
+    assert.equal(metric.formatAbsoluteValue(292_523_236.87), '292.52 TWh');
+    assert.equal(metric.formatSignedValue(85_530_212.12), '+85.53 TWh');
+    assert.equal(metric.formatSignedValue(-85_530_212.12), '-85.53 TWh');
+  });
+
   test('builds positive waterfall running totals that end at the total delta', () => {
     const sequence = buildSequence([
       {
