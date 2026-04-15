@@ -241,45 +241,48 @@
   "residual_overlays": {
     "controls_by_overlay_id": {
       "commercial_other": {
-        "included": false
+        "included": true
       },
       "construction_other": {
-        "included": false
+        "included": true
       },
       "manufacturing_other": {
-        "included": false
+        "included": true
       },
       "mining_other": {
-        "included": false
+        "included": true
       },
       "other_other": {
-        "included": false
+        "included": true
       },
       "residential_other": {
-        "included": false
+        "included": true
       },
       "transport_other": {
-        "included": false
+        "included": true
       },
       "water_waste_other": {
-        "included": false
+        "included": true
       },
       "residual_agriculture_other": {
-        "included": false
+        "included": true
       },
       "residual_fugitives": {
-        "included": false
+        "included": true
       },
       "residual_ippu_other": {
-        "included": false
+        "included": true
       },
       "residual_waste": {
-        "included": false
+        "included": true
       },
       "residual_lulucf_sink": {
         "included": false
       }
     }
+  },
+  "presentation_options": {
+    "residual_overlay_display_mode": "aggregated_non_sink"
   },
   "app_metadata": {
     "id": "reference-all",

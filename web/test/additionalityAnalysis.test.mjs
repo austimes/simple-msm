@@ -259,6 +259,19 @@ describe('additionality analysis', () => {
     assert.ok(issues.some((issue) => issue.code === 'carbon_price_mismatch'));
   });
 
+  test('validation ignores presentation-only residual overlay display mode changes', () => {
+    const base = buildBaseCase();
+    const target = buildBaseCase();
+    target.presentation_options = {
+      ...(target.presentation_options ?? {}),
+      residual_overlay_display_mode: 'individual',
+    };
+
+    const issues = validateAdditionalityPair(base, target, pkg);
+
+    assert.deepEqual(issues, []);
+  });
+
   test('validation rejects solver-option differences', () => {
     const base = buildBaseCase();
     const target = buildBaseCase();

@@ -1,32 +1,48 @@
 import { useMemo } from 'react';
 import { usePackageStore } from '../data/packageStore';
 import { summarizeOverlayTotals } from '../data/balanceDiagnostics';
+import {
+  AGGREGATED_RESIDUAL_OVERLAY_LABEL,
+  DEFAULT_RESIDUAL_OVERLAY_DISPLAY_MODE,
+  getResidualOverlayDisplayBucket,
+} from '../data/residualOverlayPresentation.ts';
 import type { ResidualOverlayRow } from '../data/types';
 
 function fmt(value: number, decimals = 3): string {
   return value.toFixed(decimals);
 }
 
-interface AggregatedEnergyOverlay {
+interface AggregatedResidualOverlay {
   overlay_id: string;
   overlay_label: string;
   final_energy_pj_2025: number;
   direct_energy_emissions_mtco2e_2025: number;
+  other_emissions_mtco2e_2025: number;
 }
 
-function aggregateEnergyOverlays(rows: ResidualOverlayRow[]): AggregatedEnergyOverlay[] {
-  const map = new Map<string, AggregatedEnergyOverlay>();
+function aggregateResidualOverlays(rows: ResidualOverlayRow[]): AggregatedResidualOverlay[] {
+  const map = new Map<string, AggregatedResidualOverlay>();
   for (const row of rows) {
-    const existing = map.get(row.overlay_id);
+    const bucket = getResidualOverlayDisplayBucket(
+      {
+        overlayId: row.overlay_id,
+        overlayDomain: row.overlay_domain,
+        overlayLabel: row.overlay_label,
+      },
+      DEFAULT_RESIDUAL_OVERLAY_DISPLAY_MODE,
+    );
+    const existing = map.get(bucket.overlayId);
     if (existing) {
       existing.final_energy_pj_2025 += row.final_energy_pj_2025 ?? 0;
       existing.direct_energy_emissions_mtco2e_2025 += row.direct_energy_emissions_mtco2e_2025 ?? 0;
+      existing.other_emissions_mtco2e_2025 += row.other_emissions_mtco2e_2025 ?? 0;
     } else {
-      map.set(row.overlay_id, {
-        overlay_id: row.overlay_id,
-        overlay_label: row.overlay_label,
+      map.set(bucket.overlayId, {
+        overlay_id: bucket.overlayId,
+        overlay_label: bucket.overlayLabel,
         final_energy_pj_2025: row.final_energy_pj_2025 ?? 0,
         direct_energy_emissions_mtco2e_2025: row.direct_energy_emissions_mtco2e_2025 ?? 0,
+        other_emissions_mtco2e_2025: row.other_emissions_mtco2e_2025 ?? 0,
       });
     }
   }
@@ -41,20 +57,15 @@ export default function BaselineClosureDiagnosticsCard() {
     [residualOverlays2025],
   );
 
-  const aggregatedEnergy = useMemo(
-    () => aggregateEnergyOverlays(
-      residualOverlays2025.filter((r) => r.overlay_domain === 'energy_residual' && r.default_include),
+  const aggregatedResiduals = useMemo(
+    () => aggregateResidualOverlays(
+      residualOverlays2025.filter((row) => row.default_include),
     ),
     [residualOverlays2025],
   );
 
-  const includedNonEnergy = useMemo(
-    () => residualOverlays2025.filter((r) => r.overlay_domain === 'nonenergy_residual' && r.default_include),
-    [residualOverlays2025],
-  );
-
-  const excludedNonEnergy = useMemo(
-    () => residualOverlays2025.filter((r) => r.overlay_domain !== 'energy_residual' && !r.default_include),
+  const netSinkRows = useMemo(
+    () => residualOverlays2025.filter((row) => row.overlay_domain === 'net_sink'),
     [residualOverlays2025],
   );
 
@@ -67,56 +78,41 @@ export default function BaselineClosureDiagnosticsCard() {
         closure only.
       </p>
 
-      <h3>Residual energy overlays</h3>
+      <h3>{AGGREGATED_RESIDUAL_OVERLAY_LABEL}</h3>
       <div className="library-mini-table">
         <div className="library-mini-table-row library-mini-table-row--header">
-          <span>Overlay sector</span>
+          <span>Residual component</span>
           <span>Final energy (PJ)</span>
-          <span>Emissions (MtCO₂e)</span>
+          <span>Energy emissions (MtCO₂e)</span>
+          <span>Non-energy emissions (MtCO₂e)</span>
         </div>
-        {aggregatedEnergy.map((row) => (
+        {aggregatedResiduals.map((row) => (
           <div key={row.overlay_id} className="library-mini-table-row">
             <span>{row.overlay_label}</span>
             <span>{fmt(row.final_energy_pj_2025)}</span>
             <span>{fmt(row.direct_energy_emissions_mtco2e_2025)}</span>
+            <span>{fmt(row.other_emissions_mtco2e_2025)}</span>
           </div>
         ))}
         <div className="library-mini-table-row library-mini-table-row--header">
           <span>Total</span>
           <span>{fmt(totals.totalResidualEnergyPj)}</span>
           <span>{fmt(totals.totalResidualEnergyEmissions)}</span>
-        </div>
-      </div>
-
-      <h3>Residual non-energy emissions overlays</h3>
-      <div className="library-mini-table">
-        <div className="library-mini-table-row library-mini-table-row--header">
-          <span>Overlay</span>
-          <span>Emissions (MtCO₂e)</span>
-        </div>
-        {includedNonEnergy.map((row) => (
-          <div key={row.overlay_id} className="library-mini-table-row">
-            <span>{row.overlay_label}</span>
-            <span>{fmt(row.other_emissions_mtco2e_2025 ?? 0)}</span>
-          </div>
-        ))}
-        <div className="library-mini-table-row library-mini-table-row--header">
-          <span>Total (excl. LULUCF)</span>
           <span>{fmt(totals.totalResidualNonEnergyEmissions)}</span>
         </div>
       </div>
 
-      {excludedNonEnergy.length > 0 ? (
+      {netSinkRows.length > 0 ? (
         <div className="configuration-provenance-note">
-          <strong>Excluded by default</strong>
+          <strong>Net sinks stay separate</strong>
           <p>
-            {excludedNonEnergy.map((row) => (
+            {netSinkRows.map((row) => (
               <span key={row.overlay_id}>
                 {row.overlay_label}: {fmt(row.other_emissions_mtco2e_2025 ?? row.carbon_billable_emissions_mtco2e_2025 ?? 0)} MtCO₂e.{' '}
               </span>
             ))}
-            These overlays (e.g. LULUCF sink) are kept separate because their sign or accounting
-            treatment differs from the positive-emitting sectors.
+            Net sinks are excluded from the default positive-emitting residual aggregate because
+            their sign and accounting treatment differ from the closure components above.
           </p>
         </div>
       ) : null}

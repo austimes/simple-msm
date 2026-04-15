@@ -15,6 +15,7 @@ import {
 } from '../../results/chartData';
 import { buildAllContributionRows, buildSolverContributionRows } from '../../results/resultContributions.ts';
 import { usePackageStore } from '../../data/packageStore.ts';
+import { getResidualOverlayDisplayMode } from '../../data/residualOverlayPresentation.ts';
 import type { ConfigurationDocument } from '../../data/types.ts';
 import type { SolveRequest, SolveResult } from '../../solver/contract.ts';
 import type { ConfigurationSolveFailure } from '../../solver/configurationSolveFailure.ts';
@@ -117,9 +118,11 @@ export default function ConfigurationWorkspaceCenter({
   failure,
 }: ConfigurationWorkspaceCenterProps) {
   const residualOverlays2025 = usePackageStore((s) => s.residualOverlays2025);
+  const currentConfiguration = usePackageStore((s) => s.currentConfiguration);
 
   const hasSolvedSnapshot = request != null && result != null;
   const showCharts = hasSolvedSnapshot && phase !== 'error';
+  const residualOverlayDisplayMode = getResidualOverlayDisplayMode(currentConfiguration);
 
   const contributions = useMemo(
     () =>
@@ -140,8 +143,12 @@ export default function ConfigurationWorkspaceCenter({
     [request],
   );
   const emissionsChart = useMemo(
-    () => (contributions.length > 0 ? buildEmissionsBySectorChart(contributions, years) : null),
-    [contributions, years],
+    () => (
+      contributions.length > 0
+        ? buildEmissionsBySectorChart(contributions, years, residualOverlayDisplayMode)
+        : null
+    ),
+    [contributions, years, residualOverlayDisplayMode],
   );
   const consumptionChart = useMemo(
     () => (contributions.length > 0 ? buildFuelConsumptionChart(contributions, years) : null),

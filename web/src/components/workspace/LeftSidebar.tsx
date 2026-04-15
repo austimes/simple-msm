@@ -2,6 +2,11 @@ import { useMemo, useState, useCallback, type ReactNode } from 'react';
 import { usePackageStore } from '../../data/packageStore';
 import { getActiveDemandPreset, getCommodityPriceLevel, getActiveCarbonPricePreset } from '../../data/configurationWorkspaceModel';
 import {
+  AGGREGATED_RESIDUAL_OVERLAY_LABEL,
+  getResidualOverlayDisplayMode,
+  isAggregatableResidualOverlay,
+} from '../../data/residualOverlayPresentation.ts';
+import {
   getConfigurationId,
   isReadonlyConfiguration,
   loadBuiltinConfigurations,
@@ -20,6 +25,7 @@ import type {
   CommodityPriceSeries,
   ConfigurationControlMode,
   ConfigurationDocument,
+  ResidualOverlayDisplayMode,
   ResidualOverlayDomain,
   ResidualOverlayRow,
 } from '../../data/types';
@@ -118,15 +124,45 @@ function formatOverlayDetail(entry: OverlayCatalogEntry): string {
   return 'Emissions only';
 }
 
-function formatOverlayAnchorPreview(entry: OverlayCatalogEntry): string {
+function formatOverlayPreviewTotals(totalEnergyPJ: number, totalEmissionsMt: number): string {
   const parts: string[] = [];
-  if (entry.totalEnergyPJ !== 0) {
-    parts.push(`${Math.abs(entry.totalEnergyPJ).toFixed(1)} PJ`);
+  if (totalEnergyPJ !== 0) {
+    parts.push(`${Math.abs(totalEnergyPJ).toFixed(1)} PJ`);
   }
-  if (entry.totalEmissionsMt !== 0) {
-    parts.push(`${entry.totalEmissionsMt.toFixed(1)} MtCO₂e`);
+  if (totalEmissionsMt !== 0) {
+    parts.push(`${totalEmissionsMt.toFixed(1)} MtCO₂e`);
   }
   return parts.length > 0 ? parts.join(', ') : '—';
+}
+
+function formatOverlayAnchorPreview(entry: OverlayCatalogEntry): string {
+  return formatOverlayPreviewTotals(entry.totalEnergyPJ, entry.totalEmissionsMt);
+}
+
+function summarizeOverlayEntries(entries: OverlayCatalogEntry[]): {
+  count: number;
+  totalEnergyPJ: number;
+  totalEmissionsMt: number;
+} {
+  return entries.reduce(
+    (summary, entry) => ({
+      count: summary.count + 1,
+      totalEnergyPJ: summary.totalEnergyPJ + entry.totalEnergyPJ,
+      totalEmissionsMt: summary.totalEmissionsMt + entry.totalEmissionsMt,
+    }),
+    {
+      count: 0,
+      totalEnergyPJ: 0,
+      totalEmissionsMt: 0,
+    },
+  );
+}
+
+function formatComponentCountLabel(enabledCount: number, totalCount: number): string {
+  const noun = enabledCount === 1 ? 'component' : 'components';
+  return enabledCount === totalCount
+    ? `${enabledCount} ${noun} enabled`
+    : `${enabledCount}/${totalCount} ${noun} enabled`;
 }
 
 function formatUnit(raw: string): string {
@@ -160,7 +196,11 @@ function renderWorkspaceChipLabel(label: string) {
   return <span className="workspace-pill-label">{formatWorkspacePillLabel(label)}</span>;
 }
 
-export default function LeftSidebar() {
+interface LeftSidebarProps {
+  initialExpandedSections?: Partial<LeftSidebarSectionState>;
+}
+
+export default function LeftSidebar({ initialExpandedSections }: LeftSidebarProps = {}) {
   const appConfig = usePackageStore((s) => s.appConfig);
   const sectorStates = usePackageStore((s) => s.sectorStates);
   const currentConfiguration = usePackageStore((s) => s.currentConfiguration);
@@ -172,6 +212,7 @@ export default function LeftSidebar() {
   const residualOverlays2025 = usePackageStore((s) => s.residualOverlays2025);
   const setResidualOverlayIncluded = usePackageStore((s) => s.setResidualOverlayIncluded);
   const setAllResidualOverlaysIncluded = usePackageStore((s) => s.setAllResidualOverlaysIncluded);
+  const setResidualOverlayDisplayMode = usePackageStore((s) => s.setResidualOverlayDisplayMode);
   const loadConfiguration = usePackageStore((s) => s.loadConfiguration);
   const activeConfigurationId = usePackageStore((s) => s.activeConfigurationId);
   const activeConfigurationReadonly = usePackageStore((s) => s.activeConfigurationReadonly);
@@ -230,6 +271,23 @@ export default function LeftSidebar() {
 
   const overlayCatalog = useMemo(() => deriveOverlayCatalog(residualOverlays2025), [residualOverlays2025]);
   const overlayControls = currentConfiguration.residual_overlays?.controls_by_overlay_id ?? {};
+  const residualOverlayDisplayMode = getResidualOverlayDisplayMode(currentConfiguration);
+  const nonSinkOverlayEntries = useMemo(
+    () => overlayCatalog.filter((entry) => isAggregatableResidualOverlay(entry.overlayDomain)),
+    [overlayCatalog],
+  );
+  const netSinkOverlayEntries = useMemo(
+    () => overlayCatalog.filter((entry) => !isAggregatableResidualOverlay(entry.overlayDomain)),
+    [overlayCatalog],
+  );
+  const enabledNonSinkEntries = useMemo(
+    () => nonSinkOverlayEntries.filter((entry) => overlayControls[entry.overlayId]?.included ?? entry.defaultInclude),
+    [nonSinkOverlayEntries, overlayControls],
+  );
+  const enabledNonSinkSummary = useMemo(
+    () => summarizeOverlayEntries(enabledNonSinkEntries),
+    [enabledNonSinkEntries],
+  );
 
   const builtinConfigs = useMemo(() => loadBuiltinConfigurations(), []);
   const [userConfigs, setUserConfigs] = useState(() => loadUserConfigurations());
@@ -241,6 +299,7 @@ export default function LeftSidebar() {
     emissionsPrice: true,
     overlays: false,
     configurations: true,
+    ...initialExpandedSections,
   });
 
   const refreshUserConfigs = useCallback(async () => {
@@ -565,62 +624,109 @@ export default function LeftSidebar() {
           <div className="workspace-subsector-detail">
             Overlay trajectories follow the active demand-growth preset. Commodity shares within each overlay remain fixed at 2025 proportions.
           </div>
-          <div className="workspace-chip-group workspace-chip-group--inline">
-            <button
-              type="button"
-              className="workspace-chip"
-              onClick={() => setAllResidualOverlaysIncluded(true)}
-            >
-              {renderWorkspaceChipLabel('All on')}
-            </button>
-            <button
-              type="button"
-              className="workspace-chip"
-              onClick={() => setAllResidualOverlaysIncluded(false)}
-            >
-              {renderWorkspaceChipLabel('All off')}
-            </button>
-          </div>
-          {([
-            'energy_residual',
-            'nonenergy_residual',
-            'net_sink',
-          ] as ResidualOverlayDomain[]).map((domain) => {
-            const domainEntries = overlayCatalog.filter((e) => e.overlayDomain === domain);
-            if (domainEntries.length === 0) return null;
-            return (
-              <div key={domain} className="workspace-sector-group">
-                <div className="workspace-sector-title">{DOMAIN_LABELS[domain]}</div>
-                {domainEntries.map((entry) => {
-                  const included = overlayControls[entry.overlayId]?.included ?? entry.defaultInclude;
-                  return (
-                    <div key={entry.overlayId} className="workspace-subsector-group">
-                      <div className="workspace-subsector-title">{entry.overlayLabel}</div>
-                      <div className="workspace-subsector-detail">
-                        {formatOverlayDetail(entry)} · {formatOverlayAnchorPreview(entry)}
-                      </div>
-                      <div className="workspace-chip-group workspace-chip-group--inline">
-                        <button
-                          type="button"
-                          className={`workspace-chip${included ? ' workspace-chip--active' : ''}`}
-                          onClick={() => setResidualOverlayIncluded(entry.overlayId, true)}
-                        >
-                          {renderWorkspaceChipLabel('On')}
-                        </button>
-                        <button
-                          type="button"
-                          className={`workspace-chip${included ? '' : ' workspace-chip--active'}`}
-                          onClick={() => setResidualOverlayIncluded(entry.overlayId, false)}
-                        >
-                          {renderWorkspaceChipLabel('Off')}
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
+          {nonSinkOverlayEntries.length > 0 && (
+            <div className="workspace-sector-group">
+              <div className="workspace-sector-title">{AGGREGATED_RESIDUAL_OVERLAY_LABEL}</div>
+              <div className="workspace-subsector-detail">
+                {formatComponentCountLabel(enabledNonSinkSummary.count, nonSinkOverlayEntries.length)}
+                {' · '}
+                {formatOverlayPreviewTotals(
+                  enabledNonSinkSummary.totalEnergyPJ,
+                  enabledNonSinkSummary.totalEmissionsMt,
+                )}
               </div>
-            );
-          })}
+              <div className="workspace-chip-group workspace-chip-group--inline">
+                {([
+                  'aggregated_non_sink',
+                  'individual',
+                ] as ResidualOverlayDisplayMode[]).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    className={`workspace-chip${residualOverlayDisplayMode === mode ? ' workspace-chip--active' : ''}`}
+                    onClick={() => setResidualOverlayDisplayMode(mode)}
+                  >
+                    {renderWorkspaceChipLabel(mode === 'aggregated_non_sink' ? 'Aggregated' : 'Individual')}
+                  </button>
+                ))}
+              </div>
+              <div className="workspace-chip-group workspace-chip-group--inline">
+                <button
+                  type="button"
+                  className="workspace-chip"
+                  onClick={() => setAllResidualOverlaysIncluded(true)}
+                >
+                  {renderWorkspaceChipLabel('All on')}
+                </button>
+                <button
+                  type="button"
+                  className="workspace-chip"
+                  onClick={() => setAllResidualOverlaysIncluded(false)}
+                >
+                  {renderWorkspaceChipLabel('All off')}
+                </button>
+              </div>
+              {nonSinkOverlayEntries.map((entry) => {
+                const included = overlayControls[entry.overlayId]?.included ?? entry.defaultInclude;
+                return (
+                  <div key={entry.overlayId} className="workspace-subsector-group">
+                    <div className="workspace-subsector-title">{entry.overlayLabel}</div>
+                    <div className="workspace-subsector-detail">
+                      {DOMAIN_LABELS[entry.overlayDomain]} · {formatOverlayDetail(entry)} · {formatOverlayAnchorPreview(entry)}
+                    </div>
+                    <div className="workspace-chip-group workspace-chip-group--inline">
+                      <button
+                        type="button"
+                        className={`workspace-chip${included ? ' workspace-chip--active' : ''}`}
+                        onClick={() => setResidualOverlayIncluded(entry.overlayId, true)}
+                      >
+                        {renderWorkspaceChipLabel('On')}
+                      </button>
+                      <button
+                        type="button"
+                        className={`workspace-chip${included ? '' : ' workspace-chip--active'}`}
+                        onClick={() => setResidualOverlayIncluded(entry.overlayId, false)}
+                      >
+                        {renderWorkspaceChipLabel('Off')}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {netSinkOverlayEntries.length > 0 && (
+            <div className="workspace-sector-group">
+              <div className="workspace-sector-title">{DOMAIN_LABELS.net_sink}</div>
+              {netSinkOverlayEntries.map((entry) => {
+                const included = overlayControls[entry.overlayId]?.included ?? entry.defaultInclude;
+                return (
+                  <div key={entry.overlayId} className="workspace-subsector-group">
+                    <div className="workspace-subsector-title">{entry.overlayLabel}</div>
+                    <div className="workspace-subsector-detail">
+                      {formatOverlayDetail(entry)} · {formatOverlayAnchorPreview(entry)}
+                    </div>
+                    <div className="workspace-chip-group workspace-chip-group--inline">
+                      <button
+                        type="button"
+                        className={`workspace-chip${included ? ' workspace-chip--active' : ''}`}
+                        onClick={() => setResidualOverlayIncluded(entry.overlayId, true)}
+                      >
+                        {renderWorkspaceChipLabel('On')}
+                      </button>
+                      <button
+                        type="button"
+                        className={`workspace-chip${included ? '' : ' workspace-chip--active'}`}
+                        onClick={() => setResidualOverlayIncluded(entry.overlayId, false)}
+                      >
+                        {renderWorkspaceChipLabel('Off')}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </>,
       )}
 

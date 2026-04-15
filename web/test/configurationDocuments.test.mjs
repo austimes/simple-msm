@@ -135,6 +135,44 @@ test('configuration documents round-trip through browser persistence into scoped
   assert.ok(!outputsInRequest.has('cement_equivalent'));
 });
 
+test('residual overlay materialization backfills CSV-driven defaults and aggregated display mode', async () => {
+  const { materializeResidualOverlayConfiguration } = await loadViteModule('/src/data/configurationDocumentLoader.ts');
+  const { usePackageStore } = await loadViteModule('/src/data/packageStore.ts');
+  const configuration = readJson('../src/configurations/reference.json');
+  const overlayRows = usePackageStore.getState().residualOverlays2025;
+
+  delete configuration.residual_overlays;
+  delete configuration.presentation_options;
+
+  const materialized = materializeResidualOverlayConfiguration(
+    structuredClone(configuration),
+    overlayRows,
+  );
+  const controls = materialized.residual_overlays?.controls_by_overlay_id ?? {};
+  const overlayIdsByDomain = overlayRows.reduce((groups, row) => {
+    if (!groups[row.overlay_domain]) {
+      groups[row.overlay_domain] = new Set();
+    }
+    groups[row.overlay_domain].add(row.overlay_id);
+    return groups;
+  }, {});
+
+  for (const overlayId of overlayIdsByDomain.energy_residual ?? []) {
+    assert.equal(controls[overlayId]?.included, true, `${overlayId} should default on`);
+  }
+  for (const overlayId of overlayIdsByDomain.nonenergy_residual ?? []) {
+    assert.equal(controls[overlayId]?.included, true, `${overlayId} should default on`);
+  }
+  for (const overlayId of overlayIdsByDomain.net_sink ?? []) {
+    assert.equal(controls[overlayId]?.included, false, `${overlayId} should default off`);
+  }
+
+  assert.equal(
+    materialized.presentation_options?.residual_overlay_display_mode,
+    'aggregated_non_sink',
+  );
+});
+
 test('configuration id helper prefers app metadata ids and falls back to legacy top-level ids', async () => {
   const { getConfigurationDocumentId } = await loadViteModule('/src/data/configurationMetadata.ts');
 
@@ -375,4 +413,28 @@ test('left sidebar uses the requested default collapsed sections and restores al
   assert.ok(!html.includes('Energy residuals'));
   assert.doesNotMatch(html, /workspace-mode-badge--modeled/);
   assert.doesNotMatch(html, />in model<\/span>/i);
+});
+
+test('left sidebar renders the residual aggregate summary, display toggle, and separate net sinks block', async () => {
+  const { default: LeftSidebar } = await loadViteModule('/src/components/workspace/LeftSidebar.tsx');
+  const { usePackageStore } = await loadViteModule('/src/data/packageStore.ts');
+
+  usePackageStore.getState().replaceCurrentConfiguration(readJson('../src/configurations/reference-base.json'));
+
+  const html = renderToStaticMarkup(
+    React.createElement(LeftSidebar, {
+      initialExpandedSections: {
+        overlays: true,
+        emissionsPrice: false,
+        configurations: false,
+      },
+    }),
+  );
+
+  assert.match(html, /Unmodelled residuals/);
+  assert.match(html, /Aggregated/);
+  assert.match(html, /Individual/);
+  assert.match(html, /components enabled/);
+  assert.match(html, /Net sinks/);
+  assert.match(html, /Residual LULUCF sink/);
 });

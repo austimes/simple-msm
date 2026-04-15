@@ -397,9 +397,9 @@ export default function ModelFormulationPageContent({
         </div>
 
         <p>
-          Default-included overlays are the positive-emitting closure layers. The LULUCF sink stays
-          separate and optional by default because its accounting sign and treatment differ from the
-          positive-emitting sector rows.
+          Default-included residual components are the positive-emitting closure layers. The LULUCF
+          sink stays separate and optional by default because its accounting sign and treatment
+          differ from the positive-emitting sector rows.
         </p>
       </section>
 

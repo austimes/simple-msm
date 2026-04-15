@@ -477,6 +477,204 @@ test('emissions charts expose tCO2e axis labels and preserve negative removals',
   );
 });
 
+test('emissions charts aggregate non-sink residual overlays in aggregated mode and keep net sinks separate', () => {
+  const contributions = [
+    {
+      metric: 'emissions',
+      year: 2030,
+      value: 20,
+      sourceKind: 'solver',
+      sourceId: 'buildings_incumbent',
+      sourceLabel: 'Buildings incumbent',
+      sectorId: 'buildings',
+      sectorLabel: 'buildings',
+      subsectorId: 'residential',
+      subsectorLabel: 'residential',
+      commodityId: null,
+      costComponent: null,
+      overlayId: null,
+      overlayDomain: null,
+    },
+    {
+      metric: 'emissions',
+      year: 2035,
+      value: 21,
+      sourceKind: 'solver',
+      sourceId: 'buildings_incumbent',
+      sourceLabel: 'Buildings incumbent',
+      sectorId: 'buildings',
+      sectorLabel: 'buildings',
+      subsectorId: 'residential',
+      subsectorLabel: 'residential',
+      commodityId: null,
+      costComponent: null,
+      overlayId: null,
+      overlayDomain: null,
+    },
+    {
+      metric: 'emissions',
+      year: 2030,
+      value: 10,
+      sourceKind: 'overlay',
+      sourceId: 'commercial_other',
+      sourceLabel: 'Residual commercial other',
+      sectorId: 'commercial_other',
+      sectorLabel: 'Residual commercial other',
+      subsectorId: 'commercial_other',
+      subsectorLabel: 'Residual commercial other',
+      commodityId: null,
+      costComponent: null,
+      overlayId: 'commercial_other',
+      overlayDomain: 'energy_residual',
+    },
+    {
+      metric: 'emissions',
+      year: 2035,
+      value: 11,
+      sourceKind: 'overlay',
+      sourceId: 'commercial_other',
+      sourceLabel: 'Residual commercial other',
+      sectorId: 'commercial_other',
+      sectorLabel: 'Residual commercial other',
+      subsectorId: 'commercial_other',
+      subsectorLabel: 'Residual commercial other',
+      commodityId: null,
+      costComponent: null,
+      overlayId: 'commercial_other',
+      overlayDomain: 'energy_residual',
+    },
+    {
+      metric: 'emissions',
+      year: 2030,
+      value: 5,
+      sourceKind: 'overlay',
+      sourceId: 'residual_waste',
+      sourceLabel: 'Residual waste emissions',
+      sectorId: 'residual_waste',
+      sectorLabel: 'Residual waste emissions',
+      subsectorId: 'residual_waste',
+      subsectorLabel: 'Residual waste emissions',
+      commodityId: null,
+      costComponent: null,
+      overlayId: 'residual_waste',
+      overlayDomain: 'nonenergy_residual',
+    },
+    {
+      metric: 'emissions',
+      year: 2035,
+      value: 6,
+      sourceKind: 'overlay',
+      sourceId: 'residual_waste',
+      sourceLabel: 'Residual waste emissions',
+      sectorId: 'residual_waste',
+      sectorLabel: 'Residual waste emissions',
+      subsectorId: 'residual_waste',
+      subsectorLabel: 'Residual waste emissions',
+      commodityId: null,
+      costComponent: null,
+      overlayId: 'residual_waste',
+      overlayDomain: 'nonenergy_residual',
+    },
+    {
+      metric: 'emissions',
+      year: 2030,
+      value: -3,
+      sourceKind: 'overlay',
+      sourceId: 'residual_lulucf_sink',
+      sourceLabel: 'Residual LULUCF sink',
+      sectorId: 'residual_lulucf_sink',
+      sectorLabel: 'Residual LULUCF sink',
+      subsectorId: 'residual_lulucf_sink',
+      subsectorLabel: 'Residual LULUCF sink',
+      commodityId: null,
+      costComponent: null,
+      overlayId: 'residual_lulucf_sink',
+      overlayDomain: 'net_sink',
+    },
+    {
+      metric: 'emissions',
+      year: 2035,
+      value: -4,
+      sourceKind: 'overlay',
+      sourceId: 'residual_lulucf_sink',
+      sourceLabel: 'Residual LULUCF sink',
+      sectorId: 'residual_lulucf_sink',
+      sectorLabel: 'Residual LULUCF sink',
+      subsectorId: 'residual_lulucf_sink',
+      subsectorLabel: 'Residual LULUCF sink',
+      commodityId: null,
+      costComponent: null,
+      overlayId: 'residual_lulucf_sink',
+      overlayDomain: 'net_sink',
+    },
+  ];
+  const years = [2030, 2035];
+
+  const aggregatedSectorChart = buildEmissionsBySectorChart(contributions, years, 'aggregated_non_sink');
+  const individualSectorChart = buildEmissionsBySectorChart(contributions, years, 'individual');
+  const aggregatedSubsectorChart = buildEmissionsBySubsectorChart(contributions, years, 'aggregated_non_sink');
+  const individualSubsectorChart = buildEmissionsBySubsectorChart(contributions, years, 'individual');
+
+  assert.deepEqual(
+    aggregatedSectorChart.series.find((series) => series.key === 'overlay:unmodelled_residuals')?.values,
+    [
+      { year: 2030, value: 15 },
+      { year: 2035, value: 17 },
+    ],
+  );
+  assert.equal(
+    aggregatedSectorChart.series.find((series) => series.key === 'overlay:unmodelled_residuals')?.label,
+    'Unmodelled residuals',
+  );
+  assert.equal(
+    aggregatedSectorChart.series.find((series) => series.key === 'overlay:unmodelled_residuals')?.color,
+    '#92400e',
+  );
+  assert.equal(
+    aggregatedSectorChart.series.find((series) => series.key === 'overlay:unmodelled_residuals')?.legendLabel,
+    'Unmodelled res',
+  );
+  assert.deepEqual(
+    aggregatedSectorChart.series.find((series) => series.key === 'overlay:residual_lulucf_sink')?.values,
+    [
+      { year: 2030, value: -3 },
+      { year: 2035, value: -4 },
+    ],
+  );
+  assert.equal(
+    individualSectorChart.series.find((series) => series.key === 'overlay:commercial_other')?.label,
+    'Residual commercial other',
+  );
+  assert.equal(
+    individualSectorChart.series.find((series) => series.key === 'overlay:residual_waste')?.label,
+    'Residual waste emissions',
+  );
+  assert.equal(
+    individualSectorChart.series.find((series) => series.key === 'overlay:residual_lulucf_sink')?.label,
+    'Residual LULUCF sink',
+  );
+  assert.equal(
+    individualSectorChart.series.some((series) => series.key === 'overlay:unmodelled_residuals'),
+    false,
+  );
+
+  assert.deepEqual(
+    aggregatedSubsectorChart.series.find((series) => series.key === 'overlay:unmodelled_residuals')?.values,
+    [
+      { year: 2030, value: 15 },
+      { year: 2035, value: 17 },
+    ],
+  );
+  assert.equal(
+    individualSubsectorChart.series.find((series) => series.key === 'overlay:commercial_other')?.label,
+    'Residual commercial other',
+  );
+  assert.equal(
+    aggregatedSubsectorChart.series.some((series) => series.key === 'overlay:residual_lulucf_sink'),
+    true,
+  );
+});
+
 test('buildPathwayChartCards returns output and cap views for selectable outputs', () => {
   const cards = buildPathwayChartCards(buildRequest(true), buildResult());
 

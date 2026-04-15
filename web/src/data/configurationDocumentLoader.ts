@@ -2,6 +2,10 @@ import Ajv2020 from 'ajv/dist/2020';
 import type { ErrorObject } from 'ajv';
 import referenceConfigurationText from '../configurations/reference.json?raw';
 import configurationSchemaText from '../app_config/configuration_schema.json?raw';
+import {
+  DEFAULT_RESIDUAL_OVERLAY_DISPLAY_MODE,
+  getResidualOverlayDisplayMode,
+} from './residualOverlayPresentation.ts';
 import { resolveConfigurationDocument } from './demandResolution.ts';
 import type { AppConfigRegistry, ConfigurationDocument, ConfigurationResidualOverlays, ResidualOverlayRow } from './types.ts';
 
@@ -125,29 +129,41 @@ export function parseConfigurationDocument(
 export function buildDefaultResidualOverlays(
   overlayRows: ResidualOverlayRow[],
 ): ConfigurationResidualOverlays {
-  const ids = Array.from(new Set(overlayRows.map((row) => row.overlay_id)));
+  const includeById = new Map<string, boolean>();
+  for (const row of overlayRows) {
+    const current = includeById.get(row.overlay_id);
+    includeById.set(row.overlay_id, current === undefined ? row.default_include : current && row.default_include);
+  }
+
   return {
     controls_by_overlay_id: Object.fromEntries(
-      ids.map((id) => [id, { included: true }]),
+      Array.from(includeById.entries()).map(([id, included]) => [id, { included }]),
     ),
   };
 }
 
-export function ensureResidualOverlays(
+export function materializeResidualOverlayConfiguration(
   configuration: ConfigurationDocument,
   overlayRows: ResidualOverlayRow[],
 ): ConfigurationDocument {
-  const knownIds = Array.from(new Set(overlayRows.map((row) => row.overlay_id)));
+  const defaults = buildDefaultResidualOverlays(overlayRows).controls_by_overlay_id;
+  const knownIds = Object.keys(defaults);
   const existing = configuration.residual_overlays?.controls_by_overlay_id ?? {};
   const merged: Record<string, { included: boolean }> = {};
 
   for (const id of knownIds) {
-    merged[id] = { included: existing[id]?.included ?? true };
+    merged[id] = { included: existing[id]?.included ?? defaults[id]?.included ?? false };
   }
+
+  const displayMode = getResidualOverlayDisplayMode(configuration);
 
   return {
     ...configuration,
     residual_overlays: { controls_by_overlay_id: merged },
+    presentation_options: {
+      ...(configuration.presentation_options ?? {}),
+      residual_overlay_display_mode: displayMode ?? DEFAULT_RESIDUAL_OVERLAY_DISPLAY_MODE,
+    },
   };
 }
 

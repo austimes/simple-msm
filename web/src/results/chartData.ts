@@ -7,6 +7,8 @@ import type {
 } from '../solver/contract';
 import { getCommodityMetadata } from '../data/commodityMetadata.ts';
 import { getPresentation } from '../data/chartPresentation.ts';
+import { DEFAULT_RESIDUAL_OVERLAY_DISPLAY_MODE, getResidualOverlayDisplayBucket } from '../data/residualOverlayPresentation.ts';
+import type { ResidualOverlayDisplayMode } from '../data/types.ts';
 import type { ResultContributionRow } from './resultContributions.ts';
 
 const ABSOLUTE_EMISSIONS_AXIS_LABEL = 'Emissions (tCO2e)';
@@ -100,6 +102,25 @@ function stripOverlayPrefix(key: string): string {
   return key.replace(/^overlay:/, '');
 }
 
+function getOverlaySeriesBucket(
+  row: ResultContributionRow,
+  displayMode: ResidualOverlayDisplayMode,
+): { key: string; label: string } {
+  const bucket = getResidualOverlayDisplayBucket(
+    {
+      overlayId: row.overlayId ?? row.sourceId,
+      overlayDomain: row.overlayDomain ?? 'nonenergy_residual',
+      overlayLabel: row.sourceLabel,
+    },
+    displayMode,
+  );
+
+  return {
+    key: `overlay:${bucket.overlayId}`,
+    label: bucket.overlayLabel,
+  };
+}
+
 function buildCapChartNote(respectMaxShare: boolean): string {
   return respectMaxShare
     ? 'Cap chart shows effective max share after normalizing across active pathways.'
@@ -129,13 +150,16 @@ function formatObjectiveCostAxisLabelFromMetadata(objectiveCost?: SolveObjective
 export function buildEmissionsBySectorChart(
   contributions: ResultContributionRow[],
   years: number[],
+  displayMode: ResidualOverlayDisplayMode = DEFAULT_RESIDUAL_OVERLAY_DISPLAY_MODE,
 ): StackedChartData {
   const grouped = new Map<string, Map<number, number>>();
 
   for (const row of contributions) {
     if (row.metric !== 'emissions') continue;
 
-    const key = row.sourceKind === 'overlay' ? `overlay:${row.sectorId}` : row.sectorId;
+    const key = row.sourceKind === 'overlay'
+      ? getOverlaySeriesBucket(row, displayMode).key
+      : row.sectorId;
     let yearMap = grouped.get(key);
     if (!yearMap) {
       yearMap = new Map<number, number>();
@@ -147,8 +171,12 @@ export function buildEmissionsBySectorChart(
   const labelLookup = new Map<string, string>();
   for (const row of contributions) {
     if (row.metric !== 'emissions') continue;
-    const key = row.sourceKind === 'overlay' ? `overlay:${row.sectorId}` : row.sectorId;
-    if (!labelLookup.has(key)) labelLookup.set(key, row.sectorLabel);
+    const seriesBucket = row.sourceKind === 'overlay'
+      ? getOverlaySeriesBucket(row, displayMode)
+      : { key: row.sectorId, label: row.sectorLabel };
+    if (!labelLookup.has(seriesBucket.key)) {
+      labelLookup.set(seriesBucket.key, seriesBucket.label);
+    }
   }
 
   return {
@@ -341,13 +369,16 @@ export function buildDemandBySubsectorChart(request: SolveRequest): StackedChart
 export function buildEmissionsBySubsectorChart(
   contributions: ResultContributionRow[],
   years: number[],
+  displayMode: ResidualOverlayDisplayMode = DEFAULT_RESIDUAL_OVERLAY_DISPLAY_MODE,
 ): StackedChartData {
   const grouped = new Map<string, Map<number, number>>();
 
   for (const row of contributions) {
     if (row.metric !== 'emissions') continue;
 
-    const key = row.sourceKind === 'overlay' ? `overlay:${row.overlayId}` : row.subsectorId;
+    const key = row.sourceKind === 'overlay'
+      ? getOverlaySeriesBucket(row, displayMode).key
+      : row.subsectorId;
     if (!key) continue;
     let yearMap = grouped.get(key);
     if (!yearMap) {
@@ -360,10 +391,12 @@ export function buildEmissionsBySubsectorChart(
   const labelLookup = new Map<string, string>();
   for (const row of contributions) {
     if (row.metric !== 'emissions') continue;
-    const key = row.sourceKind === 'overlay' ? `overlay:${row.overlayId}` : row.subsectorId;
-    if (!key) continue;
-    if (!labelLookup.has(key)) {
-      labelLookup.set(key, row.sourceKind === 'overlay' ? row.sourceLabel : (row.subsectorLabel ?? key));
+    const seriesBucket = row.sourceKind === 'overlay'
+      ? getOverlaySeriesBucket(row, displayMode)
+      : { key: row.subsectorId, label: row.subsectorLabel ?? row.subsectorId };
+    if (!seriesBucket.key) continue;
+    if (!labelLookup.has(seriesBucket.key)) {
+      labelLookup.set(seriesBucket.key, seriesBucket.label ?? seriesBucket.key);
     }
   }
 

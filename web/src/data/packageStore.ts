@@ -10,6 +10,7 @@ import { loadPackage } from './packageLoader.ts';
 import type {
   ConfigurationControlMode,
   ConfigurationDocument,
+  ResidualOverlayDisplayMode,
   ConfigurationServiceControl,
   PackageData,
   PriceLevel,
@@ -19,7 +20,8 @@ import {
   isReadonlyConfiguration,
   loadBuiltinConfigurations,
 } from './configurationLoader.ts';
-import { ensureResidualOverlays } from './configurationDocumentLoader.ts';
+import { materializeResidualOverlayConfiguration } from './configurationDocumentLoader.ts';
+import { isAggregatableResidualOverlay } from './residualOverlayPresentation.ts';
 import { getActiveStateIds } from './configurationWorkspaceModel.ts';
 
 export type ConfigurationDraftSource = 'reference' | 'local_draft' | 'imported' | 'draft' | 'configuration';
@@ -48,6 +50,7 @@ interface PackageStore extends PackageData {
 
   setResidualOverlayIncluded: (overlayId: string, included: boolean) => void;
   setAllResidualOverlaysIncluded: (included: boolean) => void;
+  setResidualOverlayDisplayMode: (mode: ResidualOverlayDisplayMode) => void;
   setDemandPreset: (presetId: string) => void;
   setRespectMaxShare: (enabled: boolean) => void;
   loadConfiguration: (config: ConfigurationDocument) => void;
@@ -124,6 +127,13 @@ function persistActiveConfigurationMeta(state: {
   });
 }
 
+function materializeConfiguration(
+  configuration: ConfigurationDocument,
+  residualOverlays2025: PackageData['residualOverlays2025'],
+): ConfigurationDocument {
+  return materializeResidualOverlayConfiguration(configuration, residualOverlays2025);
+}
+
 export const usePackageStore = create<PackageStore>((set, get) => {
   const pkg = loadPackage();
   const persistedDraft = loadPersistedConfigurationDraft(pkg.appConfig);
@@ -137,7 +147,7 @@ export const usePackageStore = create<PackageStore>((set, get) => {
   let initialDirty = false;
 
   if (persistedDraft.configuration) {
-    initialConfiguration = ensureResidualOverlays(
+    initialConfiguration = materializeConfiguration(
       cloneConfiguration(persistedDraft.configuration),
       pkg.residualOverlays2025,
     );
@@ -147,9 +157,12 @@ export const usePackageStore = create<PackageStore>((set, get) => {
     if (restoredMeta?.baseConfiguration) {
       initialConfigId = restoredMeta.activeConfigurationId;
       initialConfigReadonly = restoredMeta.activeConfigurationReadonly;
-      initialBaseConfiguration = cloneConfiguration(restoredMeta.baseConfiguration);
+      initialBaseConfiguration = materializeConfiguration(
+        cloneConfiguration(restoredMeta.baseConfiguration),
+        pkg.residualOverlays2025,
+      );
       initialDirty =
-        !configurationsEqual(initialConfiguration, restoredMeta.baseConfiguration);
+        !configurationsEqual(initialConfiguration, initialBaseConfiguration);
     }
   } else {
     // No persisted draft — load the first builtin configuration as the default
@@ -158,7 +171,10 @@ export const usePackageStore = create<PackageStore>((set, get) => {
     if (defaultConfig) {
       const defaultConfigId = getConfigurationId(defaultConfig) ?? defaultConfig.name;
 
-      initialConfiguration = cloneConfiguration(defaultConfig);
+      initialConfiguration = materializeConfiguration(
+        cloneConfiguration(defaultConfig),
+        pkg.residualOverlays2025,
+      );
       initialSource = 'configuration';
       initialConfigId = defaultConfigId;
       initialConfigReadonly = isReadonlyConfiguration(defaultConfig);
@@ -171,7 +187,10 @@ export const usePackageStore = create<PackageStore>((set, get) => {
         baseConfiguration: cloneConfiguration(initialConfiguration),
       });
     } else {
-      initialConfiguration = cloneConfiguration(pkg.defaultConfiguration);
+      initialConfiguration = materializeConfiguration(
+        cloneConfiguration(pkg.defaultConfiguration),
+        pkg.residualOverlays2025,
+      );
       initialSource = 'reference';
     }
   }
@@ -210,7 +229,7 @@ export const usePackageStore = create<PackageStore>((set, get) => {
     persistenceNotice: persistedDraft.notice,
     persistenceError: persistedDraft.error,
     replaceCurrentConfiguration: (configuration, source = 'draft', notice = null) => {
-      const nextConfiguration = ensureResidualOverlays(
+      const nextConfiguration = materializeConfiguration(
         cloneConfiguration(configuration),
         get().residualOverlays2025,
       );
@@ -254,7 +273,10 @@ export const usePackageStore = create<PackageStore>((set, get) => {
       const defaultConfig = getDefaultBuiltinConfiguration();
       if (defaultConfig) {
         const defaultConfigId = getConfigurationId(defaultConfig) ?? defaultConfig.name;
-        const nextConfiguration = cloneConfiguration(defaultConfig);
+        const nextConfiguration = materializeConfiguration(
+          cloneConfiguration(defaultConfig),
+          get().residualOverlays2025,
+        );
 
         set({
           currentConfiguration: nextConfiguration,
@@ -269,7 +291,10 @@ export const usePackageStore = create<PackageStore>((set, get) => {
         return;
       }
 
-      const nextConfiguration = cloneConfiguration(get().defaultConfiguration);
+      const nextConfiguration = materializeConfiguration(
+        cloneConfiguration(get().defaultConfiguration),
+        get().residualOverlays2025,
+      );
 
       set({
         currentConfiguration: nextConfiguration,
@@ -355,10 +380,28 @@ export const usePackageStore = create<PackageStore>((set, get) => {
     setAllResidualOverlaysIncluded: (included) => {
       const nextConfiguration = cloneConfiguration(get().currentConfiguration);
       const controls = nextConfiguration.residual_overlays?.controls_by_overlay_id ?? {};
+      const nonSinkOverlayIds = Array.from(
+        new Set(
+          get().residualOverlays2025
+            .filter((row) => isAggregatableResidualOverlay(row.overlay_domain))
+            .map((row) => row.overlay_id),
+        ),
+      );
       nextConfiguration.residual_overlays = {
         controls_by_overlay_id: Object.fromEntries(
-          Object.keys(controls).map((id) => [id, { included }]),
+          Object.keys(controls).map((id) => [
+            id,
+            { included: nonSinkOverlayIds.includes(id) ? included : (controls[id]?.included ?? false) },
+          ]),
         ),
+      };
+      commitConfigurationEdit(nextConfiguration);
+    },
+    setResidualOverlayDisplayMode: (mode) => {
+      const nextConfiguration = cloneConfiguration(get().currentConfiguration);
+      nextConfiguration.presentation_options = {
+        ...(nextConfiguration.presentation_options ?? {}),
+        residual_overlay_display_mode: mode,
       };
       commitConfigurationEdit(nextConfiguration);
     },
@@ -391,7 +434,7 @@ export const usePackageStore = create<PackageStore>((set, get) => {
       commitConfigurationEdit(nextConfiguration);
     },
     loadConfiguration: (config) => {
-      const nextConfiguration = ensureResidualOverlays(
+      const nextConfiguration = materializeConfiguration(
         cloneConfiguration(config),
         get().residualOverlays2025,
       );

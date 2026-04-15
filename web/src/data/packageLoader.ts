@@ -1,7 +1,10 @@
 import { loadAppConfig } from './appConfigLoader.ts';
 import { buildPackageEnrichment, normalizePackageTextFiles } from './packageCompanions.ts';
 import { parseCsv } from './parseCsv.ts';
-import { buildDefaultResidualOverlays, loadDefaultConfiguration } from './configurationDocumentLoader.ts';
+import {
+  loadDefaultConfiguration,
+  materializeResidualOverlayConfiguration,
+} from './configurationDocumentLoader.ts';
 import type {
   AppConfigRegistry,
   BaselineActivityAnchor,
@@ -631,8 +634,10 @@ export function loadPackage(): PackageData {
   const appConfig = loadAppConfig();
   if (Object.keys(packageTextFiles).length === 0) {
     const enrichment = buildPackageEnrichment({});
-    const defaultConfiguration = loadDefaultConfiguration(appConfig);
-    defaultConfiguration.residual_overlays = buildDefaultResidualOverlays([]);
+    const defaultConfiguration = materializeResidualOverlayConfiguration(
+      loadDefaultConfiguration(appConfig),
+      [],
+    );
 
     return {
       sectorStates: [],
@@ -696,8 +701,10 @@ export function loadPackage(): PackageData {
   ).map(toEmissionsBalance2025Row);
 
   const enrichment = buildPackageEnrichment(packageTextFiles);
-  const defaultConfiguration = loadDefaultConfiguration(appConfig);
-  defaultConfiguration.residual_overlays = buildDefaultResidualOverlays(residualOverlays2025);
+  const defaultConfiguration = materializeResidualOverlayConfiguration(
+    loadDefaultConfiguration(appConfig),
+    residualOverlays2025,
+  );
 
   return {
     sectorStates,
