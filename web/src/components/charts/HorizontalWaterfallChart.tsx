@@ -11,6 +11,7 @@ void React;
 
 export interface HorizontalWaterfallDatum {
   key: string;
+  interactionKey: string;
   label: string;
   delta: number;
   cumulativeBefore: number;
@@ -24,9 +25,14 @@ export interface HorizontalWaterfallChartProps {
   targetValue: number;
   totalDelta: number;
   absoluteValueFormatter?: (value: number) => string;
+  activeInteractionKey?: string | null;
   negativeLegendLabel?: string;
+  onInteractionHover?: (interactionKey: string | null) => void;
   positiveLegendLabel?: string;
   showCategoryAxis?: boolean;
+  showHeaderSummary?: boolean;
+  showLegend?: boolean;
+  showXAxisTicks?: boolean;
   title: string;
   valueFormatter?: (value: number) => string;
 }
@@ -106,9 +112,14 @@ export default function HorizontalWaterfallChart({
   targetValue,
   totalDelta,
   absoluteValueFormatter = formatAbsoluteValue,
+  activeInteractionKey = null,
   negativeLegendLabel = 'Decrease',
+  onInteractionHover,
   positiveLegendLabel = 'Increase',
   showCategoryAxis = true,
+  showHeaderSummary = true,
+  showLegend = true,
+  showXAxisTicks = true,
   title,
   valueFormatter = defaultFormatter,
 }: HorizontalWaterfallChartProps) {
@@ -145,30 +156,34 @@ export default function HorizontalWaterfallChart({
     return margin.left + (((value - domain[0]) / (domain[1] - domain[0])) * plotWidth);
   };
 
-  const headerAction = (
+  const headerAction = showHeaderSummary ? (
     <div className="waterfall-chart-header-summary" aria-label={`${title} summary`}>
       <span className="waterfall-chart-header-pill">Base {absoluteValueFormatter(baseValue)}</span>
       <span className="waterfall-chart-header-pill">Target {absoluteValueFormatter(targetValue)}</span>
       <span className="waterfall-chart-header-pill">Δ {valueFormatter(totalDelta)}</span>
     </div>
-  );
+  ) : undefined;
 
   return (
     <ChartFrame
       title={title}
       height={chartHeight}
-      legendItems={[
-        { key: 'increase', label: positiveLegendLabel, color: POSITIVE_COLOR },
-        { key: 'decrease', label: negativeLegendLabel, color: NEGATIVE_COLOR },
-      ]}
-      summaryItems={[
-        { key: 'base', label: `Base: ${absoluteValueFormatter(baseValue)}` },
-        { key: 'target', label: `Target: ${absoluteValueFormatter(targetValue)}` },
-        { key: 'delta', label: `Total delta: ${valueFormatter(totalDelta)}` },
-        { key: 'increase', label: `${positiveCount} increases` },
-        { key: 'decrease', label: `${negativeCount} decreases` },
-        { key: 'zero', label: `${zeroCount} zero-delta steps` },
-      ]}
+      legendItems={showLegend
+        ? [
+            { key: 'increase', label: positiveLegendLabel, color: POSITIVE_COLOR },
+            { key: 'decrease', label: negativeLegendLabel, color: NEGATIVE_COLOR },
+          ]
+        : []}
+      summaryItems={showHeaderSummary
+        ? [
+            { key: 'base', label: `Base: ${absoluteValueFormatter(baseValue)}` },
+            { key: 'target', label: `Target: ${absoluteValueFormatter(targetValue)}` },
+            { key: 'delta', label: `Total delta: ${valueFormatter(totalDelta)}` },
+            { key: 'increase', label: `${positiveCount} increases` },
+            { key: 'decrease', label: `${negativeCount} decreases` },
+            { key: 'zero', label: `${zeroCount} zero-delta steps` },
+          ]
+        : []}
       headerAction={headerAction}
     >
       <svg
@@ -177,7 +192,7 @@ export default function HorizontalWaterfallChart({
         preserveAspectRatio="none"
         aria-hidden="true"
       >
-        {ticks.map((tick) => {
+        {showXAxisTicks ? ticks.map((tick) => {
           const x = scaleX(tick);
           return (
             <g key={`tick:${tick}`} className="waterfall-chart-tick">
@@ -202,7 +217,7 @@ export default function HorizontalWaterfallChart({
               </text>
             </g>
           );
-        })}
+        }) : null}
 
         <line
           x1={scaleX(0)}
@@ -228,9 +243,31 @@ export default function HorizontalWaterfallChart({
             : entry.delta < 0
               ? NEGATIVE_COLOR
               : ZERO_COLOR;
+          const isActive = activeInteractionKey != null && entry.interactionKey === activeInteractionKey;
+          const isDimmed = activeInteractionKey != null && !isActive;
 
           return (
-            <g key={entry.key} className="waterfall-chart-row">
+            <g
+              key={entry.key}
+              className="waterfall-chart-row"
+              data-interaction-key={entry.interactionKey}
+              data-active={isActive ? 'true' : 'false'}
+              data-dimmed={isDimmed ? 'true' : 'false'}
+            >
+              <rect
+                x="0"
+                y={plotTop + (rowStride * index)}
+                width={CHART_BASE_WIDTH}
+                height={rowStride}
+                fill="transparent"
+                className="waterfall-chart-row-hit-area"
+                tabIndex={0}
+                onMouseEnter={() => onInteractionHover?.(entry.interactionKey)}
+                onMouseLeave={() => onInteractionHover?.(null)}
+                onFocus={() => onInteractionHover?.(entry.interactionKey)}
+                onBlur={() => onInteractionHover?.(null)}
+              />
+
               {showCategoryAxis ? (
                 <text
                   x={margin.left - 8}

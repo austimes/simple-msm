@@ -9,6 +9,7 @@ void React;
 const mixedData = [
   {
     key: 'step-1',
+    interactionKey: 'step-1',
     label: 'Passenger road transport',
     delta: 12,
     cumulativeBefore: 0,
@@ -16,6 +17,7 @@ const mixedData = [
   },
   {
     key: 'step-2',
+    interactionKey: 'step-2',
     label: 'High-temperature heat',
     delta: -20,
     cumulativeBefore: 12,
@@ -23,6 +25,7 @@ const mixedData = [
   },
   {
     key: 'step-3',
+    interactionKey: 'step-3',
     label: 'Steady state',
     delta: 0,
     cumulativeBefore: -8,
@@ -62,6 +65,9 @@ describe('HorizontalWaterfallChart', () => {
     assert.match(html, /data-delta="12"/);
     assert.match(html, /data-delta="-20"/);
     assert.match(html, /data-delta="0"/);
+    assert.match(html, /data-interaction-key="step-1"/);
+    assert.match(html, /data-active="false"/);
+    assert.match(html, /data-dimmed="false"/);
     assert.match(html, /Passenger road transport: delta\(12\)/);
     assert.match(html, /High-temperature heat: delta\(-20\)/);
     assert.match(html, /Steady state: delta\(0\)/);
@@ -84,6 +90,46 @@ describe('HorizontalWaterfallChart', () => {
     assert.match(html, /class="waterfall-chart-step-label"[^>]*>Passenger road transport</);
     assert.match(html, /class="waterfall-chart-step-label"[^>]*>High-temperature heat</);
     assert.match(html, /class="waterfall-chart-step-label"[^>]*>Steady state</);
+  });
+
+  test('can hide the legend, header summary, and x-axis ticks for the reference panel', () => {
+    const html = renderToStaticMarkup(
+      <HorizontalWaterfallChart
+        title="Ordered steps reference"
+        data={mixedData}
+        height={320}
+        baseValue={0}
+        targetValue={0}
+        totalDelta={0}
+        showHeaderSummary={false}
+        showLegend={false}
+        showXAxisTicks={false}
+      />,
+    );
+
+    assert.doesNotMatch(html, /Ordered steps reference legend/);
+    assert.doesNotMatch(html, /waterfall-chart-header-summary/);
+    assert.doesNotMatch(html, /waterfall-chart-grid-line/);
+    assert.match(html, /class="waterfall-chart-zero-line"/);
+  });
+
+  test('marks the active row and dims the others when a shared interaction key is provided', () => {
+    const html = renderToStaticMarkup(
+      <HorizontalWaterfallChart
+        title="Objective delta waterfall"
+        data={mixedData}
+        height={320}
+        baseValue={100}
+        targetValue={92}
+        totalDelta={-8}
+        activeInteractionKey="step-2"
+      />,
+    );
+
+    assert.match(html, /data-interaction-key="step-1" data-active="false" data-dimmed="true"/);
+    assert.match(html, /data-interaction-key="step-2" data-active="true" data-dimmed="false"/);
+    assert.match(html, /data-interaction-key="step-3" data-active="false" data-dimmed="true"/);
+    assert.match(html, /class="waterfall-chart-row-hit-area"/);
   });
 
   test('renders the existing empty state message without a chart shell when no rows are present', () => {

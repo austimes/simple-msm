@@ -185,8 +185,8 @@ describe('AdditionalityPage', () => {
     assert.match(html, /Objective delta waterfall/);
     assert.match(html, /Cumulative emissions delta waterfall/);
     assert.match(html, /2050 electricity demand delta waterfall/);
-    assert.match(html, /additionality-step-list/);
-    assert.match(html, /1\./);
+    assert.match(html, /Ordered steps reference/);
+    assert.doesNotMatch(html, /additionality-step-list/);
     assert.match(
       html,
       /These waterfalls are sequence-based and path-dependent: each step shows the incremental change from the prior greedy state, and the full sequence sums to the base-to-target delta\./,
@@ -202,6 +202,8 @@ describe('AdditionalityPage', () => {
     assert.match(html, /\+\$0\.12B/);
     assert.match(html, /-21\.44 MtCO2e/);
     assert.match(html, /\+42\.77 TWh/);
+    assert.doesNotMatch(html, /Ordered steps reference legend/);
+    assert.doesNotMatch(html, /Base 0\.00/);
     assert.match(html, /Ordered steps/);
     assert.match(html, /Cost Δ \(\$B\)/);
     assert.match(html, /Cost before \(\$B\)/);
@@ -212,7 +214,10 @@ describe('AdditionalityPage', () => {
     assert.match(html, /Electricity Δ \(TWh\)/);
     assert.match(html, /Electricity 2050 before \(TWh\)/);
     assert.match(html, /Electricity 2050 after \(TWh\)/);
+    assert.match(html, /Passenger road transport: Enable Battery-electric passenger road fleet/);
     assert.match(html, /Battery-electric passenger road fleet/);
+    assert.match(html, /data-interaction-key="passenger"/);
+    assert.match(html, /data-interaction-key="heat"/);
     assert.match(html, /Skipped candidates: 1/);
     assert.match(html, /State-toggle delta decomposition/);
     assert.match(

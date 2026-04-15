@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import type { AdditionalityReport } from '../src/additionality/additionalityAnalysis.ts';
 import {
+  buildAdditionalityReferenceRows,
   buildAdditionalityWaterfallRows,
   getAdditionalityMetricPresentation,
 } from '../src/pages/additionalityPageModel.ts';
@@ -111,6 +112,7 @@ describe('additionalityPageModel', () => {
     assert.deepEqual(rows, [
       {
         key: 'passenger:objective',
+        interactionKey: 'passenger',
         label: 'Step 1',
         delta: 10,
         cumulativeBefore: 0,
@@ -118,6 +120,7 @@ describe('additionalityPageModel', () => {
       },
       {
         key: 'heat:objective',
+        interactionKey: 'heat',
         label: 'Step 2',
         delta: 8,
         cumulativeBefore: 10,
@@ -150,6 +153,7 @@ describe('additionalityPageModel', () => {
     assert.deepEqual(rows, [
       {
         key: 'buildings:cumulativeEmissions',
+        interactionKey: 'buildings',
         label: 'Step 1',
         delta: -5,
         cumulativeBefore: 0,
@@ -157,6 +161,7 @@ describe('additionalityPageModel', () => {
       },
       {
         key: 'cement:cumulativeEmissions',
+        interactionKey: 'cement',
         label: 'Step 2',
         delta: -7,
         cumulativeBefore: -5,
@@ -195,6 +200,7 @@ describe('additionalityPageModel', () => {
 
     assert.deepEqual(
       rows.map((row) => ({
+        interactionKey: row.interactionKey,
         label: row.label,
         delta: row.delta,
         cumulativeBefore: row.cumulativeBefore,
@@ -202,18 +208,21 @@ describe('additionalityPageModel', () => {
       })),
       [
         {
+          interactionKey: 'freight',
           label: 'Step 1',
           delta: 12,
           cumulativeBefore: 0,
           cumulativeAfter: 12,
         },
         {
+          interactionKey: 'industry',
           label: 'Step 2',
           delta: -20,
           cumulativeBefore: 12,
           cumulativeAfter: -8,
         },
         {
+          interactionKey: 'steady',
           label: 'Step 3',
           delta: 0,
           cumulativeBefore: -8,
@@ -222,5 +231,45 @@ describe('additionalityPageModel', () => {
       ],
     );
     assert.equal(rows.at(-1)?.cumulativeAfter, sequence.at(-1)?.metricsAfter.objective - sequence[0]?.metricsBefore.objective);
+  });
+
+  test('builds zero-valued reference rows with canonical interaction keys', () => {
+    const sequence = buildSequence([
+      {
+        key: 'passenger',
+        label: 'Passenger road transport',
+        objective: 10,
+        cumulativeEmissions: -4,
+        electricityDemand2050: 6,
+      },
+      {
+        key: 'heat',
+        label: 'Low-temperature heat',
+        objective: 8,
+        cumulativeEmissions: -7,
+        electricityDemand2050: 5,
+      },
+    ]);
+
+    const rows = buildAdditionalityReferenceRows(sequence, ['Step 1', 'Step 2']);
+
+    assert.deepEqual(rows, [
+      {
+        key: 'passenger:reference',
+        interactionKey: 'passenger',
+        label: 'Step 1',
+        delta: 0,
+        cumulativeBefore: 0,
+        cumulativeAfter: 0,
+      },
+      {
+        key: 'heat:reference',
+        interactionKey: 'heat',
+        label: 'Step 2',
+        delta: 0,
+        cumulativeBefore: 0,
+        cumulativeAfter: 0,
+      },
+    ]);
   });
 });
