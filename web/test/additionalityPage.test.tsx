@@ -187,6 +187,7 @@ describe('AdditionalityPage', () => {
     assert.match(html, /2050 electricity demand delta waterfall/);
     assert.match(html, /Ordered steps reference/);
     assert.doesNotMatch(html, /additionality-step-list/);
+    assert.match(html, /--chart-height:180px/);
     assert.match(
       html,
       /These waterfalls are sequence-based and path-dependent: each step shows the incremental change from the prior greedy state, and the full sequence sums to the base-to-target delta\./,

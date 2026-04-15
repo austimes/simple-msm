@@ -118,6 +118,7 @@ export function AdditionalityPageView({
   const statusLine = buildStatusLine(analysisState);
   const priceSummary = buildPriceSummary(commodityOptions, commoditySelections);
   const orderedLabels = report?.sequence.map((entry) => buildOrderedStepLabel(entry.atom)) ?? [];
+  const referenceLabels = report?.sequence.map((entry) => entry.atom.stateLabel) ?? [];
   const reportInteractionScope = report
     ? [
         report.baseConfigId,
@@ -146,10 +147,10 @@ export function AdditionalityPageView({
     : null;
 
   const sharedChartHeight = report
-    ? Math.max(320, report.sequence.length * 24 + 96)
-    : 320;
+    ? Math.max(180, report.sequence.length * 12 + 48)
+    : 180;
   const referenceWaterfallData = report
-    ? buildAdditionalityReferenceRows(report.sequence, orderedLabels)
+    ? buildAdditionalityReferenceRows(report.sequence, referenceLabels)
     : [];
   const objectiveWaterfallData = report
     ? buildAdditionalityWaterfallRows(report.sequence, objectiveMetricPresentation.metric, orderedLabels)
@@ -313,6 +314,8 @@ export function AdditionalityPageView({
                       scope: reportInteractionScope,
                     });
                   }}
+                  pinZeroToLeft={true}
+                  showActiveValueLabel={false}
                   showCategoryAxis={true}
                   showHeaderSummary={false}
                   showLegend={false}

@@ -28,7 +28,9 @@ export interface HorizontalWaterfallChartProps {
   activeInteractionKey?: string | null;
   negativeLegendLabel?: string;
   onInteractionHover?: (interactionKey: string | null) => void;
+  pinZeroToLeft?: boolean;
   positiveLegendLabel?: string;
+  showActiveValueLabel?: boolean;
   showCategoryAxis?: boolean;
   showHeaderSummary?: boolean;
   showLegend?: boolean;
@@ -42,6 +44,11 @@ const NEGATIVE_COLOR = '#0f766e';
 const ZERO_COLOR = '#94a3b8';
 const CONNECTOR_COLOR = 'rgba(100, 116, 139, 0.64)';
 const ZERO_LINE_COLOR = '#334155';
+const STEP_LABEL_COLOR = '#475569';
+const STEP_LABEL_FONT_WEIGHT = 500;
+const ACTIVE_VALUE_LABEL_FILL = 'rgba(255, 255, 255, 0.96)';
+const ACTIVE_VALUE_LABEL_STROKE = '#cbd5e1';
+const ACTIVE_VALUE_LABEL_TEXT = '#0f172a';
 const LABEL_FONT_SIZE = 11;
 
 function defaultFormatter(value: number): string {
@@ -70,7 +77,14 @@ function formatAbsoluteValue(value: number): string {
   return value.toFixed(2);
 }
 
-function resolveDomain(data: HorizontalWaterfallDatum[]): [number, number] {
+function resolveDomain(
+  data: HorizontalWaterfallDatum[],
+  pinZeroToLeft: boolean,
+): [number, number] {
+  if (pinZeroToLeft && data.every((entry) => entry.cumulativeBefore === 0 && entry.cumulativeAfter === 0)) {
+    return [0, 1];
+  }
+
   const values = [0, ...data.flatMap((entry) => [entry.cumulativeBefore, entry.cumulativeAfter])];
   const minValue = Math.min(...values);
   const maxValue = Math.max(...values);
@@ -115,7 +129,9 @@ export default function HorizontalWaterfallChart({
   activeInteractionKey = null,
   negativeLegendLabel = 'Decrease',
   onInteractionHover,
+  pinZeroToLeft = false,
   positiveLegendLabel = 'Increase',
+  showActiveValueLabel = true,
   showCategoryAxis = true,
   showHeaderSummary = true,
   showLegend = true,
@@ -133,17 +149,17 @@ export default function HorizontalWaterfallChart({
   }
 
   const chartHeight = height ?? Math.max(320, data.length * 42 + 88);
-  const domain = resolveDomain(data);
+  const domain = resolveDomain(data, pinZeroToLeft);
   const ticks = buildTicks(domain);
   const positiveCount = data.filter((entry) => entry.delta > 0).length;
   const negativeCount = data.filter((entry) => entry.delta < 0).length;
   const zeroCount = data.length - positiveCount - negativeCount;
-  const labelAxisWidth = showCategoryAxis ? 172 : 0;
+  const labelAxisWidth = showCategoryAxis ? (pinZeroToLeft ? 360 : 172) : 0;
   const margin = {
     top: 12,
     right: 18,
     bottom: 28,
-    left: showCategoryAxis ? 188 : 24,
+    left: showCategoryAxis ? labelAxisWidth + 16 : 24,
   };
   const plotWidth = CHART_BASE_WIDTH - margin.left - margin.right;
   const plotHeight = chartHeight - margin.top - margin.bottom;
@@ -245,6 +261,17 @@ export default function HorizontalWaterfallChart({
               : ZERO_COLOR;
           const isActive = activeInteractionKey != null && entry.interactionKey === activeInteractionKey;
           const isDimmed = activeInteractionKey != null && !isActive;
+          const handleHoverEnter = () => onInteractionHover?.(entry.interactionKey);
+          const handleHoverLeave = () => onInteractionHover?.(null);
+          const activeValueText = valueFormatter(entry.delta);
+          const activeValueWidth = Math.max(44, activeValueText.length * 7 + 14);
+          const activeValueHeight = 18;
+          const barRight = rectX + width;
+          const renderValueOnLeft = barRight + activeValueWidth + 10 > CHART_BASE_WIDTH - margin.right;
+          const activeValueX = renderValueOnLeft
+            ? Math.max(margin.left, rectX - activeValueWidth - 8)
+            : Math.min(CHART_BASE_WIDTH - margin.right - activeValueWidth, barRight + 8);
+          const activeValueY = centerY - (activeValueHeight / 2);
 
           return (
             <g
@@ -253,6 +280,8 @@ export default function HorizontalWaterfallChart({
               data-interaction-key={entry.interactionKey}
               data-active={isActive ? 'true' : 'false'}
               data-dimmed={isDimmed ? 'true' : 'false'}
+              onMouseEnter={handleHoverEnter}
+              onMouseLeave={handleHoverLeave}
             >
               <rect
                 x="0"
@@ -262,21 +291,19 @@ export default function HorizontalWaterfallChart({
                 fill="transparent"
                 className="waterfall-chart-row-hit-area"
                 tabIndex={0}
-                onMouseEnter={() => onInteractionHover?.(entry.interactionKey)}
-                onMouseLeave={() => onInteractionHover?.(null)}
-                onFocus={() => onInteractionHover?.(entry.interactionKey)}
-                onBlur={() => onInteractionHover?.(null)}
+                onFocus={handleHoverEnter}
+                onBlur={handleHoverLeave}
               />
 
               {showCategoryAxis ? (
                 <text
-                  x={margin.left - 8}
+                  x={margin.left - 12}
                   y={centerY}
                   textAnchor="end"
                   dominantBaseline="middle"
                   fontSize={LABEL_FONT_SIZE}
-                  fontWeight={CHART_AXIS_TICK_STYLE.fontWeight}
-                  fill={CHART_AXIS_TICK_STYLE.fill}
+                  fontWeight={STEP_LABEL_FONT_WEIGHT}
+                  fill={STEP_LABEL_COLOR}
                   className="waterfall-chart-step-label"
                 >
                   {entry.label}
@@ -308,6 +335,36 @@ export default function HorizontalWaterfallChart({
               >
                 <title>{`${entry.label}: ${valueFormatter(entry.delta)}`}</title>
               </rect>
+
+              {isActive && showActiveValueLabel ? (
+                <g
+                  className="waterfall-chart-active-value"
+                  data-value-label={activeValueText}
+                  pointerEvents="none"
+                >
+                  <rect
+                    x={activeValueX}
+                    y={activeValueY}
+                    width={activeValueWidth}
+                    height={activeValueHeight}
+                    rx="9"
+                    fill={ACTIVE_VALUE_LABEL_FILL}
+                    stroke={ACTIVE_VALUE_LABEL_STROKE}
+                    strokeWidth="1"
+                  />
+                  <text
+                    x={activeValueX + (activeValueWidth / 2)}
+                    y={centerY}
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    fontSize={LABEL_FONT_SIZE}
+                    fontWeight="700"
+                    fill={ACTIVE_VALUE_LABEL_TEXT}
+                  >
+                    {activeValueText}
+                  </text>
+                </g>
+              ) : null}
             </g>
           );
         })}
