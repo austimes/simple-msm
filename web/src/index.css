@@ -2095,6 +2095,17 @@ body {
   gap: 8px;
 }
 
+.workspace-overlay-control-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.workspace-chip-group--mode-toggle,
+.workspace-chip-group--supporting-actions {
+  gap: 6px;
+}
+
 .workspace-chip {
   display: inline-flex;
   align-items: center;
@@ -2145,6 +2156,18 @@ body {
   font-weight: 600;
 }
 
+.workspace-chip--toggle-off {
+  background: #f8fafc;
+  border-color: #d7e0eb;
+  color: var(--color-text-muted);
+}
+
+.workspace-chip--toggle-off:hover {
+  background: #edf2f7;
+  border-color: #cbd5e1;
+  color: var(--color-text);
+}
+
 .workspace-chip--modified {
   background: var(--color-primary-bg);
   color: var(--color-primary);
@@ -2153,6 +2176,18 @@ body {
 
 .workspace-chip--secondary-action {
   border-style: dashed;
+}
+
+.workspace-chip--utility-action {
+  background: #f8fafc;
+  border-color: #d7e0eb;
+  color: var(--color-text-muted);
+}
+
+.workspace-chip--utility-action:hover {
+  background: #edf2f7;
+  border-color: rgba(43, 108, 176, 0.18);
+  color: var(--color-primary);
 }
 
 .workspace-chip--danger {

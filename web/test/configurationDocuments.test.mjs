@@ -437,4 +437,11 @@ test('left sidebar renders the residual aggregate summary, display toggle, and s
   assert.match(html, /components enabled/);
   assert.match(html, /Net sinks/);
   assert.match(html, /Residual LULUCF sink/);
+  assert.match(html, /workspace-overlay-control-stack/);
+  assert.match(html, /workspace-chip-group--mode-toggle/);
+  assert.match(html, /workspace-chip-group--supporting-actions/);
+  assert.match(html, /aria-pressed="true"/);
+  assert.match(html, /aria-pressed="false"/);
+  assert.match(html, /workspace-chip--toggle-off/);
+  assert.match(html, /workspace-chip--utility-action/);
 });
