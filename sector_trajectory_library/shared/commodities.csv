@@ -7,4 +7,4 @@ hydrogen,Low-carbon hydrogen final-energy or reductant input.,GJ,Direct combusti
 biomass,Solid/liquid biomass or alternative bioenergy fuel.,GJ,Biogenic CO2 not counted in direct CO2e field in Phase 1.
 scrap_steel,Ferrous scrap input for steelmaking.,t,Added beyond minimum commodity taxonomy because it is material to steel route choice.
 iron_ore,Iron ore / pellet / concentrate feedstock for primary steel routes.,t,Added beyond minimum commodity taxonomy because it is material to steel route choice.
-sequestration_service,CO2 transport/storage or equivalent sequestration service for CCS-enabled process states.,tCO2 stored,Separate from negative-emissions output states; included to preserve a clean upgrade path to explicit CCS infrastructure.
+capture_service,CO2 transport/storage or equivalent capture service for CCS-enabled process states.,tCO2 stored,Separate from negative-emissions output states; included to preserve a clean upgrade path to explicit CCS infrastructure.

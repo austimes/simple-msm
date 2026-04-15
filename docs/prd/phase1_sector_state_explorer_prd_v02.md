@@ -279,14 +279,14 @@ If optional ledgers are later supplied, add:
 | biomass | GJ |
 | scrap_steel | t |
 | iron_ore | t |
-| sequestration_service | tCO2 stored |
+| capture_service | tCO2 stored |
 
 ### 9.4 Required unit conversions
 
 - electricity: `GJ -> MWh` using `1 MWh = 3.6 GJ`
 - fuel inputs already in `GJ/...`
 - materials already in `t/...`
-- sequestration service in `tCO2 stored/...`
+- capture service in `tCO2 stored/...`
 
 The solver must always operate on normalized coefficients.
 

@@ -72,9 +72,9 @@ export const COMMODITY_METADATA: Record<string, CommodityMetadata> = {
     kind: 'material',
     canonicalUnit: 't',
   },
-  sequestration_service: {
-    id: 'sequestration_service',
-    label: 'Sequestration service',
+  capture_service: {
+    id: 'capture_service',
+    label: 'Capture service',
     kind: 'service',
     canonicalUnit: 'tCO2_stored',
   },
@@ -135,7 +135,7 @@ function normalizeCommodityNumeratorUnit(
 ): CommodityCanonicalUnit | 'GJ' | 'MWh' | 'PJ' | 't' {
   const normalized = normalizeUnitToken(numeratorUnit);
 
-  if (commodityId === 'sequestration_service' && normalized === 't') {
+  if (commodityId === 'capture_service' && normalized === 't') {
     return 'tCO2_stored';
   }
 

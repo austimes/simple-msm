@@ -23,6 +23,6 @@ refined_liquid_fuels,medium,Refined liquid fuels — medium,AUD_2024_per_GJ,24,2
 scrap_steel,high,Scrap steel — high,AUD_2024_per_t,435,440,445,450,455,460,App-owned sensitivity bands.
 scrap_steel,low,Scrap steel — low,AUD_2024_per_t,405,410,415,420,425,430,App-owned sensitivity bands.
 scrap_steel,medium,Scrap steel — medium,AUD_2024_per_t,420,425,430,435,440,445,App-owned sensitivity bands.
-sequestration_service,high,Sequestration service — high,AUD_2024_per_tCO2_stored,30,32,34,36,38,40,App-owned sensitivity bands.
-sequestration_service,low,Sequestration service — low,AUD_2024_per_tCO2_stored,24,22,20,19,17.5,16,App-owned sensitivity bands.
-sequestration_service,medium,Sequestration service — medium,AUD_2024_per_tCO2_stored,28,30,32,34,36,38,App-owned sensitivity bands.
+capture_service,high,Capture service — high,AUD_2024_per_tCO2_stored,30,32,34,36,38,40,App-owned sensitivity bands.
+capture_service,low,Capture service — low,AUD_2024_per_tCO2_stored,24,22,20,19,17.5,16,App-owned sensitivity bands.
+capture_service,medium,Capture service — medium,AUD_2024_per_tCO2_stored,28,30,32,34,36,38,App-owned sensitivity bands.

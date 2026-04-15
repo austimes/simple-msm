@@ -217,7 +217,7 @@
       "biomass": "medium",
       "iron_ore": "medium",
       "scrap_steel": "medium",
-      "sequestration_service": "medium"
+      "capture_service": "medium"
     },
     "overrides": {}
   },

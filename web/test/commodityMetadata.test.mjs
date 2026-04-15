@@ -33,7 +33,7 @@ test('normalizeCommodityInput preserves canonical GJ, t, and tCO2_stored units',
     },
   );
   assert.deepEqual(
-    normalizeCommodityInput('sequestration_service', 0.5, 't/t_cement_equivalent'),
+    normalizeCommodityInput('capture_service', 0.5, 't/t_cement_equivalent'),
     {
       coefficient: 0.5,
       unit: 'tCO2_stored/t_cement_equivalent',

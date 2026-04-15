@@ -311,8 +311,8 @@
     },
     "provenance_note": "App-owned sensitivity bands."
   },
-  "sequestration_service": {
-    "label": "Sequestration service",
+  "capture_service": {
+    "label": "Capture service",
     "levels": {
       "low": {
         "unit": "AUD_2024_per_tCO2_stored",

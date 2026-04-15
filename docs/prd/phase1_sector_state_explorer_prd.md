@@ -134,7 +134,7 @@ An item that appears in `input_commodities`, such as:
 - biomass
 - scrap_steel
 - iron_ore
-- sequestration_service
+- capture_service
 
 ### 8.4 Configuration
 A bundle of:
@@ -460,7 +460,7 @@ The app must choose one canonical unit per commodity:
 | biomass | GJ |
 | scrap_steel | t |
 | iron_ore | t |
-| sequestration_service | tCO2 stored |
+| capture_service | tCO2 stored |
 
 ### 11.4 Unit conversion rules
 The app must convert input coefficients into canonical commodity units.
@@ -469,7 +469,7 @@ Required conversions:
 - electricity `GJ -> MWh` using `1 MWh = 3.6 GJ`
 - all fuel inputs already expressed in `GJ/...`
 - material inputs in `t/...`
-- sequestration service in `tCO2 stored/...`
+- capture service in `tCO2 stored/...`
 
 The solver should always work on normalized coefficients.
 
@@ -770,7 +770,7 @@ Lines for:
 - biomass
 - scrap steel
 - iron ore
-- sequestration service
+- capture service
 
 ## 16.4 Emissions over time
 - by sector

@@ -670,7 +670,7 @@ function buildFuelAndCostRequest() {
           { commodityId: 'biomass', coefficient: 125_000, unit: 'GJ/unit' },
           { commodityId: 'hydrogen', coefficient: 80_000, unit: 'GJ/unit' },
           { commodityId: 'scrap_steel', coefficient: 10, unit: 't/unit' },
-          { commodityId: 'sequestration_service', coefficient: 5, unit: 'tCO2_stored/unit' },
+          { commodityId: 'capture_service', coefficient: 5, unit: 'tCO2_stored/unit' },
         ],
         directEmissions: [{ pollutant: 'CO2e', value: 1, source: 'energy' }],
         bounds: {
@@ -781,7 +781,7 @@ test('fuel consumption chart keeps only fuels and converts all series to PJ', ()
   );
   assert.ok(!chart.series.some((series) => series.label === 'Iron ore'));
   assert.ok(!chart.series.some((series) => series.label === 'Scrap steel'));
-  assert.ok(!chart.series.some((series) => series.label === 'Sequestration service'));
+  assert.ok(!chart.series.some((series) => series.label === 'Capture service'));
   assert.deepEqual(
     chart.series.find((series) => series.label === 'Coal')?.values,
     [

@@ -78,10 +78,10 @@
   },
   "ccs_or_sequestration": {
     "label": "CCS / sequestration",
-    "description": "Tag when sequestration-service demand appears or process and direct emissions fall without a full output substitution.",
+    "description": "Tag when capture-service demand appears or process and direct emissions fall without a full output substitution.",
     "comparison_basis": "mixed",
     "positive_input_commodities": [
-      "sequestration_service"
+      "capture_service"
     ],
     "derived_signals": [
       "process_emissions_down",

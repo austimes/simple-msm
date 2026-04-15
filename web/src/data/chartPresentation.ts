@@ -82,7 +82,7 @@ export const COMMODITY_PRESENTATION = {
   hydrogen: { color: '#06b6d4', legendLabel: 'H2', legendToken: 'H2' },
   scrap_steel: { color: '#64748b', legendLabel: 'Scrap', legendToken: 'Scrap' },
   iron_ore: { color: '#92400e', legendLabel: 'Iron ore', legendToken: 'Ore' },
-  sequestration_service: { color: '#0f766e', legendLabel: 'Seq svc', legendToken: 'Seq' },
+  capture_service: { color: '#0f766e', legendLabel: 'Cap svc', legendToken: 'Cap' },
 } as const satisfies ChartPresentationRegistry;
 
 export const COST_COMPONENT_PRESENTATION = {
