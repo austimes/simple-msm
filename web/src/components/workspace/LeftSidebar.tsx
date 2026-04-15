@@ -237,9 +237,9 @@ export default function LeftSidebar() {
   const [expandedSections, setExpandedSections] = useState<LeftSidebarSectionState>({
     options: false,
     demandGrowth: false,
-    commodityControls: true,
+    commodityControls: false,
     emissionsPrice: true,
-    overlays: true,
+    overlays: false,
     configurations: true,
   });
 

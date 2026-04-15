@@ -355,27 +355,24 @@ test('left sidebar uses the requested default collapsed sections and restores al
 
   assert.match(html, /aria-expanded="false" aria-controls="left-sidebar-section-options"/);
   assert.match(html, /aria-expanded="false" aria-controls="left-sidebar-section-demandGrowth"/);
-  assert.match(html, /aria-expanded="true" aria-controls="left-sidebar-section-commodityControls"/);
+  assert.match(html, /aria-expanded="false" aria-controls="left-sidebar-section-commodityControls"/);
   assert.match(html, /aria-expanded="true" aria-controls="left-sidebar-section-emissionsPrice"/);
+  assert.match(html, /aria-expanded="false" aria-controls="left-sidebar-section-overlays"/);
   assert.match(html, /aria-expanded="true" aria-controls="left-sidebar-section-configurations"/);
 
   assert.ok(html.includes('Options'));
   assert.ok(html.includes('Demand Growth'));
   assert.ok(html.includes('Commodity Controls'));
   assert.ok(html.includes('Emissions Price'));
+  assert.ok(html.includes('Overlays'));
   assert.ok(html.includes('Configurations'));
 
   assert.ok(!html.includes('Respect max-share caps'));
   assert.ok(!html.includes('Simple sector growth - central'));
-  assert.ok(html.includes('Electricity supply'));
-  assert.ok(html.includes('Natural gas'));
-  assert.ok(html.includes('Coal'));
-  assert.ok(html.includes('Refined liquid fuels'));
-  assert.ok(html.includes('Hydrogen'));
-  assert.ok(html.includes('Biomass'));
-  assert.ok(html.includes('Iron ore'));
-  assert.ok(html.includes('Scrap steel'));
-  assert.ok(html.includes('Sequestration service'));
+  assert.ok(!html.includes('Electricity supply'));
+  assert.ok(!html.includes('Exogenous purchase price path for this commodity.'));
+  assert.ok(!html.includes('All on'));
+  assert.ok(!html.includes('Energy residuals'));
   assert.doesNotMatch(html, /workspace-mode-badge--modeled/);
   assert.doesNotMatch(html, />in model<\/span>/i);
 });
