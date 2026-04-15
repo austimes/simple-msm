@@ -14,6 +14,7 @@ import {
 } from '../additionality/additionalityAnalysis.ts';
 import { useAdditionalityAnalysis } from '../hooks/useAdditionalityAnalysis.ts';
 import {
+  buildAdditionalityReferenceRows,
   buildAdditionalityWaterfallRows,
   getAdditionalityMetricPresentation,
   selectInitialAdditionalityPair,
@@ -117,14 +118,39 @@ export function AdditionalityPageView({
   const statusLine = buildStatusLine(analysisState);
   const priceSummary = buildPriceSummary(commodityOptions, commoditySelections);
   const orderedLabels = report?.sequence.map((entry) => buildOrderedStepLabel(entry.atom)) ?? [];
-  const orderedStepItems = report?.sequence.map((entry, index) => ({
-    key: entry.atom.key,
-    label: orderedLabels[index] ?? '',
-    step: entry.step,
-  })) ?? [];
+  const reportInteractionScope = report
+    ? [
+        report.baseConfigId,
+        report.targetConfigId,
+        report.solveCount,
+        report.totalObjectiveDelta,
+        report.sequence
+          .map((entry) => [
+            entry.atom.key,
+            entry.metricsDeltaFromCurrent.objective,
+            entry.metricsDeltaFromCurrent.cumulativeEmissions,
+            entry.metricsDeltaFromCurrent.electricityDemand2050,
+          ].join(':'))
+          .join('|'),
+      ].join('::')
+    : '';
+  const [interactionState, setInteractionState] = useState<{
+    interactionKey: string | null;
+    scope: string;
+  }>({
+    interactionKey: null,
+    scope: '',
+  });
+  const activeInteractionKey = interactionState.scope === reportInteractionScope
+    ? interactionState.interactionKey
+    : null;
+
   const sharedChartHeight = report
     ? Math.max(320, report.sequence.length * 24 + 96)
     : 320;
+  const referenceWaterfallData = report
+    ? buildAdditionalityReferenceRows(report.sequence, orderedLabels)
+    : [];
   const objectiveWaterfallData = report
     ? buildAdditionalityWaterfallRows(report.sequence, objectiveMetricPresentation.metric, orderedLabels)
     : [];
@@ -271,72 +297,94 @@ export function AdditionalityPageView({
               incremental change from the prior greedy state, and the full sequence sums to
               the base-to-target delta.
             </p>
-            <div className="additionality-chart-layout">
-              <aside className="additionality-step-list-shell" aria-label="Greedy ordered steps">
-                <ol
-                  className="additionality-step-list"
-                  style={{ height: `${sharedChartHeight}px` }}
-                >
-                  {orderedStepItems.map((item) => (
-                    <li
-                      key={`${item.key}:step-list`}
-                      className="additionality-step-list-item"
-                      title={`${item.step}. ${item.label}`}
-                    >
-                      <span className="additionality-step-list-index">{item.step}.</span>
-                      <span className="additionality-step-list-text">{item.label}</span>
-                    </li>
-                  ))}
-                </ol>
-              </aside>
-
-              <div className="additionality-chart-grid">
-                <article className="configuration-panel">
-                  <HorizontalWaterfallChart
-                    title="Objective delta waterfall"
-                    valueFormatter={objectiveMetricPresentation.formatSignedValue}
-                    absoluteValueFormatter={objectiveMetricPresentation.formatAbsoluteValue}
-                    data={objectiveWaterfallData}
-                    height={sharedChartHeight}
-                    baseValue={report.baseMetrics.objective}
-                    targetValue={report.targetMetrics.objective}
-                    totalDelta={report.targetMetrics.objective - report.baseMetrics.objective}
-                    positiveLegendLabel="Increase objective"
-                    negativeLegendLabel="Decrease objective"
-                    showCategoryAxis={false}
-                  />
-                </article>
-                <article className="configuration-panel">
-                  <HorizontalWaterfallChart
-                    title="Cumulative emissions delta waterfall"
-                    valueFormatter={emissionsMetricPresentation.formatSignedValue}
-                    absoluteValueFormatter={emissionsMetricPresentation.formatAbsoluteValue}
-                    data={emissionsWaterfallData}
-                    height={sharedChartHeight}
-                    baseValue={report.baseMetrics.cumulativeEmissions}
-                    targetValue={report.targetMetrics.cumulativeEmissions}
-                    totalDelta={report.targetMetrics.cumulativeEmissions - report.baseMetrics.cumulativeEmissions}
-                    positiveLegendLabel="Increase emissions"
-                    negativeLegendLabel="Decrease emissions"
-                    showCategoryAxis={false}
-                  />
-                </article>
-                <article className="configuration-panel">
-                  <HorizontalWaterfallChart
-                    title="2050 electricity demand delta waterfall"
-                    valueFormatter={electricityMetricPresentation.formatSignedValue}
-                    absoluteValueFormatter={electricityMetricPresentation.formatAbsoluteValue}
-                    data={electricityWaterfallData}
-                    height={sharedChartHeight}
-                    baseValue={report.baseMetrics.electricityDemand2050}
-                    targetValue={report.targetMetrics.electricityDemand2050}
-                    totalDelta={report.targetMetrics.electricityDemand2050 - report.baseMetrics.electricityDemand2050}
-                    positiveLegendLabel="Increase electricity demand"
-                    negativeLegendLabel="Decrease electricity demand"
-                    showCategoryAxis={false}
-                  />
-                </article>
-              </div>
+            <div className="additionality-chart-grid">
+              <article className="configuration-panel">
+                <HorizontalWaterfallChart
+                  title="Ordered steps reference"
+                  data={referenceWaterfallData}
+                  height={sharedChartHeight}
+                  baseValue={0}
+                  targetValue={0}
+                  totalDelta={0}
+                  activeInteractionKey={activeInteractionKey}
+                  onInteractionHover={(interactionKey) => {
+                    setInteractionState({
+                      interactionKey,
+                      scope: reportInteractionScope,
+                    });
+                  }}
+                  showCategoryAxis={true}
+                  showHeaderSummary={false}
+                  showLegend={false}
+                  showXAxisTicks={false}
+                />
+              </article>
+              <article className="configuration-panel">
+                <HorizontalWaterfallChart
+                  title="Objective delta waterfall"
+                  valueFormatter={objectiveMetricPresentation.formatSignedValue}
+                  absoluteValueFormatter={objectiveMetricPresentation.formatAbsoluteValue}
+                  data={objectiveWaterfallData}
+                  height={sharedChartHeight}
+                  baseValue={report.baseMetrics.objective}
+                  targetValue={report.targetMetrics.objective}
+                  totalDelta={report.targetMetrics.objective - report.baseMetrics.objective}
+                  activeInteractionKey={activeInteractionKey}
+                  onInteractionHover={(interactionKey) => {
+                    setInteractionState({
+                      interactionKey,
+                      scope: reportInteractionScope,
+                    });
+                  }}
+                  positiveLegendLabel="Increase objective"
+                  negativeLegendLabel="Decrease objective"
+                  showCategoryAxis={false}
+                />
+              </article>
+              <article className="configuration-panel">
+                <HorizontalWaterfallChart
+                  title="Cumulative emissions delta waterfall"
+                  valueFormatter={emissionsMetricPresentation.formatSignedValue}
+                  absoluteValueFormatter={emissionsMetricPresentation.formatAbsoluteValue}
+                  data={emissionsWaterfallData}
+                  height={sharedChartHeight}
+                  baseValue={report.baseMetrics.cumulativeEmissions}
+                  targetValue={report.targetMetrics.cumulativeEmissions}
+                  totalDelta={report.targetMetrics.cumulativeEmissions - report.baseMetrics.cumulativeEmissions}
+                  activeInteractionKey={activeInteractionKey}
+                  onInteractionHover={(interactionKey) => {
+                    setInteractionState({
+                      interactionKey,
+                      scope: reportInteractionScope,
+                    });
+                  }}
+                  positiveLegendLabel="Increase emissions"
+                  negativeLegendLabel="Decrease emissions"
+                  showCategoryAxis={false}
+                />
+              </article>
+              <article className="configuration-panel">
+                <HorizontalWaterfallChart
+                  title="2050 electricity demand delta waterfall"
+                  valueFormatter={electricityMetricPresentation.formatSignedValue}
+                  absoluteValueFormatter={electricityMetricPresentation.formatAbsoluteValue}
+                  data={electricityWaterfallData}
+                  height={sharedChartHeight}
+                  baseValue={report.baseMetrics.electricityDemand2050}
+                  targetValue={report.targetMetrics.electricityDemand2050}
+                  totalDelta={report.targetMetrics.electricityDemand2050 - report.baseMetrics.electricityDemand2050}
+                  activeInteractionKey={activeInteractionKey}
+                  onInteractionHover={(interactionKey) => {
+                    setInteractionState({
+                      interactionKey,
+                      scope: reportInteractionScope,
+                    });
+                  }}
+                  positiveLegendLabel="Increase electricity demand"
+                  negativeLegendLabel="Decrease electricity demand"
+                  showCategoryAxis={false}
+                />
+              </article>
             </div>
           </section>
 

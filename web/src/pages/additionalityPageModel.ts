@@ -7,6 +7,7 @@ import type { ConfigurationDocument } from '../data/types.ts';
 
 export interface AdditionalityWaterfallDatum {
   key: string;
+  interactionKey: string;
   label: string;
   delta: number;
   cumulativeBefore: number;
@@ -179,10 +180,25 @@ export function buildAdditionalityWaterfallRows(
 
     return {
       key: `${entry.atom.key}:${metric}`,
+      interactionKey: entry.atom.key,
       label: labels[index] ?? entry.atom.stateLabel,
       delta,
       cumulativeBefore,
       cumulativeAfter: cumulative,
     };
   });
+}
+
+export function buildAdditionalityReferenceRows(
+  sequence: AdditionalityReport['sequence'],
+  labels: readonly string[] = [],
+): AdditionalityWaterfallDatum[] {
+  return sequence.map((entry, index) => ({
+    key: `${entry.atom.key}:reference`,
+    interactionKey: entry.atom.key,
+    label: labels[index] ?? entry.atom.stateLabel,
+    delta: 0,
+    cumulativeBefore: 0,
+    cumulativeAfter: 0,
+  }));
 }

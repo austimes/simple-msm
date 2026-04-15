@@ -508,60 +508,11 @@ body {
   line-height: 1.1;
 }
 
-.additionality-chart-layout {
-  display: grid;
-  gap: 16px;
-  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
-  align-items: start;
-  margin-top: 16px;
-}
-
-.additionality-step-list-shell {
-  min-width: 0;
-  padding-top: 48px;
-  padding-bottom: 24px;
-}
-
-.additionality-step-list {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  margin: 0;
-  padding: 0;
-}
-
-.additionality-step-list-item {
-  min-height: 0;
-  flex: 1 1 0;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 8px;
-  align-items: center;
-  justify-items: end;
-  color: var(--color-text-muted);
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1.1;
-}
-
-.additionality-step-list-index {
-  color: #475569;
-}
-
-.additionality-step-list-text {
-  min-width: 0;
-  width: 100%;
-  text-align: right;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 .additionality-chart-grid {
   display: grid;
   gap: 16px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 16px;
 }
 
 .additionality-chart-grid .configuration-panel {
@@ -1252,6 +1203,11 @@ body {
   display: block;
 }
 
+.waterfall-chart-row-hit-area {
+  cursor: pointer;
+  fill: transparent;
+}
+
 .waterfall-chart-step-label {
   pointer-events: none;
 }
@@ -1264,6 +1220,32 @@ body {
 
 .waterfall-chart-bar {
   shape-rendering: geometricPrecision;
+  vector-effect: non-scaling-stroke;
+}
+
+.waterfall-chart-row .waterfall-chart-step-label,
+.waterfall-chart-row .waterfall-chart-connector,
+.waterfall-chart-row .waterfall-chart-bar {
+  transition: opacity 120ms ease, fill 120ms ease, stroke 120ms ease;
+}
+
+.waterfall-chart-row[data-dimmed="true"] .waterfall-chart-step-label,
+.waterfall-chart-row[data-dimmed="true"] .waterfall-chart-connector,
+.waterfall-chart-row[data-dimmed="true"] .waterfall-chart-bar {
+  opacity: 0.24;
+}
+
+.waterfall-chart-row[data-active="true"] .waterfall-chart-step-label {
+  fill: #0f172a;
+}
+
+.waterfall-chart-row[data-active="true"] .waterfall-chart-connector {
+  stroke: rgba(15, 23, 42, 0.5);
+}
+
+.waterfall-chart-row[data-active="true"] .waterfall-chart-bar {
+  stroke: #0f172a;
+  stroke-width: 2;
 }
 
 .chart-data-summary {
@@ -2848,31 +2830,16 @@ body {
 }
 
 @media (max-width: 1200px) {
-  .additionality-chart-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .additionality-step-list-shell {
-    padding-block: 0;
-  }
-
-  .additionality-step-list {
-    height: auto !important;
-    max-height: 180px;
-    overflow-y: auto;
-  }
-
-  .additionality-step-list-item {
-    min-height: 22px;
-    flex: 0 0 auto;
-  }
-
   .library-trajectory-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 960px) {
+  .additionality-chart-grid {
+    grid-template-columns: 1fr;
+  }
+
   .library-sidebar-layout {
     grid-template-columns: 1fr;
   }
@@ -2932,10 +2899,6 @@ body {
   }
 
   .additionality-price-row {
-    grid-template-columns: 1fr;
-  }
-
-  .additionality-chart-grid {
     grid-template-columns: 1fr;
   }
 
