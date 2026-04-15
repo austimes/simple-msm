@@ -101,6 +101,8 @@ describe('HorizontalWaterfallChart', () => {
         baseValue={0}
         targetValue={0}
         totalDelta={0}
+        pinZeroToLeft={true}
+        showActiveValueLabel={false}
         showHeaderSummary={false}
         showLegend={false}
         showXAxisTicks={false}
@@ -130,6 +132,7 @@ describe('HorizontalWaterfallChart', () => {
     assert.match(html, /data-interaction-key="step-2" data-active="true" data-dimmed="false"/);
     assert.match(html, /data-interaction-key="step-3" data-active="false" data-dimmed="true"/);
     assert.match(html, /class="waterfall-chart-row-hit-area"/);
+    assert.match(html, /data-value-label="-20\.00"/);
   });
 
   test('renders the existing empty state message without a chart shell when no rows are present', () => {

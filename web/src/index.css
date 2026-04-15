@@ -1221,6 +1221,7 @@ body {
 .waterfall-chart-bar {
   shape-rendering: geometricPrecision;
   vector-effect: non-scaling-stroke;
+  cursor: pointer;
 }
 
 .waterfall-chart-row .waterfall-chart-step-label,
@@ -1246,6 +1247,10 @@ body {
 .waterfall-chart-row[data-active="true"] .waterfall-chart-bar {
   stroke: #0f172a;
   stroke-width: 2;
+}
+
+.waterfall-chart-active-value {
+  filter: drop-shadow(0 1px 2px rgba(15, 23, 42, 0.14));
 }
 
 .chart-data-summary {
