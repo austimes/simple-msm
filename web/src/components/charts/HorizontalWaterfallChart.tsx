@@ -205,7 +205,7 @@ export default function HorizontalWaterfallChart({
       <svg
         className="waterfall-chart-svg"
         viewBox={`0 0 ${CHART_BASE_WIDTH} ${chartHeight}`}
-        preserveAspectRatio="none"
+        preserveAspectRatio="xMinYMin meet"
         aria-hidden="true"
       >
         {showXAxisTicks ? ticks.map((tick) => {
