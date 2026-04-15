@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import HorizontalWaterfallChart from '../components/charts/HorizontalWaterfallChart.tsx';
+import { useAppUiStore } from '../data/appUiStore.ts';
 import { usePackageStore } from '../data/packageStore.ts';
 import {
   fetchUserConfigurations,
@@ -449,6 +450,13 @@ export function AdditionalityPageView({
 export default function AdditionalityPage() {
   const appConfig = usePackageStore((state) => state.appConfig);
   const sectorStates = usePackageStore((state) => state.sectorStates);
+  const {
+    selectedBaseConfigId,
+    selectedTargetConfigId,
+    commoditySelectionState,
+  } = useAppUiStore((state) => state.additionality);
+  const updateAdditionalityUi = useAppUiStore((state) => state.updateAdditionalityUi);
+  const setAdditionalityCommodityLevel = useAppUiStore((state) => state.setAdditionalityCommodityLevel);
   const builtinConfigurations = useMemo(() => loadBuiltinConfigurations(), []);
   const [userConfigurations, setUserConfigurations] = useState(() => loadUserConfigurations());
   const availableConfigurations = useMemo(
@@ -467,8 +475,6 @@ export default function AdditionalityPage() {
     ),
     [availableConfigurations],
   );
-  const [selectedBaseConfigId, setSelectedBaseConfigId] = useState<string | null>(null);
-  const [selectedTargetConfigId, setSelectedTargetConfigId] = useState<string | null>(null);
 
   useEffect(() => {
     void fetchUserConfigurations().then((configs) => {
@@ -499,13 +505,6 @@ export default function AdditionalityPage() {
       .sort((left, right) => left.label.localeCompare(right.label)),
     [appConfig],
   );
-  const [commoditySelectionState, setCommoditySelectionState] = useState<{
-    seededFromConfigId: string | null;
-    selections: Record<string, PriceLevel>;
-  }>({
-    seededFromConfigId: null,
-    selections: {},
-  });
   const seededCommoditySelections = useMemo(
     () => baseConfiguration
       ? seedAdditionalityCommoditySelections(
@@ -543,17 +542,11 @@ export default function AdditionalityPage() {
         label: configuration.name,
         description: configuration.description,
       }))}
-      onBaseConfigChange={setSelectedBaseConfigId}
+      onBaseConfigChange={(configId) => updateAdditionalityUi({ selectedBaseConfigId: configId })}
       onCommoditySelectionChange={(commodityId, level) => {
-        setCommoditySelectionState({
-          seededFromConfigId: baseConfigId,
-          selections: {
-            ...commoditySelections,
-            [commodityId]: level,
-          },
-        });
+        setAdditionalityCommodityLevel(commodityId, level, baseConfigId);
       }}
-      onTargetConfigChange={setSelectedTargetConfigId}
+      onTargetConfigChange={(configId) => updateAdditionalityUi({ selectedTargetConfigId: configId })}
       targetConfigId={targetConfigId}
     />
   );

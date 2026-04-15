@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import {
   buildStateCommodityLegendLabel,
   buildStateMetricLegendLabel,
@@ -12,6 +12,8 @@ import {
   buildSectorSubsectorIndex,
   type SectorStateTrajectory,
 } from '../data/libraryInsights';
+import { type LibraryFilters } from '../data/appUiState.ts';
+import { useAppUiStore } from '../data/appUiStore.ts';
 import { getCommodityMetadata } from '../data/commodityMetadata.ts';
 import { usePackageStore } from '../data/packageStore';
 import type { AssumptionLedgerEntry, SectorState, SourceLedgerEntry } from '../data/types';
@@ -19,13 +21,7 @@ import LineChart, { type LineChartSeries } from './library/LineChart';
 import { buildAdaptiveAxisNumberFormatter } from './library/axisFormatting.ts';
 import LibrarySidebarFrame from './library/LibrarySidebarFrame';
 
-interface LibraryFilters {
-  search: string;
-  confidence: string;
-  region: string;
-  sourceId: string;
-  assumptionId: string;
-}
+void React;
 
 interface MetricConfig {
   key: 'cost' | 'energy' | 'process' | 'maxShare' | 'maxActivity';
@@ -39,14 +35,6 @@ interface TrajectoryNarrativeProps {
   rows: SectorState[];
   pick: (row: SectorState) => string;
 }
-
-const EMPTY_FILTERS: LibraryFilters = {
-  search: '',
-  confidence: '',
-  region: '',
-  sourceId: '',
-  assumptionId: '',
-};
 
 const COEFFICIENT_DASH_PATTERNS = [undefined, '7 5', '3 4', '10 4 2 4', '2 3'];
 
@@ -194,11 +182,16 @@ function TrajectoryNarrative({ label, rows, pick }: TrajectoryNarrativeProps) {
 export default function LibraryPage() {
   const enrichment = usePackageStore((state) => state.enrichment);
   const sectorStates = usePackageStore((state) => state.sectorStates);
-  const [filters, setFilters] = useState<LibraryFilters>(EMPTY_FILTERS);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [selectedSector, setSelectedSector] = useState('');
-  const [selectedSubsector, setSelectedSubsector] = useState('');
-  const [selectedTrajectoryId, setSelectedTrajectoryId] = useState<string | null>(null);
+  const {
+    filters,
+    sidebarCollapsed,
+    selectedSector,
+    selectedSubsector,
+    selectedTrajectoryId,
+  } = useAppUiStore((state) => state.library);
+  const updateLibraryUi = useAppUiStore((state) => state.updateLibraryUi);
+  const setLibraryFilters = useAppUiStore((state) => state.setLibraryFilters);
+  const resetLibraryUi = useAppUiStore((state) => state.resetLibraryUi);
 
   const families = useMemo(() => buildSectorStateFamilies(sectorStates), [sectorStates]);
   const sectorIndex = useMemo(() => buildSectorSubsectorIndex(sectorStates), [sectorStates]);
@@ -435,11 +428,7 @@ export default function LibraryPage() {
   }, [coefficientChart.units, visibleTrajectories]);
 
   const resetFilters = () => {
-    const firstSector = sectorIndex.sectors[0] ?? '';
-    setFilters(EMPTY_FILTERS);
-    setSelectedSector(firstSector);
-    setSelectedSubsector((sectorIndex.subsectorsBySector[firstSector] ?? [])[0] ?? '');
-    setSelectedTrajectoryId(null);
+    resetLibraryUi();
   };
 
   return (
@@ -453,7 +442,7 @@ export default function LibraryPage() {
       <div className={`library-sidebar-layout${sidebarCollapsed ? ' library-sidebar-layout--collapsed' : ''}`}>
         <LibrarySidebarFrame
           collapsed={sidebarCollapsed}
-          onToggle={() => setSidebarCollapsed((current) => !current)}
+          onToggle={() => updateLibraryUi({ sidebarCollapsed: !sidebarCollapsed })}
           title="Scope"
           bodyId="library-sidebar-body"
         >
@@ -477,9 +466,11 @@ export default function LibraryPage() {
                     type="button"
                     className={`library-chip${sector === resolvedSelectedSector ? ' library-chip--active' : ''}`}
                     onClick={() => {
-                      setSelectedSector(sector);
-                      setSelectedSubsector('');
-                      setSelectedTrajectoryId(null);
+                      updateLibraryUi({
+                        selectedSector: sector,
+                        selectedSubsector: '',
+                        selectedTrajectoryId: null,
+                      });
                     }}
                   >
                     {sector}
@@ -497,8 +488,10 @@ export default function LibraryPage() {
                     type="button"
                     className={`library-chip${subsector === resolvedSelectedSubsector ? ' library-chip--active' : ''}`}
                     onClick={() => {
-                      setSelectedSubsector(subsector);
-                      setSelectedTrajectoryId(null);
+                      updateLibraryUi({
+                        selectedSubsector: subsector,
+                        selectedTrajectoryId: null,
+                      });
                     }}
                   >
                     {subsector}
@@ -512,7 +505,7 @@ export default function LibraryPage() {
                 <span>Search</span>
                 <input
                   value={filters.search}
-                  onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
+                  onChange={(event) => setLibraryFilters({ search: event.target.value })}
                   placeholder="State label, evidence, notes, source ID"
                 />
               </label>
@@ -521,7 +514,7 @@ export default function LibraryPage() {
                 <span>Confidence</span>
                 <select
                   value={filters.confidence}
-                  onChange={(event) => setFilters((current) => ({ ...current, confidence: event.target.value }))}
+                  onChange={(event) => setLibraryFilters({ confidence: event.target.value })}
                 >
                   <option value="">All ratings</option>
                   {filterOptions.confidenceRatings.map((confidence) => (
@@ -536,7 +529,7 @@ export default function LibraryPage() {
                 <span>Region</span>
                 <select
                   value={filters.region}
-                  onChange={(event) => setFilters((current) => ({ ...current, region: event.target.value }))}
+                  onChange={(event) => setLibraryFilters({ region: event.target.value })}
                 >
                   <option value="">All regions</option>
                   {filterOptions.regions.map((region) => (
@@ -551,7 +544,7 @@ export default function LibraryPage() {
                 <span>Source ID</span>
                 <select
                   value={filters.sourceId}
-                  onChange={(event) => setFilters((current) => ({ ...current, sourceId: event.target.value }))}
+                  onChange={(event) => setLibraryFilters({ sourceId: event.target.value })}
                 >
                   <option value="">All sources</option>
                   {filterOptions.sourceIds.map((sourceId) => (
@@ -566,7 +559,7 @@ export default function LibraryPage() {
                 <span>Assumption ID</span>
                 <select
                   value={filters.assumptionId}
-                  onChange={(event) => setFilters((current) => ({ ...current, assumptionId: event.target.value }))}
+                  onChange={(event) => setLibraryFilters({ assumptionId: event.target.value })}
                 >
                   <option value="">All assumptions</option>
                   {filterOptions.assumptionIds.map((assumptionId) => (
@@ -598,7 +591,7 @@ export default function LibraryPage() {
                       key={trajectory.stateId}
                       type="button"
                       className={`library-state-selector-button${trajectory.active ? ' library-state-selector-button--active' : ''}`}
-                      onClick={() => setSelectedTrajectoryId(trajectory.stateId)}
+                      onClick={() => updateLibraryUi({ selectedTrajectoryId: trajectory.stateId })}
                       aria-pressed={trajectory.active}
                     >
                       <span className="library-state-selector-swatch" style={{ backgroundColor: trajectory.color }} />
@@ -780,7 +773,7 @@ export default function LibraryPage() {
                           <tr
                             key={`${trajectory.stateId}:${metric.key}`}
                             className="library-comparison-row"
-                            onClick={() => setSelectedTrajectoryId(trajectory.stateId)}
+                            onClick={() => updateLibraryUi({ selectedTrajectoryId: trajectory.stateId })}
                           >
                             {index === 0 ? (
                               <th rowSpan={comparisonMetrics.length} className="library-comparison-trajectory-cell">

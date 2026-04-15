@@ -1,4 +1,9 @@
 import { useMemo, useState, useCallback, type ReactNode } from 'react';
+import type {
+  LeftSidebarSectionKey,
+  LeftSidebarSectionState,
+} from '../../data/appUiState.ts';
+import { useAppUiStore } from '../../data/appUiStore.ts';
 import { usePackageStore } from '../../data/packageStore';
 import { getActiveDemandPreset, getCommodityPriceLevel, getActiveCarbonPricePreset } from '../../data/configurationWorkspaceModel';
 import {
@@ -35,16 +40,6 @@ import {
 } from './leftSidebarCommodityStatus';
 import { getConfigurationSaveActionState } from './leftSidebarSaveActions';
 import { formatWorkspacePillLabel } from './workspacePillLabel';
-
-type LeftSidebarSectionKey =
-  | 'options'
-  | 'demandGrowth'
-  | 'commodityControls'
-  | 'emissionsPrice'
-  | 'overlays'
-  | 'configurations';
-
-type LeftSidebarSectionState = Record<LeftSidebarSectionKey, boolean>;
 
 interface ControlledCommodityEntry {
   kind: 'controlled';
@@ -217,11 +212,20 @@ export default function LeftSidebar({ initialExpandedSections }: LeftSidebarProp
   const activeConfigurationId = usePackageStore((s) => s.activeConfigurationId);
   const activeConfigurationReadonly = usePackageStore((s) => s.activeConfigurationReadonly);
   const isConfigurationDirty = usePackageStore((s) => s.isConfigurationDirty);
+  const persistedExpandedSections = useAppUiStore((s) => s.workspace.expandedSections);
+  const setWorkspaceSectionExpanded = useAppUiStore((s) => s.setWorkspaceSectionExpanded);
   const saveActionState = getConfigurationSaveActionState({
     activeConfigurationId,
     activeConfigurationReadonly,
     isConfigurationDirty,
   });
+  const expandedSections = useMemo(
+    () => ({
+      ...persistedExpandedSections,
+      ...initialExpandedSections,
+    }),
+    [initialExpandedSections, persistedExpandedSections],
+  );
 
   const activeDemandPreset = getActiveDemandPreset(currentConfiguration, appConfig);
   const activeCarbonPreset = getActiveCarbonPricePreset(currentConfiguration, appConfig);
@@ -295,26 +299,14 @@ export default function LeftSidebar({ initialExpandedSections }: LeftSidebarProp
   const builtinConfigs = useMemo(() => loadBuiltinConfigurations(), []);
   const [userConfigs, setUserConfigs] = useState(() => loadUserConfigurations());
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
-  const [expandedSections, setExpandedSections] = useState<LeftSidebarSectionState>({
-    options: false,
-    demandGrowth: false,
-    commodityControls: false,
-    emissionsPrice: true,
-    overlays: false,
-    configurations: true,
-    ...initialExpandedSections,
-  });
 
   const refreshUserConfigs = useCallback(async () => {
     const configs = await fetchUserConfigurations();
     setUserConfigs(configs);
   }, []);
   const toggleSection = useCallback((section: LeftSidebarSectionKey) => {
-    setExpandedSections((current) => ({
-      ...current,
-      [section]: !current[section],
-    }));
-  }, []);
+    setWorkspaceSectionExpanded(section, !expandedSections[section]);
+  }, [expandedSections, setWorkspaceSectionExpanded]);
 
   function buildUserConfiguration(name: string, configurationId: string): ConfigurationDocument {
     const configuration = createConfigurationFromDocument(currentConfiguration);

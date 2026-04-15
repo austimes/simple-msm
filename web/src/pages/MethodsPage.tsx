@@ -1,10 +1,12 @@
-import { type ReactNode, useMemo, useState } from 'react';
+import React, { type ReactNode, useMemo } from 'react';
+import { type MethodsTab } from '../data/appUiState.ts';
+import { useAppUiStore } from '../data/appUiStore.ts';
 import { buildSectorStateFamilies } from '../data/libraryInsights';
 import { usePackageStore } from '../data/packageStore';
 import BaselineClosureDiagnosticsCard from './BaselineClosureDiagnosticsCard';
 import MethodsSchemaSummaryCard from './MethodsSchemaSummaryCard';
 
-type MethodsTab = 'about' | 'conventions' | 'confidence' | 'phase2' | 'evidence';
+void React;
 
 const sectorDerivationAliases: Record<string, string> = {
   cement_clinker: 'cement',
@@ -196,10 +198,13 @@ export default function MethodsPage() {
   const phase2Memo = usePackageStore((state) => state.phase2Memo);
   const enrichment = usePackageStore((state) => state.enrichment);
   const sectorStates = usePackageStore((state) => state.sectorStates);
-  const [activeTab, setActiveTab] = useState<MethodsTab>('about');
-  const [evidenceSearch, setEvidenceSearch] = useState('');
-  const [evidenceSector, setEvidenceSector] = useState('');
-  const [evidenceConfidence, setEvidenceConfidence] = useState('');
+  const {
+    activeTab,
+    evidenceSearch,
+    evidenceSector,
+    evidenceConfidence,
+  } = useAppUiStore((state) => state.methods);
+  const updateMethodsUi = useAppUiStore((state) => state.updateMethodsUi);
 
   const families = useMemo(() => buildSectorStateFamilies(sectorStates), [sectorStates]);
   const introParagraphs = useMemo(() => getDocumentIntro(readme), [readme]);
@@ -382,7 +387,7 @@ export default function MethodsPage() {
               role="tab"
               aria-selected={activeTab === tab}
               className={`methods-tab${activeTab === tab ? ' methods-tab--active' : ''}`}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => updateMethodsUi({ activeTab: tab })}
             >
               {tabLabels[tab]}
             </button>
@@ -614,14 +619,17 @@ export default function MethodsPage() {
                   <span>Search</span>
                   <input
                     value={evidenceSearch}
-                    onChange={(event) => setEvidenceSearch(event.target.value)}
+                    onChange={(event) => updateMethodsUi({ evidenceSearch: event.target.value })}
                     placeholder="Evidence summary, review notes, IDs"
                   />
                 </label>
 
                 <label className="library-field">
                   <span>Sector</span>
-                  <select value={evidenceSector} onChange={(event) => setEvidenceSector(event.target.value)}>
+                  <select
+                    value={evidenceSector}
+                    onChange={(event) => updateMethodsUi({ evidenceSector: event.target.value })}
+                  >
                     <option value="">All sectors</option>
                     {evidenceSectors.map((sector) => (
                       <option key={sector} value={sector}>
@@ -635,7 +643,7 @@ export default function MethodsPage() {
                   <span>Confidence</span>
                   <select
                     value={evidenceConfidence}
-                    onChange={(event) => setEvidenceConfidence(event.target.value)}
+                    onChange={(event) => updateMethodsUi({ evidenceConfidence: event.target.value })}
                   >
                     <option value="">All ratings</option>
                     {confidenceOptions.map((rating) => (
