@@ -270,7 +270,10 @@ export default function LeftSidebar({ initialExpandedSections }: LeftSidebarProp
   );
 
   const overlayCatalog = useMemo(() => deriveOverlayCatalog(residualOverlays2025), [residualOverlays2025]);
-  const overlayControls = currentConfiguration.residual_overlays?.controls_by_overlay_id ?? {};
+  const overlayControls = useMemo(
+    () => currentConfiguration.residual_overlays?.controls_by_overlay_id ?? {},
+    [currentConfiguration.residual_overlays?.controls_by_overlay_id],
+  );
   const residualOverlayDisplayMode = getResidualOverlayDisplayMode(currentConfiguration);
   const nonSinkOverlayEntries = useMemo(
     () => overlayCatalog.filter((entry) => isAggregatableResidualOverlay(entry.overlayDomain)),
@@ -635,36 +638,42 @@ export default function LeftSidebar({ initialExpandedSections }: LeftSidebarProp
                   enabledNonSinkSummary.totalEmissionsMt,
                 )}
               </div>
-              <div className="workspace-chip-group workspace-chip-group--inline">
-                {([
-                  'aggregated_non_sink',
-                  'individual',
-                ] as ResidualOverlayDisplayMode[]).map((mode) => (
+              <div className="workspace-overlay-control-stack">
+                <div className="workspace-chip-group workspace-chip-group--inline workspace-chip-group--mode-toggle">
+                  {([
+                    'aggregated_non_sink',
+                    'individual',
+                  ] as ResidualOverlayDisplayMode[]).map((mode) => {
+                    const selected = residualOverlayDisplayMode === mode;
+                    return (
+                      <button
+                        key={mode}
+                        type="button"
+                        aria-pressed={selected}
+                        className={`workspace-chip${selected ? ' workspace-chip--active' : ' workspace-chip--toggle-off'}`}
+                        onClick={() => setResidualOverlayDisplayMode(mode)}
+                      >
+                        {renderWorkspaceChipLabel(mode === 'aggregated_non_sink' ? 'Aggregated' : 'Individual')}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="workspace-chip-group workspace-chip-group--inline workspace-chip-group--supporting-actions">
                   <button
-                    key={mode}
                     type="button"
-                    className={`workspace-chip${residualOverlayDisplayMode === mode ? ' workspace-chip--active' : ''}`}
-                    onClick={() => setResidualOverlayDisplayMode(mode)}
+                    className="workspace-chip workspace-chip--secondary-action workspace-chip--utility-action"
+                    onClick={() => setAllResidualOverlaysIncluded(true)}
                   >
-                    {renderWorkspaceChipLabel(mode === 'aggregated_non_sink' ? 'Aggregated' : 'Individual')}
+                    {renderWorkspaceChipLabel('All on')}
                   </button>
-                ))}
-              </div>
-              <div className="workspace-chip-group workspace-chip-group--inline">
-                <button
-                  type="button"
-                  className="workspace-chip"
-                  onClick={() => setAllResidualOverlaysIncluded(true)}
-                >
-                  {renderWorkspaceChipLabel('All on')}
-                </button>
-                <button
-                  type="button"
-                  className="workspace-chip"
-                  onClick={() => setAllResidualOverlaysIncluded(false)}
-                >
-                  {renderWorkspaceChipLabel('All off')}
-                </button>
+                  <button
+                    type="button"
+                    className="workspace-chip workspace-chip--secondary-action workspace-chip--utility-action"
+                    onClick={() => setAllResidualOverlaysIncluded(false)}
+                  >
+                    {renderWorkspaceChipLabel('All off')}
+                  </button>
+                </div>
               </div>
               {nonSinkOverlayEntries.map((entry) => {
                 const included = overlayControls[entry.overlayId]?.included ?? entry.defaultInclude;
