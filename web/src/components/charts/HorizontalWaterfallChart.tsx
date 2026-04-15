@@ -23,6 +23,7 @@ export interface HorizontalWaterfallChartProps {
   baseValue: number;
   targetValue: number;
   totalDelta: number;
+  absoluteValueFormatter?: (value: number) => string;
   negativeLegendLabel?: string;
   positiveLegendLabel?: string;
   showCategoryAxis?: boolean;
@@ -104,6 +105,7 @@ export default function HorizontalWaterfallChart({
   baseValue,
   targetValue,
   totalDelta,
+  absoluteValueFormatter = formatAbsoluteValue,
   negativeLegendLabel = 'Decrease',
   positiveLegendLabel = 'Increase',
   showCategoryAxis = true,
@@ -145,8 +147,8 @@ export default function HorizontalWaterfallChart({
 
   const headerAction = (
     <div className="waterfall-chart-header-summary" aria-label={`${title} summary`}>
-      <span className="waterfall-chart-header-pill">Base {formatAbsoluteValue(baseValue)}</span>
-      <span className="waterfall-chart-header-pill">Target {formatAbsoluteValue(targetValue)}</span>
+      <span className="waterfall-chart-header-pill">Base {absoluteValueFormatter(baseValue)}</span>
+      <span className="waterfall-chart-header-pill">Target {absoluteValueFormatter(targetValue)}</span>
       <span className="waterfall-chart-header-pill">Δ {valueFormatter(totalDelta)}</span>
     </div>
   );
@@ -160,8 +162,8 @@ export default function HorizontalWaterfallChart({
         { key: 'decrease', label: negativeLegendLabel, color: NEGATIVE_COLOR },
       ]}
       summaryItems={[
-        { key: 'base', label: `Base: ${formatAbsoluteValue(baseValue)}` },
-        { key: 'target', label: `Target: ${formatAbsoluteValue(targetValue)}` },
+        { key: 'base', label: `Base: ${absoluteValueFormatter(baseValue)}` },
+        { key: 'target', label: `Target: ${absoluteValueFormatter(targetValue)}` },
         { key: 'delta', label: `Total delta: ${valueFormatter(totalDelta)}` },
         { key: 'increase', label: `${positiveCount} increases` },
         { key: 'decrease', label: `${negativeCount} decreases` },
