@@ -541,7 +541,26 @@ function buildOverlaySummary(
   emissionsBalance2025: EmissionsBalance2025Row[],
 ): ModelFormulationOverlaySummary {
   const totals = summarizeOverlayTotals(residualOverlays2025);
-  const includedOverlays = residualOverlays2025.filter((row) => row.default_include);
+  const includedOverlayIds = new Set(
+    residualOverlays2025
+      .filter((row) => row.default_include)
+      .map((row) => row.overlay_id),
+  );
+  const energyOverlayIds = new Set(
+    residualOverlays2025
+      .filter((row) => row.default_include && row.overlay_domain === 'energy_residual')
+      .map((row) => row.overlay_id),
+  );
+  const nonEnergyOverlayIds = new Set(
+    residualOverlays2025
+      .filter((row) => row.default_include && row.overlay_domain === 'nonenergy_residual')
+      .map((row) => row.overlay_id),
+  );
+  const sinkOverlayIds = new Set(
+    residualOverlays2025
+      .filter((row) => row.overlay_domain === 'net_sink')
+      .map((row) => row.overlay_id),
+  );
   const totalFinalEnergyRow = commodityBalance2025.find(
     (row) => row.commodity === 'total' && row.benchmark_stream === 'final_energy',
   );
@@ -554,10 +573,10 @@ function buildOverlaySummary(
 
   return {
     ...totals,
-    includedOverlayCount: includedOverlays.length,
-    energyOverlayCount: includedOverlays.filter((row) => row.overlay_domain === 'energy_residual').length,
-    nonEnergyOverlayCount: includedOverlays.filter((row) => row.overlay_domain === 'nonenergy_residual').length,
-    sinkOverlayCount: residualOverlays2025.filter((row) => row.overlay_domain === 'net_sink').length,
+    includedOverlayCount: includedOverlayIds.size,
+    energyOverlayCount: energyOverlayIds.size,
+    nonEnergyOverlayCount: nonEnergyOverlayIds.size,
+    sinkOverlayCount: sinkOverlayIds.size,
     commodityBalanceRowCount: commodityBalance2025.length,
     emissionsBalanceRowCount: emissionsBalance2025.length,
     totalFinalEnergyBenchmarkPj: totalFinalEnergyRow?.balanced_total_pj_2025 ?? null,
@@ -585,7 +604,7 @@ function buildStats(
       value: request ? formatCompactNumber(request.rows.length) : 'Unavailable',
     },
     {
-      label: 'Default-included overlays',
+      label: 'Default-included residual components',
       value: formatCompactNumber(overlaySummary.includedOverlayCount),
     },
     {

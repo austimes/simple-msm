@@ -266,6 +266,34 @@
         }
       }
     },
+    "residual_overlays": {
+      "type": "object",
+      "properties": {
+        "controls_by_overlay_id": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "included": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      }
+    },
+    "presentation_options": {
+      "type": "object",
+      "properties": {
+        "residual_overlay_display_mode": {
+          "type": "string",
+          "enum": [
+            "aggregated_non_sink",
+            "individual"
+          ]
+        }
+      }
+    },
     "app_metadata": {
       "type": "object",
       "description": "App-owned persistence metadata that travels with the full configuration document.",

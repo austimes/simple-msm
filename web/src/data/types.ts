@@ -72,6 +72,12 @@ export interface ConfigurationAppMetadata {
   readonly?: boolean;
 }
 
+export type ResidualOverlayDisplayMode = 'aggregated_non_sink' | 'individual';
+
+export interface ConfigurationPresentationOptions {
+  residual_overlay_display_mode?: ResidualOverlayDisplayMode;
+}
+
 export interface ConfigurationDocument {
   name: string;
   description?: string;
@@ -83,6 +89,7 @@ export interface ConfigurationDocument {
   commodity_pricing: ConfigurationCommodityPricing;
   carbon_price: ConfigurationYearValueTable;
   residual_overlays?: ConfigurationResidualOverlays;
+  presentation_options?: ConfigurationPresentationOptions;
   solver_options?: ConfigurationSolverOptions;
   app_metadata?: ConfigurationAppMetadata;
 }

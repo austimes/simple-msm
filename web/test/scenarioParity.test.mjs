@@ -134,13 +134,28 @@ function loadAppConfig() {
 }
 
 function ensureResidualOverlays(configuration, overlayRows) {
-  const knownIds = Array.from(new Set(overlayRows.map((row) => row.overlay_id)));
+  const includeByOverlayId = new Map();
+  for (const row of overlayRows) {
+    const current = includeByOverlayId.get(row.overlay_id);
+    includeByOverlayId.set(
+      row.overlay_id,
+      current === undefined ? row.default_include : current && row.default_include,
+    );
+  }
   const existing = configuration.residual_overlays?.controls_by_overlay_id ?? {};
   const merged = {};
-  for (const id of knownIds) {
-    merged[id] = { included: existing[id]?.included ?? true };
+  for (const [id, included] of includeByOverlayId.entries()) {
+    merged[id] = { included: existing[id]?.included ?? included };
   }
-  return { ...configuration, residual_overlays: { controls_by_overlay_id: merged } };
+  return {
+    ...configuration,
+    residual_overlays: { controls_by_overlay_id: merged },
+    presentation_options: {
+      ...(configuration.presentation_options ?? {}),
+      residual_overlay_display_mode:
+        configuration.presentation_options?.residual_overlay_display_mode ?? 'aggregated_non_sink',
+    },
+  };
 }
 
 // ---------------------------------------------------------------------------

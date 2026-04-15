@@ -37,6 +37,7 @@ export const SECTOR_PRESENTATION = {
   removals_negative_emissions: { color: '#0f766e', legendLabel: 'Removals' },
   road_transport: { color: '#4f46e5', legendLabel: 'Transport' },
   steel: { color: '#475569', legendLabel: 'Steel' },
+  unmodelled_residuals: { color: '#92400e', legendLabel: 'Unmodelled res' },
 } as const satisfies ChartPresentationRegistry;
 
 export const SUBSECTOR_PRESENTATION = {
@@ -54,6 +55,7 @@ export const SUBSECTOR_PRESENTATION = {
   grid_supply: { color: '#eab308', legendLabel: 'Grid' },
   land_sequestration: { color: '#16a34a', legendLabel: 'Land seq' },
   engineered_removals: { color: '#0891b2', legendLabel: 'Eng removals' },
+  unmodelled_residuals: { color: '#92400e', legendLabel: 'Unmodelled res' },
 } as const satisfies ChartPresentationRegistry;
 
 export const OUTPUT_PRESENTATION = {
