@@ -60,6 +60,7 @@ describe('HorizontalWaterfallChart', () => {
     assert.match(html, /Base: abs\(100\)/);
     assert.match(html, /Target: abs\(92\)/);
     assert.match(html, /Total delta: delta\(-8\)/);
+    assert.match(html, /preserveAspectRatio="xMinYMin meet"/);
     assert.match(html, /class="waterfall-chart-zero-line"/);
     assert.match(html, /class="waterfall-chart-connector"/);
     assert.match(html, /data-delta="12"/);
