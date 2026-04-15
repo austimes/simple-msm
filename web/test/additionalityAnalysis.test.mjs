@@ -179,7 +179,7 @@ describe('additionality analysis', () => {
       [
         'Cement equivalent|Deep-abatement cement with CCS|enable',
         'Cement equivalent|Low-clinker and alternative-fuels cement|enable',
-        'Commercial building services|Deep-electric commercial services|enable',
+        'Commercial building services|Deep electrification and efficiency commercial services|enable',
         'Commercial building services|Electrified efficient commercial services|enable',
         'Cropping and horticulture output bundle|Mitigated cropping and horticulture bundle|enable',
         'Crude steel|CCS-influenced BF-BOF steel|enable',

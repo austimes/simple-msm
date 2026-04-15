@@ -14,7 +14,7 @@ This family covers `commercial_building_services` in sector `buildings` / subsec
 
 ## State inventory
 
-- buildings__commercial__deep_electric — Deep-electric commercial services
+- buildings__commercial__deep_electric — Deep electrification and efficiency commercial services
 - buildings__commercial__electrified_efficiency — Electrified efficient commercial services
 - buildings__commercial__incumbent_mixed_fuels — Incumbent mixed-fuel commercial services
 
