@@ -16,6 +16,7 @@ import { getCommodityMetadata } from '../data/commodityMetadata.ts';
 import { usePackageStore } from '../data/packageStore';
 import type { AssumptionLedgerEntry, SectorState, SourceLedgerEntry } from '../data/types';
 import LineChart, { type LineChartSeries } from './library/LineChart';
+import { buildAdaptiveAxisNumberFormatter } from './library/axisFormatting.ts';
 import LibrarySidebarFrame from './library/LibrarySidebarFrame';
 
 interface LibraryFilters {
@@ -51,11 +52,6 @@ const COEFFICIENT_DASH_PATTERNS = [undefined, '7 5', '3 4', '10 4 2 4', '2 3'];
 
 const numberFormatter = new Intl.NumberFormat('en-AU', {
   maximumFractionDigits: 2,
-});
-
-const compactNumberFormatter = new Intl.NumberFormat('en-AU', {
-  notation: 'compact',
-  maximumFractionDigits: 1,
 });
 
 const percentFormatter = new Intl.NumberFormat('en-AU', {
@@ -102,12 +98,13 @@ function formatNullableNumber(value: number | null, suffix = ''): string {
   return `${numberFormatter.format(value)}${suffix}`;
 }
 
-function formatAxisNumber(value: number): string {
-  return compactNumberFormatter.format(value);
-}
-
 function formatPercentAxis(value: number): string {
   return axisPercentFormatter.format(value);
+}
+
+function collectChartSeriesValues(series: LineChartSeries[]): number[] {
+  return series.flatMap((entry) =>
+    entry.values.flatMap((point) => (typeof point.value === 'number' && Number.isFinite(point.value) ? [point.value] : [])));
 }
 
 function buildNarrativeEntries(rows: SectorState[], pick: (row: SectorState) => string) {
@@ -416,6 +413,15 @@ export default function LibraryPage() {
     };
   }, [colorByTrajectoryId, filteredFamilies, resolvedSelectedTrajectoryId]);
 
+  const axisFormatters = useMemo(() => {
+    return {
+      cost: buildAdaptiveAxisNumberFormatter(collectChartSeriesValues(metricSeries.cost), { minDomain: 0 }),
+      emissions: buildAdaptiveAxisNumberFormatter(collectChartSeriesValues(metricSeries.emissions), { minDomain: 0 }),
+      maxActivity: buildAdaptiveAxisNumberFormatter(collectChartSeriesValues(metricSeries.maxActivity), { minDomain: 0 }),
+      coefficients: buildAdaptiveAxisNumberFormatter(collectChartSeriesValues(coefficientChart.series), { minDomain: 0 }),
+    };
+  }, [coefficientChart.series, metricSeries.cost, metricSeries.emissions, metricSeries.maxActivity]);
+
   const chartAxisLabels = useMemo(() => {
     return {
       cost: resolveSharedUnitLabel(
@@ -618,7 +624,7 @@ export default function LibraryPage() {
                     years={visibleYears}
                     series={metricSeries.cost}
                     valueFormatter={(value) => numberFormatter.format(value)}
-                    axisFormatter={formatAxisNumber}
+                    axisFormatter={axisFormatters.cost}
                     yAxisLabel={chartAxisLabels.cost}
                     legendMode="hidden"
                     minDomain={0}
@@ -637,7 +643,7 @@ export default function LibraryPage() {
                     years={visibleYears}
                     series={metricSeries.emissions}
                     valueFormatter={(value) => numberFormatter.format(value)}
-                    axisFormatter={formatAxisNumber}
+                    axisFormatter={axisFormatters.emissions}
                     yAxisLabel={chartAxisLabels.emissions}
                     legendMode="hidden"
                     minDomain={0}
@@ -675,7 +681,7 @@ export default function LibraryPage() {
                     years={visibleYears}
                     series={metricSeries.maxActivity}
                     valueFormatter={(value) => numberFormatter.format(value)}
-                    axisFormatter={formatAxisNumber}
+                    axisFormatter={axisFormatters.maxActivity}
                     yAxisLabel={chartAxisLabels.maxActivity}
                     legendMode="hidden"
                     minDomain={0}
@@ -697,7 +703,7 @@ export default function LibraryPage() {
                         years={visibleYears}
                         series={coefficientChart.series}
                         valueFormatter={(value) => numberFormatter.format(value)}
-                        axisFormatter={formatAxisNumber}
+                        axisFormatter={axisFormatters.coefficients}
                         yAxisLabel={chartAxisLabels.coefficients}
                         legendMode="hidden"
                         minDomain={0}
