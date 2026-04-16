@@ -207,11 +207,6 @@ function compareAtoms(left: AdditionalityAtom, right: AdditionalityAtom): number
     || left.action.localeCompare(right.action);
 }
 
-function compareCandidates(left: AdditionalityCandidate, right: AdditionalityCandidate): number {
-  return right.absObjectiveDelta - left.absObjectiveDelta
-    || compareAtoms(left.atom, right.atom);
-}
-
 function compareReverseGreedyCandidates(left: AdditionalityCandidate, right: AdditionalityCandidate): number {
   return left.absObjectiveDelta - right.absObjectiveDelta
     || compareAtoms(left.atom, right.atom);

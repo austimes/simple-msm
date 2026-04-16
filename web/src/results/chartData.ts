@@ -36,13 +36,29 @@ export interface LineChartData {
   series: StackedSeries[];
 }
 
+export interface PathwayCapChartSeries {
+  key: string;
+  label: string;
+  legendLabel?: string;
+  color: string;
+  capValues: Array<{ year: number; value: number }>;
+  shareValues: Array<{ year: number; value: number }>;
+}
+
+export interface PathwayCapChartData {
+  title: string;
+  yAxisLabel: string;
+  years: number[];
+  series: PathwayCapChartSeries[];
+}
+
 export interface PathwayChartCardData {
   outputId: string;
   outputLabel: string;
   respectMaxShare: boolean;
   note: string;
   outputChart: StackedChartData;
-  capChart: LineChartData;
+  capChart: PathwayCapChartData;
 }
 
 export interface RemovalsChartCardData {
@@ -92,6 +108,44 @@ function buildSeries(
       legendLabel: options.legendLabelForKey?.(key),
       color: options.colorForKey(key),
       values,
+    });
+  }
+
+  return series;
+}
+
+function buildPathwayCapSeries(
+  orderedKeys: string[],
+  capGrouped: Map<string, Map<number, number>>,
+  shareGrouped: Map<string, Map<number, number>>,
+  years: number[],
+  options: {
+    labelForKey: (key: string) => string;
+    legendLabelForKey?: (key: string) => string;
+    colorForKey: (key: string) => string;
+  },
+): PathwayCapChartSeries[] {
+  const series: PathwayCapChartSeries[] = [];
+
+  for (const key of orderedKeys) {
+    const capYearMap = capGrouped.get(key) ?? new Map<number, number>();
+    const shareYearMap = shareGrouped.get(key) ?? new Map<number, number>();
+    const capValues = years.map((year) => ({ year, value: capYearMap.get(year) ?? 0 }));
+    const shareValues = years.map((year) => ({ year, value: shareYearMap.get(year) ?? 0 }));
+    const hasAnyNonZero = capValues.some((value) => value.value !== 0)
+      || shareValues.some((value) => value.value !== 0);
+
+    if (!hasAnyNonZero) {
+      continue;
+    }
+
+    series.push({
+      key,
+      label: options.labelForKey(key),
+      legendLabel: options.legendLabelForKey?.(key),
+      color: options.colorForKey(key),
+      capValues,
+      shareValues,
     });
   }
 
@@ -483,13 +537,20 @@ export function buildPathwayChartCards(
     .map(([outputId, metadata]) => {
       const outputGrouped = new Map<string, Map<number, number>>();
       const capGrouped = new Map<string, Map<number, number>>();
+      const shareGrouped = new Map<string, Map<number, number>>();
       const stateLabelById = new Map<string, string>();
+      const orderedStateIds: string[] = [];
+      const seenStateIds = new Set<string>();
 
       for (const share of result.reporting.stateShares) {
         if (share.outputId !== outputId) {
           continue;
         }
 
+        if (!seenStateIds.has(share.stateId)) {
+          seenStateIds.add(share.stateId);
+          orderedStateIds.push(share.stateId);
+        }
         stateLabelById.set(share.stateId, share.stateLabel);
 
         let outputYearMap = outputGrouped.get(share.stateId);
@@ -506,6 +567,14 @@ export function buildPathwayChartCards(
           capGrouped.set(share.stateId, capYearMap);
         }
         capYearMap.set(share.year, effectiveMaxShare * 100);
+
+        const solvedShare = share.share ?? 0;
+        let shareYearMap = shareGrouped.get(share.stateId);
+        if (!shareYearMap) {
+          shareYearMap = new Map<number, number>();
+          shareGrouped.set(share.stateId, shareYearMap);
+        }
+        shareYearMap.set(share.year, solvedShare * 100);
       }
 
       return {
@@ -529,10 +598,12 @@ export function buildPathwayChartCards(
         },
         capChart: {
           title: `${metadata.outputLabel} Pathway Cap`,
-          yAxisLabel: 'Effective max share of output (current cap denominator)',
+          yAxisLabel: 'Share of output (%)',
           years,
-          series: buildSeries(
+          series: buildPathwayCapSeries(
+            orderedStateIds,
             capGrouped,
+            shareGrouped,
             years,
             {
               labelForKey: (key) => stateLabelById.get(key) ?? key,

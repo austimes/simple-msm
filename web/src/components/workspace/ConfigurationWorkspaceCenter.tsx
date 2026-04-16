@@ -3,6 +3,7 @@ import WorkspaceSolveFailureReport from './WorkspaceSolveFailureReport';
 import StackedAreaChart from '../charts/StackedAreaChart';
 import DivergingStackedBarChart from '../charts/DivergingStackedBarChart';
 import LineChart from '../charts/LineChart';
+import PathwayCapChart from '../charts/PathwayCapChart';
 import {
   buildPathwayChartCards,
   buildRemovalsChartCards,
@@ -65,7 +66,7 @@ function PathwayChartCard({ chart }: { chart: PathwayChartCardData }) {
         </div>
       </div>
       {showingCap ? (
-        <LineChart
+        <PathwayCapChart
           data={chart.capChart}
           valueFormatter={formatPercent}
           showTitle={false}

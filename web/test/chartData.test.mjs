@@ -681,7 +681,7 @@ test('buildPathwayChartCards returns output and cap views for selectable outputs
   assert.equal(cards.length, 1);
   assert.equal(cards[0].outputId, 'heat');
   assert.equal(cards[0].outputChart.yAxisLabel, 'PJ');
-  assert.match(cards[0].capChart.yAxisLabel, /current cap denominator/i);
+  assert.equal(cards[0].capChart.yAxisLabel, 'Share of output (%)');
   assert.equal(cards[0].respectMaxShare, true);
   assert.match(cards[0].note, /normalizing across active pathways/i);
   assert.equal(cards[0].outputChart.series.length, 2);
@@ -698,10 +698,17 @@ test('buildPathwayChartCards returns output and cap views for selectable outputs
     'Incumbent',
   );
   assert.deepEqual(
-    cards[0].capChart.series.find((series) => series.label === PATHWAY_INCUMBENT_LABEL)?.values,
+    cards[0].capChart.series.find((series) => series.label === PATHWAY_INCUMBENT_LABEL)?.capValues,
     [
       { year: 2030, value: 28.57142857142857 },
       { year: 2035, value: 16.666666666666668 },
+    ],
+  );
+  assert.deepEqual(
+    cards[0].capChart.series.find((series) => series.label === PATHWAY_INCUMBENT_LABEL)?.shareValues,
+    [
+      { year: 2030, value: 80 },
+      { year: 2035, value: 40 },
     ],
   );
 });
@@ -713,10 +720,17 @@ test('buildPathwayChartCards keeps cap context visible when max-share enforcemen
   assert.equal(cards[0].respectMaxShare, false);
   assert.match(cards[0].note, /ignored in this solve/i);
   assert.deepEqual(
-    cards[0].capChart.series.find((series) => series.label === PATHWAY_ELECTRIFIED_LABEL)?.values,
+    cards[0].capChart.series.find((series) => series.label === PATHWAY_ELECTRIFIED_LABEL)?.capValues,
     [
       { year: 2030, value: 71.42857142857143 },
       { year: 2035, value: 83.33333333333334 },
+    ],
+  );
+  assert.deepEqual(
+    cards[0].capChart.series.find((series) => series.label === PATHWAY_ELECTRIFIED_LABEL)?.shareValues,
+    [
+      { year: 2030, value: 20 },
+      { year: 2035, value: 60 },
     ],
   );
 });
@@ -809,14 +823,101 @@ test('buildPathwayChartCards matches solver-reported effective caps for exact-sh
   const selectedShare = result.reporting.stateShares.find((share) => share.stateId === 'selected_a');
   const availableShare = result.reporting.stateShares.find((share) => share.stateId === 'available_b');
   const card = cards[0];
-  const selectedCap = card.capChart.series.find((series) => series.label === 'Selected A')?.values[0]?.value;
-  const availableCap = card.capChart.series.find((series) => series.label === 'Available B')?.values[0]?.value;
+  const selectedSeries = card.capChart.series.find((series) => series.label === 'Selected A');
+  const availableSeries = card.capChart.series.find((series) => series.label === 'Available B');
+  const selectedCap = selectedSeries?.capValues[0]?.value;
+  const selectedSolvedShare = selectedSeries?.shareValues[0]?.value;
 
   assert.equal(result.status, 'solved');
   assert.equal(cards.length, 1);
   assert.ok(selectedShare?.effectiveMaxShare != null, 'expected selected exact-share cap');
   assert.equal(availableShare?.effectiveMaxShare, null, 'inactive pathways are excluded from cap normalization');
   assert.ok(Math.abs(selectedCap - (selectedShare.effectiveMaxShare * 100)) < 1e-9);
+  assert.ok(Math.abs(selectedSolvedShare - (selectedShare.share * 100)) < 1e-9);
+  assert.equal(availableShare?.share, 0);
+  assert.equal(availableSeries, undefined);
+});
+
+test('buildPathwayChartCards excludes pathways whose cap and solved share stay at zero', () => {
+  const request = buildRequest(true);
+  const result = buildResult();
+
+  request.rows.push(
+    {
+      rowId: 'heat_c::2030',
+      outputId: 'heat',
+      outputRole: 'required_service',
+      outputLabel: 'Heat',
+      year: 2030,
+      stateId: 'generic_industrial_heat__medium_temperature_heat__standby',
+      stateLabel: 'Standby heat',
+      sector: 'test',
+      subsector: 'test',
+      region: 'national',
+      outputUnit: 'PJ',
+      conversionCostPerUnit: 3,
+      inputs: [],
+      directEmissions: [],
+      bounds: {
+        minShare: null,
+        maxShare: null,
+        maxActivity: null,
+      },
+    },
+    {
+      rowId: 'heat_c::2035',
+      outputId: 'heat',
+      outputRole: 'required_service',
+      outputLabel: 'Heat',
+      year: 2035,
+      stateId: 'generic_industrial_heat__medium_temperature_heat__standby',
+      stateLabel: 'Standby heat',
+      sector: 'test',
+      subsector: 'test',
+      region: 'national',
+      outputUnit: 'PJ',
+      conversionCostPerUnit: 3,
+      inputs: [],
+      directEmissions: [],
+      bounds: {
+        minShare: null,
+        maxShare: null,
+        maxActivity: null,
+      },
+    },
+  );
+  result.reporting.stateShares.push(
+    {
+      outputId: 'heat',
+      outputLabel: 'Heat',
+      year: 2030,
+      stateId: 'generic_industrial_heat__medium_temperature_heat__standby',
+      stateLabel: 'Standby heat',
+      activity: 0,
+      share: 0,
+      rawMaxShare: null,
+      effectiveMaxShare: null,
+    },
+    {
+      outputId: 'heat',
+      outputLabel: 'Heat',
+      year: 2035,
+      stateId: 'generic_industrial_heat__medium_temperature_heat__standby',
+      stateLabel: 'Standby heat',
+      activity: 0,
+      share: 0,
+      rawMaxShare: null,
+      effectiveMaxShare: null,
+    },
+  );
+
+  const cards = buildPathwayChartCards(request, result);
+
+  assert.equal(cards.length, 1);
+  assert.equal(
+    cards[0].capChart.series.some((series) => series.label === 'Standby heat'),
+    false,
+  );
 });
 
 function buildFuelAndCostRequest() {

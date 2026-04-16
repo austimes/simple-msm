@@ -2,9 +2,10 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import type { LineChartData, StackedChartData } from '../src/results/chartData.ts';
+import type { LineChartData, PathwayCapChartData, StackedChartData } from '../src/results/chartData.ts';
 import DivergingStackedBarChart from '../src/components/charts/DivergingStackedBarChart.tsx';
 import LineChart from '../src/components/charts/LineChart.tsx';
+import PathwayCapChart from '../src/components/charts/PathwayCapChart.tsx';
 import StackedAreaChart from '../src/components/charts/StackedAreaChart.tsx';
 
 const emissionsChart: StackedChartData = {
@@ -63,6 +64,42 @@ const demandChart: LineChartData = {
   ],
 };
 
+const pathwayCapChart: PathwayCapChartData = {
+  title: 'Industry Heat Pathway Cap',
+  yAxisLabel: 'Share of output (%)',
+  years: [2030, 2035],
+  series: [
+    {
+      key: 'incumbent',
+      label: 'Incumbent fossil heat',
+      legendLabel: 'Incumbent',
+      color: '#991b1b',
+      capValues: [
+        { year: 2030, value: 30 },
+        { year: 2035, value: 20 },
+      ],
+      shareValues: [
+        { year: 2030, value: 28 },
+        { year: 2035, value: 14 },
+      ],
+    },
+    {
+      key: 'electrified',
+      label: 'Electrified heat',
+      legendLabel: 'Electrified',
+      color: '#2563eb',
+      capValues: [
+        { year: 2030, value: 75 },
+        { year: 2035, value: 90 },
+      ],
+      shareValues: [
+        { year: 2030, value: 72 },
+        { year: 2035, value: 86 },
+      ],
+    },
+  ],
+};
+
 describe('workspace Recharts wrappers', () => {
   test('diverging emissions charts retain the axis label, negative series metadata, and net legend item', () => {
     const html = renderToStaticMarkup(
@@ -116,6 +153,26 @@ describe('workspace Recharts wrappers', () => {
     assert.match(html, /title="Road transport"/);
   });
 
+  test('pathway cap charts render combined solved-share fills and cap lines in the chart shell', () => {
+    const html = renderToStaticMarkup(
+      <PathwayCapChart
+        data={pathwayCapChart}
+        showTitle={false}
+        yDomainPersistenceKey="run:pathway-cap:industry-heat"
+      />,
+    );
+
+    assert.doesNotMatch(html, /<figcaption/);
+    assert.match(html, /class="stacked-chart-header stacked-chart-header--action-only"/);
+    assert.match(html, /Axis: Share of output \(%\)/);
+    assert.match(html, /aria-label="Industry Heat Pathway Cap legend"/);
+    assert.match(html, /aria-label="Reset y-axis range for Industry Heat Pathway Cap"/);
+    assert.match(html, />Incumbent</);
+    assert.match(html, />Electrified</);
+    assert.match(html, /title="Incumbent fossil heat"/);
+    assert.match(html, /title="Electrified heat"/);
+  });
+
   test('empty-state charts keep the existing message without rendering a reset control', () => {
     const html = renderToStaticMarkup(
       <StackedAreaChart
@@ -126,6 +183,23 @@ describe('workspace Recharts wrappers', () => {
           series: [],
         }}
         yDomainPersistenceKey="run:fuel-consumption"
+      />,
+    );
+
+    assert.match(html, /No data available for this chart\./);
+    assert.doesNotMatch(html, /Reset y-axis range/);
+  });
+
+  test('empty-state pathway cap charts keep the existing message without rendering a reset control', () => {
+    const html = renderToStaticMarkup(
+      <PathwayCapChart
+        data={{
+          title: 'Heat Pathway Cap',
+          yAxisLabel: 'Share of output (%)',
+          years: [],
+          series: [],
+        }}
+        yDomainPersistenceKey="run:pathway-cap:heat"
       />,
     );
 
