@@ -168,7 +168,7 @@ export function AdditionalityPageView({
       <h1>Additionality</h1>
       <p>
         Compare two saved configurations, hold commodity prices constant as a page-local
-        sensitivity, and trace how the greedy transition sequence builds the difference
+        sensitivity, and trace how the reverse-greedy transition sequence builds the difference
         between the base and target configurations.
       </p>
 
@@ -297,9 +297,10 @@ export function AdditionalityPageView({
             <>
               <section>
                 <p className="additionality-status-line">
-                  These waterfalls are sequence-based and path-dependent: each step shows the
-                  incremental change from the prior greedy state, and the full sequence sums to
-                  the base-to-target delta.
+                  Atoms are ordered by reverse-greedy elimination from the target configuration:
+                  items whose removal changes the target least are placed later, and the resulting
+                  order is then shown as a forward base→target sequence. These waterfalls remain
+                  sequence-based and path-dependent; they are not a unique attribution of total delta.
                 </p>
                 <div className="additionality-chart-grid">
                   <article className="configuration-panel">

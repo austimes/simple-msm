@@ -190,10 +190,8 @@ describe('AdditionalityPage', () => {
     assert.match(html, /Ordered steps reference/);
     assert.doesNotMatch(html, /additionality-step-list/);
     assert.match(html, /--chart-height:180px/);
-    assert.match(
-      html,
-      /These waterfalls are sequence-based and path-dependent: each step shows the incremental change from the prior greedy state, and the full sequence sums to the base-to-target delta\./,
-    );
+    assert.match(html, /reverse-greedy elimination from the target configuration/);
+    assert.match(html, /sequence-based and path-dependent/);
     assert.match(html, /Base objective/);
     assert.match(html, /Target objective/);
     assert.match(html, /\$12\.34B/);
@@ -225,7 +223,7 @@ describe('AdditionalityPage', () => {
     assert.match(html, /State-toggle delta decomposition/);
     assert.match(
       html,
-      /trace how the greedy transition sequence builds the difference between the base and target configurations\./i,
+      /trace how the reverse-greedy transition sequence builds the difference between the base and target configurations\./i,
     );
   });
 
