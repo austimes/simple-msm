@@ -88,6 +88,8 @@ describe('AdditionalityPage', () => {
             error: null,
             validationIssues: [],
             report: {
+              orderingMethod: 'reverse_greedy_target_context',
+              sequenceComplete: true,
               baseConfigId: 'reference-base',
               targetConfigId: 'reference-all',
               baseMetrics: {

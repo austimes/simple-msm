@@ -9,6 +9,7 @@ import { buildSolveRequest } from '../solver/buildSolveRequest.ts';
 import { buildConfigurationBuildFailure, buildConfigurationSolveFailure } from '../solver/configurationSolveFailure.ts';
 import type { SolveRequest, SolveResult } from '../solver/contract.ts';
 
+export type AdditionalityOrderingMethod = 'reverse_greedy_target_context';
 export type AdditionalityAtomAction = 'enable' | 'disable';
 export type AdditionalityAnalysisPhase =
   | 'idle'
@@ -59,6 +60,8 @@ export interface AdditionalitySequenceEntry {
 }
 
 export interface AdditionalityReport {
+  orderingMethod: AdditionalityOrderingMethod;
+  sequenceComplete: boolean;
   baseConfigId: string;
   targetConfigId: string;
   baseMetrics: AdditionalityMetricSnapshot;
@@ -795,6 +798,8 @@ export async function runAdditionalityAnalysis(
 
     if (!bestCandidate) {
       const report: AdditionalityReport = {
+        orderingMethod: 'reverse_greedy_target_context',
+        sequenceComplete: false,
         baseConfigId: options.baseConfigId,
         targetConfigId: options.targetConfigId,
         baseMetrics: baseEvaluation,
@@ -834,6 +839,8 @@ export async function runAdditionalityAnalysis(
   const presentationSequence = buildPresentationSequence(removalSequence);
 
   const report: AdditionalityReport = {
+    orderingMethod: 'reverse_greedy_target_context',
+    sequenceComplete: true,
     baseConfigId: options.baseConfigId,
     targetConfigId: options.targetConfigId,
     baseMetrics: baseEvaluation,
