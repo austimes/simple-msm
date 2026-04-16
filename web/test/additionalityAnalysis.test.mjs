@@ -393,6 +393,171 @@ describe('additionality analysis', () => {
     );
   });
 
+  test('reverse greedy fixes misleading forward-greedy ordering', async () => {
+    // Atom A = electrified_efficiency, Atom B = deep_electric
+    // Forward greedy from base: A first (delta=10 vs delta=6)
+    // Reverse greedy from target=7: remove A → |7-6|=1, remove B → |7-10|=3
+    // A removed first (least impact), B removed second. Reversed: B first, A second.
+    function mockSolverForReverseGreedyProof(request) {
+      const hasA = hasActiveState(request, 'residential_building_services', 'buildings__residential__electrified_efficiency');
+      const hasB = hasActiveState(request, 'residential_building_services', 'buildings__residential__deep_electric');
+      if (hasA && hasB) return buildSolvedResult(request, 7);
+      if (hasA && !hasB) return buildSolvedResult(request, 10);
+      if (!hasA && hasB) return buildSolvedResult(request, 6);
+      return buildSolvedResult(request, 0);
+    }
+
+    const base = buildBaseCase();
+    const target = clone(base);
+    target.service_controls.residential_building_services.active_state_ids = null;
+
+    const analysis = await runAdditionalityAnalysis(
+      {
+        baseConfiguration: base,
+        baseConfigId: 'reverse-greedy-base',
+        commoditySelections: {},
+        pkg,
+        targetConfiguration: target,
+        targetConfigId: 'reverse-greedy-target',
+      },
+      {
+        solve: async (request) => mockSolverForReverseGreedyProof(request),
+      },
+    );
+
+    assert.equal(analysis.phase, 'success');
+    assert.equal(analysis.report.sequence.length, 2);
+    assert.ok(
+      analysis.report.sequence[0].atom.stateLabel.includes('Deep-electric'),
+      `expected first atom to contain "Deep-electric", got "${analysis.report.sequence[0].atom.stateLabel}"`,
+    );
+    assert.ok(
+      analysis.report.sequence[1].atom.stateLabel.includes('Electrified efficient'),
+      `expected second atom to contain "Electrified efficient", got "${analysis.report.sequence[1].atom.stateLabel}"`,
+    );
+    for (const entry of analysis.report.sequence) {
+      assert.equal(entry.atom.action, 'enable');
+    }
+  });
+
+  test('first sequence entry starts from base metrics and last entry reaches target metrics', async () => {
+    const analysis = await runAdditionalityAnalysis(
+      {
+        baseConfiguration: buildBaseCase(),
+        baseConfigId: 'reference-base',
+        commoditySelections: {},
+        pkg,
+        targetConfiguration: buildFullMonty(),
+        targetConfigId: 'reference-all',
+      },
+      {
+        solve: async (request) => solveWithLpAdapter(request),
+      },
+    );
+
+    assert.equal(analysis.phase, 'success');
+    assertClose(
+      analysis.report.sequence[0].metricsBefore.objective,
+      analysis.report.baseMetrics.objective,
+      'first sequence entry starts from the base objective',
+    );
+    assertClose(
+      analysis.report.sequence.at(-1).metricsAfter.objective,
+      analysis.report.targetMetrics.objective,
+      'last sequence entry reaches the target objective',
+    );
+  });
+
+  test('disable-action atoms when target restricts states relative to base', async () => {
+    function mockSolverForDisableTest(request) {
+      const hasA = hasActiveState(request, 'residential_building_services', 'buildings__residential__electrified_efficiency');
+      const hasB = hasActiveState(request, 'residential_building_services', 'buildings__residential__deep_electric');
+      if (hasA && hasB) return buildSolvedResult(request, 7);
+      if (hasA && !hasB) return buildSolvedResult(request, 10);
+      if (!hasA && hasB) return buildSolvedResult(request, 6);
+      return buildSolvedResult(request, 0);
+    }
+
+    const base = buildBaseCase();
+    base.service_controls.residential_building_services.active_state_ids = null;
+    const target = clone(base);
+    target.service_controls.residential_building_services.active_state_ids = [
+      'buildings__residential__incumbent_mixed_fuels',
+    ];
+
+    const analysis = await runAdditionalityAnalysis(
+      {
+        baseConfiguration: base,
+        baseConfigId: 'disable-base',
+        commoditySelections: {},
+        pkg,
+        targetConfiguration: target,
+        targetConfigId: 'disable-target',
+      },
+      {
+        solve: async (request) => mockSolverForDisableTest(request),
+      },
+    );
+
+    assert.equal(analysis.phase, 'success');
+    assert.ok(
+      analysis.report.sequence.some((entry) => entry.atom.action === 'disable'),
+      'at least one atom should have action=disable',
+    );
+    for (const entry of analysis.report.sequence) {
+      assertConsistentDelta(entry);
+    }
+  });
+
+  test('deterministic tie-breaking when atoms have identical objective deltas', async () => {
+    function mockSolverForTieBreak(request) {
+      const hasA = hasActiveState(request, 'residential_building_services', 'buildings__residential__electrified_efficiency');
+      const hasB = hasActiveState(request, 'residential_building_services', 'buildings__residential__deep_electric');
+      if (hasA && hasB) return buildSolvedResult(request, 10);
+      if (hasA || hasB) return buildSolvedResult(request, 5);
+      return buildSolvedResult(request, 0);
+    }
+
+    const base = buildBaseCase();
+    const target = clone(base);
+    target.service_controls.residential_building_services.active_state_ids = null;
+
+    const analysis = await runAdditionalityAnalysis(
+      {
+        baseConfiguration: base,
+        baseConfigId: 'tiebreak-base',
+        commoditySelections: {},
+        pkg,
+        targetConfiguration: target,
+        targetConfigId: 'tiebreak-target',
+      },
+      {
+        solve: async (request) => mockSolverForTieBreak(request),
+      },
+    );
+
+    assert.equal(analysis.phase, 'success');
+    assert.equal(analysis.report.sequence.length, 2);
+    // Both have same absObjectiveDelta, tie-break is alphabetical by stateLabel.
+    // During removal: "Deep-electric" < "Electrified efficient" alphabetically,
+    // so Deep-electric is removed first. After presentation reversal:
+    // Electrified efficient appears first, Deep-electric second.
+    assert.ok(
+      analysis.report.sequence[0].atom.stateLabel.includes('Electrified efficient'),
+      `expected first atom to be "Electrified efficient", got "${analysis.report.sequence[0].atom.stateLabel}"`,
+    );
+    assert.ok(
+      analysis.report.sequence[1].atom.stateLabel.includes('Deep-electric'),
+      `expected second atom to be "Deep-electric", got "${analysis.report.sequence[1].atom.stateLabel}"`,
+    );
+    // Verify determinism by checking the deltas are actually tied
+    assertClose(
+      analysis.report.sequence[0].absObjectiveDelta,
+      analysis.report.sequence[1].absObjectiveDelta,
+      'both atoms should have identical absObjectiveDelta',
+    );
+  });
+
   test('records skipped intermediate candidates and continues when other candidates remain solvable', async () => {
     const analysis = await runAdditionalityAnalysis(
       {
@@ -459,6 +624,8 @@ describe('additionality analysis', () => {
 
     assert.equal(analysis.phase, 'success');
     assert.ok(analysis.report);
+    assert.equal(analysis.report.sequenceComplete, true);
+    assert.equal(analysis.report.orderingMethod, 'reverse_greedy_target_context');
     assert.ok(analysis.report.skippedCandidates.length >= 1);
     assert.ok(analysis.report.sequence.some((entry) => entry.skippedCandidateCount >= 1));
     for (const entry of analysis.report.sequence) {
