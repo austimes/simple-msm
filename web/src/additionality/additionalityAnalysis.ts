@@ -209,6 +209,33 @@ function compareCandidates(left: AdditionalityCandidate, right: AdditionalityCan
     || compareAtoms(left.atom, right.atom);
 }
 
+function compareReverseGreedyCandidates(left: AdditionalityCandidate, right: AdditionalityCandidate): number {
+  return left.absObjectiveDelta - right.absObjectiveDelta
+    || compareAtoms(left.atom, right.atom);
+}
+
+export function invertAdditionalityAtomAction(action: AdditionalityAtomAction): AdditionalityAtomAction {
+  return action === 'enable' ? 'disable' : 'enable';
+}
+
+export function buildPresentationSequence(
+  removalSequence: AdditionalitySequenceEntry[],
+): AdditionalitySequenceEntry[] {
+  const reversed = [...removalSequence].reverse();
+  return reversed.map((entry, index) => ({
+    step: index + 1,
+    atom: {
+      ...entry.atom,
+      action: invertAdditionalityAtomAction(entry.atom.action),
+    },
+    metricsBefore: entry.metricsAfter,
+    metricsAfter: entry.metricsBefore,
+    metricsDeltaFromCurrent: subtractMetricSnapshots(entry.metricsBefore, entry.metricsAfter),
+    absObjectiveDelta: entry.absObjectiveDelta,
+    skippedCandidateCount: entry.skippedCandidateCount,
+  }));
+}
+
 function normalizeControlComparison(control: ConfigurationDocument['service_controls'][string] | undefined) {
   return {
     mode: control?.mode ?? null,
@@ -652,7 +679,6 @@ export async function runAdditionalityAnalysis(
   );
   const catalog = buildOutputStateCatalog(options.pkg.sectorStates, outputLabelById);
   const skippedCandidates: AdditionalitySkippedCandidate[] = [];
-  const sequence: AdditionalitySequenceEntry[] = [];
   const totalExpected = prepared.totalExpected;
   let completed = 0;
 
@@ -715,9 +741,10 @@ export async function runAdditionalityAnalysis(
     };
   }
 
-  let currentConfiguration = structuredClone(prepared.baseConfiguration);
-  let currentMetrics = baseEvaluation;
+  let currentConfiguration = structuredClone(prepared.targetConfiguration);
+  let currentMetrics = targetEvaluation;
   let remainingAtoms = [...prepared.atoms];
+  const removalSequence: AdditionalitySequenceEntry[] = [];
 
   for (let step = 1; remainingAtoms.length > 0; step += 1) {
     checkCancelled(isCancelled);
@@ -728,9 +755,13 @@ export async function runAdditionalityAnalysis(
     for (const atom of remainingAtoms) {
       checkCancelled(isCancelled);
 
+      const invertedAtom: AdditionalityAtom = {
+        ...atom,
+        action: invertAdditionalityAtomAction(atom.action),
+      };
       const candidateConfiguration = applyAdditionalityAtomWithCatalog(
         currentConfiguration,
-        atom,
+        invertedAtom,
         catalog,
       );
       const evaluation = await evaluateMetrics(
@@ -750,14 +781,14 @@ export async function runAdditionalityAnalysis(
 
       const metricsDeltaFromCurrent = subtractMetricSnapshots(evaluation, currentMetrics);
       const candidate: AdditionalityCandidate = {
-        atom,
+        atom: invertedAtom,
         config: candidateConfiguration,
         metricsAfter: evaluation,
         metricsDeltaFromCurrent,
         absObjectiveDelta: Math.abs(metricsDeltaFromCurrent.objective),
       };
 
-      if (!bestCandidate || compareCandidates(candidate, bestCandidate) < 0) {
+      if (!bestCandidate || compareReverseGreedyCandidates(candidate, bestCandidate) < 0) {
         bestCandidate = candidate;
       }
     }
@@ -771,7 +802,7 @@ export async function runAdditionalityAnalysis(
         totalObjectiveDelta: targetEvaluation.objective - baseEvaluation.objective,
         atomCount: prepared.atoms.length,
         solveCount: completed,
-        sequence,
+        sequence: buildPresentationSequence(removalSequence),
         skippedCandidates,
         validationIssues: [],
       };
@@ -785,7 +816,7 @@ export async function runAdditionalityAnalysis(
       };
     }
 
-    sequence.push({
+    removalSequence.push({
       step,
       atom: bestCandidate.atom,
       metricsBefore: currentMetrics,
@@ -800,6 +831,8 @@ export async function runAdditionalityAnalysis(
     remainingAtoms = remainingAtoms.filter((atom) => atom.key !== bestCandidate.atom.key);
   }
 
+  const presentationSequence = buildPresentationSequence(removalSequence);
+
   const report: AdditionalityReport = {
     baseConfigId: options.baseConfigId,
     targetConfigId: options.targetConfigId,
@@ -808,7 +841,7 @@ export async function runAdditionalityAnalysis(
     totalObjectiveDelta: targetEvaluation.objective - baseEvaluation.objective,
     atomCount: prepared.atoms.length,
     solveCount: completed,
-    sequence,
+    sequence: presentationSequence,
     skippedCandidates,
     validationIssues: [],
   };
