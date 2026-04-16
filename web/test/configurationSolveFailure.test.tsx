@@ -9,6 +9,32 @@ import {
 import ConfigurationWorkspaceCenter from '../src/components/workspace/ConfigurationWorkspaceCenter.tsx';
 import { SOLVER_CONTRACT_VERSION } from '../src/solver/contract.ts';
 
+function buildSolveState({
+  phase = 'solved',
+  request = buildRequest(),
+  result = null,
+  solvedConfiguration = request?.configuration ?? null,
+  error = null,
+  failure = null,
+}: {
+  phase?: 'idle' | 'solving' | 'solved' | 'error';
+  request?: ReturnType<typeof buildRequest> | null;
+  result?: ReturnType<typeof buildErrorResult> | null;
+  solvedConfiguration?: ReturnType<typeof buildRequest>['configuration'] | null;
+  error?: string | null;
+  failure?: ReturnType<typeof buildConfigurationSolveFailure> | ReturnType<typeof buildConfigurationBuildFailure> | null;
+} = {}) {
+  return {
+    phase,
+    request,
+    result,
+    solvedConfiguration,
+    error,
+    failure,
+    solve: () => {},
+  };
+}
+
 function buildRequest() {
   return {
     contractVersion: SOLVER_CONTRACT_VERSION,
@@ -182,11 +208,31 @@ describe('configuration solve failures', () => {
 
     const html = renderToStaticMarkup(
       <ConfigurationWorkspaceCenter
-        phase="error"
-        result={null}
-        request={request}
-        error={failure.headline}
-        failure={failure}
+        baseConfigId={null}
+        baseSelectionMode="none"
+        baseSolve={buildSolveState({
+          phase: 'idle',
+          request: null,
+          result: null,
+          solvedConfiguration: null,
+        })}
+        commonComparisonYears={[]}
+        comparisonEnabled={false}
+        configurationOptions={[]}
+        focusConfigurationLabel={request.configuration.name}
+        focusSolve={buildSolveState({
+          phase: 'error',
+          request,
+          result: null,
+          error: failure.headline,
+          failure,
+        })}
+        fuelSwitchBasis="to"
+        onBaseConfigChange={() => {}}
+        onBaseSelectionModeChange={() => {}}
+        onFuelSwitchBasisChange={() => {}}
+        onFuelSwitchYearChange={() => {}}
+        selectedFuelSwitchYear={null}
       />,
     );
 

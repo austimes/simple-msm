@@ -5,6 +5,59 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import ConfigurationWorkspaceCenter from '../src/components/workspace/ConfigurationWorkspaceCenter.tsx';
 import { SOLVER_CONTRACT_VERSION } from '../src/solver/contract.ts';
 
+function buildSolveState({
+  phase = 'solved',
+  request = buildRequest(),
+  result = buildResult(),
+  solvedConfiguration = request?.configuration ?? null,
+  error = null,
+  failure = null,
+} = {}) {
+  return {
+    phase,
+    request,
+    result,
+    solvedConfiguration,
+    error,
+    failure,
+    solve: () => {},
+  };
+}
+
+function buildCenterProps(overrides = {}) {
+  const focusRequest = buildRequest();
+
+  return {
+    baseConfigId: null,
+    baseSelectionMode: 'none',
+    baseSolve: buildSolveState({
+      phase: 'idle',
+      request: null,
+      result: null,
+      solvedConfiguration: null,
+    }),
+    commonComparisonYears: [],
+    comparisonEnabled: false,
+    configurationOptions: [
+      { id: 'reference-base', label: 'Reference base' },
+      { id: 'reference-all', label: 'Reference all' },
+    ],
+    focusConfigurationLabel: focusRequest.configuration.name,
+    focusSolve: buildSolveState({
+      request: focusRequest,
+      result: buildResult(),
+      solvedConfiguration: focusRequest.configuration,
+    }),
+    fuelSwitchBasis: 'to',
+    onBaseConfigChange: () => {},
+    onBaseSelectionModeChange: () => {},
+    onFuelSwitchBasisChange: () => {},
+    onFuelSwitchYearChange: () => {},
+    selectedFuelSwitchYear: null,
+    ...overrides,
+  };
+}
+
 function buildRequest() {
   return {
     contractVersion: SOLVER_CONTRACT_VERSION,
@@ -171,18 +224,13 @@ function buildResult() {
 
 test('solved workspace renders Cost by Component with diverging chart net metadata', () => {
   const html = renderToStaticMarkup(
-    React.createElement(ConfigurationWorkspaceCenter, {
-      phase: 'solved',
-      result: buildResult(),
-      request: buildRequest(),
-      error: null,
-      failure: null,
-    }),
+    React.createElement(ConfigurationWorkspaceCenter, buildCenterProps()),
   );
 
   const netSeriesMatches = html.match(/data-series-key="__net"/g) ?? [];
   const resetMatches = html.match(/class="stacked-chart-reset-button"/g) ?? [];
 
+  assert.match(html, /Explorer comparison pair/);
   assert.match(html, /workspace-chart-grid/);
   assert.match(html, /Cost by Component/);
   assert.match(html, /aria-label="Cost by Component legend"/);
@@ -194,13 +242,11 @@ test('solved workspace renders Cost by Component with diverging chart net metada
 
 test('refreshing workspace keeps the previous chart grid mounted without a visible status overlay', () => {
   const html = renderToStaticMarkup(
-    React.createElement(ConfigurationWorkspaceCenter, {
-      phase: 'solving',
-      result: buildResult(),
-      request: buildRequest(),
-      error: null,
-      failure: null,
-    }),
+    React.createElement(ConfigurationWorkspaceCenter, buildCenterProps({
+      focusSolve: buildSolveState({
+        phase: 'solving',
+      }),
+    })),
   );
 
   assert.match(html, /aria-busy="true"/);
@@ -211,13 +257,14 @@ test('refreshing workspace keeps the previous chart grid mounted without a visib
 
 test('initial workspace solve keeps the center blank while the first result is loading', () => {
   const html = renderToStaticMarkup(
-    React.createElement(ConfigurationWorkspaceCenter, {
-      phase: 'solving',
-      result: null,
-      request: null,
-      error: null,
-      failure: null,
-    }),
+    React.createElement(ConfigurationWorkspaceCenter, buildCenterProps({
+      focusSolve: buildSolveState({
+        phase: 'solving',
+        request: null,
+        result: null,
+        solvedConfiguration: null,
+      }),
+    })),
   );
 
   assert.match(html, /aria-busy="true"/);
@@ -395,15 +442,17 @@ test('pathway and removals cards keep only the card heading on the run page', ()
     },
   };
 
-  const html = renderToStaticMarkup(
-    React.createElement(ConfigurationWorkspaceCenter, {
-      phase: 'solved',
-      result,
-      request,
-      error: null,
-      failure: null,
+  const html = renderToStaticMarkup(React.createElement(
+    ConfigurationWorkspaceCenter,
+    buildCenterProps({
+      focusConfigurationLabel: request.configuration.name,
+      focusSolve: buildSolveState({
+        request,
+        result,
+        solvedConfiguration: request.configuration,
+      }),
     }),
-  );
+  ));
 
   assert.match(html, /<h2 class="workspace-chart-card-title">Electricity supply<\/h2>/);
   assert.match(html, /<h2 class="workspace-chart-card-title">Engineered removals<\/h2>/);
@@ -418,4 +467,39 @@ test('pathway and removals cards keep only the card heading on the run page', ()
   assert.match(html, />Max activity</);
   assert.match(html, /title="Incumbent thermal-heavy grid mix"/);
   assert.match(html, /title="Policy frontier grid supply"/);
+});
+
+test('base comparison disabled keeps Explorer absolute charts and hides the fuel-switching card', () => {
+  const html = renderToStaticMarkup(
+    React.createElement(ConfigurationWorkspaceCenter, buildCenterProps({
+      baseSelectionMode: 'none',
+      comparisonEnabled: false,
+    })),
+  );
+
+  assert.match(html, /Base comparison is disabled/);
+  assert.match(html, /Fuel Consumption/);
+  assert.doesNotMatch(html, /Fuel switching by subsector/);
+});
+
+test('base comparison failure keeps focus charts visible and shows a comparison-only error panel', () => {
+  const html = renderToStaticMarkup(
+    React.createElement(ConfigurationWorkspaceCenter, buildCenterProps({
+      baseConfigId: 'reference-base',
+      baseSelectionMode: 'manual',
+      comparisonEnabled: true,
+      commonComparisonYears: [2030],
+      baseSolve: buildSolveState({
+        phase: 'error',
+        request: buildRequest(),
+        result: null,
+        solvedConfiguration: buildRequest().configuration,
+        error: 'Base comparison solve failed.',
+      }),
+    })),
+  );
+
+  assert.match(html, /Base comparison unavailable/);
+  assert.match(html, /Base comparison solve failed\./);
+  assert.match(html, /workspace-chart-grid/);
 });

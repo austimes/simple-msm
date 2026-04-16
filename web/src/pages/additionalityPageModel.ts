@@ -1,8 +1,8 @@
-import { getConfigurationId } from '../data/configurationLoader.ts';
 import type {
   AdditionalityMetricSnapshot,
   AdditionalityReport,
 } from '../additionality/additionalityAnalysis.ts';
+import { selectInitialSavedPair } from '../data/configurationPairModel.ts';
 import type { ConfigurationDocument } from '../data/types.ts';
 
 export interface AdditionalityWaterfallDatum {
@@ -149,20 +149,10 @@ export function getAdditionalityMetricPresentation(
 export function selectInitialAdditionalityPair(
   configurations: ConfigurationDocument[],
 ): { baseConfigId: string | null; targetConfigId: string | null } {
-  const ids = configurations
-    .map((configuration) => getConfigurationId(configuration))
-    .filter((id): id is string => id != null);
-
-  if (ids.includes('reference-base') && ids.includes('reference-all')) {
-    return {
-      baseConfigId: 'reference-base',
-      targetConfigId: 'reference-all',
-    };
-  }
-
+  const pair = selectInitialSavedPair(configurations);
   return {
-    baseConfigId: ids[0] ?? null,
-    targetConfigId: ids.find((id) => id !== ids[0]) ?? ids[0] ?? null,
+    baseConfigId: pair.baseConfigId,
+    targetConfigId: pair.focusConfigId,
   };
 }
 

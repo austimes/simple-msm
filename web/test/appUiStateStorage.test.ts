@@ -35,6 +35,12 @@ function buildSampleState(): AppUiState {
         overlays: true,
         configurations: false,
       },
+      comparison: {
+        baseSelectionMode: 'manual',
+        selectedBaseConfigId: 'reference-base',
+        fuelSwitchBasis: 'from',
+        selectedFuelSwitchYear: 2050,
+      },
     },
     library: {
       sidebarCollapsed: true,
@@ -57,7 +63,7 @@ function buildSampleState(): AppUiState {
     },
     additionality: {
       selectedBaseConfigId: 'reference-base',
-      selectedTargetConfigId: 'reference-all',
+      selectedFocusConfigId: 'reference-all',
       commoditySelectionState: {
         seededFromConfigId: 'reference-base',
         selections: {
@@ -115,6 +121,12 @@ describe('appUiStateStorage', () => {
             emissionsPrice: 'false',
             unknown: true,
           },
+          comparison: {
+            baseSelectionMode: 'unsupported',
+            selectedBaseConfigId: 'reference-base',
+            fuelSwitchBasis: 'sideways',
+            selectedFuelSwitchYear: '2050',
+          },
         },
         library: {
           filters: {
@@ -160,6 +172,10 @@ describe('appUiStateStorage', () => {
           ...DEFAULT_APP_UI_STATE.workspace.expandedSections,
           commodityControls: true,
         },
+        comparison: {
+          ...DEFAULT_APP_UI_STATE.workspace.comparison,
+          selectedBaseConfigId: 'reference-base',
+        },
       },
       library: {
         sidebarCollapsed: DEFAULT_APP_UI_STATE.library.sidebarCollapsed,
@@ -180,7 +196,7 @@ describe('appUiStateStorage', () => {
       },
       additionality: {
         selectedBaseConfigId: 'reference-base',
-        selectedTargetConfigId: DEFAULT_APP_UI_STATE.additionality.selectedTargetConfigId,
+        selectedFocusConfigId: DEFAULT_APP_UI_STATE.additionality.selectedFocusConfigId,
         commoditySelectionState: {
           seededFromConfigId: DEFAULT_APP_UI_STATE.additionality.commoditySelectionState.seededFromConfigId,
           selections: {
@@ -189,5 +205,28 @@ describe('appUiStateStorage', () => {
         },
       },
     });
+  });
+
+  test('hydrates legacy selectedTargetConfigId payloads into selectedFocusConfigId', () => {
+    const storage = createMemoryStorage();
+    storage.setItem(
+      APP_UI_STATE_STORAGE_KEY,
+      JSON.stringify({
+        ...DEFAULT_APP_UI_STATE,
+        additionality: {
+          selectedBaseConfigId: 'reference-base',
+          selectedTargetConfigId: 'reference-all',
+          commoditySelectionState: {
+            seededFromConfigId: 'reference-base',
+            selections: {},
+          },
+        },
+      }),
+    );
+
+    assert.equal(
+      loadPersistedAppUiState(storage).additionality.selectedFocusConfigId,
+      'reference-all',
+    );
   });
 });

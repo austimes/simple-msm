@@ -1,24 +1,20 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import HorizontalWaterfallChart from '../components/charts/HorizontalWaterfallChart.tsx';
 import { useAppUiStore } from '../data/appUiStore.ts';
 import { usePackageStore } from '../data/packageStore.ts';
-import {
-  fetchUserConfigurations,
-  getConfigurationId,
-  loadBuiltinConfigurations,
-  loadUserConfigurations,
-} from '../data/configurationLoader.ts';
-import { PRICE_LEVELS, type ConfigurationDocument, type PriceLevel } from '../data/types.ts';
+import { getConfigurationId } from '../data/configurationLoader.ts';
+import { resolveAdditionalityPair } from '../data/configurationPairModel.ts';
+import { PRICE_LEVELS, type PriceLevel } from '../data/types.ts';
 import {
   seedAdditionalityCommoditySelections,
   type AdditionalityAnalysisState,
 } from '../additionality/additionalityAnalysis.ts';
 import { useAdditionalityAnalysis } from '../hooks/useAdditionalityAnalysis.ts';
+import { useAvailableConfigurations } from '../hooks/useAvailableConfigurations.ts';
 import {
   buildAdditionalityReferenceRows,
   buildAdditionalityWaterfallRows,
   getAdditionalityMetricPresentation,
-  selectInitialAdditionalityPair,
 } from './additionalityPageModel.ts';
 
 void React;
@@ -41,22 +37,10 @@ export interface AdditionalityPageViewProps {
   configurations: AdditionalityConfigurationOption[];
   onBaseConfigChange: (configId: string) => void;
   onCommoditySelectionChange: (commodityId: string, level: PriceLevel) => void;
+  onFocusConfigChange: (configId: string) => void;
   onRecalculate: () => void;
-  onTargetConfigChange: (configId: string) => void;
   recalculateDisabled: boolean;
-  targetConfigId: string | null;
-}
-
-function dedupeConfigurations(configurations: ConfigurationDocument[]): ConfigurationDocument[] {
-  const deduped = new Map<string, ConfigurationDocument>();
-
-  for (const configuration of configurations) {
-    const id = getConfigurationId(configuration) ?? configuration.name;
-    deduped.set(id, configuration);
-  }
-
-  return Array.from(deduped.values())
-    .sort((left, right) => left.name.localeCompare(right.name));
+  focusConfigId: string | null;
 }
 
 function formatAction(action: 'enable' | 'disable'): string {
@@ -114,10 +98,10 @@ export function AdditionalityPageView({
   configurations,
   onBaseConfigChange,
   onCommoditySelectionChange,
+  onFocusConfigChange,
   onRecalculate,
-  onTargetConfigChange,
   recalculateDisabled,
-  targetConfigId,
+  focusConfigId,
 }: AdditionalityPageViewProps) {
   const report = analysisState.report;
   const statusLine = buildStatusLine(analysisState);
@@ -173,7 +157,7 @@ export function AdditionalityPageView({
       <p>
         Compare two saved configurations, hold commodity prices constant as a page-local
         sensitivity, and trace how the reverse-greedy transition sequence builds the difference
-        between the base and target configurations.
+        between the base and focus configurations.
       </p>
 
       <section className="configuration-panel configuration-panel--hero">
@@ -195,11 +179,11 @@ export function AdditionalityPageView({
           </label>
 
           <label className="configuration-field">
-            <span>Target configuration</span>
+            <span>Focus configuration</span>
             <select
               className="configuration-input"
-              value={targetConfigId ?? ''}
-              onChange={(event) => onTargetConfigChange(event.target.value)}
+              value={focusConfigId ?? ''}
+              onChange={(event) => onFocusConfigChange(event.target.value)}
             >
               {configurations.map((configuration) => (
                 <option key={configuration.id} value={configuration.id}>
@@ -284,7 +268,7 @@ export function AdditionalityPageView({
               <strong>{objectiveMetricPresentation.formatAbsoluteValue(report.baseMetrics.objective)}</strong>
             </article>
             <article className="configuration-panel additionality-summary-card">
-              <h2>Target objective</h2>
+              <h2>Focus objective</h2>
               <strong>{objectiveMetricPresentation.formatAbsoluteValue(report.targetMetrics.objective)}</strong>
             </article>
             <article className="configuration-panel additionality-summary-card">
@@ -304,7 +288,7 @@ export function AdditionalityPageView({
           {analysisState.phase === 'partial' ? (
             <section className="configuration-panel">
               <h2>Partial analysis</h2>
-              <p>Analysis could not reconstruct a full base→target ordering because some intermediate solves failed.</p>
+              <p>Analysis could not reconstruct a full base→focus ordering because some intermediate solves failed.</p>
             </section>
           ) : null}
 
@@ -312,9 +296,9 @@ export function AdditionalityPageView({
             <>
               <section>
                 <p className="additionality-status-line">
-                  Atoms are ordered by reverse-greedy elimination from the target configuration:
-                  items whose removal changes the target least are placed later, and the resulting
-                  order is then shown as a forward base→target sequence. These waterfalls remain
+                  Atoms are ordered by reverse-greedy elimination from the focus configuration:
+                  items whose removal changes the focus least are placed later, and the resulting
+                  order is then shown as a forward base→focus sequence. These waterfalls remain
                   sequence-based and path-dependent; they are not a unique attribution of total delta.
                 </p>
                 <div className="additionality-chart-grid">
@@ -349,7 +333,9 @@ export function AdditionalityPageView({
                       data={objectiveWaterfallData}
                       height={sharedChartHeight}
                       baseValue={report.baseMetrics.objective}
+                      baseLabel="Base"
                       targetValue={report.targetMetrics.objective}
+                      targetLabel="Focus"
                       totalDelta={report.targetMetrics.objective - report.baseMetrics.objective}
                       activeInteractionKey={activeInteractionKey}
                       onInteractionHover={(interactionKey) => {
@@ -371,7 +357,9 @@ export function AdditionalityPageView({
                       data={emissionsWaterfallData}
                       height={sharedChartHeight}
                       baseValue={report.baseMetrics.cumulativeEmissions}
+                      baseLabel="Base"
                       targetValue={report.targetMetrics.cumulativeEmissions}
+                      targetLabel="Focus"
                       totalDelta={report.targetMetrics.cumulativeEmissions - report.baseMetrics.cumulativeEmissions}
                       activeInteractionKey={activeInteractionKey}
                       onInteractionHover={(interactionKey) => {
@@ -393,7 +381,9 @@ export function AdditionalityPageView({
                       data={electricityWaterfallData}
                       height={sharedChartHeight}
                       baseValue={report.baseMetrics.electricityDemand2050}
+                      baseLabel="Base"
                       targetValue={report.targetMetrics.electricityDemand2050}
+                      targetLabel="Focus"
                       totalDelta={report.targetMetrics.electricityDemand2050 - report.baseMetrics.electricityDemand2050}
                       activeInteractionKey={activeInteractionKey}
                       onInteractionHover={(interactionKey) => {
@@ -472,53 +462,25 @@ export default function AdditionalityPage() {
   const sectorStates = usePackageStore((state) => state.sectorStates);
   const {
     selectedBaseConfigId,
-    selectedTargetConfigId,
+    selectedFocusConfigId,
     commoditySelectionState,
   } = useAppUiStore((state) => state.additionality);
   const updateAdditionalityUi = useAppUiStore((state) => state.updateAdditionalityUi);
   const setAdditionalityCommodityLevel = useAppUiStore((state) => state.setAdditionalityCommodityLevel);
-  const builtinConfigurations = useMemo(() => loadBuiltinConfigurations(), []);
-  const [userConfigurations, setUserConfigurations] = useState(() => loadUserConfigurations());
-  const availableConfigurations = useMemo(
-    () => dedupeConfigurations([...builtinConfigurations, ...userConfigurations]),
-    [builtinConfigurations, userConfigurations],
+  const { configurations: availableConfigurations, configurationsById } = useAvailableConfigurations();
+  const resolvedPair = useMemo(
+    () => resolveAdditionalityPair({
+      configurations: availableConfigurations,
+      configurationsById,
+      selectedBaseConfigId,
+      selectedFocusConfigId,
+    }),
+    [availableConfigurations, configurationsById, selectedBaseConfigId, selectedFocusConfigId],
   );
-  const initialPair = useMemo(
-    () => selectInitialAdditionalityPair(availableConfigurations),
-    [availableConfigurations],
-  );
-  const availableConfigurationIds = useMemo(
-    () => new Set(
-      availableConfigurations
-        .map((configuration) => getConfigurationId(configuration))
-        .filter((id): id is string => id != null),
-    ),
-    [availableConfigurations],
-  );
-
-  useEffect(() => {
-    void fetchUserConfigurations().then((configs) => {
-      setUserConfigurations(configs);
-    });
-  }, []);
-  const baseConfigId = selectedBaseConfigId && availableConfigurationIds.has(selectedBaseConfigId)
-    ? selectedBaseConfigId
-    : initialPair.baseConfigId;
-  const targetConfigId = selectedTargetConfigId && availableConfigurationIds.has(selectedTargetConfigId)
-    ? selectedTargetConfigId
-    : initialPair.targetConfigId;
-
-  const configurationsById = useMemo(
-    () => Object.fromEntries(
-      availableConfigurations.map((configuration) => [
-        getConfigurationId(configuration) ?? configuration.name,
-        configuration,
-      ]),
-    ),
-    [availableConfigurations],
-  );
-  const baseConfiguration = baseConfigId ? configurationsById[baseConfigId] ?? null : null;
-  const targetConfiguration = targetConfigId ? configurationsById[targetConfigId] ?? null : null;
+  const baseConfigId = resolvedPair.baseConfigId;
+  const focusConfigId = resolvedPair.focusConfigId;
+  const baseConfiguration = resolvedPair.base?.configuration ?? null;
+  const focusConfiguration = resolvedPair.focus.configuration ?? null;
   const commodityOptions = useMemo(
     () => Object.entries(appConfig.commodity_price_presets)
       .map(([id, driver]) => ({ id, label: driver.label }))
@@ -547,8 +509,8 @@ export default function AdditionalityPage() {
     baseConfigId,
     commoditySelections,
     pkg,
-    targetConfiguration,
-    targetConfigId,
+    targetConfiguration: focusConfiguration,
+    targetConfigId: focusConfigId,
   });
 
   return (
@@ -566,10 +528,10 @@ export default function AdditionalityPage() {
       onCommoditySelectionChange={(commodityId, level) => {
         setAdditionalityCommodityLevel(commodityId, level, baseConfigId);
       }}
+      onFocusConfigChange={(configId) => updateAdditionalityUi({ selectedFocusConfigId: configId })}
       onRecalculate={recalculate}
-      onTargetConfigChange={(configId) => updateAdditionalityUi({ selectedTargetConfigId: configId })}
       recalculateDisabled={analysisState.phase === 'loading'}
-      targetConfigId={targetConfigId}
+      focusConfigId={focusConfigId}
     />
   );
 }

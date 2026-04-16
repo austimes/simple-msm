@@ -18,6 +18,7 @@ export type ConfigurationYearValueTable = Partial<Record<ConfigurationYearKey, n
 
 export const PRICE_LEVELS = ['low', 'medium', 'high'] as const;
 export type PriceLevel = (typeof PRICE_LEVELS)[number];
+export type FuelSwitchBasis = 'to' | 'from';
 
 export interface ConfigurationServiceControlYearOverride {
   mode?: ConfigurationControlMode;

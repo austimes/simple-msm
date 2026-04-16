@@ -131,6 +131,12 @@ describe('appUiStore route persistence', () => {
           emissionsPrice: false,
           configurations: false,
         },
+        comparison: {
+          baseSelectionMode: 'manual',
+          selectedBaseConfigId: 'reference-base',
+          fuelSwitchBasis: 'from',
+          selectedFuelSwitchYear: 2050,
+        },
       },
     };
 
@@ -148,6 +154,15 @@ describe('appUiStore route persistence', () => {
     assert.doesNotMatch(htmls.second, /id="left-sidebar-section-emissionsPrice"/);
     assert.doesNotMatch(htmls.first, /id="left-sidebar-section-configurations"/);
     assert.doesNotMatch(htmls.second, /id="left-sidebar-section-configurations"/);
+
+    await withStoreModule(persistedState, ({ useAppUiStore }) => {
+      assert.deepEqual(useAppUiStore.getState().workspace.comparison, {
+        baseSelectionMode: 'manual',
+        selectedBaseConfigId: 'reference-base',
+        fuelSwitchBasis: 'from',
+        selectedFuelSwitchYear: 2050,
+      });
+    });
   });
 
   test('preserves library filters, scope selection, trajectory selection, and sidebar collapse across remount', async () => {
@@ -253,12 +268,12 @@ describe('appUiStore route persistence', () => {
     assert.ok(commodityOptions.length >= 2, 'expected at least two commodity price presets');
 
     const baseConfigId = 'reference-base';
-    const targetConfigId = 'reference-all';
+    const focusConfigId = 'reference-all';
     const persistedState: AppUiState = {
       ...structuredClone(DEFAULT_APP_UI_STATE),
       additionality: {
         selectedBaseConfigId: baseConfigId,
-        selectedTargetConfigId: targetConfigId,
+        selectedFocusConfigId: focusConfigId,
         commoditySelectionState: {
           seededFromConfigId: baseConfigId,
           selections: {
@@ -277,7 +292,7 @@ describe('appUiStore route persistence', () => {
     );
     assertMatchesBoth(
       htmls,
-      new RegExp(`option value="${escapeForRegex(targetConfigId)}" selected=""`),
+      new RegExp(`option value="${escapeForRegex(focusConfigId)}" selected=""`),
     );
     assertMatchesBoth(
       htmls,

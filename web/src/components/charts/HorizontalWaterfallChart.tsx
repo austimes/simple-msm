@@ -22,7 +22,9 @@ export interface HorizontalWaterfallChartProps {
   data: HorizontalWaterfallDatum[];
   height?: number;
   baseValue: number;
+  baseLabel?: string;
   targetValue: number;
+  targetLabel?: string;
   totalDelta: number;
   absoluteValueFormatter?: (value: number) => string;
   activeInteractionKey?: string | null;
@@ -123,7 +125,9 @@ export default function HorizontalWaterfallChart({
   data,
   height,
   baseValue,
+  baseLabel = 'Base',
   targetValue,
+  targetLabel = 'Target',
   totalDelta,
   absoluteValueFormatter = formatAbsoluteValue,
   activeInteractionKey = null,
@@ -174,8 +178,8 @@ export default function HorizontalWaterfallChart({
 
   const headerAction = showHeaderSummary ? (
     <div className="waterfall-chart-header-summary" aria-label={`${title} summary`}>
-      <span className="waterfall-chart-header-pill">Base {absoluteValueFormatter(baseValue)}</span>
-      <span className="waterfall-chart-header-pill">Target {absoluteValueFormatter(targetValue)}</span>
+      <span className="waterfall-chart-header-pill">{baseLabel} {absoluteValueFormatter(baseValue)}</span>
+      <span className="waterfall-chart-header-pill">{targetLabel} {absoluteValueFormatter(targetValue)}</span>
       <span className="waterfall-chart-header-pill">Δ {valueFormatter(totalDelta)}</span>
     </div>
   ) : undefined;
@@ -192,8 +196,8 @@ export default function HorizontalWaterfallChart({
         : []}
       summaryItems={showHeaderSummary
         ? [
-            { key: 'base', label: `Base: ${absoluteValueFormatter(baseValue)}` },
-            { key: 'target', label: `Target: ${absoluteValueFormatter(targetValue)}` },
+            { key: 'base', label: `${baseLabel}: ${absoluteValueFormatter(baseValue)}` },
+            { key: 'target', label: `${targetLabel}: ${absoluteValueFormatter(targetValue)}` },
             { key: 'delta', label: `Total delta: ${valueFormatter(totalDelta)}` },
             { key: 'increase', label: `${positiveCount} increases` },
             { key: 'decrease', label: `${negativeCount} decreases` },

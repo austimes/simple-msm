@@ -8,6 +8,7 @@ import {
   type LeftSidebarSectionState,
   type LibraryFilters,
   type MethodsTab,
+  type WorkspaceComparisonBaseSelectionMode,
 } from './appUiState.ts';
 import { PRICE_LEVELS, type PriceLevel } from './types.ts';
 
@@ -57,12 +58,26 @@ function readBoolean(value: unknown, fallback: boolean): boolean {
   return typeof value === 'boolean' ? value : fallback;
 }
 
+function readNullableNumber(value: unknown, fallback: number | null): number | null {
+  if (value === null) {
+    return null;
+  }
+
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
 function isMethodsTab(value: unknown): value is MethodsTab {
   return typeof value === 'string' && METHODS_TABS.includes(value as MethodsTab);
 }
 
 function isPriceLevel(value: unknown): value is PriceLevel {
   return typeof value === 'string' && PRICE_LEVELS.includes(value as PriceLevel);
+}
+
+function isWorkspaceComparisonBaseSelectionMode(
+  value: unknown,
+): value is WorkspaceComparisonBaseSelectionMode {
+  return value === 'auto' || value === 'manual' || value === 'none';
 }
 
 function sanitizeWorkspaceExpandedSections(value: unknown): LeftSidebarSectionState {
@@ -78,6 +93,31 @@ function sanitizeWorkspaceExpandedSections(value: unknown): LeftSidebarSectionSt
   }
 
   return nextState;
+}
+
+function sanitizeWorkspaceComparisonState(
+  value: unknown,
+): AppUiState['workspace']['comparison'] {
+  const fallback = DEFAULT_APP_UI_STATE.workspace.comparison;
+
+  if (!isRecord(value)) {
+    return structuredClone(fallback);
+  }
+
+  return {
+    baseSelectionMode: isWorkspaceComparisonBaseSelectionMode(value.baseSelectionMode)
+      ? value.baseSelectionMode
+      : fallback.baseSelectionMode,
+    selectedBaseConfigId: readNullableString(
+      value.selectedBaseConfigId,
+      fallback.selectedBaseConfigId,
+    ),
+    fuelSwitchBasis: value.fuelSwitchBasis === 'from' ? 'from' : fallback.fuelSwitchBasis,
+    selectedFuelSwitchYear: readNullableNumber(
+      value.selectedFuelSwitchYear,
+      fallback.selectedFuelSwitchYear,
+    ),
+  };
 }
 
 function sanitizeLibraryFilters(value: unknown): LibraryFilters {
@@ -139,6 +179,7 @@ function sanitizeParsedAppUiState(value: unknown): AppUiState {
         fallback.workspace.rightCollapsed,
       ),
       expandedSections: sanitizeWorkspaceExpandedSections(workspace.expandedSections),
+      comparison: sanitizeWorkspaceComparisonState(workspace.comparison),
     },
     library: {
       sidebarCollapsed: readBoolean(
@@ -178,9 +219,9 @@ function sanitizeParsedAppUiState(value: unknown): AppUiState {
         additionality.selectedBaseConfigId,
         fallback.additionality.selectedBaseConfigId,
       ),
-      selectedTargetConfigId: readNullableString(
-        additionality.selectedTargetConfigId,
-        fallback.additionality.selectedTargetConfigId,
+      selectedFocusConfigId: readNullableString(
+        additionality.selectedFocusConfigId ?? additionality.selectedTargetConfigId,
+        fallback.additionality.selectedFocusConfigId,
       ),
       commoditySelectionState: sanitizeAdditionalityCommoditySelectionState(
         additionality.commoditySelectionState,

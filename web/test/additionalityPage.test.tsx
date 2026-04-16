@@ -28,10 +28,10 @@ function buildProps(overrides = {}) {
     ],
     onBaseConfigChange: () => {},
     onCommoditySelectionChange: () => {},
+    onFocusConfigChange: () => {},
     onRecalculate: () => {},
-    onTargetConfigChange: () => {},
     recalculateDisabled: false,
-    targetConfigId: 'reference-all',
+    focusConfigId: 'reference-all',
     ...overrides,
   };
 }
@@ -194,16 +194,16 @@ describe('AdditionalityPage', () => {
     assert.match(html, /Ordered steps reference/);
     assert.doesNotMatch(html, /additionality-step-list/);
     assert.match(html, /--chart-height:180px/);
-    assert.match(html, /reverse-greedy elimination from the target configuration/);
+    assert.match(html, /reverse-greedy elimination from the focus configuration/);
     assert.match(html, /sequence-based and path-dependent/);
     assert.match(html, /Base objective/);
-    assert.match(html, /Target objective/);
+    assert.match(html, /Focus objective/);
     assert.match(html, /\$12\.34B/);
     assert.match(html, /\$12\.98B/);
     assert.match(html, /\+\$0\.64B/);
     assert.match(html, /Base \$12\.34B/);
-    assert.match(html, /Target 799\.23 MtCO2e/);
-    assert.match(html, /Target 378\.05 TWh/);
+    assert.match(html, /Focus 799\.23 MtCO2e/);
+    assert.match(html, /Focus 378\.05 TWh/);
     assert.match(html, /\+\$0\.12B/);
     assert.match(html, /-21\.44 MtCO2e/);
     assert.match(html, /\+42\.77 TWh/);
@@ -228,7 +228,7 @@ describe('AdditionalityPage', () => {
     assert.match(html, />Re-calculate</);
     assert.match(
       html,
-      /trace how the reverse-greedy transition sequence builds the difference between the base and target configurations\./i,
+      /trace how the reverse-greedy transition sequence builds the difference between the base and focus configurations\./i,
     );
   });
 
@@ -269,9 +269,9 @@ describe('AdditionalityPage', () => {
     );
 
     assert.match(html, /Partial analysis/);
-    assert.match(html, /could not reconstruct a full base→target ordering/);
+    assert.match(html, /could not reconstruct a full base→focus ordering/);
     assert.match(html, /Base objective/);
-    assert.match(html, /Target objective/);
+    assert.match(html, /Focus objective/);
     assert.match(html, /Completed solves/);
     assert.doesNotMatch(html, /Objective delta waterfall/);
     assert.doesNotMatch(html, /Ordered steps/);

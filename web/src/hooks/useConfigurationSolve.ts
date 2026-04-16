@@ -22,12 +22,15 @@ export interface SolveState {
   solve: () => void;
 }
 
-export function useConfigurationSolve(): SolveState {
+export function useConfigurationSolve(
+  configurationOverride?: ConfigurationDocument | null,
+): SolveState {
   const sectorStates = usePackageStore((state) => state.sectorStates);
   const appConfig = usePackageStore((state) => state.appConfig);
   const currentConfiguration = usePackageStore((state) => state.currentConfiguration);
+  const configuration = configurationOverride ?? currentConfiguration;
 
-  const [phase, setPhase] = useState<SolvePhase>('solving');
+  const [phase, setPhase] = useState<SolvePhase>(configuration ? 'solving' : 'idle');
   const [result, setResult] = useState<SolveResult | null>(null);
   const [request, setRequest] = useState<SolveRequest | null>(null);
   const [solvedConfiguration, setSolvedConfiguration] = useState<ConfigurationDocument | null>(null);
@@ -37,8 +40,18 @@ export function useConfigurationSolve(): SolveState {
   const cancelledRef = useRef(0);
 
   const solve = useCallback(() => {
+    if (!configuration) {
+      setPhase('idle');
+      setRequest(null);
+      setResult(null);
+      setSolvedConfiguration(null);
+      setError(null);
+      setFailure(null);
+      return;
+    }
+
     const solveId = ++cancelledRef.current;
-    const configSnapshot = currentConfiguration;
+    const configSnapshot = configuration;
 
     let builtRequest: SolveRequest;
     try {
@@ -92,18 +105,28 @@ export function useConfigurationSolve(): SolveState {
           result: null,
         });
       });
-  }, [sectorStates, appConfig, currentConfiguration]);
+  }, [appConfig, configuration, sectorStates]);
 
   // Auto-solve whenever the active document changes.
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
+      if (!configuration) {
+        setPhase('idle');
+        setRequest(null);
+        setResult(null);
+        setSolvedConfiguration(null);
+        setError(null);
+        setFailure(null);
+        return;
+      }
+
       solve();
     }, 0);
 
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [solve]);
+  }, [configuration, solve]);
 
   return {
     phase,

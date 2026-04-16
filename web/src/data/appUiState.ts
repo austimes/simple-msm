@@ -1,4 +1,4 @@
-import type { PriceLevel } from './types.ts';
+import type { FuelSwitchBasis, PriceLevel } from './types.ts';
 
 export const METHODS_TABS = ['about', 'conventions', 'confidence', 'phase2', 'evidence'] as const;
 export type MethodsTab = (typeof METHODS_TABS)[number];
@@ -27,10 +27,20 @@ export interface AdditionalityCommoditySelectionState {
   selections: Record<string, PriceLevel>;
 }
 
+export type WorkspaceComparisonBaseSelectionMode = 'auto' | 'manual' | 'none';
+
+export interface WorkspaceComparisonUiState {
+  baseSelectionMode: WorkspaceComparisonBaseSelectionMode;
+  selectedBaseConfigId: string | null;
+  fuelSwitchBasis: FuelSwitchBasis;
+  selectedFuelSwitchYear: number | null;
+}
+
 export interface WorkspaceUiState {
   leftCollapsed: boolean;
   rightCollapsed: boolean;
   expandedSections: LeftSidebarSectionState;
+  comparison: WorkspaceComparisonUiState;
 }
 
 export interface LibraryUiState {
@@ -50,7 +60,7 @@ export interface MethodsUiState {
 
 export interface AdditionalityUiState {
   selectedBaseConfigId: string | null;
-  selectedTargetConfigId: string | null;
+  selectedFocusConfigId: string | null;
   commoditySelectionState: AdditionalityCommoditySelectionState;
 }
 
@@ -72,6 +82,12 @@ export const DEFAULT_APP_UI_STATE: AppUiState = {
       emissionsPrice: true,
       overlays: false,
       configurations: true,
+    },
+    comparison: {
+      baseSelectionMode: 'auto',
+      selectedBaseConfigId: null,
+      fuelSwitchBasis: 'to',
+      selectedFuelSwitchYear: null,
     },
   },
   library: {
@@ -95,7 +111,7 @@ export const DEFAULT_APP_UI_STATE: AppUiState = {
   },
   additionality: {
     selectedBaseConfigId: null,
-    selectedTargetConfigId: null,
+    selectedFocusConfigId: null,
     commoditySelectionState: {
       seededFromConfigId: null,
       selections: {},

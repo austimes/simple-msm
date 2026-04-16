@@ -20,6 +20,8 @@ export interface ResultContributionRow {
   year: number;
   value: number;
   sourceKind: 'solver' | 'overlay';
+  outputId: string | null;
+  outputLabel: string | null;
   sourceId: string;
   sourceLabel: string;
   sectorId: string;
@@ -78,6 +80,8 @@ export function buildSolverContributionRows(
         year: row.year,
         value: ss.activity * totalEmissions,
         sourceKind: 'solver',
+        outputId: row.outputId,
+        outputLabel: row.outputLabel,
         sourceId: row.stateId,
         sourceLabel: row.stateLabel,
         sectorId: row.sector,
@@ -104,6 +108,8 @@ export function buildSolverContributionRows(
         year: row.year,
         value: consumption,
         sourceKind: 'solver',
+        outputId: row.outputId,
+        outputLabel: row.outputLabel,
         sourceId: row.stateId,
         sourceLabel: row.stateLabel,
         sectorId: row.sector,
@@ -125,6 +131,8 @@ export function buildSolverContributionRows(
         year: row.year,
         value: conversion,
         sourceKind: 'solver',
+        outputId: row.outputId,
+        outputLabel: row.outputLabel,
         sourceId: row.stateId,
         sourceLabel: row.stateLabel,
         sectorId: row.sector,
@@ -154,6 +162,8 @@ export function buildSolverContributionRows(
         year: row.year,
         value: commodity,
         sourceKind: 'solver',
+        outputId: row.outputId,
+        outputLabel: row.outputLabel,
         sourceId: row.stateId,
         sourceLabel: row.stateLabel,
         sectorId: row.sector,
@@ -179,6 +189,8 @@ export function buildSolverContributionRows(
         year: row.year,
         value: carbon,
         sourceKind: 'solver',
+        outputId: row.outputId,
+        outputLabel: row.outputLabel,
         sourceId: row.stateId,
         sourceLabel: row.stateLabel,
         sectorId: row.sector,
@@ -213,6 +225,8 @@ export function buildOverlayContributionRows(
         year: p.year,
         value: totalEmissionsMt * 1_000_000,
         sourceKind: 'overlay',
+        outputId: null,
+        outputLabel: null,
         sourceId: p.overlayId,
         sourceLabel: p.overlayLabel,
         sectorId: p.overlayId,
@@ -238,6 +252,8 @@ export function buildOverlayContributionRows(
         year: p.year,
         value: p.finalEnergyPj,
         sourceKind: 'overlay',
+        outputId: null,
+        outputLabel: null,
         sourceId: p.overlayId,
         sourceLabel: p.overlayLabel,
         sectorId: p.overlayId,
@@ -259,6 +275,8 @@ export function buildOverlayContributionRows(
         year: p.year,
         value: commodityCost,
         sourceKind: 'overlay',
+        outputId: null,
+        outputLabel: null,
         sourceId: p.overlayId,
         sourceLabel: p.overlayLabel,
         sectorId: p.overlayId,
@@ -280,6 +298,8 @@ export function buildOverlayContributionRows(
         year: p.year,
         value: conversionCost,
         sourceKind: 'overlay',
+        outputId: null,
+        outputLabel: null,
         sourceId: p.overlayId,
         sourceLabel: p.overlayLabel,
         sectorId: p.overlayId,
@@ -304,6 +324,8 @@ export function buildOverlayContributionRows(
         year: p.year,
         value: carbonCost,
         sourceKind: 'overlay',
+        outputId: null,
+        outputLabel: null,
         sourceId: p.overlayId,
         sourceLabel: p.overlayLabel,
         sectorId: p.overlayId,

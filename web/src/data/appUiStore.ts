@@ -109,6 +109,12 @@ export const useAppUiStore = create<AppUiStore>((set, get) => {
               ...updates.expandedSections,
             }
             : current.expandedSections,
+          comparison: updates.comparison
+            ? {
+              ...current.comparison,
+              ...updates.comparison,
+            }
+            : current.comparison,
         },
       });
     },
