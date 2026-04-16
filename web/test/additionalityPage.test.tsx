@@ -229,6 +229,52 @@ describe('AdditionalityPage', () => {
     );
   });
 
+  test('renders partial analysis without waterfall or table', () => {
+    const html = renderToStaticMarkup(
+      <AdditionalityPageView
+        {...buildProps({
+          analysisState: {
+            phase: 'partial',
+            progress: { completed: 3, totalExpected: 5 },
+            error: 'Stopped at step 2 because every remaining candidate solve failed.',
+            validationIssues: [],
+            report: {
+              orderingMethod: 'reverse_greedy_target_context',
+              sequenceComplete: false,
+              baseConfigId: 'reference-base',
+              targetConfigId: 'reference-all',
+              baseMetrics: {
+                objective: 12_340_000_000,
+                cumulativeEmissions: 842_110_000,
+                electricityDemand2050: 292_523_236.87,
+              },
+              targetMetrics: {
+                objective: 12_980_000_000,
+                cumulativeEmissions: 799_230_000,
+                electricityDemand2050: 378_053_448.99,
+              },
+              totalObjectiveDelta: 640_000_000,
+              atomCount: 2,
+              solveCount: 3,
+              sequence: [],
+              skippedCandidates: [],
+              validationIssues: [],
+            },
+          },
+        })}
+      />,
+    );
+
+    assert.match(html, /Partial analysis/);
+    assert.match(html, /could not reconstruct a full base→target ordering/);
+    assert.match(html, /Base objective/);
+    assert.match(html, /Target objective/);
+    assert.match(html, /Completed solves/);
+    assert.doesNotMatch(html, /Objective delta waterfall/);
+    assert.doesNotMatch(html, /Ordered steps/);
+    assert.doesNotMatch(html, /additionality-table/);
+  });
+
   test('renders loading progress and the current price scenario summary', () => {
     const html = renderToStaticMarkup(
       <AdditionalityPageView

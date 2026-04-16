@@ -807,7 +807,7 @@ export async function runAdditionalityAnalysis(
         totalObjectiveDelta: targetEvaluation.objective - baseEvaluation.objective,
         atomCount: prepared.atoms.length,
         solveCount: completed,
-        sequence: buildPresentationSequence(removalSequence),
+        sequence: [],
         skippedCandidates,
         validationIssues: [],
       };

@@ -289,158 +289,162 @@ export function AdditionalityPageView({
           {analysisState.phase === 'partial' ? (
             <section className="configuration-panel">
               <h2>Partial analysis</h2>
-              <p>{analysisState.error}</p>
+              <p>Analysis could not reconstruct a full base→target ordering because some intermediate solves failed.</p>
             </section>
           ) : null}
 
-          <section>
-            <p className="additionality-status-line">
-              These waterfalls are sequence-based and path-dependent: each step shows the
-              incremental change from the prior greedy state, and the full sequence sums to
-              the base-to-target delta.
-            </p>
-            <div className="additionality-chart-grid">
-              <article className="configuration-panel">
-                <HorizontalWaterfallChart
-                  title="Ordered steps reference"
-                  data={referenceWaterfallData}
-                  height={sharedChartHeight}
-                  baseValue={0}
-                  targetValue={0}
-                  totalDelta={0}
-                  activeInteractionKey={activeInteractionKey}
-                  onInteractionHover={(interactionKey) => {
-                    setInteractionState({
-                      interactionKey,
-                      scope: reportInteractionScope,
-                    });
-                  }}
-                  pinZeroToLeft={true}
-                  showActiveValueLabel={false}
-                  showCategoryAxis={true}
-                  showHeaderSummary={false}
-                  showLegend={false}
-                  showXAxisTicks={false}
-                />
-              </article>
-              <article className="configuration-panel">
-                <HorizontalWaterfallChart
-                  title="Objective delta waterfall"
-                  valueFormatter={objectiveMetricPresentation.formatSignedValue}
-                  absoluteValueFormatter={objectiveMetricPresentation.formatAbsoluteValue}
-                  data={objectiveWaterfallData}
-                  height={sharedChartHeight}
-                  baseValue={report.baseMetrics.objective}
-                  targetValue={report.targetMetrics.objective}
-                  totalDelta={report.targetMetrics.objective - report.baseMetrics.objective}
-                  activeInteractionKey={activeInteractionKey}
-                  onInteractionHover={(interactionKey) => {
-                    setInteractionState({
-                      interactionKey,
-                      scope: reportInteractionScope,
-                    });
-                  }}
-                  positiveLegendLabel="Increase objective"
-                  negativeLegendLabel="Decrease objective"
-                  showCategoryAxis={false}
-                />
-              </article>
-              <article className="configuration-panel">
-                <HorizontalWaterfallChart
-                  title="Cumulative emissions delta waterfall"
-                  valueFormatter={emissionsMetricPresentation.formatSignedValue}
-                  absoluteValueFormatter={emissionsMetricPresentation.formatAbsoluteValue}
-                  data={emissionsWaterfallData}
-                  height={sharedChartHeight}
-                  baseValue={report.baseMetrics.cumulativeEmissions}
-                  targetValue={report.targetMetrics.cumulativeEmissions}
-                  totalDelta={report.targetMetrics.cumulativeEmissions - report.baseMetrics.cumulativeEmissions}
-                  activeInteractionKey={activeInteractionKey}
-                  onInteractionHover={(interactionKey) => {
-                    setInteractionState({
-                      interactionKey,
-                      scope: reportInteractionScope,
-                    });
-                  }}
-                  positiveLegendLabel="Increase emissions"
-                  negativeLegendLabel="Decrease emissions"
-                  showCategoryAxis={false}
-                />
-              </article>
-              <article className="configuration-panel">
-                <HorizontalWaterfallChart
-                  title="2050 electricity demand delta waterfall"
-                  valueFormatter={electricityMetricPresentation.formatSignedValue}
-                  absoluteValueFormatter={electricityMetricPresentation.formatAbsoluteValue}
-                  data={electricityWaterfallData}
-                  height={sharedChartHeight}
-                  baseValue={report.baseMetrics.electricityDemand2050}
-                  targetValue={report.targetMetrics.electricityDemand2050}
-                  totalDelta={report.targetMetrics.electricityDemand2050 - report.baseMetrics.electricityDemand2050}
-                  activeInteractionKey={activeInteractionKey}
-                  onInteractionHover={(interactionKey) => {
-                    setInteractionState({
-                      interactionKey,
-                      scope: reportInteractionScope,
-                    });
-                  }}
-                  positiveLegendLabel="Increase electricity demand"
-                  negativeLegendLabel="Decrease electricity demand"
-                  showCategoryAxis={false}
-                />
-              </article>
-            </div>
-          </section>
+          {report.sequence.length > 0 ? (
+            <>
+              <section>
+                <p className="additionality-status-line">
+                  These waterfalls are sequence-based and path-dependent: each step shows the
+                  incremental change from the prior greedy state, and the full sequence sums to
+                  the base-to-target delta.
+                </p>
+                <div className="additionality-chart-grid">
+                  <article className="configuration-panel">
+                    <HorizontalWaterfallChart
+                      title="Ordered steps reference"
+                      data={referenceWaterfallData}
+                      height={sharedChartHeight}
+                      baseValue={0}
+                      targetValue={0}
+                      totalDelta={0}
+                      activeInteractionKey={activeInteractionKey}
+                      onInteractionHover={(interactionKey) => {
+                        setInteractionState({
+                          interactionKey,
+                          scope: reportInteractionScope,
+                        });
+                      }}
+                      pinZeroToLeft={true}
+                      showActiveValueLabel={false}
+                      showCategoryAxis={true}
+                      showHeaderSummary={false}
+                      showLegend={false}
+                      showXAxisTicks={false}
+                    />
+                  </article>
+                  <article className="configuration-panel">
+                    <HorizontalWaterfallChart
+                      title="Objective delta waterfall"
+                      valueFormatter={objectiveMetricPresentation.formatSignedValue}
+                      absoluteValueFormatter={objectiveMetricPresentation.formatAbsoluteValue}
+                      data={objectiveWaterfallData}
+                      height={sharedChartHeight}
+                      baseValue={report.baseMetrics.objective}
+                      targetValue={report.targetMetrics.objective}
+                      totalDelta={report.targetMetrics.objective - report.baseMetrics.objective}
+                      activeInteractionKey={activeInteractionKey}
+                      onInteractionHover={(interactionKey) => {
+                        setInteractionState({
+                          interactionKey,
+                          scope: reportInteractionScope,
+                        });
+                      }}
+                      positiveLegendLabel="Increase objective"
+                      negativeLegendLabel="Decrease objective"
+                      showCategoryAxis={false}
+                    />
+                  </article>
+                  <article className="configuration-panel">
+                    <HorizontalWaterfallChart
+                      title="Cumulative emissions delta waterfall"
+                      valueFormatter={emissionsMetricPresentation.formatSignedValue}
+                      absoluteValueFormatter={emissionsMetricPresentation.formatAbsoluteValue}
+                      data={emissionsWaterfallData}
+                      height={sharedChartHeight}
+                      baseValue={report.baseMetrics.cumulativeEmissions}
+                      targetValue={report.targetMetrics.cumulativeEmissions}
+                      totalDelta={report.targetMetrics.cumulativeEmissions - report.baseMetrics.cumulativeEmissions}
+                      activeInteractionKey={activeInteractionKey}
+                      onInteractionHover={(interactionKey) => {
+                        setInteractionState({
+                          interactionKey,
+                          scope: reportInteractionScope,
+                        });
+                      }}
+                      positiveLegendLabel="Increase emissions"
+                      negativeLegendLabel="Decrease emissions"
+                      showCategoryAxis={false}
+                    />
+                  </article>
+                  <article className="configuration-panel">
+                    <HorizontalWaterfallChart
+                      title="2050 electricity demand delta waterfall"
+                      valueFormatter={electricityMetricPresentation.formatSignedValue}
+                      absoluteValueFormatter={electricityMetricPresentation.formatAbsoluteValue}
+                      data={electricityWaterfallData}
+                      height={sharedChartHeight}
+                      baseValue={report.baseMetrics.electricityDemand2050}
+                      targetValue={report.targetMetrics.electricityDemand2050}
+                      totalDelta={report.targetMetrics.electricityDemand2050 - report.baseMetrics.electricityDemand2050}
+                      activeInteractionKey={activeInteractionKey}
+                      onInteractionHover={(interactionKey) => {
+                        setInteractionState({
+                          interactionKey,
+                          scope: reportInteractionScope,
+                        });
+                      }}
+                      positiveLegendLabel="Increase electricity demand"
+                      negativeLegendLabel="Decrease electricity demand"
+                      showCategoryAxis={false}
+                    />
+                  </article>
+                </div>
+              </section>
 
-          <section className="configuration-panel">
-            <h2>Ordered steps</h2>
-            <div className="additionality-table-shell">
-              <table className="additionality-table">
-                <thead>
-                  <tr>
-                    <th scope="col">Step</th>
-                    <th scope="col">Output</th>
-                    <th scope="col">State</th>
-                    <th scope="col">Action</th>
-                    <th scope="col">{objectiveMetricPresentation.tableHeaders.delta}</th>
-                    <th scope="col">{objectiveMetricPresentation.tableHeaders.before}</th>
-                    <th scope="col">{objectiveMetricPresentation.tableHeaders.after}</th>
-                    <th scope="col">{emissionsMetricPresentation.tableHeaders.delta}</th>
-                    <th scope="col">{emissionsMetricPresentation.tableHeaders.before}</th>
-                    <th scope="col">{emissionsMetricPresentation.tableHeaders.after}</th>
-                    <th scope="col">{electricityMetricPresentation.tableHeaders.delta}</th>
-                    <th scope="col">{electricityMetricPresentation.tableHeaders.before}</th>
-                    <th scope="col">{electricityMetricPresentation.tableHeaders.after}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {report.sequence.map((entry) => (
-                    <tr key={entry.atom.key}>
-                      <td>{entry.step}</td>
-                      <td>{entry.atom.outputLabel}</td>
-                      <td>{entry.atom.stateLabel}</td>
-                      <td>{formatAction(entry.atom.action)}</td>
-                      <td>{objectiveMetricPresentation.formatSignedValue(entry.metricsDeltaFromCurrent.objective)}</td>
-                      <td>{objectiveMetricPresentation.formatAbsoluteValue(entry.metricsBefore.objective)}</td>
-                      <td>{objectiveMetricPresentation.formatAbsoluteValue(entry.metricsAfter.objective)}</td>
-                      <td>{emissionsMetricPresentation.formatSignedValue(entry.metricsDeltaFromCurrent.cumulativeEmissions)}</td>
-                      <td>{emissionsMetricPresentation.formatAbsoluteValue(entry.metricsBefore.cumulativeEmissions)}</td>
-                      <td>{emissionsMetricPresentation.formatAbsoluteValue(entry.metricsAfter.cumulativeEmissions)}</td>
-                      <td>{electricityMetricPresentation.formatSignedValue(entry.metricsDeltaFromCurrent.electricityDemand2050)}</td>
-                      <td>{electricityMetricPresentation.formatAbsoluteValue(entry.metricsBefore.electricityDemand2050)}</td>
-                      <td>{electricityMetricPresentation.formatAbsoluteValue(entry.metricsAfter.electricityDemand2050)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+              <section className="configuration-panel">
+                <h2>Ordered steps</h2>
+                <div className="additionality-table-shell">
+                  <table className="additionality-table">
+                    <thead>
+                      <tr>
+                        <th scope="col">Step</th>
+                        <th scope="col">Output</th>
+                        <th scope="col">State</th>
+                        <th scope="col">Action</th>
+                        <th scope="col">{objectiveMetricPresentation.tableHeaders.delta}</th>
+                        <th scope="col">{objectiveMetricPresentation.tableHeaders.before}</th>
+                        <th scope="col">{objectiveMetricPresentation.tableHeaders.after}</th>
+                        <th scope="col">{emissionsMetricPresentation.tableHeaders.delta}</th>
+                        <th scope="col">{emissionsMetricPresentation.tableHeaders.before}</th>
+                        <th scope="col">{emissionsMetricPresentation.tableHeaders.after}</th>
+                        <th scope="col">{electricityMetricPresentation.tableHeaders.delta}</th>
+                        <th scope="col">{electricityMetricPresentation.tableHeaders.before}</th>
+                        <th scope="col">{electricityMetricPresentation.tableHeaders.after}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {report.sequence.map((entry) => (
+                        <tr key={entry.atom.key}>
+                          <td>{entry.step}</td>
+                          <td>{entry.atom.outputLabel}</td>
+                          <td>{entry.atom.stateLabel}</td>
+                          <td>{formatAction(entry.atom.action)}</td>
+                          <td>{objectiveMetricPresentation.formatSignedValue(entry.metricsDeltaFromCurrent.objective)}</td>
+                          <td>{objectiveMetricPresentation.formatAbsoluteValue(entry.metricsBefore.objective)}</td>
+                          <td>{objectiveMetricPresentation.formatAbsoluteValue(entry.metricsAfter.objective)}</td>
+                          <td>{emissionsMetricPresentation.formatSignedValue(entry.metricsDeltaFromCurrent.cumulativeEmissions)}</td>
+                          <td>{emissionsMetricPresentation.formatAbsoluteValue(entry.metricsBefore.cumulativeEmissions)}</td>
+                          <td>{emissionsMetricPresentation.formatAbsoluteValue(entry.metricsAfter.cumulativeEmissions)}</td>
+                          <td>{electricityMetricPresentation.formatSignedValue(entry.metricsDeltaFromCurrent.electricityDemand2050)}</td>
+                          <td>{electricityMetricPresentation.formatAbsoluteValue(entry.metricsBefore.electricityDemand2050)}</td>
+                          <td>{electricityMetricPresentation.formatAbsoluteValue(entry.metricsAfter.electricityDemand2050)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
 
-            {report.skippedCandidates.length > 0 ? (
-              <p className="additionality-skipped-note">
-                Skipped candidates: {report.skippedCandidates.length}
-              </p>
-            ) : null}
-          </section>
+                {report.skippedCandidates.length > 0 ? (
+                  <p className="additionality-skipped-note">
+                    Skipped candidates: {report.skippedCandidates.length}
+                  </p>
+                ) : null}
+              </section>
+            </>
+          ) : null}
         </>
       ) : null}
     </div>
