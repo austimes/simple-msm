@@ -1,4 +1,7 @@
 carbon_price_curve_id,label,unit,2025,2030,2035,2040,2045,2050,provenance_note
+none,None,AUD_2024_per_tCO2,0,0,0,0,0,0,App-owned sensitivity band.
 low,Low,AUD_2024_per_tCO2,30,35,40,45,47,50,App-owned sensitivity band.
 medium,Medium,AUD_2024_per_tCO2,30,45,60,75,90,100,App-owned sensitivity band.
 high,High,AUD_2024_per_tCO2,30,60,110,170,235,300,App-owned sensitivity band.
+xhigh,X-High,AUD_2024_per_tCO2,30,120,220,340,470,600,App-owned sensitivity band.
+xxhigh,XX-High,AUD_2024_per_tCO2,30,240,440,680,940,1200,App-owned sensitivity band.
