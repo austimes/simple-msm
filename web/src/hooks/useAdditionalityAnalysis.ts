@@ -1,12 +1,17 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import type { ConfigurationDocument, PackageData, PriceLevel } from '../data/types.ts';
+import { useCallback, useEffect, useMemo } from 'react';
 import {
   type AdditionalityAnalysisState,
   type AdditionalityPreparation,
+  applyAdditionalityCommoditySelections,
   isAdditionalityCancelledError,
   prepareAdditionalityAnalysis,
   runAdditionalityAnalysis,
 } from '../additionality/additionalityAnalysis.ts';
+import {
+  type AdditionalityRuntimeEntry,
+  useAppUiStore,
+} from '../data/appUiStore.ts';
+import type { ConfigurationDocument, PackageData, PriceLevel } from '../data/types.ts';
 import { runSolveInWorker } from '../solver/solverClient.ts';
 
 const IDLE_STATE: AdditionalityAnalysisState = {
@@ -26,41 +31,137 @@ interface UseAdditionalityAnalysisOptions {
   targetConfigId: string | null;
 }
 
-interface AsyncAdditionalityState {
-  key: string | null;
-  progress: AdditionalityAnalysisState['progress'];
-  result: AdditionalityAnalysisState | null;
+interface AdditionalityAnalysisCacheKeyOptions {
+  appliedBaseConfiguration: ConfigurationDocument;
+  baseConfigId: string;
+  commoditySelections: Record<string, PriceLevel>;
+  appliedTargetConfiguration: ConfigurationDocument;
+  targetConfigId: string;
 }
 
-function buildPreparedKey(
-  prepared: AdditionalityPreparation | null,
-  baseConfigId: string | null,
-  targetConfigId: string | null,
-  commoditySelections: Record<string, PriceLevel>,
-): string | null {
-  if (!prepared || !baseConfigId || !targetConfigId) {
-    return null;
+interface AdditionalityRunStartDecisionOptions {
+  force: boolean;
+  prepared: AdditionalityPreparation | null;
+  preparedKey: string | null;
+  runtimeEntry: AdditionalityRuntimeEntry | null;
+}
+
+export interface UseAdditionalityAnalysisResult {
+  analysisState: AdditionalityAnalysisState;
+  recalculate: () => void;
+}
+
+function normalizeAdditionalityCacheValue(
+  value: unknown,
+  parentKey: string | null = null,
+): unknown {
+  if (Array.isArray(value)) {
+    const normalizedItems = value.map((entry) => normalizeAdditionalityCacheValue(entry));
+
+    if (parentKey === 'active_state_ids') {
+      return [...normalizedItems].sort((left, right) => String(left).localeCompare(String(right)));
+    }
+
+    return normalizedItems;
   }
 
-  return JSON.stringify({
-    atoms: prepared.atoms.map((atom) => atom.key),
-    baseConfigId,
-    commoditySelections,
-    targetConfigId,
-    totalExpected: prepared.totalExpected,
-    validationIssues: prepared.validationIssues.map((issue) => `${issue.code}:${issue.outputId ?? ''}`),
-  });
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, nestedValue]) => [
+          key,
+          normalizeAdditionalityCacheValue(nestedValue, key),
+        ]),
+    );
+  }
+
+  return value;
+}
+
+export function buildAdditionalityAnalysisCacheKey(
+  options: AdditionalityAnalysisCacheKeyOptions,
+): string {
+  return JSON.stringify(
+    normalizeAdditionalityCacheValue({
+      appliedBaseConfiguration: options.appliedBaseConfiguration,
+      appliedTargetConfiguration: options.appliedTargetConfiguration,
+      baseConfigId: options.baseConfigId,
+      commoditySelections: options.commoditySelections,
+      targetConfigId: options.targetConfigId,
+    }),
+  );
+}
+
+function buildImmediateAdditionalityState(
+  prepared: AdditionalityPreparation | null,
+): AdditionalityAnalysisState | null {
+  if (!prepared) {
+    return IDLE_STATE;
+  }
+
+  if (prepared.validationIssues.length > 0) {
+    return {
+      phase: 'validation',
+      report: null,
+      progress: { completed: 0, totalExpected: 0 },
+      error: null,
+      validationIssues: prepared.validationIssues,
+    };
+  }
+
+  if (prepared.atoms.length === 0) {
+    return {
+      phase: 'empty',
+      report: null,
+      progress: { completed: 0, totalExpected: 0 },
+      error: null,
+      validationIssues: [],
+    };
+  }
+
+  return null;
+}
+
+function buildLoadingAdditionalityState(
+  prepared: AdditionalityPreparation,
+  runtimeEntry: AdditionalityRuntimeEntry | null,
+): AdditionalityAnalysisState {
+  return {
+    phase: 'loading',
+    report: runtimeEntry?.state.report ?? null,
+    progress: runtimeEntry?.state.phase === 'loading'
+      ? runtimeEntry.state.progress
+      : { completed: 0, totalExpected: prepared.totalExpected },
+    error: null,
+    validationIssues: [],
+  };
+}
+
+export function shouldStartAdditionalityRun({
+  force,
+  prepared,
+  preparedKey,
+  runtimeEntry,
+}: AdditionalityRunStartDecisionOptions): boolean {
+  if (!prepared || !preparedKey || prepared.validationIssues.length > 0 || prepared.atoms.length === 0) {
+    return false;
+  }
+
+  if (runtimeEntry?.inFlight) {
+    return false;
+  }
+
+  if (force) {
+    return true;
+  }
+
+  return runtimeEntry == null;
 }
 
 export function useAdditionalityAnalysis(
   options: UseAdditionalityAnalysisOptions,
-): AdditionalityAnalysisState {
-  const [asyncState, setAsyncState] = useState<AsyncAdditionalityState>({
-    key: null,
-    progress: { completed: 0, totalExpected: 0 },
-    result: null,
-  });
-  const runVersionRef = useRef(0);
+): UseAdditionalityAnalysisResult {
   const prepared = useMemo(() => {
     if (
       !options.baseConfiguration
@@ -87,12 +188,41 @@ export function useAdditionalityAnalysis(
     options.targetConfigId,
     options.targetConfiguration,
   ]);
-  const preparedKey = useMemo(
-    () => buildPreparedKey(prepared, options.baseConfigId, options.targetConfigId, options.commoditySelections),
-    [options.baseConfigId, options.commoditySelections, options.targetConfigId, prepared],
-  );
 
-  useEffect(() => {
+  const preparedKey = useMemo(() => {
+    const baseConfigId = options.baseConfigId;
+    const targetConfigId = options.targetConfigId;
+
+    if (!prepared || !baseConfigId || !targetConfigId) {
+      return null;
+    }
+
+    return buildAdditionalityAnalysisCacheKey({
+      appliedBaseConfiguration: prepared.baseConfiguration,
+      baseConfigId,
+      commoditySelections: options.commoditySelections,
+      appliedTargetConfiguration: prepared.targetConfiguration,
+      targetConfigId,
+    });
+  }, [
+    options.baseConfigId,
+    options.commoditySelections,
+    options.targetConfigId,
+    prepared,
+  ]);
+
+  const runtimeEntry = useAppUiStore((state) => {
+    if (!preparedKey) {
+      return null;
+    }
+
+    return state.additionalityRuntime.entriesByKey[preparedKey] ?? null;
+  });
+  const beginAdditionalityRun = useAppUiStore((state) => state.beginAdditionalityRun);
+  const updateAdditionalityRunProgress = useAppUiStore((state) => state.updateAdditionalityRunProgress);
+  const finishAdditionalityRun = useAppUiStore((state) => state.finishAdditionalityRun);
+
+  const startAnalysis = useCallback((force: boolean) => {
     const baseConfigId = options.baseConfigId;
     const targetConfigId = options.targetConfigId;
 
@@ -101,14 +231,22 @@ export function useAdditionalityAnalysis(
       || !preparedKey
       || !baseConfigId
       || !targetConfigId
-      || prepared.validationIssues.length > 0
-      || prepared.atoms.length === 0
+      || !shouldStartAdditionalityRun({
+        force,
+        prepared,
+        preparedKey,
+        runtimeEntry,
+      })
     ) {
       return;
     }
 
-    const runVersion = runVersionRef.current + 1;
-    runVersionRef.current = runVersion;
+    const loadingState = buildLoadingAdditionalityState(prepared, runtimeEntry);
+    const runToken = beginAdditionalityRun(preparedKey, loadingState);
+
+    const getCurrentRuntimeEntry = (): AdditionalityRuntimeEntry | null => {
+      return useAppUiStore.getState().additionalityRuntime.entriesByKey[preparedKey] ?? null;
+    };
 
     void runAdditionalityAnalysis(
       {
@@ -120,95 +258,91 @@ export function useAdditionalityAnalysis(
         targetConfigId,
       },
       {
-        isCancelled: () => runVersionRef.current !== runVersion,
+        isCancelled: () => {
+          const currentEntry = getCurrentRuntimeEntry();
+          return !currentEntry || currentEntry.runToken !== runToken || !currentEntry.inFlight;
+        },
         onProgress: (progress) => {
-          if (runVersionRef.current !== runVersion) {
-            return;
-          }
-
-          setAsyncState({
-            key: preparedKey,
-            progress,
-            result: null,
-          });
+          updateAdditionalityRunProgress(preparedKey, runToken, progress);
         },
         solve: (request) => runSolveInWorker(request),
       },
     )
       .then((nextState) => {
-        if (runVersionRef.current !== runVersion) {
-          return;
-        }
-
-        setAsyncState({
-          key: preparedKey,
-          progress: nextState.progress,
-          result: nextState,
-        });
+        finishAdditionalityRun(preparedKey, runToken, nextState);
       })
       .catch((error) => {
-        if (runVersionRef.current !== runVersion || isAdditionalityCancelledError(error)) {
+        if (isAdditionalityCancelledError(error)) {
           return;
         }
 
-        setAsyncState({
-          key: preparedKey,
+        const retainedReport = getCurrentRuntimeEntry()?.state.report ?? null;
+        finishAdditionalityRun(preparedKey, runToken, {
+          phase: 'error',
+          report: retainedReport,
           progress: { completed: 0, totalExpected: prepared.totalExpected },
-          result: {
-            phase: 'error',
-            report: null,
-            progress: { completed: 0, totalExpected: prepared.totalExpected },
-            error: error instanceof Error ? error.message : 'Additionality analysis failed.',
-            validationIssues: [],
-          },
+          error: error instanceof Error ? error.message : 'Additionality analysis failed.',
+          validationIssues: [],
         });
       });
   }, [
+    beginAdditionalityRun,
+    finishAdditionalityRun,
     options.baseConfigId,
     options.commoditySelections,
     options.pkg,
     options.targetConfigId,
     prepared,
     preparedKey,
+    runtimeEntry,
+    updateAdditionalityRunProgress,
   ]);
 
-  return useMemo(() => {
-    if (!prepared) {
-      return IDLE_STATE;
+  useEffect(() => {
+    startAnalysis(false);
+  }, [startAnalysis]);
+
+  const analysisState = useMemo(() => {
+    const immediateState = buildImmediateAdditionalityState(prepared);
+
+    if (immediateState) {
+      return immediateState;
     }
 
-    if (prepared.validationIssues.length > 0) {
-      return {
-        phase: 'validation',
-        report: null,
-        progress: { completed: 0, totalExpected: 0 },
-        error: null,
-        validationIssues: prepared.validationIssues,
-      };
+    if (runtimeEntry) {
+      return runtimeEntry.state;
     }
 
-    if (prepared.atoms.length === 0) {
-      return {
-        phase: 'empty',
-        report: null,
-        progress: { completed: 0, totalExpected: 0 },
-        error: null,
-        validationIssues: [],
-      };
-    }
+    return buildLoadingAdditionalityState(prepared as AdditionalityPreparation, null);
+  }, [prepared, runtimeEntry]);
 
-    if (asyncState.key === preparedKey && asyncState.result) {
-      return asyncState.result;
-    }
+  const recalculate = useCallback(() => {
+    startAnalysis(true);
+  }, [startAnalysis]);
 
-    return {
-      phase: 'loading',
-      report: null,
-      progress: asyncState.key === preparedKey
-        ? asyncState.progress
-        : { completed: 0, totalExpected: prepared.totalExpected },
-      error: null,
-      validationIssues: [],
-    };
-  }, [asyncState, prepared, preparedKey]);
+  return {
+    analysisState,
+    recalculate,
+  };
+}
+
+export function buildAdditionalityAnalysisCacheKeyFromSelections(
+  options: Omit<AdditionalityAnalysisCacheKeyOptions, 'appliedBaseConfiguration' | 'appliedTargetConfiguration'> & {
+    baseConfiguration: ConfigurationDocument;
+    targetConfiguration: ConfigurationDocument;
+  },
+): string {
+  return buildAdditionalityAnalysisCacheKey({
+    appliedBaseConfiguration: applyAdditionalityCommoditySelections(
+      options.baseConfiguration,
+      options.commoditySelections,
+    ),
+    baseConfigId: options.baseConfigId,
+    commoditySelections: options.commoditySelections,
+    appliedTargetConfiguration: applyAdditionalityCommoditySelections(
+      options.targetConfiguration,
+      options.commoditySelections,
+    ),
+    targetConfigId: options.targetConfigId,
+  });
 }

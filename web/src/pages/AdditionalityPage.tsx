@@ -41,7 +41,9 @@ export interface AdditionalityPageViewProps {
   configurations: AdditionalityConfigurationOption[];
   onBaseConfigChange: (configId: string) => void;
   onCommoditySelectionChange: (commodityId: string, level: PriceLevel) => void;
+  onRecalculate: () => void;
   onTargetConfigChange: (configId: string) => void;
+  recalculateDisabled: boolean;
   targetConfigId: string | null;
 }
 
@@ -112,7 +114,9 @@ export function AdditionalityPageView({
   configurations,
   onBaseConfigChange,
   onCommoditySelectionChange,
+  onRecalculate,
   onTargetConfigChange,
+  recalculateDisabled,
   targetConfigId,
 }: AdditionalityPageViewProps) {
   const report = analysisState.report;
@@ -227,6 +231,17 @@ export function AdditionalityPageView({
               </div>
             </div>
           ))}
+        </div>
+
+        <div className="configuration-action-row">
+          <button
+            type="button"
+            className="configuration-button"
+            onClick={onRecalculate}
+            disabled={recalculateDisabled}
+          >
+            {recalculateDisabled ? 'Re-calculating...' : 'Re-calculate'}
+          </button>
         </div>
 
         <p className="additionality-price-summary">Price scenario: {priceSummary}</p>
@@ -527,7 +542,7 @@ export default function AdditionalityPage() {
     () => ({ appConfig, sectorStates }),
     [appConfig, sectorStates],
   );
-  const analysisState = useAdditionalityAnalysis({
+  const { analysisState, recalculate } = useAdditionalityAnalysis({
     baseConfiguration,
     baseConfigId,
     commoditySelections,
@@ -551,7 +566,9 @@ export default function AdditionalityPage() {
       onCommoditySelectionChange={(commodityId, level) => {
         setAdditionalityCommodityLevel(commodityId, level, baseConfigId);
       }}
+      onRecalculate={recalculate}
       onTargetConfigChange={(configId) => updateAdditionalityUi({ selectedTargetConfigId: configId })}
+      recalculateDisabled={analysisState.phase === 'loading'}
       targetConfigId={targetConfigId}
     />
   );

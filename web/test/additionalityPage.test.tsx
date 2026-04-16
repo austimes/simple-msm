@@ -28,7 +28,9 @@ function buildProps(overrides = {}) {
     ],
     onBaseConfigChange: () => {},
     onCommoditySelectionChange: () => {},
+    onRecalculate: () => {},
     onTargetConfigChange: () => {},
+    recalculateDisabled: false,
     targetConfigId: 'reference-all',
     ...overrides,
   };
@@ -57,6 +59,7 @@ describe('AdditionalityPage', () => {
 
     assert.match(html, /Unsupported pair/);
     assert.match(html, /Base and target must match on solver_options\./);
+    assert.match(html, />Re-calculate</);
   });
 
   test('renders the empty state when no state deltas remain after validation', () => {
@@ -76,6 +79,7 @@ describe('AdditionalityPage', () => {
 
     assert.match(html, /No state deltas/);
     assert.match(html, /do not differ on any active pathway states/i);
+    assert.match(html, />Re-calculate</);
   });
 
   test('renders the chart, summary cards, and step table on success', () => {
@@ -221,6 +225,7 @@ describe('AdditionalityPage', () => {
     assert.match(html, /data-interaction-key="heat"/);
     assert.match(html, /Skipped candidates: 1/);
     assert.match(html, /State-toggle delta decomposition/);
+    assert.match(html, />Re-calculate</);
     assert.match(
       html,
       /trace how the reverse-greedy transition sequence builds the difference between the base and target configurations\./i,
@@ -271,6 +276,7 @@ describe('AdditionalityPage', () => {
     assert.doesNotMatch(html, /Objective delta waterfall/);
     assert.doesNotMatch(html, /Ordered steps/);
     assert.doesNotMatch(html, /additionality-table/);
+    assert.match(html, />Re-calculate</);
   });
 
   test('renders loading progress and the current price scenario summary', () => {
@@ -284,11 +290,34 @@ describe('AdditionalityPage', () => {
             error: null,
             validationIssues: [],
           },
+          recalculateDisabled: true,
         })}
       />,
     );
 
     assert.match(html, /Running additionality analysis: 7\/47 evaluations completed\./);
     assert.match(html, /Price scenario: Electricity: high \| Natural gas: medium/);
+    assert.match(html, />Re-calculating\.\.\.</);
+    assert.match(html, /disabled=""/);
+  });
+
+  test('renders an analysis-blocked message while keeping the recalculate control', () => {
+    const html = renderToStaticMarkup(
+      <AdditionalityPageView
+        {...buildProps({
+          analysisState: {
+            phase: 'error',
+            report: null,
+            progress: { completed: 0, totalExpected: 47 },
+            error: 'Solver failed for the selected pair.',
+            validationIssues: [],
+          },
+        })}
+      />,
+    );
+
+    assert.match(html, /Analysis blocked/);
+    assert.match(html, /Solver failed for the selected pair\./);
+    assert.match(html, />Re-calculate</);
   });
 });

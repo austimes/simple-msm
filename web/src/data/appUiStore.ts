@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { AdditionalityAnalysisState } from '../additionality/additionalityAnalysis.ts';
 import {
   DEFAULT_APP_UI_STATE,
   type AdditionalityUiState,
@@ -15,7 +16,20 @@ import {
 } from './appUiStateStorage.ts';
 import type { PriceLevel } from './types.ts';
 
+export interface AdditionalityRuntimeEntry {
+  inFlight: boolean;
+  runToken: number | null;
+  state: AdditionalityAnalysisState;
+}
+
+export interface AdditionalityRuntimeState {
+  activeRunKey: string | null;
+  entriesByKey: Record<string, AdditionalityRuntimeEntry>;
+  nextRunToken: number;
+}
+
 interface AppUiStore extends AppUiState {
+  additionalityRuntime: AdditionalityRuntimeState;
   updateWorkspaceUi: (updates: Partial<WorkspaceUiState>) => void;
   setWorkspaceSectionExpanded: (
     section: LeftSidebarSectionKey,
@@ -31,11 +45,34 @@ interface AppUiStore extends AppUiState {
     level: PriceLevel,
     seededFromConfigId: string | null,
   ) => void;
+  beginAdditionalityRun: (
+    key: string,
+    initialState: AdditionalityAnalysisState,
+  ) => number;
+  updateAdditionalityRunProgress: (
+    key: string,
+    runToken: number,
+    progress: AdditionalityAnalysisState['progress'],
+  ) => void;
+  finishAdditionalityRun: (
+    key: string,
+    runToken: number,
+    nextState: AdditionalityAnalysisState,
+  ) => void;
+  clearAdditionalityRuntime: () => void;
   resetAllUiState: () => void;
 }
 
 function cloneDefaultAppUiState(): AppUiState {
   return structuredClone(DEFAULT_APP_UI_STATE);
+}
+
+function createDefaultAdditionalityRuntimeState(): AdditionalityRuntimeState {
+  return {
+    activeRunKey: null,
+    entriesByKey: {},
+    nextRunToken: 0,
+  };
 }
 
 function pickPersistedAppUiState(state: Pick<AppUiStore, keyof AppUiState>): AppUiState {
@@ -49,6 +86,7 @@ function pickPersistedAppUiState(state: Pick<AppUiStore, keyof AppUiState>): App
 
 export const useAppUiStore = create<AppUiStore>((set, get) => {
   const initialState = loadPersistedAppUiState();
+  const initialAdditionalityRuntime = createDefaultAdditionalityRuntimeState();
 
   function commit(nextState: Partial<AppUiStore>): void {
     const mergedState = { ...get(), ...nextState };
@@ -58,6 +96,7 @@ export const useAppUiStore = create<AppUiStore>((set, get) => {
 
   return {
     ...initialState,
+    additionalityRuntime: initialAdditionalityRuntime,
     updateWorkspaceUi: (updates) => {
       const current = get().workspace;
       commit({
@@ -148,8 +187,89 @@ export const useAppUiStore = create<AppUiStore>((set, get) => {
         },
       });
     },
+    beginAdditionalityRun: (key, initialState) => {
+      const currentRuntime = get().additionalityRuntime;
+      const nextRunToken = currentRuntime.nextRunToken + 1;
+
+      set({
+        additionalityRuntime: {
+          activeRunKey: key,
+          nextRunToken,
+          entriesByKey: {
+            ...currentRuntime.entriesByKey,
+            [key]: {
+              inFlight: true,
+              runToken: nextRunToken,
+              state: structuredClone(initialState),
+            },
+          },
+        },
+      });
+
+      return nextRunToken;
+    },
+    updateAdditionalityRunProgress: (key, runToken, progress) => {
+      const currentRuntime = get().additionalityRuntime;
+      const currentEntry = currentRuntime.entriesByKey[key];
+
+      if (!currentEntry || currentEntry.runToken !== runToken || !currentEntry.inFlight) {
+        return;
+      }
+
+      set({
+        additionalityRuntime: {
+          ...currentRuntime,
+          entriesByKey: {
+            ...currentRuntime.entriesByKey,
+            [key]: {
+              ...currentEntry,
+              state: {
+                ...currentEntry.state,
+                phase: 'loading',
+                progress,
+                error: null,
+                validationIssues: [],
+              },
+            },
+          },
+        },
+      });
+    },
+    finishAdditionalityRun: (key, runToken, nextState) => {
+      const currentRuntime = get().additionalityRuntime;
+      const currentEntry = currentRuntime.entriesByKey[key];
+
+      if (!currentEntry || currentEntry.runToken !== runToken) {
+        return;
+      }
+
+      set({
+        additionalityRuntime: {
+          ...currentRuntime,
+          activeRunKey: currentRuntime.activeRunKey === key
+            ? null
+            : currentRuntime.activeRunKey,
+          entriesByKey: {
+            ...currentRuntime.entriesByKey,
+            [key]: {
+              inFlight: false,
+              runToken,
+              state: structuredClone(nextState),
+            },
+          },
+        },
+      });
+    },
+    clearAdditionalityRuntime: () => {
+      set({
+        additionalityRuntime: createDefaultAdditionalityRuntimeState(),
+      });
+    },
     resetAllUiState: () => {
-      commit(cloneDefaultAppUiState());
+      commit({
+        ...cloneDefaultAppUiState(),
+        additionalityRuntime: createDefaultAdditionalityRuntimeState(),
+      });
     },
   };
 });

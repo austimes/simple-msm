@@ -6,7 +6,10 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { createServer } from 'vite';
 import { buildSectorStateFamilies, buildSectorStateTrajectory } from '../src/data/libraryInsights.ts';
 import { DEFAULT_APP_UI_STATE, type AppUiState } from '../src/data/appUiState.ts';
-import { persistAppUiState } from '../src/data/appUiStateStorage.ts';
+import {
+  APP_UI_STATE_STORAGE_KEY,
+  persistAppUiState,
+} from '../src/data/appUiStateStorage.ts';
 import { usePackageStore } from '../src/data/packageStore.ts';
 
 function createMemoryStorage() {
@@ -56,6 +59,46 @@ async function renderPersistedPageTwice(
       first: renderToStaticMarkup(React.createElement(Page)),
       second: renderToStaticMarkup(React.createElement(Page)),
     };
+  } finally {
+    await viteServer.close();
+
+    if (previousWindow === undefined) {
+      delete (globalThis as { window?: unknown }).window;
+    } else {
+      (globalThis as { window?: unknown }).window = previousWindow;
+    }
+  }
+}
+
+async function withStoreModule<T>(
+  persistedState: AppUiState,
+  callback: (context: {
+    storage: ReturnType<typeof createMemoryStorage>;
+    useAppUiStore: typeof import('../src/data/appUiStore.ts').useAppUiStore;
+  }) => Promise<T> | T,
+): Promise<T> {
+  const storage = createMemoryStorage();
+  persistAppUiState(persistedState, storage);
+
+  const previousWindow = (globalThis as { window?: unknown }).window;
+  (globalThis as { window?: unknown }).window = {
+    localStorage: storage,
+  };
+
+  const viteServer = await createServer({
+    configFile: fileURLToPath(new URL('../vite.config.ts', import.meta.url)),
+    logLevel: 'error',
+    server: {
+      middlewareMode: true,
+    },
+  });
+
+  try {
+    const storeModule = await viteServer.ssrLoadModule('/src/data/appUiStore.ts');
+    return await callback({
+      storage,
+      useAppUiStore: storeModule.useAppUiStore,
+    });
   } finally {
     await viteServer.close();
 
@@ -240,5 +283,36 @@ describe('appUiStore route persistence', () => {
       htmls,
       new RegExp(`Price scenario: ${escapeForRegex(commodityOptions[0].label)}: high \\| ${escapeForRegex(commodityOptions[1].label)}: low`),
     );
+  });
+
+  test('keeps additionality runtime cache session-only and clears it on reset', async () => {
+    await withStoreModule(structuredClone(DEFAULT_APP_UI_STATE), ({ storage, useAppUiStore }) => {
+      const initialSerialized = storage.getItem(APP_UI_STATE_STORAGE_KEY);
+      assert.equal(initialSerialized, JSON.stringify(DEFAULT_APP_UI_STATE));
+
+      const runToken = useAppUiStore.getState().beginAdditionalityRun('cache-key', {
+        phase: 'loading',
+        report: null,
+        progress: {
+          completed: 0,
+          totalExpected: 5,
+        },
+        error: null,
+        validationIssues: [],
+      });
+
+      assert.equal(runToken, 1);
+      assert.deepEqual(
+        Object.keys(useAppUiStore.getState().additionalityRuntime.entriesByKey),
+        ['cache-key'],
+      );
+      assert.equal(storage.getItem(APP_UI_STATE_STORAGE_KEY), initialSerialized);
+
+      useAppUiStore.getState().resetAllUiState();
+
+      assert.deepEqual(useAppUiStore.getState().additionalityRuntime.entriesByKey, {});
+      assert.equal(useAppUiStore.getState().additionalityRuntime.activeRunKey, null);
+      assert.equal(storage.getItem(APP_UI_STATE_STORAGE_KEY), JSON.stringify(DEFAULT_APP_UI_STATE));
+    });
   });
 });

@@ -1,0 +1,300 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { describe, test } from 'node:test';
+import { prepareAdditionalityAnalysis } from '../src/additionality/additionalityAnalysis.ts';
+import { resolveConfigurationDocument } from '../src/data/demandResolution.ts';
+import {
+  buildAdditionalityAnalysisCacheKeyFromSelections,
+  shouldStartAdditionalityRun,
+} from '../src/hooks/useAdditionalityAnalysis.ts';
+import { loadPkg } from './solverTestUtils.mjs';
+
+const pkg = loadPkg();
+
+function readJson(relativePath: string) {
+  const url = new URL(relativePath, import.meta.url);
+  return JSON.parse(readFileSync(url, 'utf8'));
+}
+
+function buildBaseCase() {
+  return resolveConfigurationDocument(
+    readJson('../src/configurations/reference-base.json'),
+    pkg.appConfig,
+    'reference-base',
+  );
+}
+
+function buildFullMonty() {
+  return resolveConfigurationDocument(
+    readJson('../src/configurations/reference-all.json'),
+    pkg.appConfig,
+    'reference-all',
+  );
+}
+
+function buildCommoditySelections(): Record<string, 'high' | 'low'> {
+  const commodityIds = Object.keys(pkg.appConfig.commodity_price_presets).sort();
+  assert.ok(commodityIds.length >= 2, 'expected at least two commodity presets');
+
+  return {
+    [commodityIds[0]]: 'high',
+    [commodityIds[1]]: 'low',
+  };
+}
+
+function buildEquivalentConfigurationsWithReorderedActiveStateIds() {
+  const outputStateIds = new Map<string, string[]>();
+
+  for (const row of pkg.sectorStates) {
+    const current = outputStateIds.get(row.service_or_output_name) ?? [];
+    if (!current.includes(row.state_id)) {
+      current.push(row.state_id);
+      outputStateIds.set(row.service_or_output_name, current);
+    }
+  }
+
+  const candidateEntry = Array.from(outputStateIds.entries())
+    .find(([, stateIds]) => stateIds.length >= 2);
+
+  assert.ok(candidateEntry, 'expected at least one output with multiple states');
+
+  const [outputId, stateIds] = candidateEntry;
+  const orderedStateIds = stateIds.slice(0, 2);
+  const reversedStateIds = [...orderedStateIds].reverse();
+  const leftConfiguration = buildFullMonty();
+  const rightConfiguration = buildFullMonty();
+
+  leftConfiguration.service_controls[outputId] = {
+    ...(leftConfiguration.service_controls[outputId] ?? { mode: 'optimize' as const }),
+    active_state_ids: orderedStateIds,
+  };
+  rightConfiguration.service_controls[outputId] = {
+    ...(rightConfiguration.service_controls[outputId] ?? { mode: 'optimize' as const }),
+    active_state_ids: reversedStateIds,
+  };
+
+  return {
+    leftConfiguration,
+    rightConfiguration,
+  };
+}
+
+describe('useAdditionalityAnalysis', () => {
+  test('builds the same cache key for equivalent normalized inputs', () => {
+    const baseConfiguration = buildBaseCase();
+    const { leftConfiguration, rightConfiguration } = buildEquivalentConfigurationsWithReorderedActiveStateIds();
+    const selections = buildCommoditySelections();
+    const reversedSelections = Object.fromEntries(Object.entries(selections).reverse());
+
+    const leftKey = buildAdditionalityAnalysisCacheKeyFromSelections({
+      baseConfiguration,
+      baseConfigId: 'reference-base',
+      commoditySelections: selections,
+      targetConfiguration: leftConfiguration,
+      targetConfigId: 'reference-all',
+    });
+    const rightKey = buildAdditionalityAnalysisCacheKeyFromSelections({
+      baseConfiguration,
+      baseConfigId: 'reference-base',
+      commoditySelections: reversedSelections,
+      targetConfiguration: rightConfiguration,
+      targetConfigId: 'reference-all',
+    });
+
+    assert.equal(leftKey, rightKey);
+  });
+
+  test('changes the cache key when effective configuration content or commodity selections change', () => {
+    const baseConfiguration = buildBaseCase();
+    const targetConfiguration = buildFullMonty();
+    const selections = buildCommoditySelections();
+    const commodityIds = Object.keys(selections);
+    const baselineKey = buildAdditionalityAnalysisCacheKeyFromSelections({
+      baseConfiguration,
+      baseConfigId: 'reference-base',
+      commoditySelections: selections,
+      targetConfiguration,
+      targetConfigId: 'reference-all',
+    });
+
+    const changedTarget = structuredClone(targetConfiguration);
+    changedTarget.service_demands.passenger_road_transport['2050'] += 1;
+
+    const changedCommoditySelections = {
+      ...selections,
+      [commodityIds[0]]: selections[commodityIds[0]] === 'high' ? 'low' : 'high',
+    };
+
+    assert.notEqual(
+      buildAdditionalityAnalysisCacheKeyFromSelections({
+        baseConfiguration,
+        baseConfigId: 'reference-base',
+        commoditySelections: selections,
+        targetConfiguration: changedTarget,
+        targetConfigId: 'reference-all',
+      }),
+      baselineKey,
+    );
+    assert.notEqual(
+      buildAdditionalityAnalysisCacheKeyFromSelections({
+        baseConfiguration,
+        baseConfigId: 'reference-base',
+        commoditySelections: changedCommoditySelections,
+        targetConfiguration,
+        targetConfigId: 'reference-all',
+      }),
+      baselineKey,
+    );
+  });
+
+  test('starts automatically only for uncached valid prepared runs and force-reruns cached results', () => {
+    const baseConfiguration = buildBaseCase();
+    const targetConfiguration = buildFullMonty();
+    const selections = buildCommoditySelections();
+    const prepared = prepareAdditionalityAnalysis({
+      baseConfiguration,
+      baseConfigId: 'reference-base',
+      commoditySelections: selections,
+      pkg,
+      targetConfiguration,
+      targetConfigId: 'reference-all',
+    });
+
+    assert.equal(prepared.validationIssues.length, 0);
+    assert.ok(prepared.atoms.length > 0);
+
+    assert.equal(
+      shouldStartAdditionalityRun({
+        force: false,
+        prepared,
+        preparedKey: 'valid-key',
+        runtimeEntry: null,
+      }),
+      true,
+    );
+    assert.equal(
+      shouldStartAdditionalityRun({
+        force: false,
+        prepared,
+        preparedKey: 'valid-key',
+        runtimeEntry: {
+          inFlight: false,
+          runToken: 1,
+          state: {
+            phase: 'success',
+            report: null,
+            progress: { completed: 5, totalExpected: 5 },
+            error: null,
+            validationIssues: [],
+          },
+        },
+      }),
+      false,
+    );
+    assert.equal(
+      shouldStartAdditionalityRun({
+        force: false,
+        prepared,
+        preparedKey: 'valid-key',
+        runtimeEntry: {
+          inFlight: true,
+          runToken: 2,
+          state: {
+            phase: 'loading',
+            report: null,
+            progress: { completed: 1, totalExpected: 5 },
+            error: null,
+            validationIssues: [],
+          },
+        },
+      }),
+      false,
+    );
+    assert.equal(
+      shouldStartAdditionalityRun({
+        force: true,
+        prepared,
+        preparedKey: 'valid-key',
+        runtimeEntry: {
+          inFlight: false,
+          runToken: 1,
+          state: {
+            phase: 'success',
+            report: null,
+            progress: { completed: 5, totalExpected: 5 },
+            error: null,
+            validationIssues: [],
+          },
+        },
+      }),
+      true,
+    );
+    assert.equal(
+      shouldStartAdditionalityRun({
+        force: true,
+        prepared,
+        preparedKey: 'valid-key',
+        runtimeEntry: {
+          inFlight: true,
+          runToken: 2,
+          state: {
+            phase: 'loading',
+            report: null,
+            progress: { completed: 1, totalExpected: 5 },
+            error: null,
+            validationIssues: [],
+          },
+        },
+      }),
+      false,
+    );
+  });
+
+  test('never starts async runs for validation-blocked or empty preparations', () => {
+    const baseConfiguration = buildBaseCase();
+    const targetConfiguration = buildFullMonty();
+    const selections = buildCommoditySelections();
+
+    const validationBlockedTarget = structuredClone(targetConfiguration);
+    validationBlockedTarget.carbon_price['2050'] += 5;
+
+    const validationPrepared = prepareAdditionalityAnalysis({
+      baseConfiguration,
+      baseConfigId: 'reference-base',
+      commoditySelections: selections,
+      pkg,
+      targetConfiguration: validationBlockedTarget,
+      targetConfigId: 'reference-all',
+    });
+    const emptyPrepared = prepareAdditionalityAnalysis({
+      baseConfiguration,
+      baseConfigId: 'reference-base',
+      commoditySelections: selections,
+      pkg,
+      targetConfiguration: structuredClone(baseConfiguration),
+      targetConfigId: 'reference-base-copy',
+    });
+
+    assert.ok(validationPrepared.validationIssues.length > 0);
+    assert.equal(emptyPrepared.atoms.length, 0);
+
+    assert.equal(
+      shouldStartAdditionalityRun({
+        force: false,
+        prepared: validationPrepared,
+        preparedKey: 'validation-key',
+        runtimeEntry: null,
+      }),
+      false,
+    );
+    assert.equal(
+      shouldStartAdditionalityRun({
+        force: false,
+        prepared: emptyPrepared,
+        preparedKey: 'empty-key',
+        runtimeEntry: null,
+      }),
+      false,
+    );
+  });
+});
