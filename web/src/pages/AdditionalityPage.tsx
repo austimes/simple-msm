@@ -293,7 +293,7 @@ export function AdditionalityPageView({
             </section>
           ) : null}
 
-          {report.sequence.length > 0 ? (
+          {report.sequenceComplete ? (
             <>
               <section>
                 <p className="additionality-status-line">
