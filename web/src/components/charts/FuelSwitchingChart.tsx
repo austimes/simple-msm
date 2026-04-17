@@ -3,7 +3,6 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Cell,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -20,8 +19,10 @@ import { ChartEmptyState, ChartFrame } from './ChartFrame.tsx';
 import {
   buildResponsiveContainerProps,
   CHART_AXIS_TICK_STYLE,
+  CHART_AXIS_TITLE_STYLE,
   CHART_GRID_DASHARRAY,
   CHART_GRID_STROKE,
+  WORKSPACE_CHART_HEIGHT,
   WORKSPACE_CHART_MARGIN,
 } from './chartTheme.ts';
 
@@ -51,39 +52,39 @@ export default function FuelSwitchingChart({
   availableYears,
   basis,
   rows,
-  selectedYear,
   onBasisChange,
-  onYearChange,
   title = 'Fuel switching by subsector',
 }: FuelSwitchingChartProps) {
-  const years = useMemo(
-    () => Array.from(new Set(availableYears)).sort((left, right) => left - right),
-    [availableYears],
-  );
-  const resolvedYear = years.includes(selectedYear ?? Number.NaN)
-    ? selectedYear
-    : years[years.length - 1] ?? null;
   const chartData = useMemo(
-    () => (resolvedYear == null ? [] : buildFuelSwitchChartData(rows, resolvedYear, basis)),
-    [basis, resolvedYear, rows],
+    () => buildFuelSwitchChartData(rows, availableYears, basis),
+    [availableYears, basis, rows],
+  );
+  const stackedRows = useMemo(
+    () => chartData.years.map((year) => {
+      const entry: Record<string, number> & { year: number; total: number } = {
+        year,
+        total: 0,
+      };
+
+      for (const series of chartData.series) {
+        const value = series.values.find((seriesValue) => seriesValue.year === year)?.value ?? 0;
+        entry[series.key] = value;
+        entry.total += value;
+      }
+
+      return entry;
+    }),
+    [chartData],
   );
   const legendItems = useMemo(
-    () => Array.from(
-      new Map(
-        chartData.map((entry) => {
-          const label = getCommodityMetadata(entry.colorCommodityId).label;
-          return [
-            entry.colorCommodityId,
-            {
-              key: entry.colorCommodityId,
-              label,
-              legendLabel: getPresentation('commodity', entry.colorCommodityId, label).legendLabel,
-              color: getPresentation('commodity', entry.colorCommodityId, label).color,
-            },
-          ];
-        }),
-      ).values(),
-    ),
+    () => chartData.series.map((entry) => {
+      const commodityLabel = getCommodityMetadata(entry.colorCommodityId).label;
+      return {
+        key: entry.key,
+        label: entry.label,
+        color: getPresentation('commodity', entry.colorCommodityId, commodityLabel).color,
+      };
+    }),
     [chartData],
   );
   const headerAction = (
@@ -106,24 +107,14 @@ export default function FuelSwitchingChart({
           From fuel
         </button>
       </div>
-      {years.length > 0 ? (
-        <div className="workspace-chart-toggle fuel-switch-chart-years" role="tablist" aria-label="Fuel switch year">
-          {years.map((year) => (
-            <button
-              key={year}
-              type="button"
-              className={`workspace-chart-toggle-button${resolvedYear === year ? ' workspace-chart-toggle-button--active' : ''}`}
-              onClick={() => onYearChange(year)}
-              aria-pressed={resolvedYear === year}
-            >
-              {year}
-            </button>
-          ))}
-        </div>
-      ) : null}
     </div>
   );
-  const chartHeight = Math.max(220, chartData.length * 34 + 88);
+  const chartHeight = WORKSPACE_CHART_HEIGHT;
+  const yearSpanLabel = chartData.years.length === 0
+    ? '—'
+    : chartData.years.length === 1
+      ? String(chartData.years[0])
+      : `${chartData.years[0]}-${chartData.years[chartData.years.length - 1]}`;
 
   return (
     <ChartFrame
@@ -133,46 +124,48 @@ export default function FuelSwitchingChart({
       legendItems={legendItems}
       summaryItems={[
         { key: 'basis', label: `Basis: ${basis === 'to' ? 'To fuel' : 'From fuel'}` },
-        { key: 'year', label: `Year: ${resolvedYear ?? '—'}` },
-        { key: 'rows', label: `${chartData.length} switching flows` },
+        { key: 'years', label: `Years: ${yearSpanLabel}` },
+        { key: 'rows', label: `${chartData.series.length} switching flows` },
       ]}
       headerAction={headerAction}
     >
-      {chartData.length === 0 ? (
+      {chartData.series.length === 0 ? (
         <ChartEmptyState
           className="stacked-chart-empty"
-          message="No fuel switching for the selected year and basis."
+          message="No fuel switching for the selected basis."
         />
       ) : (
         <ResponsiveContainer {...buildResponsiveContainerProps(chartHeight)}>
           <BarChart
-            data={chartData}
-            layout="vertical"
-            margin={{
-              ...WORKSPACE_CHART_MARGIN,
-              left: 240,
-            }}
+            data={stackedRows}
+            margin={WORKSPACE_CHART_MARGIN}
           >
             <CartesianGrid
               stroke={CHART_GRID_STROKE}
               strokeDasharray={CHART_GRID_DASHARRAY}
-              horizontal={false}
+              vertical={false}
             />
             <XAxis
-              type="number"
-              domain={resolveDomain(chartData.map((entry) => entry.value))}
+              dataKey="year"
+              tickLine={false}
+              axisLine={false}
+              interval={0}
+              tick={CHART_AXIS_TICK_STYLE}
+            />
+            <YAxis
+              width={72}
+              domain={resolveDomain(stackedRows.map((entry) => entry.total))}
               tickLine={false}
               axisLine={false}
               tick={CHART_AXIS_TICK_STYLE}
               tickFormatter={formatPj}
-            />
-            <YAxis
-              type="category"
-              dataKey="label"
-              width={232}
-              tickLine={false}
-              axisLine={false}
-              tick={CHART_AXIS_TICK_STYLE}
+              label={{
+                value: 'PJ',
+                angle: -90,
+                position: 'insideLeft',
+                offset: 2,
+                style: CHART_AXIS_TITLE_STYLE,
+              }}
             />
             <Tooltip
               cursor={{ fill: 'rgba(148, 163, 184, 0.10)' }}
@@ -180,18 +173,23 @@ export default function FuelSwitchingChart({
                 const numericValue = typeof value === 'number' ? value : Number(value ?? 0);
                 return formatPj(Number.isFinite(numericValue) ? numericValue : 0);
               }}
+              labelFormatter={(value) => `Year ${value}`}
             />
-            <Bar dataKey="value" radius={[6, 6, 6, 6]} isAnimationActive={false}>
-              {chartData.map((entry) => {
-                const label = getCommodityMetadata(entry.colorCommodityId).label;
-                return (
-                  <Cell
-                    key={entry.key}
-                    fill={getPresentation('commodity', entry.colorCommodityId, label).color}
-                  />
-                );
-              })}
-            </Bar>
+            {chartData.series.map((entry) => {
+              const commodityLabel = getCommodityMetadata(entry.colorCommodityId).label;
+              return (
+                <Bar
+                  key={entry.key}
+                  dataKey={entry.key}
+                  name={entry.label}
+                  stackId="stack"
+                  fill={getPresentation('commodity', entry.colorCommodityId, commodityLabel).color}
+                  fillOpacity={0.86}
+                  stroke="none"
+                  isAnimationActive={false}
+                />
+              );
+            })}
           </BarChart>
         </ResponsiveContainer>
       )}

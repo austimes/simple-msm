@@ -21,7 +21,7 @@ export interface FuelSwitchChartDatum {
   key: string;
   colorCommodityId: string;
   label: string;
-  value: number;
+  values: Array<{ year: number; value: number }>;
 }
 
 interface FuelDeltaEntry {
@@ -221,31 +221,61 @@ export function collectFuelSwitchYears(
 
 export function buildFuelSwitchChartData(
   rows: FuelSwitchAttributionRow[],
-  year: number,
+  availableYears: number[],
   basis: FuelSwitchBasis,
-): FuelSwitchChartDatum[] {
-  const filteredRows = rows
-    .filter((row) => row.year === year)
-    .map((row) => ({
-      key: row.key,
+): {
+  years: number[];
+  series: FuelSwitchChartDatum[];
+} {
+  const years = Array.from(
+    new Set([
+      ...availableYears,
+      ...rows.map((row) => row.year),
+    ]),
+  ).sort((left, right) => left - right);
+  const seriesByKey = new Map<string, {
+    key: string;
+    colorCommodityId: string;
+    label: string;
+    total: number;
+    valuesByYear: Map<number, number>;
+  }>();
+
+  for (const row of rows) {
+    const value = basis === 'to' ? row.toBasisPj : row.fromBasisPj;
+
+    if (value <= FUEL_SWITCH_EPSILON_PJ) {
+      continue;
+    }
+
+    const key = `${row.outputId}::${row.fromFuelId}::${row.toFuelId}`;
+    const existing = seriesByKey.get(key) ?? {
+      key,
       colorCommodityId: basis === 'to' ? row.toFuelId : row.fromFuelId,
       label: `${row.outputLabel}: ${row.fromFuelLabel} -> ${row.toFuelLabel}`,
-      value: basis === 'to' ? row.toBasisPj : row.fromBasisPj,
-      outputLabel: row.outputLabel,
-      fromFuelLabel: row.fromFuelLabel,
-      toFuelLabel: row.toFuelLabel,
-    }))
-    .filter((row) => row.value > FUEL_SWITCH_EPSILON_PJ)
-    .sort((left, right) =>
-      right.value - left.value
-      || left.outputLabel.localeCompare(right.outputLabel)
-      || left.fromFuelLabel.localeCompare(right.fromFuelLabel)
-      || left.toFuelLabel.localeCompare(right.toFuelLabel));
+      total: 0,
+      valuesByYear: new Map<number, number>(),
+    };
 
-  return filteredRows.map((row) => ({
-    key: row.key,
-    colorCommodityId: row.colorCommodityId,
-    label: row.label,
-    value: row.value,
-  }));
+    existing.total += value;
+    existing.valuesByYear.set(row.year, (existing.valuesByYear.get(row.year) ?? 0) + value);
+    seriesByKey.set(key, existing);
+  }
+
+  const series = Array.from(seriesByKey.values())
+    .sort((left, right) =>
+      right.total - left.total
+      || left.label.localeCompare(right.label)
+      || left.colorCommodityId.localeCompare(right.colorCommodityId))
+    .map((entry) => ({
+      key: entry.key,
+      colorCommodityId: entry.colorCommodityId,
+      label: entry.label,
+      values: years.map((year) => ({
+        year,
+        value: entry.valuesByYear.get(year) ?? 0,
+      })),
+    }));
+
+  return { years, series };
 }

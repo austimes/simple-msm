@@ -127,18 +127,18 @@ test('chart rows sort by displayed basis value and use the requested basis', () 
     ],
   );
 
-  const toRows = buildFuelSwitchChartData(rows, 2030, 'to');
-  const fromRows = buildFuelSwitchChartData(rows, 2030, 'from');
+  const toChart = buildFuelSwitchChartData(rows, [2030], 'to');
+  const fromChart = buildFuelSwitchChartData(rows, [2030], 'from');
 
   assert.deepEqual(
-    toRows.map((row) => [row.label, row.value, row.colorCommodityId]),
+    toChart.series.map((row) => [row.label, row.values[0].value, row.colorCommodityId]),
     [
       ['Heat: Natural gas -> Electricity', 10, 'electricity'],
       ['Transport: Coal -> Hydrogen', 4, 'hydrogen'],
     ],
   );
   assert.deepEqual(
-    fromRows.map((row) => [row.label, row.value, row.colorCommodityId]),
+    fromChart.series.map((row) => [row.label, row.values[0].value, row.colorCommodityId]),
     [
       ['Heat: Natural gas -> Electricity', 15, 'natural_gas'],
       ['Transport: Coal -> Hydrogen', 8, 'coal'],
@@ -146,7 +146,7 @@ test('chart rows sort by displayed basis value and use the requested basis', () 
   );
 });
 
-test('fuel switching chart defaults to the latest available year and reuses commodity colors', () => {
+test('fuel switching chart renders stacked years on the x-axis and reuses commodity colors', () => {
   const html = renderToStaticMarkup(
     React.createElement(FuelSwitchingChart, {
       availableYears: [2030, 2035],
@@ -185,8 +185,11 @@ test('fuel switching chart defaults to the latest available year and reuses comm
 
   assert.match(
     html,
-    /workspace-chart-toggle-button workspace-chart-toggle-button--active" aria-pressed="true">2035</,
+    /workspace-chart-toggle-button workspace-chart-toggle-button--active" aria-pressed="true">To fuel</,
   );
-  assert.match(html, /Year: 2035/);
+  assert.match(html, /Years: 2030-2035/);
+  assert.match(html, /1 switching flows/);
+  assert.match(html, /Heat: Natural gas -&gt; Electricity/);
+  assert.doesNotMatch(html, /aria-label="Fuel switch year"/);
   assert.match(html, /background-color:#f59e0b/);
 });
