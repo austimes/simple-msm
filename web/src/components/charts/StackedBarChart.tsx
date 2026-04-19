@@ -1,7 +1,7 @@
 import React from 'react';
 import type { ReactNode } from 'react';
 import type { StackedChartData } from '../../results/chartData.ts';
-import type { ChartSummaryItem } from './ChartFrame.tsx';
+import type { ChartLegendItem, ChartSummaryItem } from './ChartFrame.tsx';
 import {
   Bar,
   BarChart,
@@ -43,6 +43,7 @@ interface StackedBarChartProps {
   showNetLine?: boolean;
   headerAction?: ReactNode;
   summaryItems?: ChartSummaryItem[];
+  legendItems?: ChartLegendItem[];
   emptyMessage?: string;
 }
 
@@ -106,6 +107,7 @@ export default function StackedBarChart({
   showNetLine = false,
   headerAction,
   summaryItems,
+  legendItems,
   emptyMessage = 'No data available for this chart.',
 }: StackedBarChartProps) {
   const { title, yAxisLabel, years, series } = data;
@@ -161,7 +163,7 @@ export default function StackedBarChart({
       ? [{ key: netKey, label: 'Net', dashArray: '6 4', nullPoints: 0 }]
       : []),
   ];
-  const legendItems = [
+  const resolvedLegendItems = legendItems ?? [
     ...series.map((entry) => ({
       key: entry.key,
       label: entry.label,
@@ -194,7 +196,7 @@ export default function StackedBarChart({
       title={title}
       yAxisLabel={yAxisLabel}
       height={height}
-      legendItems={isEmpty ? [] : legendItems}
+      legendItems={isEmpty ? [] : resolvedLegendItems}
       summaryItems={resolvedSummaryItems}
       showTitle={showTitle}
       headerAction={resolvedHeaderAction}

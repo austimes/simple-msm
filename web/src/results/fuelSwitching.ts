@@ -19,6 +19,8 @@ export interface FuelSwitchAttributionRow {
 
 export interface FuelSwitchChartDatum {
   key: string;
+  fromFuelId: string;
+  toFuelId: string;
   colorCommodityId: string;
   label: string;
   values: Array<{ year: number; value: number }>;
@@ -235,6 +237,8 @@ export function buildFuelSwitchChartData(
   ).sort((left, right) => left - right);
   const seriesByKey = new Map<string, {
     key: string;
+    fromFuelId: string;
+    toFuelId: string;
     colorCommodityId: string;
     label: string;
     total: number;
@@ -251,6 +255,8 @@ export function buildFuelSwitchChartData(
     const key = `${row.fromFuelId}::${row.toFuelId}`;
     const existing = seriesByKey.get(key) ?? {
       key,
+      fromFuelId: row.fromFuelId,
+      toFuelId: row.toFuelId,
       colorCommodityId: basis === 'to' ? row.toFuelId : row.fromFuelId,
       label: `${row.fromFuelLabel} -> ${row.toFuelLabel}`,
       total: 0,
@@ -269,6 +275,8 @@ export function buildFuelSwitchChartData(
       || left.colorCommodityId.localeCompare(right.colorCommodityId))
     .map((entry) => ({
       key: entry.key,
+      fromFuelId: entry.fromFuelId,
+      toFuelId: entry.toFuelId,
       colorCommodityId: entry.colorCommodityId,
       label: entry.label,
       values: years.map((year) => ({

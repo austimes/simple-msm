@@ -171,7 +171,7 @@ test('chart data aggregates matching fuel pairs across outputs', () => {
   );
 });
 
-test('fuel switching chart renders stacked years on the x-axis and reuses commodity colors', () => {
+test('fuel switching chart renders stacked years on the x-axis with pair-specific legend colors', () => {
   const html = renderToStaticMarkup(
     React.createElement(FuelSwitchingChart, {
       availableYears: [2030, 2035],
@@ -201,6 +201,18 @@ test('fuel switching chart renders stacked years on the x-axis and reuses commod
           toBasisPj: 10,
           fromBasisPj: 15,
         },
+        {
+          key: '2035::transport::coal::electricity',
+          outputId: 'transport',
+          outputLabel: 'Transport',
+          year: 2035,
+          fromFuelId: 'coal',
+          fromFuelLabel: 'Coal',
+          toFuelId: 'electricity',
+          toFuelLabel: 'Electricity',
+          toBasisPj: 4,
+          fromBasisPj: 5,
+        },
       ],
       selectedYear: null,
       onBasisChange: () => {},
@@ -214,8 +226,54 @@ test('fuel switching chart renders stacked years on the x-axis and reuses commod
   );
   assert.match(html, /Fuel switching by fuel pair/);
   assert.match(html, /Years: 2030-2035/);
-  assert.match(html, /1 fuel-switch pairs/);
+  assert.match(html, /2 fuel-switch pairs/);
   assert.match(html, /Natural gas -&gt; Electricity/);
+  assert.match(html, /Coal -&gt; Electricity/);
   assert.doesNotMatch(html, /aria-label="Fuel switch year"/);
-  assert.match(html, /background-color:#f59e0b/);
+  const swatches = [...html.matchAll(/background-color:([^";]+)/g)].map((match) => match[1]);
+  assert.equal(new Set(swatches).size >= 2, true);
+  assert.doesNotMatch(html, /background-color:#f59e0b/);
+});
+
+test('fuel switching chart hides tiny pairs from the legend while keeping total pair counts', () => {
+  const html = renderToStaticMarkup(
+    React.createElement(FuelSwitchingChart, {
+      availableYears: [2035],
+      basis: 'to',
+      rows: [
+        {
+          key: '2035::heat::natural_gas::electricity',
+          outputId: 'heat',
+          outputLabel: 'Heat',
+          year: 2035,
+          fromFuelId: 'natural_gas',
+          fromFuelLabel: 'Natural gas',
+          toFuelId: 'electricity',
+          toFuelLabel: 'Electricity',
+          toBasisPj: 120,
+          fromBasisPj: 140,
+        },
+        {
+          key: '2035::heat::coal::hydrogen',
+          outputId: 'heat',
+          outputLabel: 'Heat',
+          year: 2035,
+          fromFuelId: 'coal',
+          fromFuelLabel: 'Coal',
+          toFuelId: 'hydrogen',
+          toFuelLabel: 'Hydrogen',
+          toBasisPj: 0.2,
+          fromBasisPj: 0.3,
+        },
+      ],
+      selectedYear: null,
+      onBasisChange: () => {},
+      onYearChange: () => {},
+    }),
+  );
+
+  assert.match(html, /2 fuel-switch pairs/);
+  assert.match(html, /Legend hides 1 minor pairs/);
+  assert.match(html, /Natural gas -&gt; Electricity/);
+  assert.doesNotMatch(html, /Coal -&gt; Hydrogen/);
 });
