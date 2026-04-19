@@ -6,7 +6,7 @@ import type {
   SolveStateShareSummary,
 } from '../solver/contract';
 import { getCommodityMetadata } from '../data/commodityMetadata.ts';
-import { getPresentation } from '../data/chartPresentation.ts';
+import { getCommodityPresentation, getPresentation } from '../data/chartPresentation.ts';
 import { DEFAULT_RESIDUAL_OVERLAY_DISPLAY_MODE, getResidualOverlayDisplayBucket } from '../data/residualOverlayPresentation.ts';
 import type { ResidualOverlayDisplayMode } from '../data/types.ts';
 import type { ResultContributionRow } from './resultContributions.ts';
@@ -275,8 +275,8 @@ export function buildFuelConsumptionChart(
       years,
       {
         labelForKey: (key) => getCommodityMetadata(key).label,
-        legendLabelForKey: (key) => getPresentation('commodity', key, getCommodityMetadata(key).label).legendLabel,
-        colorForKey: (key) => getPresentation('commodity', key, getCommodityMetadata(key).label).color,
+        legendLabelForKey: (key) => getCommodityPresentation(key).legendLabel,
+        colorForKey: (key) => getCommodityPresentation(key).color,
       },
     ),
   };

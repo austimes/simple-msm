@@ -1,3 +1,5 @@
+import { getCommodityMetadata } from './commodityMetadata.ts';
+
 export type ChartPresentationNamespace =
   | 'sector'
   | 'subsector'
@@ -278,6 +280,19 @@ export function getSeriesColor(
   fallbackLabel = key,
 ): string {
   return getPresentation(namespace, key, fallbackLabel).color;
+}
+
+export function getCommodityPresentation(commodityId: string): ChartPresentationEntry {
+  const commodityMetadata = getCommodityMetadata(commodityId);
+
+  return getPresentation('commodity', commodityId, commodityMetadata.label);
+}
+
+export function buildFuelSwitchLegendLabel(
+  fromFuelId: string,
+  toFuelId: string,
+): string {
+  return `${getCommodityPresentation(fromFuelId).legendLabel} -> ${getCommodityPresentation(toFuelId).legendLabel}`;
 }
 
 export function buildStateMetricLegendLabel(

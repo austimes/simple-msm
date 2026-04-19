@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { getPresentation } from '../../data/chartPresentation.ts';
+import { getCommodityPresentation } from '../../data/chartPresentation.ts';
 import type { FuelSwitchBasis } from '../../data/types.ts';
 import type { StackedChartData } from '../../results/chartData.ts';
 import {
@@ -93,8 +93,8 @@ function buildFuelPairColor(
 ): string {
   const primaryFuelId = basis === 'to' ? toFuelId : fromFuelId;
   const secondaryFuelId = basis === 'to' ? fromFuelId : toFuelId;
-  const primaryColor = getPresentation('commodity', primaryFuelId).color;
-  const secondaryColor = getPresentation('commodity', secondaryFuelId).color;
+  const primaryColor = getCommodityPresentation(primaryFuelId).color;
+  const secondaryColor = getCommodityPresentation(secondaryFuelId).color;
   const blended = blendColors(primaryColor, secondaryColor, 0.74);
   const toneShift = ((hashString(`${basis}:${fromFuelId}:${toFuelId}`) % 5) - 2) * 0.035;
 
@@ -121,6 +121,7 @@ export default function FuelSwitchingChart({
         return {
           key: entry.key,
           label: entry.label,
+          legendLabel: entry.legendLabel,
           color: buildFuelPairColor(entry.fromFuelId, entry.toFuelId, basis),
           values: entry.values,
         };
@@ -147,6 +148,7 @@ export default function FuelSwitchingChart({
     return (visibleSeries.length > 0 ? visibleSeries : stackedChartData.series).map((entry) => ({
       key: entry.key,
       label: entry.label,
+      legendLabel: entry.legendLabel,
       color: entry.color,
     }));
   }, [stackedChartData]);

@@ -227,8 +227,10 @@ test('fuel switching chart renders stacked years on the x-axis with pair-specifi
   assert.match(html, /Fuel switching by fuel pair/);
   assert.match(html, /Years: 2030-2035/);
   assert.match(html, /2 fuel-switch pairs/);
-  assert.match(html, /Natural gas -&gt; Electricity/);
-  assert.match(html, /Coal -&gt; Electricity/);
+  assert.match(html, />Gas -&gt; Elec</);
+  assert.match(html, />Coal -&gt; Elec</);
+  assert.match(html, /title="Natural gas -&gt; Electricity"/);
+  assert.match(html, /title="Coal -&gt; Electricity"/);
   assert.doesNotMatch(html, /aria-label="Fuel switch year"/);
   const swatches = [...html.matchAll(/background-color:([^";]+)/g)].map((match) => match[1]);
   assert.equal(new Set(swatches).size >= 2, true);
@@ -274,6 +276,6 @@ test('fuel switching chart hides tiny pairs from the legend while keeping total 
 
   assert.match(html, /2 fuel-switch pairs/);
   assert.match(html, /Legend hides 1 minor pairs/);
-  assert.match(html, /Natural gas -&gt; Electricity/);
-  assert.doesNotMatch(html, /Coal -&gt; Hydrogen/);
+  assert.match(html, />Gas -&gt; Elec</);
+  assert.doesNotMatch(html, />Coal -&gt; H2</);
 });
