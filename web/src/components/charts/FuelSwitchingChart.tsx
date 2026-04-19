@@ -30,7 +30,7 @@ export default function FuelSwitchingChart({
   basis,
   rows,
   onBasisChange,
-  title = 'Fuel switching by subsector',
+  title = 'Fuel switching by fuel pair',
 }: FuelSwitchingChartProps) {
   const chartData = useMemo(
     () => buildFuelSwitchChartData(rows, availableYears, basis),
@@ -88,7 +88,7 @@ export default function FuelSwitchingChart({
       summaryItems={[
         { key: 'basis', label: `Basis: ${basis === 'to' ? 'To fuel' : 'From fuel'}` },
         { key: 'years', label: `Years: ${yearSpanLabel}` },
-        { key: 'rows', label: `${chartData.series.length} switching flows` },
+        { key: 'rows', label: `${chartData.series.length} fuel-switch pairs` },
       ]}
       headerAction={headerAction}
       emptyMessage="No fuel switching for the selected basis."
