@@ -3,10 +3,9 @@ import { describe, test } from 'node:test';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { LineChartData, PathwayCapChartData, StackedChartData } from '../src/results/chartData.ts';
-import DivergingStackedBarChart from '../src/components/charts/DivergingStackedBarChart.tsx';
 import LineChart from '../src/components/charts/LineChart.tsx';
 import PathwayCapChart from '../src/components/charts/PathwayCapChart.tsx';
-import StackedAreaChart from '../src/components/charts/StackedAreaChart.tsx';
+import StackedBarChart from '../src/components/charts/StackedBarChart.tsx';
 
 const emissionsChart: StackedChartData = {
   title: 'Emissions by Sector',
@@ -31,6 +30,34 @@ const emissionsChart: StackedChartData = {
       values: [
         { year: 2030, value: -14 },
         { year: 2035, value: -18 },
+      ],
+    },
+  ],
+};
+
+const consumptionChart: StackedChartData = {
+  title: 'Fuel Consumption',
+  yAxisLabel: 'PJ',
+  years: [2030, 2035],
+  series: [
+    {
+      key: 'electricity',
+      label: 'Electricity consumption',
+      legendLabel: 'Elec',
+      color: '#f59e0b',
+      values: [
+        { year: 2030, value: 52 },
+        { year: 2035, value: 48 },
+      ],
+    },
+    {
+      key: 'hydrogen',
+      label: 'Hydrogen consumption',
+      legendLabel: 'H2',
+      color: '#06b6d4',
+      values: [
+        { year: 2030, value: 9 },
+        { year: 2035, value: 18 },
       ],
     },
   ],
@@ -101,11 +128,31 @@ const pathwayCapChart: PathwayCapChartData = {
 };
 
 describe('workspace Recharts wrappers', () => {
-  test('diverging emissions charts retain the axis label, negative series metadata, and net legend item', () => {
+  test('positive-only stacked charts render the shared stacked-bar legend labels inside the chart shell', () => {
     const html = renderToStaticMarkup(
-      <DivergingStackedBarChart
+      <StackedBarChart
+        data={consumptionChart}
+        yDomainPersistenceKey="run:fuel-consumption"
+      />,
+    );
+
+    assert.match(html, /class="stacked-chart-shell"/);
+    assert.match(html, /Axis: PJ/);
+    assert.match(html, /aria-label="Fuel Consumption legend"/);
+    assert.match(html, /aria-label="Reset y-axis range for Fuel Consumption"/);
+    assert.match(html, />Elec</);
+    assert.match(html, />H2</);
+    assert.match(html, /title="Electricity consumption"/);
+    assert.match(html, /title="Hydrogen consumption"/);
+    assert.doesNotMatch(html, />Net</);
+  });
+
+  test('mixed-sign stacked charts retain the axis label, negative series metadata, and net legend item', () => {
+    const html = renderToStaticMarkup(
+      <StackedBarChart
         data={emissionsChart}
         yDomainPersistenceKey="run:emissions-by-sector"
+        showNetLine={true}
       />,
     );
 
@@ -122,18 +169,18 @@ describe('workspace Recharts wrappers', () => {
     assert.match(html, /data-series-key="__net"/);
   });
 
-  test('workspace charts keep the reset control visible when the internal chart title is hidden', () => {
+  test('stacked bar charts keep the reset control visible when the internal chart title is hidden', () => {
     const html = renderToStaticMarkup(
-      <LineChart
-        data={demandChart}
+      <StackedBarChart
+        data={consumptionChart}
         showTitle={false}
-        yDomainPersistenceKey="run:demand-by-sector"
+        yDomainPersistenceKey="run:fuel-consumption"
       />,
     );
 
     assert.doesNotMatch(html, /<figcaption/);
     assert.match(html, /class="stacked-chart-header stacked-chart-header--action-only"/);
-    assert.match(html, /aria-label="Reset y-axis range for Demand by Sector"/);
+    assert.match(html, /aria-label="Reset y-axis range for Fuel Consumption"/);
   });
 
   test('line chart legends render the series labels inside the chart shell', () => {
@@ -175,7 +222,7 @@ describe('workspace Recharts wrappers', () => {
 
   test('empty-state charts keep the existing message without rendering a reset control', () => {
     const html = renderToStaticMarkup(
-      <StackedAreaChart
+      <StackedBarChart
         data={{
           title: 'Commodity Consumption',
           yAxisLabel: 'Consumption',

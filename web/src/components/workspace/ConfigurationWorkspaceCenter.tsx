@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import WorkspaceSolveFailureReport from './WorkspaceSolveFailureReport';
-import StackedAreaChart from '../charts/StackedAreaChart';
-import DivergingStackedBarChart from '../charts/DivergingStackedBarChart';
+import StackedBarChart from '../charts/StackedBarChart.tsx';
 import LineChart from '../charts/LineChart';
 import PathwayCapChart from '../charts/PathwayCapChart';
 import FuelSwitchingChart from '../charts/FuelSwitchingChart.tsx';
@@ -74,7 +73,7 @@ function PathwayChartCard({ chart }: { chart: PathwayChartCardData }) {
           yDomainPersistenceKey={`run:pathway-cap:${chart.outputId}`}
         />
       ) : (
-        <StackedAreaChart
+        <StackedBarChart
           data={chart.outputChart}
           showTitle={false}
           yDomainPersistenceKey={`run:pathway-output:${chart.outputId}`}
@@ -338,15 +337,16 @@ export default function ConfigurationWorkspaceCenter({
           )}
           {emissionsChart && (
             <div className="workspace-chart-section">
-              <DivergingStackedBarChart
+              <StackedBarChart
                 data={emissionsChart}
                 yDomainPersistenceKey="run:emissions-by-sector"
+                showNetLine={true}
               />
             </div>
           )}
           {consumptionChart && (
             <div className="workspace-chart-section">
-              <StackedAreaChart
+              <StackedBarChart
                 data={consumptionChart}
                 yDomainPersistenceKey="run:fuel-consumption"
               />
@@ -370,9 +370,10 @@ export default function ConfigurationWorkspaceCenter({
           )}
           {costByComponentChart && (
             <div className="workspace-chart-section">
-              <DivergingStackedBarChart
+              <StackedBarChart
                 data={costByComponentChart}
                 yDomainPersistenceKey="run:cost-by-component"
+                showNetLine={true}
               />
             </div>
           )}
