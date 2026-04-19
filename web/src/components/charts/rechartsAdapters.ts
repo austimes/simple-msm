@@ -20,6 +20,10 @@ interface DomainOptions {
   roundTo?: number;
 }
 
+interface BuildStackedBarRowsOptions {
+  includeNet?: boolean;
+}
+
 export function buildNumericRows(
   years: number[],
   series: ReadonlyArray<{
@@ -148,12 +152,17 @@ export function computeDomain(values: number[], options: DomainOptions = {}): [n
   return [domainMin, domainMax];
 }
 
-export function buildDivergingRows(years: number[], series: ReadonlyArray<StackedSeries>) {
+export function buildStackedBarRows(
+  years: number[],
+  series: ReadonlyArray<StackedSeries>,
+  options: BuildStackedBarRowsOptions = {},
+) {
   const rows = buildZeroFilledRows(years, series);
-  const netKey = '__net';
+  const netKey = options.includeNet ? '__net' : undefined;
   const positiveTotals: number[] = [];
   const negativeTotals: number[] = [];
   const netValues: number[] = [];
+  let hasAnyNonZero = false;
 
   rows.forEach((row) => {
     let positiveTotal = 0;
@@ -163,6 +172,9 @@ export function buildDivergingRows(years: number[], series: ReadonlyArray<Stacke
     for (const entry of series) {
       const rawValue = row[entry.key];
       const value = typeof rawValue === 'number' ? rawValue : 0;
+      if (value !== 0) {
+        hasAnyNonZero = true;
+      }
       netValue += value;
       if (value > 0) {
         positiveTotal += value;
@@ -171,7 +183,9 @@ export function buildDivergingRows(years: number[], series: ReadonlyArray<Stacke
       }
     }
 
-    row[netKey] = netValue;
+    if (netKey) {
+      row[netKey] = netValue;
+    }
     positiveTotals.push(positiveTotal);
     negativeTotals.push(negativeTotal);
     netValues.push(netValue);
@@ -183,5 +197,6 @@ export function buildDivergingRows(years: number[], series: ReadonlyArray<Stacke
     negativeTotals,
     netKey,
     netValues,
+    hasAnyNonZero,
   };
 }
