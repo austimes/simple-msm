@@ -66,6 +66,31 @@ const referencePatterns = [
   { pattern: /existing/i, score: 15 },
 ];
 
+function compareStateSortKey(left: string, right: string): number {
+  if (!left || !right) {
+    return 0;
+  }
+
+  return left.localeCompare(right);
+}
+
+function compareStateOptionRank(left: number | null, right: number | null): number {
+  if (left == null || right == null) {
+    return 0;
+  }
+
+  return left - right;
+}
+
+function compareSectorStateDisplayOrder(left: SectorState, right: SectorState): number {
+  return (
+    compareStateSortKey(left.state_sort_key, right.state_sort_key) ||
+    compareStateOptionRank(left.state_option_rank, right.state_option_rank) ||
+    left.state_label.localeCompare(right.state_label) ||
+    left.state_id.localeCompare(right.state_id)
+  );
+}
+
 function uniqueStrings(values: string[]): string[] {
   return Array.from(new Set(values.filter(Boolean))).sort((left, right) => left.localeCompare(right));
 }
@@ -159,7 +184,7 @@ export function buildSectorStateFamilies(sectorStates: SectorState[]): SectorSta
         left.sector.localeCompare(right.sector) ||
         left.subsector.localeCompare(right.subsector) ||
         left.serviceOrOutputName.localeCompare(right.serviceOrOutputName) ||
-        left.label.localeCompare(right.label)
+        compareSectorStateDisplayOrder(left.representative, right.representative)
       );
     });
 }
@@ -245,10 +270,16 @@ export function findReferenceSectorState(
     return null;
   }
 
+  const explicitIncumbents = candidates.filter((row) => row.is_default_incumbent_2025);
+
+  if (explicitIncumbents.length > 0) {
+    return [...explicitIncumbents].sort(compareSectorStateDisplayOrder)[0] ?? null;
+  }
+
   return [...candidates].sort((left, right) => {
     return (
       scoreReferenceCandidate(right) - scoreReferenceCandidate(left) ||
-      left.state_label.localeCompare(right.state_label)
+      compareSectorStateDisplayOrder(left, right)
     );
   })[0] ?? null;
 }
