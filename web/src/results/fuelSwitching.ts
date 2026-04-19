@@ -1,4 +1,5 @@
 import { getCommodityMetadata } from '../data/commodityMetadata.ts';
+import { buildFuelSwitchLegendLabel } from '../data/chartPresentation.ts';
 import type { FuelSwitchBasis } from '../data/types.ts';
 import type { ResultContributionRow } from './resultContributions.ts';
 
@@ -23,6 +24,7 @@ export interface FuelSwitchChartDatum {
   toFuelId: string;
   colorCommodityId: string;
   label: string;
+  legendLabel: string;
   values: Array<{ year: number; value: number }>;
 }
 
@@ -241,6 +243,7 @@ export function buildFuelSwitchChartData(
     toFuelId: string;
     colorCommodityId: string;
     label: string;
+    legendLabel: string;
     total: number;
     valuesByYear: Map<number, number>;
   }>();
@@ -259,6 +262,7 @@ export function buildFuelSwitchChartData(
       toFuelId: row.toFuelId,
       colorCommodityId: basis === 'to' ? row.toFuelId : row.fromFuelId,
       label: `${row.fromFuelLabel} -> ${row.toFuelLabel}`,
+      legendLabel: buildFuelSwitchLegendLabel(row.fromFuelId, row.toFuelId),
       total: 0,
       valuesByYear: new Map<number, number>(),
     };
@@ -279,6 +283,7 @@ export function buildFuelSwitchChartData(
       toFuelId: entry.toFuelId,
       colorCommodityId: entry.colorCommodityId,
       label: entry.label,
+      legendLabel: entry.legendLabel,
       values: years.map((year) => ({
         year,
         value: entry.valuesByYear.get(year) ?? 0,
