@@ -479,7 +479,7 @@ test('base comparison disabled keeps Explorer absolute charts and hides the fuel
 
   assert.match(html, /Base comparison is disabled/);
   assert.match(html, /Fuel Consumption/);
-  assert.doesNotMatch(html, /Fuel switching by subsector/);
+  assert.doesNotMatch(html, /Fuel switching by fuel pair/);
 });
 
 test('base comparison failure keeps focus charts visible and shows a comparison-only error panel', () => {

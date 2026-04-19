@@ -248,11 +248,11 @@ export function buildFuelSwitchChartData(
       continue;
     }
 
-    const key = `${row.outputId}::${row.fromFuelId}::${row.toFuelId}`;
+    const key = `${row.fromFuelId}::${row.toFuelId}`;
     const existing = seriesByKey.get(key) ?? {
       key,
       colorCommodityId: basis === 'to' ? row.toFuelId : row.fromFuelId,
-      label: `${row.outputLabel}: ${row.fromFuelLabel} -> ${row.toFuelLabel}`,
+      label: `${row.fromFuelLabel} -> ${row.toFuelLabel}`,
       total: 0,
       valuesByYear: new Map<number, number>(),
     };
