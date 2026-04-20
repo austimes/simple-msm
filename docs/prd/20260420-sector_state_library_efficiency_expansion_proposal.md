@@ -9,6 +9,8 @@ Phase 1 established a year-indexed sector state library in which each sector sta
 3. support progressively richer optimization without breaking the reduced-form sector-state architecture, and
 4. preserve a clean path toward later expansion into explicit TIMES / VedaLang process structure.
 
+The consolidated first-wave accepted inventory, embodied items, and explicit v1 deferrals now live in [20260420-canonical-efficiency-inventory.md](./20260420-canonical-efficiency-inventory.md).
+
 The key design decision is:
 
 > Efficiency must not exist only as a hidden ingredient inside year-specific sector states.
