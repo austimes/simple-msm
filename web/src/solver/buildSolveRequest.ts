@@ -17,33 +17,20 @@ import {
 
 export { normalizeSolverRows, resolveConfigurationForSolve } from './solveRequestModel.ts';
 
-function buildObjectiveCostLookup(
-  sectorStates: PackageData['sectorStates'],
-): Map<string, SolveObjectiveCostMetadata> {
-  const lookup = new Map<string, SolveObjectiveCostMetadata>();
-
-  for (const row of sectorStates) {
-    lookup.set(`${row.state_id}::${row.year}`, {
-      currency: row.currency,
-      costBasisYear: row.cost_basis_year,
-    });
-  }
-
-  return lookup;
-}
-
 function resolveObjectiveCostMetadata(
   rows: NormalizedSolverRow[],
-  lookup: ReadonlyMap<string, SolveObjectiveCostMetadata>,
 ): SolveObjectiveCostMetadata {
   let metadata: SolveObjectiveCostMetadata | null = null;
 
   for (const row of rows) {
-    const rowMetadata = lookup.get(row.rowId);
-
-    if (!rowMetadata) {
-      throw new Error(`Missing objective cost metadata for row ${JSON.stringify(row.rowId)}.`);
+    if (!row.currency) {
+      throw new Error(`Missing objective cost currency for row ${JSON.stringify(row.rowId)}.`);
     }
+
+    const rowMetadata = {
+      currency: row.currency,
+      costBasisYear: row.costBasisYear ?? null,
+    } satisfies SolveObjectiveCostMetadata;
 
     if (!metadata) {
       metadata = rowMetadata;
@@ -115,6 +102,65 @@ function filterSolveRequestForOutputs(
   };
 }
 
+function expandActiveStateIdsForDerivedRows(
+  rows: NormalizedSolverRow[],
+  configuration: ResolvedConfigurationForSolve,
+): ResolvedConfigurationForSolve {
+  const derivedStateIdsByOutputYearBase = new Map<string, Map<string, Set<string>>>();
+
+  for (const row of rows) {
+    if (row.provenance?.kind !== 'efficiency_package') {
+      continue;
+    }
+
+    const outputYearKey = `${row.outputId}::${row.year}`;
+    const byBaseStateId = derivedStateIdsByOutputYearBase.get(outputYearKey) ?? new Map<string, Set<string>>();
+    const stateIds = byBaseStateId.get(row.provenance.baseStateId) ?? new Set<string>();
+    stateIds.add(row.stateId);
+    byBaseStateId.set(row.provenance.baseStateId, stateIds);
+    derivedStateIdsByOutputYearBase.set(outputYearKey, byBaseStateId);
+  }
+
+  const controlsByOutput = Object.entries(configuration.controlsByOutput).reduce<
+    Record<string, Record<string, ResolvedSolveControl>>
+  >((resolved, [outputId, controlsByYear]) => {
+    resolved[outputId] = Object.entries(controlsByYear).reduce<Record<string, ResolvedSolveControl>>(
+      (controls, [year, control]) => {
+        if (!control.activeStateIds || Number(year) === 2025) {
+          controls[year] = control;
+          return controls;
+        }
+
+        const byBaseStateId = derivedStateIdsByOutputYearBase.get(`${outputId}::${Number(year)}`);
+        if (!byBaseStateId) {
+          controls[year] = control;
+          return controls;
+        }
+
+        const expandedActiveStateIds = new Set(control.activeStateIds);
+        for (const activeStateId of control.activeStateIds) {
+          for (const derivedStateId of byBaseStateId.get(activeStateId) ?? []) {
+            expandedActiveStateIds.add(derivedStateId);
+          }
+        }
+
+        controls[year] = {
+          ...control,
+          activeStateIds: Array.from(expandedActiveStateIds),
+        };
+        return controls;
+      },
+      {},
+    );
+    return resolved;
+  }, {});
+
+  return {
+    ...configuration,
+    controlsByOutput,
+  };
+}
+
 export function collectOutputIdsForSelection(
   rows: NormalizedSolverRow[],
   selection: { sectors?: string[]; subsectors?: string[]; outputIds?: string[] },
@@ -153,8 +199,6 @@ export function buildSolveRequest(
     & Partial<Pick<PackageData, 'autonomousEfficiencyTracks' | 'efficiencyPackages'>>,
   configuration: ConfigurationDocument,
 ): SolveRequest {
-  const allRows = normalizeSolverRows(pkg);
-  const objectiveCostLookup = buildObjectiveCostLookup(pkg.sectorStates);
   const resolvedConfiguration = resolveConfigurationForSolve(
     configuration,
     pkg.appConfig,
@@ -164,11 +208,13 @@ export function buildSolveRequest(
       efficiencyPackages: pkg.efficiencyPackages,
     },
   );
+  const allRows = normalizeSolverRows(pkg, resolvedConfiguration.efficiency);
+  const expandedConfiguration = expandActiveStateIdsForDerivedRows(allRows, resolvedConfiguration);
 
-  const includedOutputIds = deriveIncludedOutputIds(allRows, resolvedConfiguration, pkg.appConfig);
+  const includedOutputIds = deriveIncludedOutputIds(allRows, expandedConfiguration, pkg.appConfig);
   const filtered = filterSolveRequestForOutputs(
     allRows,
-    resolvedConfiguration,
+    expandedConfiguration,
     includedOutputIds,
   );
 
@@ -181,6 +227,6 @@ export function buildSolveRequest(
     requestId: createRequestId(),
     rows: filtered.rows,
     configuration: filtered.configuration,
-    objectiveCost: resolveObjectiveCostMetadata(filtered.rows, objectiveCostLookup),
+    objectiveCost: resolveObjectiveCostMetadata(filtered.rows),
   };
 }

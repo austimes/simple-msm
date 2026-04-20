@@ -37,6 +37,16 @@ export interface NormalizedSolverEmission {
   source: 'energy' | 'process';
 }
 
+export interface NormalizedSolverRowProvenance {
+  kind: 'base_state' | 'efficiency_package';
+  familyId: string;
+  baseStateId: string;
+  baseRowId: string;
+  autonomousTrackIds: string[];
+  packageId?: string;
+  packageClassification?: 'pure_efficiency_overlay' | 'operational_efficiency_overlay';
+}
+
 export interface NormalizedSolverRow {
   rowId: string;
   outputId: string;
@@ -53,8 +63,11 @@ export interface NormalizedSolverRow {
   region: string;
   outputUnit: string;
   conversionCostPerUnit: number | null;
+  currency?: string;
+  costBasisYear?: number | null;
   inputs: NormalizedSolverInput[];
   directEmissions: NormalizedSolverEmission[];
+  provenance?: NormalizedSolverRowProvenance;
   bounds: {
     minShare: number | null;
     maxShare: number | null;
