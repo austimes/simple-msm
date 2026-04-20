@@ -224,6 +224,55 @@ export interface PackageEnrichment {
   sectorDerivations: Record<string, PackageCompanionDoc>;
 }
 
+export type EfficiencyPackageClassification =
+  | 'pure_efficiency_overlay'
+  | 'operational_efficiency_overlay';
+
+export interface AutonomousEfficiencyTrack {
+  family_id: string;
+  track_id: string;
+  year: number;
+  track_label: string;
+  track_description: string;
+  applicable_state_ids: string[];
+  affected_input_commodities: string[];
+  input_multipliers: number[];
+  delta_output_cost_per_unit: number;
+  cost_basis_year: number;
+  currency: string;
+  source_ids: string[];
+  assumption_ids: string[];
+  evidence_summary: string;
+  derivation_method: string;
+  confidence_rating: string;
+  double_counting_guardrail: string;
+  review_notes: string;
+}
+
+export interface EfficiencyPackage {
+  family_id: string;
+  package_id: string;
+  year: number;
+  package_label: string;
+  package_description: string;
+  classification: EfficiencyPackageClassification;
+  applicable_state_ids: string[];
+  affected_input_commodities: string[];
+  input_multipliers: number[];
+  delta_output_cost_per_unit: number;
+  cost_basis_year: number;
+  currency: string;
+  max_share: number | null;
+  rollout_limit_notes: string;
+  source_ids: string[];
+  assumption_ids: string[];
+  evidence_summary: string;
+  derivation_method: string;
+  confidence_rating: string;
+  review_notes: string;
+  non_stacking_group: string | null;
+}
+
 export interface SectorState {
   family_id: string;
   sector: string;
@@ -368,6 +417,8 @@ export interface EmissionsBalance2025Row {
 
 export interface PackageData {
   sectorStates: SectorState[];
+  autonomousEfficiencyTracks: AutonomousEfficiencyTrack[];
+  efficiencyPackages: EfficiencyPackage[];
   serviceDemandAnchors2025: ServiceDemandAnchorRow[];
   residualOverlays2025: ResidualOverlayRow[];
   commodityBalance2025: CommodityBalance2025Row[];

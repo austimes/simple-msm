@@ -6,6 +6,49 @@ import { parseCsv } from '../src/data/parseCsv.ts';
 
 const PACKAGE_ROOT = join(import.meta.dirname, '../../sector_trajectory_library');
 const MILESTONE_YEARS = ['2025', '2030', '2035', '2040', '2045', '2050'];
+const AUTONOMOUS_EFFICIENCY_HEADERS = [
+  'family_id',
+  'track_id',
+  'year',
+  'track_label',
+  'track_description',
+  'applicable_state_ids',
+  'affected_input_commodities',
+  'input_multipliers',
+  'delta_output_cost_per_unit',
+  'cost_basis_year',
+  'currency',
+  'source_ids',
+  'assumption_ids',
+  'evidence_summary',
+  'derivation_method',
+  'confidence_rating',
+  'double_counting_guardrail',
+  'review_notes',
+];
+const EFFICIENCY_PACKAGE_HEADERS = [
+  'family_id',
+  'package_id',
+  'year',
+  'package_label',
+  'package_description',
+  'classification',
+  'applicable_state_ids',
+  'affected_input_commodities',
+  'input_multipliers',
+  'delta_output_cost_per_unit',
+  'cost_basis_year',
+  'currency',
+  'max_share',
+  'rollout_limit_notes',
+  'source_ids',
+  'assumption_ids',
+  'evidence_summary',
+  'derivation_method',
+  'confidence_rating',
+  'review_notes',
+  'non_stacking_group',
+];
 
 function readText(relativePath) {
   return readFileSync(join(PACKAGE_ROOT, relativePath), 'utf8');
@@ -108,5 +151,19 @@ test('schema companions stay aligned with the authored CSV headers', () => {
     Object.keys(familyStatesSchema.properties ?? {}),
     parseHeader('families/electricity/family_states.csv'),
     'family_states.schema.json should match family_states.csv header order exactly',
+  );
+
+  const autonomousEfficiencySchema = JSON.parse(readText('schema/autonomous_efficiency_tracks.schema.json'));
+  assert.deepEqual(
+    Object.keys(autonomousEfficiencySchema.properties ?? {}),
+    AUTONOMOUS_EFFICIENCY_HEADERS,
+    'autonomous_efficiency_tracks.schema.json should declare the canonical header order exactly',
+  );
+
+  const efficiencyPackagesSchema = JSON.parse(readText('schema/efficiency_packages.schema.json'));
+  assert.deepEqual(
+    Object.keys(efficiencyPackagesSchema.properties ?? {}),
+    EFFICIENCY_PACKAGE_HEADERS,
+    'efficiency_packages.schema.json should declare the canonical header order exactly',
   );
 });

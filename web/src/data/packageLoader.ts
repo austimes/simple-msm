@@ -7,6 +7,7 @@ import {
 } from './configurationDocumentLoader.ts';
 import type {
   AppConfigRegistry,
+  AutonomousEfficiencyTrack,
   BaselineActivityAnchor,
   CommodityBalance2025Row,
   CommodityPriceDriver,
@@ -14,6 +15,8 @@ import type {
   DemandGrowthPreset,
   EmissionEntry,
   EmissionsBalance2025Row,
+  EfficiencyPackage,
+  EfficiencyPackageClassification,
   PackageData,
   PriceLevel,
   ResidualOverlayDomain,
@@ -104,6 +107,15 @@ interface NodePathLike {
 interface NodeUrlLike {
   fileURLToPath(url: string | URL): string;
 }
+
+interface EfficiencyArtifactValidationContext {
+  sourceIds: Set<string>;
+  assumptionIds: Set<string>;
+  stateIdsByFamilyId: Map<string, Set<string>>;
+}
+
+const PACKAGE_MILESTONE_YEARS = [2025, 2030, 2035, 2040, 2045, 2050] as const;
+const PACKAGE_MILESTONE_YEAR_SET = new Set<number>(PACKAGE_MILESTONE_YEARS);
 
 function getNodeBuiltin<T>(specifier: string): T | null {
   const processLike = (globalThis as { process?: { getBuiltinModule?: (name: string) => T | undefined } }).process;
@@ -201,10 +213,14 @@ function requirePackageFile(path: string): string {
   throw new Error(`Missing required package file: ${path}`);
 }
 
-function listPackageFiles(prefix: string, suffix: string): string[] {
-  return Object.keys(packageTextFiles)
+function listTextFiles(textFiles: Record<string, string>, prefix: string, suffix: string): string[] {
+  return Object.keys(textFiles)
     .filter((path) => path.startsWith(prefix) && path.endsWith(suffix))
     .sort((left, right) => left.localeCompare(right));
+}
+
+function listPackageFiles(prefix: string, suffix: string): string[] {
+  return listTextFiles(packageTextFiles, prefix, suffix);
 }
 
 function parseJsonArray<T>(raw: string): T[] {
@@ -231,9 +247,146 @@ function parseEmptyNull(raw: string | undefined): string | null {
   return raw;
 }
 
+function parseRequiredString(raw: string | undefined, label: string): string {
+  const value = raw?.trim();
+  if (!value) {
+    throw new Error(`Missing required ${label}`);
+  }
+
+  return value;
+}
+
+function parseRequiredNumber(raw: string | undefined, label: string): number {
+  const value = parseNum(raw ?? '');
+  if (value == null) {
+    throw new Error(`Invalid number for ${label}: ${JSON.stringify(raw ?? '')}`);
+  }
+
+  return value;
+}
+
+function parseOptionalNumber(raw: string | undefined, label: string): number | null {
+  if (!raw || raw.trim() === '') {
+    return null;
+  }
+
+  return parseRequiredNumber(raw, label);
+}
+
+function parseJsonArrayStrict<T>(raw: string | undefined, label: string): T[] {
+  const value = parseRequiredString(raw, label);
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch (error) {
+    throw new Error(
+      `Invalid JSON array for ${label}: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+
+  if (!Array.isArray(parsed)) {
+    throw new Error(`${label} must be a JSON array`);
+  }
+
+  return parsed as T[];
+}
+
+function parseJsonStringArrayStrict(raw: string | undefined, label: string): string[] {
+  const parsed = parseJsonArrayStrict<unknown>(raw, label);
+  if (!parsed.every((item) => typeof item === 'string')) {
+    throw new Error(`${label} must contain only strings`);
+  }
+
+  return parsed as string[];
+}
+
+function parseJsonNumberArrayStrict(raw: string | undefined, label: string): number[] {
+  const parsed = parseJsonArrayStrict<unknown>(raw, label);
+  if (!parsed.every((item) => typeof item === 'number' && Number.isFinite(item))) {
+    throw new Error(`${label} must contain only finite numbers`);
+  }
+
+  return parsed as number[];
+}
+
+function parseMilestoneYear(raw: string | undefined, label: string): number {
+  const year = parseRequiredNumber(raw, label);
+  if (!PACKAGE_MILESTONE_YEAR_SET.has(year)) {
+    throw new Error(
+      `${label} must be one of ${PACKAGE_MILESTONE_YEARS.join(', ')}; received ${year}`,
+    );
+  }
+
+  return year;
+}
+
+function requireKnownIds(ids: string[], knownIds: Set<string>, label: string, kind: string): void {
+  for (const id of ids) {
+    if (!knownIds.has(id)) {
+      throw new Error(`Unknown ${kind} ${JSON.stringify(id)} referenced in ${label}`);
+    }
+  }
+}
+
+function familyIdFromPath(path: string, suffix: string): string {
+  const familyId = path.slice('families/'.length, -suffix.length).split('/')[0];
+  if (!familyId) {
+    throw new Error(`Could not infer family_id from ${path}`);
+  }
+
+  return familyId;
+}
+
+function parseEfficiencyPackageClassification(
+  raw: string | undefined,
+  label: string,
+): EfficiencyPackageClassification {
+  const value = parseRequiredString(raw, label);
+  if (value === 'pure_efficiency_overlay' || value === 'operational_efficiency_overlay') {
+    return value;
+  }
+
+  throw new Error(
+    `${label} must be "pure_efficiency_overlay" or "operational_efficiency_overlay"; received ${JSON.stringify(value)}`,
+  );
+}
+
+function validateEfficiencyReferences(
+  familyId: string,
+  artifactLabel: string,
+  applicableStateIds: string[],
+  sourceIds: string[],
+  assumptionIds: string[],
+  context: EfficiencyArtifactValidationContext,
+): void {
+  const familyStateIds = context.stateIdsByFamilyId.get(familyId);
+  if (!familyStateIds) {
+    throw new Error(`Unknown family_id ${JSON.stringify(familyId)} referenced in ${artifactLabel}`);
+  }
+
+  requireKnownIds(applicableStateIds, familyStateIds, `${artifactLabel}.applicable_state_ids`, 'state_id');
+  requireKnownIds(sourceIds, context.sourceIds, `${artifactLabel}.source_ids`, 'source_id');
+  requireKnownIds(assumptionIds, context.assumptionIds, `${artifactLabel}.assumption_ids`, 'assumption_id');
+}
+
+function validateAlignedArrays(
+  artifactLabel: string,
+  left: unknown[],
+  leftLabel: string,
+  right: unknown[],
+  rightLabel: string,
+): void {
+  if (left.length !== right.length) {
+    throw new Error(
+      `${artifactLabel} must keep ${leftLabel} and ${rightLabel} aligned; received ${left.length} vs ${right.length}`,
+    );
+  }
+}
+
 function parseYearValueTable(row: Record<string, string>): Record<string, number> {
   return Object.fromEntries(
-    ['2025', '2030', '2035', '2040', '2045', '2050'].map((year) => [year, parseNum(row[year]) ?? 0]),
+    PACKAGE_MILESTONE_YEARS.map((year) => [String(year), parseNum(row[String(year)]) ?? 0]),
   );
 }
 
@@ -513,6 +666,212 @@ function toEmissionsBalance2025Row(row: Record<string, string>): EmissionsBalanc
   };
 }
 
+function toAutonomousEfficiencyTrack(
+  path: string,
+  row: Record<string, string>,
+  context: EfficiencyArtifactValidationContext,
+): AutonomousEfficiencyTrack {
+  const expectedFamilyId = familyIdFromPath(path, '/autonomous_efficiency_tracks.csv');
+  const family_id = parseRequiredString(row['family_id'], `${path}.family_id`);
+  if (family_id !== expectedFamilyId) {
+    throw new Error(
+      `${path} row family_id ${JSON.stringify(family_id)} must match folder family_id ${JSON.stringify(expectedFamilyId)}`,
+    );
+  }
+
+  const track_id = parseRequiredString(row['track_id'], `${path}.track_id`);
+  const artifactLabel = `${path}:${track_id}`;
+  const applicable_state_ids = parseJsonStringArrayStrict(
+    row['applicable_state_ids'],
+    `${artifactLabel}.applicable_state_ids`,
+  );
+  const affected_input_commodities = parseJsonStringArrayStrict(
+    row['affected_input_commodities'],
+    `${artifactLabel}.affected_input_commodities`,
+  );
+  const input_multipliers = parseJsonNumberArrayStrict(
+    row['input_multipliers'],
+    `${artifactLabel}.input_multipliers`,
+  );
+  const source_ids = parseJsonStringArrayStrict(row['source_ids'], `${artifactLabel}.source_ids`);
+  const assumption_ids = parseJsonStringArrayStrict(
+    row['assumption_ids'],
+    `${artifactLabel}.assumption_ids`,
+  );
+
+  validateAlignedArrays(
+    artifactLabel,
+    affected_input_commodities,
+    'affected_input_commodities',
+    input_multipliers,
+    'input_multipliers',
+  );
+  validateEfficiencyReferences(
+    family_id,
+    artifactLabel,
+    applicable_state_ids,
+    source_ids,
+    assumption_ids,
+    context,
+  );
+
+  return {
+    family_id,
+    track_id,
+    year: parseMilestoneYear(row['year'], `${artifactLabel}.year`),
+    track_label: parseRequiredString(row['track_label'], `${artifactLabel}.track_label`),
+    track_description: parseRequiredString(
+      row['track_description'],
+      `${artifactLabel}.track_description`,
+    ),
+    applicable_state_ids,
+    affected_input_commodities,
+    input_multipliers,
+    delta_output_cost_per_unit: parseRequiredNumber(
+      row['delta_output_cost_per_unit'],
+      `${artifactLabel}.delta_output_cost_per_unit`,
+    ),
+    cost_basis_year: parseRequiredNumber(row['cost_basis_year'], `${artifactLabel}.cost_basis_year`),
+    currency: parseRequiredString(row['currency'], `${artifactLabel}.currency`),
+    source_ids,
+    assumption_ids,
+    evidence_summary: parseRequiredString(
+      row['evidence_summary'],
+      `${artifactLabel}.evidence_summary`,
+    ),
+    derivation_method: parseRequiredString(
+      row['derivation_method'],
+      `${artifactLabel}.derivation_method`,
+    ),
+    confidence_rating: parseRequiredString(
+      row['confidence_rating'],
+      `${artifactLabel}.confidence_rating`,
+    ),
+    double_counting_guardrail: parseRequiredString(
+      row['double_counting_guardrail'],
+      `${artifactLabel}.double_counting_guardrail`,
+    ),
+    review_notes: parseRequiredString(row['review_notes'], `${artifactLabel}.review_notes`),
+  };
+}
+
+function toEfficiencyPackage(
+  path: string,
+  row: Record<string, string>,
+  context: EfficiencyArtifactValidationContext,
+): EfficiencyPackage {
+  const expectedFamilyId = familyIdFromPath(path, '/efficiency_packages.csv');
+  const family_id = parseRequiredString(row['family_id'], `${path}.family_id`);
+  if (family_id !== expectedFamilyId) {
+    throw new Error(
+      `${path} row family_id ${JSON.stringify(family_id)} must match folder family_id ${JSON.stringify(expectedFamilyId)}`,
+    );
+  }
+
+  const package_id = parseRequiredString(row['package_id'], `${path}.package_id`);
+  const artifactLabel = `${path}:${package_id}`;
+  const applicable_state_ids = parseJsonStringArrayStrict(
+    row['applicable_state_ids'],
+    `${artifactLabel}.applicable_state_ids`,
+  );
+  const affected_input_commodities = parseJsonStringArrayStrict(
+    row['affected_input_commodities'],
+    `${artifactLabel}.affected_input_commodities`,
+  );
+  const input_multipliers = parseJsonNumberArrayStrict(
+    row['input_multipliers'],
+    `${artifactLabel}.input_multipliers`,
+  );
+  const source_ids = parseJsonStringArrayStrict(row['source_ids'], `${artifactLabel}.source_ids`);
+  const assumption_ids = parseJsonStringArrayStrict(
+    row['assumption_ids'],
+    `${artifactLabel}.assumption_ids`,
+  );
+
+  validateAlignedArrays(
+    artifactLabel,
+    affected_input_commodities,
+    'affected_input_commodities',
+    input_multipliers,
+    'input_multipliers',
+  );
+  validateEfficiencyReferences(
+    family_id,
+    artifactLabel,
+    applicable_state_ids,
+    source_ids,
+    assumption_ids,
+    context,
+  );
+
+  return {
+    family_id,
+    package_id,
+    year: parseMilestoneYear(row['year'], `${artifactLabel}.year`),
+    package_label: parseRequiredString(row['package_label'], `${artifactLabel}.package_label`),
+    package_description: parseRequiredString(
+      row['package_description'],
+      `${artifactLabel}.package_description`,
+    ),
+    classification: parseEfficiencyPackageClassification(
+      row['classification'],
+      `${artifactLabel}.classification`,
+    ),
+    applicable_state_ids,
+    affected_input_commodities,
+    input_multipliers,
+    delta_output_cost_per_unit: parseRequiredNumber(
+      row['delta_output_cost_per_unit'],
+      `${artifactLabel}.delta_output_cost_per_unit`,
+    ),
+    cost_basis_year: parseRequiredNumber(row['cost_basis_year'], `${artifactLabel}.cost_basis_year`),
+    currency: parseRequiredString(row['currency'], `${artifactLabel}.currency`),
+    max_share: parseOptionalNumber(row['max_share'], `${artifactLabel}.max_share`),
+    rollout_limit_notes: parseRequiredString(
+      row['rollout_limit_notes'],
+      `${artifactLabel}.rollout_limit_notes`,
+    ),
+    source_ids,
+    assumption_ids,
+    evidence_summary: parseRequiredString(
+      row['evidence_summary'],
+      `${artifactLabel}.evidence_summary`,
+    ),
+    derivation_method: parseRequiredString(
+      row['derivation_method'],
+      `${artifactLabel}.derivation_method`,
+    ),
+    confidence_rating: parseRequiredString(
+      row['confidence_rating'],
+      `${artifactLabel}.confidence_rating`,
+    ),
+    review_notes: parseRequiredString(row['review_notes'], `${artifactLabel}.review_notes`),
+    non_stacking_group: parseEmptyNull(row['non_stacking_group']),
+  };
+}
+
+export function loadEfficiencyArtifacts(
+  textFiles: Record<string, string>,
+  context: EfficiencyArtifactValidationContext,
+): Pick<PackageData, 'autonomousEfficiencyTracks' | 'efficiencyPackages'> {
+  const autonomousEfficiencyTracks = listTextFiles(
+    textFiles,
+    'families/',
+    '/autonomous_efficiency_tracks.csv',
+  ).flatMap((path) => parseCsv(textFiles[path] ?? '').map((row) => toAutonomousEfficiencyTrack(path, row, context)));
+
+  const efficiencyPackages = listTextFiles(
+    textFiles,
+    'families/',
+    '/efficiency_packages.csv',
+  ).flatMap((path) => parseCsv(textFiles[path] ?? '').map((row) => toEfficiencyPackage(path, row, context)));
+
+  return {
+    autonomousEfficiencyTracks,
+    efficiencyPackages,
+  };
+}
+
 function buildBaselineAnchors(
   families: FamilyRegistryRow[],
   familyDemands: FamilyDemandRow[],
@@ -641,6 +1000,8 @@ export function loadPackage(): PackageData {
 
     return {
       sectorStates: [],
+      autonomousEfficiencyTracks: [],
+      efficiencyPackages: [],
       serviceDemandAnchors2025: [],
       residualOverlays2025: [],
       commodityBalance2025: [],
@@ -664,6 +1025,23 @@ export function loadPackage(): PackageData {
       }
       return toSectorState(family, row);
     });
+  });
+  const sourceIds = new Set(
+    parseCsv(requirePackageFile('shared/source_ledger.csv')).map((row) => row['source_id']),
+  );
+  const assumptionIds = new Set(
+    parseCsv(requirePackageFile('shared/assumptions_ledger.csv')).map((row) => row['assumption_id']),
+  );
+  const stateIdsByFamilyId = sectorStates.reduce<Map<string, Set<string>>>((result, row) => {
+    const stateIds = result.get(row.family_id) ?? new Set<string>();
+    stateIds.add(row.state_id);
+    result.set(row.family_id, stateIds);
+    return result;
+  }, new Map<string, Set<string>>());
+  const { autonomousEfficiencyTracks, efficiencyPackages } = loadEfficiencyArtifacts(packageTextFiles, {
+    sourceIds,
+    assumptionIds,
+    stateIdsByFamilyId,
   });
 
   const familyDemands = listPackageFiles('families/', '/demand.csv').map((path) => {
@@ -708,6 +1086,8 @@ export function loadPackage(): PackageData {
 
   return {
     sectorStates,
+    autonomousEfficiencyTracks,
+    efficiencyPackages,
     serviceDemandAnchors2025,
     residualOverlays2025,
     commodityBalance2025,
