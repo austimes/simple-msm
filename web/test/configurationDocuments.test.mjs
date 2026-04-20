@@ -173,6 +173,107 @@ test('residual overlay materialization backfills CSV-driven defaults and aggrega
   );
 });
 
+test('configuration documents accept the compact efficiency control shape', async () => {
+  const { parseConfigurationDocument } = await loadViteModule('/src/data/configurationDocumentLoader.ts');
+  const configuration = structuredClone(readJson('../src/configurations/buildings-endogenous.json'));
+
+  configuration.efficiency_controls = {
+    autonomous_mode: 'off',
+    package_mode: 'allow_list',
+    package_ids: ['retrofit_package'],
+  };
+
+  const parsed = parseConfigurationDocument(
+    JSON.stringify(configuration),
+    appConfig,
+    'efficiency-controls fixture',
+  );
+
+  assert.deepEqual(parsed.efficiency_controls, configuration.efficiency_controls);
+
+  configuration.efficiency_controls.package_mode = 'unsupported';
+  assert.throws(
+    () => parseConfigurationDocument(JSON.stringify(configuration), appConfig, 'bad efficiency-controls fixture'),
+    /must be one of off, all, allow_list, deny_list/,
+  );
+});
+
+test('efficiency materialization backfills defaults, normalizes package ids, and rejects unknown ids', async () => {
+  const { materializeEfficiencyConfiguration } = await loadViteModule('/src/data/configurationDocumentLoader.ts');
+  const configuration = structuredClone(readJson('../src/configurations/buildings-endogenous.json'));
+  const tracks = [
+    { track_id: 'background_standards_drift' },
+  ];
+  const packages = [
+    { family_id: 'residential_building_services', package_id: 'retrofit_shell' },
+    { family_id: 'commercial_building_services', package_id: 'hvac_tuning' },
+  ];
+
+  const defaults = materializeEfficiencyConfiguration(
+    structuredClone(configuration),
+    tracks,
+    packages,
+  );
+
+  assert.deepEqual(defaults.efficiency_controls, {
+    autonomous_mode: 'baseline',
+    package_mode: 'off',
+    package_ids: [],
+  });
+
+  configuration.efficiency_controls = {
+    autonomous_mode: 'baseline',
+    package_mode: 'allow_list',
+    package_ids: ['hvac_tuning', 'retrofit_shell', 'hvac_tuning'],
+  };
+
+  const allowList = materializeEfficiencyConfiguration(configuration, tracks, packages);
+  assert.deepEqual(allowList.efficiency_controls, {
+    autonomous_mode: 'baseline',
+    package_mode: 'allow_list',
+    package_ids: ['hvac_tuning', 'retrofit_shell'],
+  });
+
+  configuration.efficiency_controls.package_ids = ['missing_package'];
+  assert.throws(
+    () => materializeEfficiencyConfiguration(configuration, tracks, packages),
+    /Unknown efficiency package id "missing_package"/,
+  );
+});
+
+test('buildSolveRequest resolves efficiency controls into active track and package ids', () => {
+  const configuration = structuredClone(readJson('../src/configurations/buildings-endogenous.json'));
+  configuration.efficiency_controls = {
+    autonomous_mode: 'off',
+    package_mode: 'deny_list',
+    package_ids: ['commercial_hvac_tuning'],
+  };
+
+  const request = buildSolveRequest(
+    {
+      ...pkg,
+      autonomousEfficiencyTracks: [
+        { track_id: 'background_standards_drift' },
+        { track_id: 'background_vehicle_efficiency_drift' },
+      ],
+      efficiencyPackages: [
+        { family_id: 'residential_building_services', package_id: 'residential_shell_retrofit' },
+        { family_id: 'commercial_building_services', package_id: 'commercial_hvac_tuning' },
+        { family_id: 'low_temperature_heat', package_id: 'boiler_insulation' },
+      ],
+    },
+    configuration,
+  );
+
+  assert.deepEqual(request.configuration.efficiency, {
+    autonomousMode: 'off',
+    activeTrackIds: [],
+    packageMode: 'deny_list',
+    configuredPackageIds: ['commercial_hvac_tuning'],
+    activePackageIds: ['boiler_insulation', 'residential_shell_retrofit'],
+  });
+});
+
 test('configuration id helper prefers app metadata ids and falls back to legacy top-level ids', async () => {
   const { getConfigurationDocumentId } = await loadViteModule('/src/data/configurationMetadata.ts');
 

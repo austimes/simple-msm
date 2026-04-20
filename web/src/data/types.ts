@@ -68,6 +68,20 @@ export interface ConfigurationSolverOptions {
   share_smoothing?: ConfigurationShareSmoothing;
 }
 
+export type ConfigurationAutonomousEfficiencyMode = 'baseline' | 'off';
+
+export type ConfigurationEfficiencyPackageMode =
+  | 'off'
+  | 'all'
+  | 'allow_list'
+  | 'deny_list';
+
+export interface ConfigurationEfficiencyControls {
+  autonomous_mode?: ConfigurationAutonomousEfficiencyMode;
+  package_mode?: ConfigurationEfficiencyPackageMode;
+  package_ids?: string[] | null;
+}
+
 export interface ConfigurationAppMetadata {
   id?: string;
   readonly?: boolean;
@@ -89,6 +103,7 @@ export interface ConfigurationDocument {
   external_commodity_demands?: Record<string, ConfigurationYearValueTable>;
   commodity_pricing: ConfigurationCommodityPricing;
   carbon_price: ConfigurationYearValueTable;
+  efficiency_controls?: ConfigurationEfficiencyControls;
   residual_overlays?: ConfigurationResidualOverlays;
   presentation_options?: ConfigurationPresentationOptions;
   solver_options?: ConfigurationSolverOptions;

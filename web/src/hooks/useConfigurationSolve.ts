@@ -27,6 +27,8 @@ export function useConfigurationSolve(
 ): SolveState {
   const sectorStates = usePackageStore((state) => state.sectorStates);
   const appConfig = usePackageStore((state) => state.appConfig);
+  const autonomousEfficiencyTracks = usePackageStore((state) => state.autonomousEfficiencyTracks);
+  const efficiencyPackages = usePackageStore((state) => state.efficiencyPackages);
   const currentConfiguration = usePackageStore((state) => state.currentConfiguration);
   const configuration = configurationOverride ?? currentConfiguration;
 
@@ -55,7 +57,10 @@ export function useConfigurationSolve(
 
     let builtRequest: SolveRequest;
     try {
-      builtRequest = buildSolveRequest({ sectorStates, appConfig }, configSnapshot);
+      builtRequest = buildSolveRequest(
+        { sectorStates, appConfig, autonomousEfficiencyTracks, efficiencyPackages },
+        configSnapshot,
+      );
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to build solve request.';
       setPhase('error');
@@ -105,7 +110,7 @@ export function useConfigurationSolve(
           result: null,
         });
       });
-  }, [appConfig, configuration, sectorStates]);
+  }, [appConfig, autonomousEfficiencyTracks, configuration, efficiencyPackages, sectorStates]);
 
   // Auto-solve whenever the active document changes.
   useEffect(() => {

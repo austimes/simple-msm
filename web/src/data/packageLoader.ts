@@ -3,6 +3,7 @@ import { buildPackageEnrichment, normalizePackageTextFiles } from './packageComp
 import { parseCsv } from './parseCsv.ts';
 import {
   loadDefaultConfiguration,
+  materializeEfficiencyConfiguration,
   materializeResidualOverlayConfiguration,
 } from './configurationDocumentLoader.ts';
 import type {
@@ -993,8 +994,12 @@ export function loadPackage(): PackageData {
   const appConfig = loadAppConfig();
   if (Object.keys(packageTextFiles).length === 0) {
     const enrichment = buildPackageEnrichment({});
-    const defaultConfiguration = materializeResidualOverlayConfiguration(
-      loadDefaultConfiguration(appConfig),
+    const defaultConfiguration = materializeEfficiencyConfiguration(
+      materializeResidualOverlayConfiguration(
+        loadDefaultConfiguration(appConfig),
+        [],
+      ),
+      [],
       [],
     );
 
@@ -1079,9 +1084,13 @@ export function loadPackage(): PackageData {
   ).map(toEmissionsBalance2025Row);
 
   const enrichment = buildPackageEnrichment(packageTextFiles);
-  const defaultConfiguration = materializeResidualOverlayConfiguration(
-    loadDefaultConfiguration(appConfig),
-    residualOverlays2025,
+  const defaultConfiguration = materializeEfficiencyConfiguration(
+    materializeResidualOverlayConfiguration(
+      loadDefaultConfiguration(appConfig),
+      residualOverlays2025,
+    ),
+    autonomousEfficiencyTracks,
+    efficiencyPackages,
   );
 
   return {

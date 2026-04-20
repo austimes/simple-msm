@@ -1,4 +1,9 @@
-import type { OutputRole, ConfigurationControlMode } from '../data/types.ts';
+import type {
+  ConfigurationAutonomousEfficiencyMode,
+  ConfigurationControlMode,
+  ConfigurationEfficiencyPackageMode,
+  OutputRole,
+} from '../data/types.ts';
 
 export const SOLVER_CONTRACT_VERSION = 4 as const;
 
@@ -68,6 +73,14 @@ export interface ResolvedCommodityPriceSeries {
   valuesByYear: Record<string, number>;
 }
 
+export interface ResolvedConfigurationEfficiencyControls {
+  autonomousMode: ConfigurationAutonomousEfficiencyMode;
+  activeTrackIds: string[];
+  packageMode: ConfigurationEfficiencyPackageMode;
+  configuredPackageIds: string[];
+  activePackageIds: string[];
+}
+
 export interface ResolvedConfigurationForSolve {
   name: string;
   description: string | null;
@@ -77,6 +90,7 @@ export interface ResolvedConfigurationForSolve {
   externalCommodityDemandByCommodity: Record<string, Record<string, number>>;
   commodityPriceByCommodity: Record<string, ResolvedCommodityPriceSeries>;
   carbonPriceByYear: Record<string, number>;
+  efficiency?: ResolvedConfigurationEfficiencyControls;
   options: {
     respectMaxShare: boolean;
     respectMaxActivity: boolean;

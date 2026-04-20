@@ -1,17 +1,21 @@
 import type {
   AppConfigRegistry,
+  AutonomousEfficiencyTrack,
   CommodityPriceSeries,
+  EfficiencyPackage,
   PackageData,
   ConfigurationDocument,
   ConfigurationServiceControl,
   SectorState,
 } from '../data/types.ts';
 import { normalizeCommodityInput } from '../data/commodityMetadata.ts';
+import { materializeEfficiencyConfiguration } from '../data/configurationDocumentLoader.ts';
 import { resolveConfigurationDocument } from '../data/demandResolution.ts';
 import { derivePathwayStateIds } from '../data/pathwaySemantics.ts';
 import type {
   NormalizedSolverRow,
   ResolvedCommodityPriceSeries,
+  ResolvedConfigurationEfficiencyControls,
   ResolvedConfigurationForSolve,
   ResolvedSolveControl,
 } from './contract.ts';
@@ -149,6 +153,41 @@ function resolveCommodityPriceSeries(
   };
 }
 
+function resolveEfficiencyControlsForSolve(
+  configuration: ConfigurationDocument,
+  autonomousEfficiencyTracks: Pick<AutonomousEfficiencyTrack, 'track_id'>[],
+  efficiencyPackages: Pick<EfficiencyPackage, 'family_id' | 'package_id'>[],
+): ResolvedConfigurationEfficiencyControls {
+  const materializedConfiguration = materializeEfficiencyConfiguration(
+    configuration,
+    autonomousEfficiencyTracks,
+    efficiencyPackages,
+  );
+  const controls = materializedConfiguration.efficiency_controls;
+  const allTrackIds = Array.from(
+    new Set(autonomousEfficiencyTracks.map((track) => track.track_id)),
+  ).sort((left, right) => left.localeCompare(right));
+  const allPackageIds = Array.from(
+    new Set(efficiencyPackages.map((pkg) => pkg.package_id)),
+  ).sort((left, right) => left.localeCompare(right));
+  const configuredPackageIds = controls?.package_ids ?? [];
+  const deniedIds = new Set(configuredPackageIds);
+
+  return {
+    autonomousMode: controls?.autonomous_mode ?? 'baseline',
+    activeTrackIds: controls?.autonomous_mode === 'off' ? [] : allTrackIds,
+    packageMode: controls?.package_mode ?? 'off',
+    configuredPackageIds,
+    activePackageIds: controls?.package_mode === 'all'
+      ? allPackageIds
+      : controls?.package_mode === 'allow_list'
+        ? configuredPackageIds
+        : controls?.package_mode === 'deny_list'
+          ? allPackageIds.filter((packageId) => !deniedIds.has(packageId))
+          : [],
+  };
+}
+
 export function normalizeSolverRows(
   pkg: Pick<PackageData, 'sectorStates' | 'appConfig'>,
 ): NormalizedSolverRow[] {
@@ -217,11 +256,17 @@ export function resolveConfigurationForSolve(
   configuration: ConfigurationDocument,
   appConfig: AppConfigRegistry,
   sectorStates?: Pick<SectorState, 'service_or_output_name' | 'year' | 'state_id' | 'is_default_incumbent_2025'>[],
+  efficiencyArtifacts?: Partial<Pick<PackageData, 'autonomousEfficiencyTracks' | 'efficiencyPackages'>>,
 ): ResolvedConfigurationForSolve {
   const resolvedConfiguration = resolveConfigurationDocument(configuration, appConfig);
   const years = [...resolvedConfiguration.years];
   const incumbentByOutput = collectIncumbentStateIdsByOutput(sectorStates);
   const stateIdsByOutputYear = collectStateIdsByOutputYear(sectorStates);
+  const efficiency = resolveEfficiencyControlsForSolve(
+    resolvedConfiguration,
+    efficiencyArtifacts?.autonomousEfficiencyTracks ?? [],
+    efficiencyArtifacts?.efficiencyPackages ?? [],
+  );
   const controlsByOutput = Object.entries(appConfig.output_roles).reduce<
     Record<string, Record<string, ResolvedSolveControl>>
   >((resolved, [outputId, metadata]) => {
@@ -310,6 +355,7 @@ export function resolveConfigurationForSolve(
     externalCommodityDemandByCommodity,
     commodityPriceByCommodity,
     carbonPriceByYear,
+    efficiency,
     options: {
       respectMaxShare: resolvedConfiguration.solver_options?.respect_max_share ?? true,
       respectMaxActivity: resolvedConfiguration.solver_options?.respect_max_activity ?? true,

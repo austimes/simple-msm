@@ -149,12 +149,21 @@ export function collectOutputIdsForSelection(
 }
 
 export function buildSolveRequest(
-  pkg: Pick<PackageData, 'sectorStates' | 'appConfig'>,
+  pkg: Pick<PackageData, 'sectorStates' | 'appConfig'>
+    & Partial<Pick<PackageData, 'autonomousEfficiencyTracks' | 'efficiencyPackages'>>,
   configuration: ConfigurationDocument,
 ): SolveRequest {
   const allRows = normalizeSolverRows(pkg);
   const objectiveCostLookup = buildObjectiveCostLookup(pkg.sectorStates);
-  const resolvedConfiguration = resolveConfigurationForSolve(configuration, pkg.appConfig, pkg.sectorStates);
+  const resolvedConfiguration = resolveConfigurationForSolve(
+    configuration,
+    pkg.appConfig,
+    pkg.sectorStates,
+    {
+      autonomousEfficiencyTracks: pkg.autonomousEfficiencyTracks,
+      efficiencyPackages: pkg.efficiencyPackages,
+    },
+  );
 
   const includedOutputIds = deriveIncludedOutputIds(allRows, resolvedConfiguration, pkg.appConfig);
   const filtered = filterSolveRequestForOutputs(

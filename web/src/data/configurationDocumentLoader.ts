@@ -7,7 +7,14 @@ import {
   getResidualOverlayDisplayMode,
 } from './residualOverlayPresentation.ts';
 import { resolveConfigurationDocument } from './demandResolution.ts';
-import type { AppConfigRegistry, ConfigurationDocument, ConfigurationResidualOverlays, ResidualOverlayRow } from './types.ts';
+import type {
+  AppConfigRegistry,
+  AutonomousEfficiencyTrack,
+  ConfigurationDocument,
+  ConfigurationResidualOverlays,
+  EfficiencyPackage,
+  ResidualOverlayRow,
+} from './types.ts';
 
 type JsonObject = Record<string, unknown>;
 
@@ -163,6 +170,67 @@ export function materializeResidualOverlayConfiguration(
     presentation_options: {
       ...(configuration.presentation_options ?? {}),
       residual_overlay_display_mode: displayMode ?? DEFAULT_RESIDUAL_OVERLAY_DISPLAY_MODE,
+    },
+  };
+}
+
+function normalizeConfiguredPackageIds(packageIds: string[] | null | undefined): string[] {
+  return Array.from(
+    new Set(
+      (packageIds ?? [])
+        .filter((packageId): packageId is string => typeof packageId === 'string')
+        .map((packageId) => packageId.trim())
+        .filter((packageId) => packageId.length > 0),
+    ),
+  ).sort((left, right) => left.localeCompare(right));
+}
+
+function buildPackageFamiliesById(
+  efficiencyPackages: Pick<EfficiencyPackage, 'family_id' | 'package_id'>[],
+): Map<string, Set<string>> {
+  return efficiencyPackages.reduce<Map<string, Set<string>>>((familiesById, row) => {
+    const families = familiesById.get(row.package_id) ?? new Set<string>();
+    families.add(row.family_id);
+    familiesById.set(row.package_id, families);
+    return familiesById;
+  }, new Map<string, Set<string>>());
+}
+
+export function materializeEfficiencyConfiguration(
+  configuration: ConfigurationDocument,
+  _autonomousEfficiencyTracks: Pick<AutonomousEfficiencyTrack, 'track_id'>[],
+  efficiencyPackages: Pick<EfficiencyPackage, 'family_id' | 'package_id'>[],
+): ConfigurationDocument {
+  const autonomousMode = configuration.efficiency_controls?.autonomous_mode ?? 'baseline';
+  const packageMode = configuration.efficiency_controls?.package_mode ?? 'off';
+  const configuredPackageIds = normalizeConfiguredPackageIds(
+    configuration.efficiency_controls?.package_ids,
+  );
+  const packageFamiliesById = buildPackageFamiliesById(efficiencyPackages);
+
+  if (packageMode === 'allow_list' || packageMode === 'deny_list') {
+    for (const packageId of configuredPackageIds) {
+      const families = packageFamiliesById.get(packageId);
+      if (!families) {
+        throw new Error(`Unknown efficiency package id ${JSON.stringify(packageId)} in efficiency_controls.package_ids.`);
+      }
+
+      if (families.size > 1) {
+        throw new Error(
+          `Ambiguous efficiency package id ${JSON.stringify(packageId)} is shared by families ${Array.from(families).sort().join(', ')}.`,
+        );
+      }
+    }
+  }
+
+  return {
+    ...configuration,
+    efficiency_controls: {
+      autonomous_mode: autonomousMode,
+      package_mode: packageMode,
+      package_ids: packageMode === 'allow_list' || packageMode === 'deny_list'
+        ? configuredPackageIds
+        : [],
     },
   };
 }

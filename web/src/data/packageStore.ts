@@ -20,7 +20,10 @@ import {
   isReadonlyConfiguration,
   loadBuiltinConfigurations,
 } from './configurationLoader.ts';
-import { materializeResidualOverlayConfiguration } from './configurationDocumentLoader.ts';
+import {
+  materializeEfficiencyConfiguration,
+  materializeResidualOverlayConfiguration,
+} from './configurationDocumentLoader.ts';
 import { isAggregatableResidualOverlay } from './residualOverlayPresentation.ts';
 import { getActiveStateIds } from './configurationWorkspaceModel.ts';
 
@@ -129,9 +132,15 @@ function persistActiveConfigurationMeta(state: {
 
 function materializeConfiguration(
   configuration: ConfigurationDocument,
+  autonomousEfficiencyTracks: PackageData['autonomousEfficiencyTracks'],
+  efficiencyPackages: PackageData['efficiencyPackages'],
   residualOverlays2025: PackageData['residualOverlays2025'],
 ): ConfigurationDocument {
-  return materializeResidualOverlayConfiguration(configuration, residualOverlays2025);
+  return materializeEfficiencyConfiguration(
+    materializeResidualOverlayConfiguration(configuration, residualOverlays2025),
+    autonomousEfficiencyTracks,
+    efficiencyPackages,
+  );
 }
 
 export const usePackageStore = create<PackageStore>((set, get) => {
@@ -149,6 +158,8 @@ export const usePackageStore = create<PackageStore>((set, get) => {
   if (persistedDraft.configuration) {
     initialConfiguration = materializeConfiguration(
       cloneConfiguration(persistedDraft.configuration),
+      pkg.autonomousEfficiencyTracks,
+      pkg.efficiencyPackages,
       pkg.residualOverlays2025,
     );
     initialSource = 'local_draft';
@@ -159,6 +170,8 @@ export const usePackageStore = create<PackageStore>((set, get) => {
       initialConfigReadonly = restoredMeta.activeConfigurationReadonly;
       initialBaseConfiguration = materializeConfiguration(
         cloneConfiguration(restoredMeta.baseConfiguration),
+        pkg.autonomousEfficiencyTracks,
+        pkg.efficiencyPackages,
         pkg.residualOverlays2025,
       );
       initialDirty =
@@ -173,6 +186,8 @@ export const usePackageStore = create<PackageStore>((set, get) => {
 
       initialConfiguration = materializeConfiguration(
         cloneConfiguration(defaultConfig),
+        pkg.autonomousEfficiencyTracks,
+        pkg.efficiencyPackages,
         pkg.residualOverlays2025,
       );
       initialSource = 'configuration';
@@ -189,6 +204,8 @@ export const usePackageStore = create<PackageStore>((set, get) => {
     } else {
       initialConfiguration = materializeConfiguration(
         cloneConfiguration(pkg.defaultConfiguration),
+        pkg.autonomousEfficiencyTracks,
+        pkg.efficiencyPackages,
         pkg.residualOverlays2025,
       );
       initialSource = 'reference';
@@ -231,6 +248,8 @@ export const usePackageStore = create<PackageStore>((set, get) => {
     replaceCurrentConfiguration: (configuration, source = 'draft', notice = null) => {
       const nextConfiguration = materializeConfiguration(
         cloneConfiguration(configuration),
+        get().autonomousEfficiencyTracks,
+        get().efficiencyPackages,
         get().residualOverlays2025,
       );
       const persistenceError = persistConfigurationDraft(nextConfiguration);
@@ -275,6 +294,8 @@ export const usePackageStore = create<PackageStore>((set, get) => {
         const defaultConfigId = getConfigurationId(defaultConfig) ?? defaultConfig.name;
         const nextConfiguration = materializeConfiguration(
           cloneConfiguration(defaultConfig),
+          get().autonomousEfficiencyTracks,
+          get().efficiencyPackages,
           get().residualOverlays2025,
         );
 
@@ -293,6 +314,8 @@ export const usePackageStore = create<PackageStore>((set, get) => {
 
       const nextConfiguration = materializeConfiguration(
         cloneConfiguration(get().defaultConfiguration),
+        get().autonomousEfficiencyTracks,
+        get().efficiencyPackages,
         get().residualOverlays2025,
       );
 
@@ -436,6 +459,8 @@ export const usePackageStore = create<PackageStore>((set, get) => {
     loadConfiguration: (config) => {
       const nextConfiguration = materializeConfiguration(
         cloneConfiguration(config),
+        get().autonomousEfficiencyTracks,
+        get().efficiencyPackages,
         get().residualOverlays2025,
       );
       const baseConfiguration = cloneConfiguration(nextConfiguration);

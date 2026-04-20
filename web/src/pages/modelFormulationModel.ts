@@ -2,9 +2,11 @@ import { summarizeOverlayTotals } from '../data/balanceDiagnostics.ts';
 import { getCommodityMetadata } from '../data/commodityMetadata.ts';
 import type {
   AppConfigRegistry,
+  AutonomousEfficiencyTrack,
   CommodityBalance2025Row,
   ConfigurationDocument,
   ConfigurationYearKey,
+  EfficiencyPackage,
   EmissionsBalance2025Row,
   ResidualOverlayRow,
   SectorState,
@@ -293,6 +295,8 @@ interface ModelFormulationInput {
   sectorStates: SectorState[];
   appConfig: AppConfigRegistry;
   currentConfiguration: ConfigurationDocument;
+  autonomousEfficiencyTracks: AutonomousEfficiencyTrack[];
+  efficiencyPackages: EfficiencyPackage[];
   residualOverlays2025: ResidualOverlayRow[];
   commodityBalance2025: CommodityBalance2025Row[];
   emissionsBalance2025: EmissionsBalance2025Row[];
@@ -626,6 +630,8 @@ export function buildModelFormulationViewModel({
   sectorStates,
   appConfig,
   currentConfiguration,
+  autonomousEfficiencyTracks,
+  efficiencyPackages,
   residualOverlays2025,
   commodityBalance2025,
   emissionsBalance2025,
@@ -642,8 +648,14 @@ export function buildModelFormulationViewModel({
   let request: SolveRequest | null = null;
 
   try {
-    resolvedConfiguration = resolveConfigurationForSolve(currentConfiguration, appConfig);
-    request = buildSolveRequest({ sectorStates, appConfig }, currentConfiguration);
+    resolvedConfiguration = resolveConfigurationForSolve(currentConfiguration, appConfig, sectorStates, {
+      autonomousEfficiencyTracks,
+      efficiencyPackages,
+    });
+    request = buildSolveRequest(
+      { sectorStates, appConfig, autonomousEfficiencyTracks, efficiencyPackages },
+      currentConfiguration,
+    );
   } catch (error) {
     liveExamplesWarning = error instanceof Error
       ? `Live examples are unavailable for the active configuration: ${error.message}`
