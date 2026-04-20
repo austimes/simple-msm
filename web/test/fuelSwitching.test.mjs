@@ -222,8 +222,9 @@ test('fuel switching chart renders stacked years on the x-axis with pair-specifi
 
   assert.match(
     html,
-    /workspace-chart-toggle-button workspace-chart-toggle-button--active" aria-pressed="true">To fuel</,
+    /class="stacked-chart-control-pill stacked-chart-control-pill--active" aria-pressed="true">To fuel</,
   );
+  assert.match(html, /role="group" aria-label="Fuel switch basis"/);
   assert.match(html, /Fuel switching by fuel pair/);
   assert.match(html, /Years: 2030-2035/);
   assert.match(html, /2 fuel-switch pairs/);
@@ -232,6 +233,8 @@ test('fuel switching chart renders stacked years on the x-axis with pair-specifi
   assert.match(html, /title="Natural gas -&gt; Electricity"/);
   assert.match(html, /title="Coal -&gt; Electricity"/);
   assert.doesNotMatch(html, /aria-label="Fuel switch year"/);
+  assert.doesNotMatch(html, /workspace-chart-toggle/);
+  assert.doesNotMatch(html, /role="tablist"/);
   const swatches = [...html.matchAll(/background-color:([^";]+)/g)].map((match) => match[1]);
   assert.equal(new Set(swatches).size >= 2, true);
   assert.doesNotMatch(html, /background-color:#f59e0b/);

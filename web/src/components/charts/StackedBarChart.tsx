@@ -1,7 +1,6 @@
 import React from 'react';
 import type { ReactNode } from 'react';
 import type { StackedChartData } from '../../results/chartData.ts';
-import type { ChartLegendItem, ChartSummaryItem } from './ChartFrame.tsx';
 import {
   Bar,
   BarChart,
@@ -14,7 +13,13 @@ import {
   YAxis,
   type TooltipContentProps,
 } from 'recharts';
-import { ChartEmptyState, ChartFrame } from './ChartFrame.tsx';
+import {
+  ChartEmptyState,
+  ChartFrame,
+  type ChartFrameLayoutVariant,
+  type ChartLegendItem,
+  type ChartSummaryItem,
+} from './ChartFrame.tsx';
 import {
   buildResponsiveContainerProps,
   CHART_AXIS_TICK_STYLE,
@@ -42,6 +47,8 @@ interface StackedBarChartProps {
   yDomainPersistenceKey?: string;
   showNetLine?: boolean;
   headerAction?: ReactNode;
+  frameTitle?: string;
+  layoutVariant?: ChartFrameLayoutVariant;
   summaryItems?: ChartSummaryItem[];
   legendItems?: ChartLegendItem[];
   emptyMessage?: string;
@@ -106,11 +113,14 @@ export default function StackedBarChart({
   yDomainPersistenceKey,
   showNetLine = false,
   headerAction,
+  frameTitle,
+  layoutVariant = 'default',
   summaryItems,
   legendItems,
   emptyMessage = 'No data available for this chart.',
 }: StackedBarChartProps) {
   const { title, yAxisLabel, years, series } = data;
+  const visibleTitle = frameTitle ?? title;
   const {
     rows,
     positiveTotals,
@@ -140,16 +150,16 @@ export default function StackedBarChart({
     chartKey: isEmpty ? null : yDomainPersistenceKey,
     autoDomain,
   });
-  const resolvedHeaderAction = headerAction || isPersistent
+  const resolvedHeaderAction = headerAction != null || isPersistent
     ? (
       <div className="stacked-chart-header-action-group">
         {headerAction}
         {isPersistent ? (
           <button
             type="button"
-            className="stacked-chart-reset-button"
+            className="stacked-chart-control-pill stacked-chart-reset-button"
             onClick={resetDomain}
-            aria-label={`Reset y-axis range for ${title}`}
+            aria-label={`Reset y-axis range for ${visibleTitle}`}
           >
             Reset y-axis range
           </button>
@@ -193,13 +203,14 @@ export default function StackedBarChart({
 
   return (
     <ChartFrame
-      title={title}
+      title={visibleTitle}
       yAxisLabel={yAxisLabel}
       height={height}
       legendItems={isEmpty ? [] : resolvedLegendItems}
       summaryItems={resolvedSummaryItems}
       showTitle={showTitle}
       headerAction={resolvedHeaderAction}
+      layoutVariant={layoutVariant}
     >
       {isEmpty ? (
         <ChartEmptyState

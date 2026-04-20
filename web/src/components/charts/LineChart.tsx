@@ -1,4 +1,5 @@
 import React from 'react';
+import type { ReactNode } from 'react';
 import type { LineChartData } from '../../results/chartData';
 import {
   CartesianGrid,
@@ -8,7 +9,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { ChartEmptyState, ChartFrame } from './ChartFrame';
+import { ChartEmptyState, ChartFrame, type ChartFrameLayoutVariant } from './ChartFrame';
 import {
   buildResponsiveContainerProps,
   CHART_AXIS_TICK_STYLE,
@@ -34,6 +35,9 @@ interface LineChartProps {
   height?: number;
   showTitle?: boolean;
   yDomainPersistenceKey?: string;
+  headerAction?: ReactNode;
+  frameTitle?: string;
+  layoutVariant?: ChartFrameLayoutVariant;
 }
 
 function defaultFormatter(value: number): string {
@@ -46,8 +50,12 @@ export default function LineChart({
   height = WORKSPACE_CHART_HEIGHT,
   showTitle = true,
   yDomainPersistenceKey,
+  headerAction,
+  frameTitle,
+  layoutVariant = 'default',
 }: LineChartProps) {
   const { title, yAxisLabel, years, series } = data;
+  const visibleTitle = frameTitle ?? title;
   const isEmpty = series.length === 0 || years.length === 0;
   const rows = isEmpty ? [] : buildZeroFilledRows(years, series);
   const seriesKeys = series.map((entry) => entry.key);
@@ -61,16 +69,23 @@ export default function LineChart({
     chartKey: isEmpty ? null : yDomainPersistenceKey,
     autoDomain,
   });
-  const headerAction = isPersistent ? (
-    <button
-      type="button"
-      className="stacked-chart-reset-button"
-      onClick={resetDomain}
-      aria-label={`Reset y-axis range for ${title}`}
-    >
-      Reset y-axis range
-    </button>
-  ) : undefined;
+  const resolvedHeaderAction = headerAction != null || isPersistent
+    ? (
+      <div className="stacked-chart-header-action-group">
+        {headerAction}
+        {isPersistent ? (
+          <button
+            type="button"
+            className="stacked-chart-control-pill stacked-chart-reset-button"
+            onClick={resetDomain}
+            aria-label={`Reset y-axis range for ${visibleTitle}`}
+          >
+            Reset y-axis range
+          </button>
+        ) : null}
+      </div>
+    )
+    : undefined;
 
   if (isEmpty) {
     return (
@@ -91,13 +106,14 @@ export default function LineChart({
 
   return (
     <ChartFrame
-      title={title}
+      title={visibleTitle}
       yAxisLabel={yAxisLabel}
       height={height}
       legendItems={legendItems}
       summaryItems={summaryItems}
       showTitle={showTitle}
-      headerAction={headerAction}
+      headerAction={resolvedHeaderAction}
+      layoutVariant={layoutVariant}
     >
       <ResponsiveContainer {...buildResponsiveContainerProps(height)}>
         <RechartsLineChart data={rows} margin={WORKSPACE_CHART_MARGIN}>

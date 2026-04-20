@@ -39,43 +39,44 @@ function formatNumber(value: number): string {
 function PathwayChartCard({ chart }: { chart: PathwayChartCardData }) {
   const [mode, setMode] = useState<PathwayChartMode>('output');
   const showingCap = mode === 'cap';
+  const headerAction = (
+    <div className="stacked-chart-control-group" role="group" aria-label={`${chart.outputLabel} chart mode`}>
+      <button
+        type="button"
+        className={`stacked-chart-control-pill${mode === 'output' ? ' stacked-chart-control-pill--active' : ''}`}
+        onClick={() => setMode('output')}
+        aria-pressed={mode === 'output'}
+      >
+        Output
+      </button>
+      <button
+        type="button"
+        className={`stacked-chart-control-pill${mode === 'cap' ? ' stacked-chart-control-pill--active' : ''}`}
+        onClick={() => setMode('cap')}
+        aria-pressed={mode === 'cap'}
+      >
+        Cap
+      </button>
+    </div>
+  );
 
   return (
     <div className="workspace-chart-section workspace-chart-section--pathway">
-      <div className="workspace-chart-card-header">
-        <div>
-          <h2 className="workspace-chart-card-title">{chart.outputLabel}</h2>
-        </div>
-        <div className="workspace-chart-toggle" role="tablist" aria-label={`${chart.outputLabel} chart mode`}>
-          <button
-            type="button"
-            className={`workspace-chart-toggle-button${mode === 'output' ? ' workspace-chart-toggle-button--active' : ''}`}
-            onClick={() => setMode('output')}
-            aria-pressed={mode === 'output'}
-          >
-            Output
-          </button>
-          <button
-            type="button"
-            className={`workspace-chart-toggle-button${mode === 'cap' ? ' workspace-chart-toggle-button--active' : ''}`}
-            onClick={() => setMode('cap')}
-            aria-pressed={mode === 'cap'}
-          >
-            Cap
-          </button>
-        </div>
-      </div>
       {showingCap ? (
         <PathwayCapChart
           data={chart.capChart}
           valueFormatter={formatPercent}
-          showTitle={false}
+          frameTitle={chart.outputLabel}
+          headerAction={headerAction}
+          layoutVariant="explorer-uniform"
           yDomainPersistenceKey={`run:pathway-cap:${chart.outputId}`}
         />
       ) : (
         <StackedBarChart
           data={chart.outputChart}
-          showTitle={false}
+          frameTitle={chart.outputLabel}
+          headerAction={headerAction}
+          layoutVariant="explorer-uniform"
           yDomainPersistenceKey={`run:pathway-output:${chart.outputId}`}
         />
       )}
@@ -86,15 +87,11 @@ function PathwayChartCard({ chart }: { chart: PathwayChartCardData }) {
 function RemovalsChartCard({ chart }: { chart: RemovalsChartCardData }) {
   return (
     <div className="workspace-chart-section workspace-chart-section--pathway">
-      <div className="workspace-chart-card-header">
-        <div>
-          <h2 className="workspace-chart-card-title">{chart.outputLabel}</h2>
-        </div>
-      </div>
       <LineChart
         data={chart.activityChart}
+        frameTitle={chart.outputLabel}
+        layoutVariant="explorer-uniform"
         valueFormatter={formatNumber}
-        showTitle={false}
         yDomainPersistenceKey={`run:removals-activity:${chart.outputId}`}
       />
     </div>
@@ -331,6 +328,7 @@ export default function ConfigurationWorkspaceCenter({
             <div className="workspace-chart-section">
               <LineChart
                 data={demandBySectorChart}
+                layoutVariant="explorer-uniform"
                 yDomainPersistenceKey="run:demand-by-sector"
               />
             </div>
@@ -339,6 +337,7 @@ export default function ConfigurationWorkspaceCenter({
             <div className="workspace-chart-section">
               <StackedBarChart
                 data={emissionsChart}
+                layoutVariant="explorer-uniform"
                 yDomainPersistenceKey="run:emissions-by-sector"
                 showNetLine={true}
               />
@@ -348,6 +347,7 @@ export default function ConfigurationWorkspaceCenter({
             <div className="workspace-chart-section">
               <StackedBarChart
                 data={consumptionChart}
+                layoutVariant="explorer-uniform"
                 yDomainPersistenceKey="run:fuel-consumption"
               />
             </div>
@@ -372,6 +372,7 @@ export default function ConfigurationWorkspaceCenter({
             <div className="workspace-chart-section">
               <StackedBarChart
                 data={costByComponentChart}
+                layoutVariant="explorer-uniform"
                 yDomainPersistenceKey="run:cost-by-component"
                 showNetLine={true}
               />

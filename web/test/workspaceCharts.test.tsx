@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import type { ReactNode } from 'react';
 import type { LineChartData, PathwayCapChartData, StackedChartData } from '../src/results/chartData.ts';
 import LineChart from '../src/components/charts/LineChart.tsx';
 import PathwayCapChart from '../src/components/charts/PathwayCapChart.tsx';
@@ -183,6 +184,21 @@ describe('workspace Recharts wrappers', () => {
     assert.match(html, /aria-label="Reset y-axis range for Fuel Consumption"/);
   });
 
+  test('frameTitle overrides the visible title and reset label used by the chart frame', () => {
+    const html = renderToStaticMarkup(
+      <StackedBarChart
+        data={consumptionChart}
+        frameTitle="Explorer fuel demand"
+        yDomainPersistenceKey="run:fuel-consumption"
+      />,
+    );
+
+    assert.match(html, /<span class="stacked-chart-title">Explorer fuel demand<\/span>/);
+    assert.match(html, /aria-label="Explorer fuel demand legend"/);
+    assert.match(html, /aria-label="Reset y-axis range for Explorer fuel demand"/);
+    assert.doesNotMatch(html, /aria-label="Reset y-axis range for Fuel Consumption"/);
+  });
+
   test('line chart legends render the series labels inside the chart shell', () => {
     const html = renderToStaticMarkup(
       <LineChart
@@ -198,6 +214,48 @@ describe('workspace Recharts wrappers', () => {
     assert.match(html, />Transport</);
     assert.match(html, /title="Generic industrial heat"/);
     assert.match(html, /title="Road transport"/);
+  });
+
+  test('line charts keep custom header actions and reset controls in one header row', () => {
+    const customAction: ReactNode = (
+      <button type="button" className="custom-action">Show basis</button>
+    );
+    const html = renderToStaticMarkup(
+      <LineChart
+        data={demandChart}
+        frameTitle="Explorer demand"
+        headerAction={customAction}
+        yDomainPersistenceKey="run:demand-by-sector"
+      />,
+    );
+
+    assert.match(html, /stacked-chart-header-action-group/);
+    assert.match(html, /class="custom-action">Show basis<\/button>/);
+    assert.match(html, /aria-label="Reset y-axis range for Explorer demand"/);
+    assert.match(
+      html,
+      /stacked-chart-header-action-group[\s\S]*class="custom-action">Show basis<\/button>[\s\S]*stacked-chart-reset-button/,
+    );
+  });
+
+  test('Explorer layout variant renders the uniform frame modifiers', () => {
+    const html = renderToStaticMarkup(
+      <LineChart
+        data={demandChart}
+        headerAction={<button type="button" className="custom-action">Show basis</button>}
+        layoutVariant="explorer-uniform"
+        yDomainPersistenceKey="run:demand-by-sector"
+      />,
+    );
+
+    assert.match(html, /class="stacked-chart-shell stacked-chart-shell--explorer-uniform"/);
+    assert.match(html, /class="stacked-chart-header stacked-chart-header--explorer-uniform"/);
+    assert.match(
+      html,
+      /class="stacked-chart-header-actions stacked-chart-header-actions--explorer-uniform"/,
+    );
+    assert.match(html, /class="stacked-chart-layout stacked-chart-layout--explorer-uniform"/);
+    assert.match(html, /class="stacked-chart-legend stacked-chart-legend--explorer-uniform"/);
   });
 
   test('pathway cap charts render combined solved-share fills and cap lines in the chart shell', () => {

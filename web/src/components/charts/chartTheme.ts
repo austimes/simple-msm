@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react';
 
 export const CHART_BASE_WIDTH = 720;
-export const WORKSPACE_CHART_HEIGHT = 300;
+export const WORKSPACE_CHART_HEIGHT = 320;
 export const LIBRARY_CHART_HEIGHT = 280;
 
 export const WORKSPACE_CHART_MARGIN = {
@@ -50,4 +50,3 @@ export function buildResponsiveContainerProps(height: number) {
     },
   };
 }
-
