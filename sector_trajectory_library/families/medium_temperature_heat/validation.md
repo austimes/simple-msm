@@ -34,3 +34,12 @@
 - `would_expand_to_explicit_capacity?` values across the family: false.
 - `would_expand_to_process_chain?` values across the family: false.
 - Contributors should treat the current family as the canonical authored unit and use the shared ledgers plus family-local notes for traceability.
+
+## Efficiency Checks
+
+- `autonomous_efficiency_tracks.csv` must contain one row per milestone year for `industrial_heat__medium_temperature__background_thermal_drift` and it must apply only to `generic_industrial_heat__medium_temperature_heat__fossil`.
+- `efficiency_packages.csv` must contain one row per milestone year for both `industrial_heat__medium_temperature__thermal_system_retrofit` and `industrial_heat__medium_temperature__controls_tuning`.
+- Both accepted medium-temperature packages must apply only to `generic_industrial_heat__medium_temperature_heat__fossil`.
+- The medium-temperature packages must share the same family-local non-stacking group.
+- Package multipliers must scale the fossil-state direct thermal fuel coefficients proportionally so the authored fuel mix stays intact.
+- Electrified and low-carbon-fuel states should not receive this family's portable efficiency artifacts in v1.

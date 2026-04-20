@@ -48,6 +48,13 @@ The Phase 1 package keeps 3 state ids for this family so the explorer and solver
 - Electricity-use coefficient is a representative fleet-average service coefficient rather than a specific model-year vehicle rating.
 - Useful transitional abatement state when BEV uptake is constrained or the model values liquid-fuel compatibility.
 
+## Efficiency Artifacts
+
+- Research note: see `docs/prd/20260420-road-transport-efficiency-research.md`.
+- `autonomous_efficiency_tracks.csv` now authors `road_transport__passenger_road__background_new_vehicle_efficiency_drift` for `road_transport__passenger_road__ice_fleet` only.
+- No passenger-road portable efficiency package is authored in v1. Hybrid and BEV efficiency remain embodied in the existing pathway states.
+- The ICE base rows are intentionally rebaselined upward so the accepted autonomous drift is explicit rather than hidden in the incumbent row trend.
+
 ## Expansion path
 
 - Split by light-duty passenger, buses, vans/light commercial, medium trucks and heavy articulated trucks, with explicit stock rollover.

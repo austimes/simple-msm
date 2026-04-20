@@ -36,8 +36,10 @@
 
 ## Efficiency Checks
 
+- `autonomous_efficiency_tracks.csv` must contain one row per milestone year for `buildings__residential__background_standards_drift`.
+- `buildings__residential__background_standards_drift` must apply only to `buildings__residential__incumbent_mixed_fuels` and `buildings__residential__electrified_efficiency`.
 - `efficiency_packages.csv` must contain one row per milestone year for `buildings__residential__thermal_shell_retrofit`.
 - `buildings__residential__thermal_shell_retrofit` must apply only to `buildings__residential__incumbent_mixed_fuels` and `buildings__residential__electrified_efficiency`.
-- Do not apply a generic portable efficiency package to `buildings__residential__deep_electric`; that state already embodies high shell and appliance efficiency.
+- Do not apply a generic portable efficiency artifact to `buildings__residential__deep_electric`; that state already embodies the family frontier.
 - With efficiency controls disabled, the 2025 incumbent row must still reproduce the current baseline anchor.
-- The thermal-shell package should remain materially smaller than the current incumbent-to-electrified state gap unless the family is split into narrower end uses.
+- The residential base rows should be rebaselined so the autonomous track, not `family_states.csv`, carries the background standards drift.

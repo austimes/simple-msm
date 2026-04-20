@@ -34,3 +34,13 @@
 - `would_expand_to_explicit_capacity?` values across the family: true.
 - `would_expand_to_process_chain?` values across the family: true.
 - Contributors should treat the current family as the canonical authored unit and use the shared ledgers plus family-local notes for traceability.
+
+## Efficiency Checks
+
+- `autonomous_efficiency_tracks.csv` must contain one row per milestone year for `cement__cement_equivalent__background_kiln_grinding_drift`.
+- The cement autonomous track must apply only to `cement_clinker__cement_equivalent__conventional` and `cement_clinker__cement_equivalent__low_clinker_alt_fuels`.
+- `efficiency_packages.csv` must contain one row per milestone year for `cement__cement_equivalent__grinding_system_upgrade` and `cement__cement_equivalent__kiln_ai_process_optimisation`.
+- No accepted cement package should apply to `cement_clinker__cement_equivalent__ccs_deep`.
+- `cement__cement_equivalent__grinding_system_upgrade` should affect electricity only and stay within the accepted narrow grinding-efficiency range.
+- No accepted cement efficiency package should alter process-emissions coefficients or implicitly recreate clinker-factor change.
+- The two accepted cement packages must share the same non-stacking group until richer interaction handling exists.

@@ -48,6 +48,14 @@ The Phase 1 package keeps 3 state ids for this family so the explorer and solver
 - Fuel-switch state retained because some Australian planning studies constrain electrification by subsector.
 - The achievable share remains uncertain and should be stress-tested.
 
+## Efficiency Artifacts
+
+- Research note: see `docs/prd/20260420-industrial-heat-efficiency-research.md`.
+- `autonomous_efficiency_tracks.csv` now authors `industrial_heat__medium_temperature__background_thermal_drift` for the fossil incumbent state only.
+- `efficiency_packages.csv` now authors `industrial_heat__medium_temperature__thermal_system_retrofit` and `industrial_heat__medium_temperature__controls_tuning`, sharing the same family-local non-stacking group.
+- The fossil incumbent row is rebaselined so the explicit background drift is visible as an autonomous track rather than implied inside the state table.
+- Electrified and low-carbon-fuel states remain free of portable packages in v1 so route-change states stay conceptually clean.
+
 ## Expansion path
 
 - Replace with subsector/process-specific service or process states (e.g., food boilers, alumina calciners, chemical steam, minerals kilns).

@@ -11,6 +11,48 @@ const LOW_TEMPERATURE_INCUMBENT_STATE_ID = 'generic_industrial_heat__low_tempera
 const RESIDENTIAL_PACKAGE_ID = 'buildings__residential__thermal_shell_retrofit';
 const LOW_TEMPERATURE_TRACK_ID = 'industrial_heat__low_temperature__background_thermal_drift';
 const LOW_TEMPERATURE_PACKAGE_ID = 'industrial_heat__low_temperature__thermal_system_retrofit';
+const MILESTONE_YEARS = [2025, 2030, 2035, 2040, 2045, 2050];
+
+const EXPECTED_AUTONOMOUS_TRACK_IDS = [
+  'buildings__commercial__background_standards_drift',
+  'buildings__residential__background_standards_drift',
+  'cement__cement_equivalent__background_kiln_grinding_drift',
+  'industrial_heat__high_temperature__background_thermal_drift',
+  'industrial_heat__low_temperature__background_thermal_drift',
+  'industrial_heat__medium_temperature__background_thermal_drift',
+  'road_transport__freight_road__background_diesel_efficiency_drift',
+  'road_transport__passenger_road__background_new_vehicle_efficiency_drift',
+  'steel__crude_steel__bf_bof_background_drift',
+];
+
+const EXPECTED_PACKAGE_IDS = [
+  'buildings__commercial__hvac_tuning_bms',
+  'buildings__commercial__lighting_retrofit',
+  'buildings__residential__thermal_shell_retrofit',
+  'cement__cement_equivalent__grinding_system_upgrade',
+  'cement__cement_equivalent__kiln_ai_process_optimisation',
+  'electricity__grid_supply__thermal_auxiliary_load_tuning',
+  'industrial_heat__high_temperature__combustion_heat_recovery',
+  'industrial_heat__high_temperature__controls_tuning',
+  'industrial_heat__low_temperature__controls_tuning',
+  'industrial_heat__low_temperature__thermal_system_retrofit',
+  'industrial_heat__medium_temperature__controls_tuning',
+  'industrial_heat__medium_temperature__thermal_system_retrofit',
+  'road_transport__freight_road__fleet_telematics_eco_driving',
+  'steel__crude_steel__advanced_process_control',
+  'steel__crude_steel__bf_bof_bof_gas_recovery',
+  'steel__crude_steel__scrap_eaf_scrap_preheating',
+];
+
+function expectCompleteMilestoneCoverage(rows, idField, ids) {
+  for (const id of ids) {
+    const years = rows
+      .filter((row) => row[idField] === id)
+      .map((row) => row.year)
+      .sort((left, right) => left - right);
+    assert.deepEqual(years, MILESTONE_YEARS, `expected complete milestone coverage for ${id}`);
+  }
+}
 
 function buildThinSliceConfiguration(pkg) {
   const configuration = structuredClone(pkg.defaultConfiguration);
@@ -63,6 +105,30 @@ test('loadPackage picks up the canonical efficiency thin slice and existing vali
   );
   assert.ok(pkg.commodityBalance2025.length > 0, 'expected baseline commodity validation outputs to remain available');
   assert.ok(pkg.emissionsBalance2025.length > 0, 'expected baseline emissions validation outputs to remain available');
+});
+
+test('loadPackage exposes the full first-wave canonical efficiency inventory', () => {
+  const pkg = loadPackage();
+
+  assert.deepEqual(
+    Array.from(new Set(pkg.autonomousEfficiencyTracks.map((row) => row.track_id))).sort(),
+    EXPECTED_AUTONOMOUS_TRACK_IDS,
+  );
+  assert.deepEqual(
+    Array.from(new Set(pkg.efficiencyPackages.map((row) => row.package_id))).sort(),
+    EXPECTED_PACKAGE_IDS,
+  );
+  assert.equal(
+    pkg.autonomousEfficiencyTracks.length,
+    EXPECTED_AUTONOMOUS_TRACK_IDS.length * MILESTONE_YEARS.length,
+  );
+  assert.equal(
+    pkg.efficiencyPackages.length,
+    EXPECTED_PACKAGE_IDS.length * MILESTONE_YEARS.length,
+  );
+
+  expectCompleteMilestoneCoverage(pkg.autonomousEfficiencyTracks, 'track_id', EXPECTED_AUTONOMOUS_TRACK_IDS);
+  expectCompleteMilestoneCoverage(pkg.efficiencyPackages, 'package_id', EXPECTED_PACKAGE_IDS);
 });
 
 test('the real efficiency thin slice loads, solves, and carries attribution provenance end to end', () => {

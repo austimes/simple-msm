@@ -49,6 +49,14 @@ The Phase 1 package keeps 4 state ids for this family so the explorer and solver
 - Transitional state capturing the abatement that can be obtained without full drivetrain switch.
 - Useful as a freight sensitivity state where battery range or charging-infrastructure limits bind.
 
+## Efficiency Artifacts
+
+- Research note: see `docs/prd/20260420-road-transport-efficiency-research.md`.
+- `autonomous_efficiency_tracks.csv` now authors `road_transport__freight_road__background_diesel_efficiency_drift` for `road_transport__freight_road__diesel` only.
+- `efficiency_packages.csv` now authors the narrow operational package `road_transport__freight_road__fleet_telematics_eco_driving` on the diesel incumbent only.
+- The diesel base rows are rebaselined upward so the accepted autonomous drift is explicit rather than hidden in the incumbent row trend.
+- The existing `road_transport__freight_road__efficient_diesel` state continues to embody the broader diesel-efficiency, logistics, and utilisation pathway and should not receive a generic add-on package.
+
 ## Expansion path
 
 - Split by light-duty passenger, buses, vans/light commercial, medium trucks and heavy articulated trucks, with explicit stock rollover.

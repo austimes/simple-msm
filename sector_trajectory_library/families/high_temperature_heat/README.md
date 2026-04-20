@@ -48,6 +48,15 @@ The Phase 1 package keeps 3 state ids for this family so the explorer and solver
 - Retained because hydrogen is often treated as a candidate for the hardest high-temperature heat niches.
 - Useful sensitivity state, but evidence for aggregate national high-temperature electrification remains thin.
 
+## Efficiency Artifacts
+
+- Research note: see `docs/prd/20260420-industrial-heat-efficiency-research.md`.
+- `autonomous_efficiency_tracks.csv` now authors `industrial_heat__high_temperature__background_thermal_drift` for the fossil incumbent state only.
+- `efficiency_packages.csv` now authors `industrial_heat__high_temperature__combustion_heat_recovery` and `industrial_heat__high_temperature__controls_tuning`, sharing the same family-local non-stacking group.
+- The fossil incumbent row is rebaselined so the explicit background drift is visible rather than hidden in the state table.
+- Only a deliberately small combustion-side package is accepted at the current family boundary; broader savings need future subsector-specific modelling.
+- Electrified and low-carbon-fuel states remain free of portable packages in v1 so route-change states stay clean.
+
 ## Expansion path
 
 - Replace with subsector/process-specific service or process states (e.g., food boilers, alumina calciners, chemical steam, minerals kilns).

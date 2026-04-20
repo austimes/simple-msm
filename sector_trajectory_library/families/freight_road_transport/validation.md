@@ -34,3 +34,12 @@
 - `would_expand_to_explicit_capacity?` values across the family: false.
 - `would_expand_to_process_chain?` values across the family: false.
 - Contributors should treat the current family as the canonical authored unit and use the shared ledgers plus family-local notes for traceability.
+
+## Efficiency Checks
+
+- `autonomous_efficiency_tracks.csv` must contain one row per milestone year for `road_transport__freight_road__background_diesel_efficiency_drift`.
+- The freight-road autonomous track must apply only to `road_transport__freight_road__diesel`.
+- `efficiency_packages.csv` must contain one row per milestone year for `road_transport__freight_road__fleet_telematics_eco_driving`.
+- The freight operational package must apply only to `road_transport__freight_road__diesel`.
+- No accepted freight package should apply to `road_transport__freight_road__efficient_diesel`, `road_transport__freight_road__bev`, or `road_transport__freight_road__fcev_h2`.
+- The freight operational package must remain materially smaller than the diesel-to-efficient-diesel state gap in every milestone year.

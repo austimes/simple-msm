@@ -35,3 +35,13 @@
 - `would_expand_to_explicit_capacity?` values across the family: true.
 - `would_expand_to_process_chain?` values across the family: true.
 - Contributors should treat the current family as the canonical authored unit and use the shared ledgers plus family-local notes for traceability.
+
+## Efficiency Checks
+
+- `autonomous_efficiency_tracks.csv` must contain one row per milestone year for `steel__crude_steel__bf_bof_background_drift`.
+- The crude-steel autonomous track must apply only to `steel__crude_steel__bf_bof_conventional` and `steel__crude_steel__bf_bof_ccs_transition`.
+- `efficiency_packages.csv` must contain one row per milestone year for `steel__crude_steel__bf_bof_bof_gas_recovery`, `steel__crude_steel__scrap_eaf_scrap_preheating`, and `steel__crude_steel__advanced_process_control`.
+- `steel__crude_steel__bf_bof_bof_gas_recovery` must apply only to the two BF-BOF states.
+- `steel__crude_steel__scrap_eaf_scrap_preheating` must apply only to `steel__crude_steel__scrap_eaf`.
+- No accepted steel package should alter `iron_ore`, `scrap_steel`, `hydrogen`, or `capture_service`, and no accepted steel package should apply to `steel__crude_steel__h2_dri_electric` in v1.
+- All accepted steel packages must share the same non-stacking group until richer interaction handling exists.

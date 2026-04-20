@@ -35,3 +35,11 @@
 - `would_expand_to_explicit_capacity?` values across the family: true.
 - `would_expand_to_process_chain?` values across the family: false.
 - Contributors should treat the current family as the canonical authored unit and use the shared ledgers plus family-local notes for traceability.
+
+## Efficiency Checks
+
+- `efficiency_packages.csv` must contain one row per milestone year for `electricity__grid_supply__thermal_auxiliary_load_tuning`.
+- The electricity auxiliary-load package must apply only to `electricity__grid_supply__incumbent_thermal_mix`.
+- No electricity `autonomous_efficiency_tracks.csv` file should be authored in v1.
+- No accepted electricity package should apply to `electricity__grid_supply__policy_frontier` or `electricity__grid_supply__deep_clean_firmed`.
+- The package must remain a low-single-digit direct-fuel wedge and should reduce direct energy emissions proportionally with the affected coal and gas inputs.

@@ -34,3 +34,12 @@
 - `would_expand_to_explicit_capacity?` values across the family: false.
 - `would_expand_to_process_chain?` values across the family: false.
 - Contributors should treat the current family as the canonical authored unit and use the shared ledgers plus family-local notes for traceability.
+
+## Efficiency Checks
+
+- `autonomous_efficiency_tracks.csv` must contain one row per milestone year for `industrial_heat__high_temperature__background_thermal_drift` and it must apply only to `generic_industrial_heat__high_temperature_heat__fossil`.
+- `efficiency_packages.csv` must contain one row per milestone year for both `industrial_heat__high_temperature__combustion_heat_recovery` and `industrial_heat__high_temperature__controls_tuning`.
+- Both accepted high-temperature packages must apply only to `generic_industrial_heat__high_temperature_heat__fossil`.
+- The high-temperature packages must share the same family-local non-stacking group.
+- Any accepted high-temperature package should remain a small wedge relative to route-switch uncertainty and should not target `__electrified` or `__low_carbon_fuels` states.
+- The fossil incumbent row should be rebaselined so the explicit autonomous track, not `family_states.csv`, carries the accepted background drift.

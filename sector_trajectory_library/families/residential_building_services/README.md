@@ -51,10 +51,10 @@ The Phase 1 package keeps 3 state ids for this family so the explorer and solver
 ## Efficiency Artifacts
 
 - Research note: see `docs/prd/20260420-buildings-efficiency-research.md`.
-- `efficiency_packages.csv` now authors `buildings__residential__thermal_shell_retrofit` as the canonical v1 package for this family.
-- The package applies only to `buildings__residential__incumbent_mixed_fuels` and `buildings__residential__electrified_efficiency`, and it is kept materially smaller than the incumbent-to-electrified state jump so attribution stays interpretable.
-- Heat-pump space heating, heat-pump hot water, induction cooking, and the broader electrified service bundle remain embodied in `buildings__residential__electrified_efficiency` and `buildings__residential__deep_electric` rather than becoming portable packages.
-- No autonomous residential track is authored in this thin slice; that still needs a dedicated de-embedding pass so background standards drift does not double count against the family's existing year-varying coefficients.
+- `autonomous_efficiency_tracks.csv` now authors `buildings__residential__background_standards_drift` for `buildings__residential__incumbent_mixed_fuels` and `buildings__residential__electrified_efficiency` only.
+- `efficiency_packages.csv` continues to author `buildings__residential__thermal_shell_retrofit` as the canonical residential v1 package.
+- The applicable state rows are intentionally rebaselined upward so the autonomous track carries the background standards drift explicitly instead of hiding it in `family_states.csv`.
+- Heat-pump service changes and the broader electrified bundle remain embodied in `buildings__residential__electrified_efficiency` and `buildings__residential__deep_electric`; no generic package applies to the deep-electric state.
 
 ## Expansion path
 
