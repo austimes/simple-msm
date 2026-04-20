@@ -10,6 +10,8 @@ This note consolidates the accepted, embodied, and deferred efficiency findings 
 
 Use this document as the canonical accepted inventory for v1 efficiency authoring. If a source research note and this document differ, this document wins.
 
+Use [20260420-efficiency-authoring-shape-decision.md](./20260420-efficiency-authoring-shape-decision.md) for the canonical v1 file locations, row grain, required fields, applicability conventions, and non-goals.
+
 ## 1. Canonical Conventions
 
 ### Status Buckets

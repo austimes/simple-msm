@@ -21,6 +21,8 @@ It is designed to keep data, explanation, and validation together rather than sp
 
 Each `family_id` owns its state table, demand anchor, README, and validation note together in one folder. Shared ledgers, the family registry, and shared curve tables live under `shared/`.
 
+The same family-local rule applies to first-class efficiency authoring. When efficiency artifacts are added, they belong in `families/<family_id>/autonomous_efficiency_tracks.csv` and `families/<family_id>/efficiency_packages.csv`, with family-specific caveats kept in the same folder's `README.md` and `validation.md`. Do not author efficiency effects in `overlays/` or `exports/legacy/`; those are residual or generated surfaces rather than canonical efficiency inputs.
+
 ### State table structure
 
 `families/<family_id>/family_states.csv` is the canonical authored trajectory table. Inputs, emissions, source ids, assumption ids, and rollout limits stay embedded in that table for contributor ergonomics and explainability. Family-level metadata such as sector, subsector, region, output unit, and the default incumbent state remain in `shared/families.csv` rather than being duplicated into every state row.
