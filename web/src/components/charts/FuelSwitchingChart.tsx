@@ -153,25 +153,23 @@ export default function FuelSwitchingChart({
     }));
   }, [stackedChartData]);
   const headerAction = (
-    <div className="fuel-switch-chart-controls">
-      <div className="workspace-chart-toggle" role="tablist" aria-label="Fuel switch basis">
-        <button
-          type="button"
-          className={`workspace-chart-toggle-button${basis === 'to' ? ' workspace-chart-toggle-button--active' : ''}`}
-          onClick={() => onBasisChange('to')}
-          aria-pressed={basis === 'to'}
-        >
-          To fuel
-        </button>
-        <button
-          type="button"
-          className={`workspace-chart-toggle-button${basis === 'from' ? ' workspace-chart-toggle-button--active' : ''}`}
-          onClick={() => onBasisChange('from')}
-          aria-pressed={basis === 'from'}
-        >
-          From fuel
-        </button>
-      </div>
+    <div className="stacked-chart-control-group" role="group" aria-label="Fuel switch basis">
+      <button
+        type="button"
+        className={`stacked-chart-control-pill${basis === 'to' ? ' stacked-chart-control-pill--active' : ''}`}
+        onClick={() => onBasisChange('to')}
+        aria-pressed={basis === 'to'}
+      >
+        To fuel
+      </button>
+      <button
+        type="button"
+        className={`stacked-chart-control-pill${basis === 'from' ? ' stacked-chart-control-pill--active' : ''}`}
+        onClick={() => onBasisChange('from')}
+        aria-pressed={basis === 'from'}
+      >
+        From fuel
+      </button>
     </div>
   );
   const yearSpanLabel = chartData.years.length === 0
@@ -195,6 +193,7 @@ export default function FuelSwitchingChart({
       ]}
       legendItems={legendItems}
       headerAction={headerAction}
+      layoutVariant="explorer-uniform"
       emptyMessage="No fuel switching for the selected basis."
     />
   );

@@ -1061,12 +1061,22 @@ body {
   container-type: inline-size;
 }
 
+.stacked-chart-shell--explorer-uniform {
+  gap: 12px;
+}
+
 .stacked-chart-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+.stacked-chart-header--explorer-uniform {
+  display: grid;
+  justify-content: initial;
+  gap: 10px;
 }
 
 .stacked-chart-header--action-only {
@@ -1078,12 +1088,20 @@ body {
   align-items: center;
 }
 
+.stacked-chart-header-actions--explorer-uniform {
+  justify-content: flex-start;
+}
+
 .stacked-chart-header-action-group {
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.stacked-chart-header-actions--explorer-uniform .stacked-chart-header-action-group {
+  justify-content: flex-start;
 }
 
 .stacked-chart-layout {
@@ -1093,29 +1111,54 @@ body {
   grid-template-columns: minmax(0, 1fr) minmax(132px, 168px);
 }
 
+.stacked-chart-layout--explorer-uniform {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+}
+
 .stacked-chart-title {
   color: var(--color-text);
   font-size: 14px;
   font-weight: 700;
 }
 
+.stacked-chart-control-group {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.stacked-chart-control-pill,
 .stacked-chart-reset-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid var(--color-border);
   border-radius: 999px;
   background: var(--color-surface);
   color: var(--color-text-muted);
+  min-height: 28px;
   padding: 5px 10px;
   font: inherit;
   font-size: 12px;
   font-weight: 700;
   line-height: 1.2;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
 }
 
+.stacked-chart-control-pill:hover,
 .stacked-chart-reset-button:hover {
   background: #f8fafc;
   color: var(--color-text);
+}
+
+.stacked-chart-control-pill--active {
+  background: var(--color-primary-bg);
+  border-color: rgba(43, 108, 176, 0.18);
+  color: var(--color-primary);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
 }
 
 .stacked-chart-canvas {
@@ -1142,6 +1185,12 @@ body {
   align-content: start;
 }
 
+.stacked-chart-legend--explorer-uniform {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+}
+
 @container (max-width: 40rem) {
   .stacked-chart-legend {
     display: flex;
@@ -1159,6 +1208,7 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  min-width: 0;
   font-size: 11px;
   font-weight: 500;
   color: var(--color-text);
@@ -2799,13 +2849,6 @@ body {
   background: var(--color-surface);
   color: var(--color-text);
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
-}
-
-.fuel-switch-chart-controls {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 10px;
 }
 
 .fuel-switch-chart-years {

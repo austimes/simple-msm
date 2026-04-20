@@ -228,7 +228,7 @@ test('solved workspace renders Cost by Component with diverging chart net metada
   );
 
   const netSeriesMatches = html.match(/data-series-key="__net"/g) ?? [];
-  const resetMatches = html.match(/class="stacked-chart-reset-button"/g) ?? [];
+  const resetMatches = html.match(/stacked-chart-reset-button/g) ?? [];
 
   assert.match(html, /Explorer comparison pair/);
   assert.match(html, /workspace-chart-grid/);
@@ -272,7 +272,7 @@ test('initial workspace solve keeps the center blank while the first result is l
   assert.doesNotMatch(html, /workspace-chart-grid/);
 });
 
-test('pathway and removals cards keep only the card heading on the run page', () => {
+test('pathway and removals cards render their titles inside the chart frame', () => {
   const request = {
     contractVersion: SOLVER_CONTRACT_VERSION,
     requestId: 'workspace-card-heading-regression',
@@ -454,13 +454,17 @@ test('pathway and removals cards keep only the card heading on the run page', ()
     }),
   ));
 
-  assert.match(html, /<h2 class="workspace-chart-card-title">Electricity supply<\/h2>/);
-  assert.match(html, /<h2 class="workspace-chart-card-title">Engineered removals<\/h2>/);
-  assert.equal((html.match(/class="stacked-chart-reset-button"/g) ?? []).length, 4);
+  assert.match(html, /<span class="stacked-chart-title">Electricity supply<\/span>/);
+  assert.match(html, /<span class="stacked-chart-title">Engineered removals<\/span>/);
+  assert.doesNotMatch(html, /<h2 class="workspace-chart-card-title">Electricity supply<\/h2>/);
+  assert.doesNotMatch(html, /<h2 class="workspace-chart-card-title">Engineered removals<\/h2>/);
+  assert.equal((html.match(/stacked-chart-reset-button/g) ?? []).length, 4);
+  assert.equal((html.match(/class="workspace-chart-toggle"/g) ?? []).length, 1);
+  assert.match(html, /role="group" aria-label="Electricity supply chart mode"/);
   assert.doesNotMatch(html, /Absolute pathway output over time/);
   assert.doesNotMatch(html, /Activity vs max activity over time/);
-  assert.doesNotMatch(html, /<figcaption class="stacked-chart-title">Electricity supply Pathway Output<\/figcaption>/);
-  assert.doesNotMatch(html, /<figcaption class="stacked-chart-title">Engineered removals<\/figcaption>/);
+  assert.doesNotMatch(html, />Electricity supply Pathway Output</);
+  assert.doesNotMatch(html, />Engineered removals Pathway Output</);
   assert.match(html, />Incumbent</);
   assert.match(html, />Frontier</);
   assert.match(html, />Activity</);

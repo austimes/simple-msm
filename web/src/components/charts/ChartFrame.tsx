@@ -22,6 +22,8 @@ export interface ChartSummaryItem {
   nullPoints?: number;
 }
 
+export type ChartFrameLayoutVariant = 'default' | 'explorer-uniform';
+
 interface ChartFrameProps {
   title: string;
   yAxisLabel?: string;
@@ -30,6 +32,7 @@ interface ChartFrameProps {
   summaryItems: ChartSummaryItem[];
   showTitle?: boolean;
   headerAction?: ReactNode;
+  layoutVariant?: ChartFrameLayoutVariant;
   children: ReactNode;
 }
 
@@ -72,31 +75,58 @@ export function ChartFrame({
   summaryItems,
   showTitle = true,
   headerAction,
+  layoutVariant = 'default',
   children,
 }: ChartFrameProps) {
+  const isExplorerUniform = layoutVariant === 'explorer-uniform';
+  const shellClassName = [
+    'stacked-chart-shell',
+    isExplorerUniform ? 'stacked-chart-shell--explorer-uniform' : null,
+  ].filter(Boolean).join(' ');
+  const headerClassName = [
+    'stacked-chart-header',
+    isExplorerUniform ? 'stacked-chart-header--explorer-uniform' : null,
+  ].filter(Boolean).join(' ');
+  const actionOnlyHeaderClassName = [
+    headerClassName,
+    'stacked-chart-header--action-only',
+  ].join(' ');
+  const headerActionsClassName = [
+    'stacked-chart-header-actions',
+    isExplorerUniform ? 'stacked-chart-header-actions--explorer-uniform' : null,
+  ].filter(Boolean).join(' ');
+  const layoutClassName = [
+    'stacked-chart-layout',
+    isExplorerUniform ? 'stacked-chart-layout--explorer-uniform' : null,
+  ].filter(Boolean).join(' ');
+  const legendClassName = [
+    'stacked-chart-legend',
+    isExplorerUniform ? 'stacked-chart-legend--explorer-uniform' : null,
+  ].filter(Boolean).join(' ');
+
   return (
-    <figure className="stacked-chart-shell" style={buildChartShellStyle(height)}>
+    <figure className={shellClassName} style={buildChartShellStyle(height)}>
       {showTitle ? (
-        <figcaption className="stacked-chart-header">
+        <figcaption className={headerClassName}>
           <span className="stacked-chart-title">{title}</span>
           {headerAction ? (
-            <span className="stacked-chart-header-actions">{headerAction}</span>
+            <span className={headerActionsClassName}>{headerAction}</span>
           ) : null}
         </figcaption>
       ) : null}
       {!showTitle && headerAction ? (
-        <div className="stacked-chart-header stacked-chart-header--action-only">
-          <span className="stacked-chart-header-actions">{headerAction}</span>
+        <div className={actionOnlyHeaderClassName}>
+          <span className={headerActionsClassName}>{headerAction}</span>
         </div>
       ) : null}
 
-      <div className="stacked-chart-layout">
+      <div className={layoutClassName}>
         <div className="stacked-chart-canvas" role="img" aria-label={title}>
           {children}
         </div>
 
         {legendItems.length > 0 ? (
-          <div className="stacked-chart-legend" aria-label={`${title} legend`}>
+          <div className={legendClassName} aria-label={`${title} legend`}>
             {legendItems.map((entry) => (
               <span
                 key={entry.key}
