@@ -48,6 +48,13 @@ The Phase 1 package keeps 3 state ids for this family so the explorer and solver
 - Energy intensity falls because the state represents a more efficient service package; direct on-site emissions collapse as gas exits.
 - Represents the high-electrification/efficiency end of the residential service frontier. Useful as the near-zero direct-emissions building state.
 
+## Draft Efficiency Extension Guidance
+
+- Research note: see `docs/prd/20260420-buildings-efficiency-research.md`.
+- The current family boundary supports one portable v1 pure-efficiency candidate: a thermal-shell retrofit bundle covering insulation, draught sealing and window / glazing upgrades.
+- Heat-pump space heating, heat-pump hot water, induction cooking and wider electrified service-bundle effects should remain embodied in `buildings__residential__electrified_efficiency` and `buildings__residential__deep_electric` rather than becoming portable packages.
+- Any future explicit autonomous track should be treated as background standards / turnover drift and must be authored carefully to avoid double counting against the existing year-varying state coefficients.
+
 ## Expansion path
 
 - Split into space conditioning, water heating, cooking and appliances, with new-build versus retrofit variants.

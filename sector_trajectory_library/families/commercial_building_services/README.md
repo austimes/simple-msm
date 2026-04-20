@@ -48,6 +48,13 @@ The Phase 1 package keeps 3 state ids for this family so the explorer and solver
 - Captures a pragmatic commercial electrification pathway without requiring full end-use disaggregation in Phase 1.
 - The most aggressive near-zero-direct-emissions commercial service state in Phase 1.
 
+## Draft Efficiency Extension Guidance
+
+- Research note: see `docs/prd/20260420-buildings-efficiency-research.md`.
+- The cleanest portable v1 pure-efficiency candidate at the current family boundary is a lighting retrofit package with simple controls.
+- The strongest operational package candidate is HVAC tuning / commissioning / BMS optimisation for the incumbent and mid-transition commercial states.
+- Major HVAC electrification, gas-boiler replacement and other carrier-switching service changes should remain embodied in `buildings__commercial__electrified_efficiency` and `buildings__commercial__deep_electric`.
+
 ## Expansion path
 
 - Split into space conditioning, water heating, cooking and appliances, with new-build versus retrofit variants.

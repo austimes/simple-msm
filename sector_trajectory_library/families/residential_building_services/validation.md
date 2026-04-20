@@ -33,3 +33,10 @@
 - `would_expand_to_explicit_capacity?` values across the family: false.
 - `would_expand_to_process_chain?` values across the family: false.
 - Contributors should treat the current family as the canonical authored unit and use the shared ledgers plus family-local notes for traceability.
+
+## Draft Efficiency Extension Checks
+
+- With any future autonomous track or package disabled, the 2025 incumbent row must still reproduce the current baseline anchor.
+- Do not apply a generic portable efficiency package to `buildings__residential__deep_electric`; that state already embodies high shell and appliance efficiency.
+- Any residential thermal-shell package should remain materially smaller than the current incumbent-to-electrified state gap unless the family is split into narrower end uses.
+- Controls-only household measures should not be introduced as a v1 package without stronger measured Australian evidence and a persistence treatment.

@@ -33,3 +33,10 @@
 - `would_expand_to_explicit_capacity?` values across the family: false.
 - `would_expand_to_process_chain?` values across the family: false.
 - Contributors should treat the current family as the canonical authored unit and use the shared ledgers plus family-local notes for traceability.
+
+## Draft Efficiency Extension Checks
+
+- With any future autonomous track or package disabled, the 2025 incumbent row must still reproduce the current baseline anchor.
+- Do not apply generic lighting or HVAC-optimisation packages to `buildings__commercial__deep_electric` in v1; the current deep-electric row is already the family frontier.
+- Commercial operational-package savings should remain well below the current incumbent-to-transition state gap and should not require a package-stacking engine in v1.
+- Typology-specific measures such as kitchen electrification or deep façade retrofits should be deferred until the aggregate commercial family is split further.
