@@ -12,6 +12,11 @@ export interface StateCatalogEntry {
   stateLabel: string;
 }
 
+interface StateCatalogSortEntry extends StateCatalogEntry {
+  stateSortKey: string;
+  stateOptionRank: number | null;
+}
+
 export interface SubsectorCatalogEntry {
   subsector: string;
   outputId: string;
@@ -24,11 +29,44 @@ export interface SectorCatalogEntry {
   subsectors: SubsectorCatalogEntry[];
 }
 
+function resolveStateCatalogLabel(row: SectorState): string {
+  const preferredLabel = row.state_label_standardized.trim()
+    || row.state_option_label.trim()
+    || row.state_label.trim();
+
+  return preferredLabel || row.state_id;
+}
+
+function compareStateSortKey(left: string, right: string): number {
+  if (!left || !right) {
+    return 0;
+  }
+
+  return left.localeCompare(right);
+}
+
+function compareStateOptionRank(left: number | null, right: number | null): number {
+  if (left == null || right == null) {
+    return 0;
+  }
+
+  return left - right;
+}
+
+function compareStateCatalogEntries(left: StateCatalogSortEntry, right: StateCatalogSortEntry): number {
+  return (
+    compareStateSortKey(left.stateSortKey, right.stateSortKey)
+    || compareStateOptionRank(left.stateOptionRank, right.stateOptionRank)
+    || left.stateLabel.localeCompare(right.stateLabel)
+    || left.stateId.localeCompare(right.stateId)
+  );
+}
+
 export function buildStateCatalog(
   sectorStates: SectorState[],
   appConfig: AppConfigRegistry,
 ): SectorCatalogEntry[] {
-  const sectorMap = new Map<string, Map<string, Map<string, StateCatalogEntry>>>();
+  const sectorMap = new Map<string, Map<string, Map<string, StateCatalogSortEntry>>>();
 
   for (const row of sectorStates) {
     let subsectorMap = sectorMap.get(row.sector);
@@ -46,7 +84,9 @@ export function buildStateCatalog(
     if (!stateMap.has(row.state_id)) {
       stateMap.set(row.state_id, {
         stateId: row.state_id,
-        stateLabel: row.state_label,
+        stateLabel: resolveStateCatalogLabel(row),
+        stateSortKey: row.state_sort_key.trim(),
+        stateOptionRank: row.state_option_rank,
       });
     }
   }
@@ -68,7 +108,12 @@ export function buildStateCatalog(
         subsector,
         outputId,
         outputLabel,
-        states: Array.from(stateMap.values()),
+        states: Array.from(stateMap.values())
+          .sort(compareStateCatalogEntries)
+          .map(({ stateId, stateLabel }) => ({
+            stateId,
+            stateLabel,
+          })),
       });
     }
 
