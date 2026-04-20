@@ -45,6 +45,13 @@ The Phase 1 package keeps 2 state ids for this family so the explorer and solver
 - Highly simplified mitigation state. Use for coarse sensitivity only until a proper agricultural abatement supply model is built.
 - This is a coarse residual sector block intended to preserve agriculture in national emissions accounting, not a farm-system model.
 
+## Efficiency Artifacts
+
+- Research note: see `docs/prd/20260420-agriculture-electricity-efficiency-research.md`.
+- This family is an explicit `no_material_v1` case in the canonical efficiency inventory.
+- Do not author `autonomous_efficiency_tracks.csv` or `efficiency_packages.csv` rows for this family in v1.
+- The limited direct-energy improvement that exists today remains bundled into `agriculture__livestock__mitigated` until the family is split into narrower livestock subfamilies.
+
 ## Expansion path
 
 - Split into cattle, sheep, dairy, broadacre crops, horticulture, fertiliser and manure management submodules.

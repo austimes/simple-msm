@@ -54,6 +54,14 @@ The Phase 1 package keeps 4 state ids for this family so the explorer and solver
 - Route intensity is consistent with conventional primary steel benchmarks rather than a plant-specific Australian reconciliation.
 - This is the main Australian near-zero primary-steel sensitivity state. Costs are especially sensitive to hydrogen and power price assumptions.
 
+## Efficiency Artifacts
+
+- Research note: see `docs/prd/20260420-steel-cement-efficiency-research.md`.
+- `autonomous_efficiency_tracks.csv` now authors `steel__crude_steel__bf_bof_background_drift` on the BF-BOF conventional and BF-BOF CCS-transition states only.
+- `efficiency_packages.csv` now authors `steel__crude_steel__bf_bof_bof_gas_recovery`, `steel__crude_steel__scrap_eaf_scrap_preheating`, and `steel__crude_steel__advanced_process_control`, all sharing the same crude-steel non-stacking group.
+- The accepted portable efficiency work is intentionally narrow. The large steel intensity gaps still come from route change and CCS, not generic add-on packages.
+- Reheating, direct rolling, and route-shift measures remain outside this family-local efficiency path and stay embodied in the pathway states or deferred for a future process-chain build.
+
 ## Expansion path
 
 - Split into explicit BF-coke sinter-hot metal-BOF chain; scrap-EAF chain; DRI shaft furnace + EAF or electric smelter chain; capture, compression and storage modules.

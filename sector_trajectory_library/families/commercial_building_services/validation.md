@@ -34,9 +34,12 @@
 - `would_expand_to_process_chain?` values across the family: false.
 - Contributors should treat the current family as the canonical authored unit and use the shared ledgers plus family-local notes for traceability.
 
-## Draft Efficiency Extension Checks
+## Efficiency Checks
 
-- With any future autonomous track or package disabled, the 2025 incumbent row must still reproduce the current baseline anchor.
-- Do not apply generic lighting or HVAC-optimisation packages to `buildings__commercial__deep_electric` in v1; the current deep-electric row is already the family frontier.
-- Commercial operational-package savings should remain well below the current incumbent-to-transition state gap and should not require a package-stacking engine in v1.
-- Typology-specific measures such as kitchen electrification or deep façade retrofits should be deferred until the aggregate commercial family is split further.
+- `autonomous_efficiency_tracks.csv` must contain one row per milestone year for `buildings__commercial__background_standards_drift`.
+- `buildings__commercial__background_standards_drift` must apply only to `buildings__commercial__incumbent_mixed_fuels` and `buildings__commercial__electrified_efficiency`.
+- `efficiency_packages.csv` must contain one row per milestone year for both `buildings__commercial__lighting_retrofit` and `buildings__commercial__hvac_tuning_bms`.
+- Both accepted commercial packages must apply only to `buildings__commercial__incumbent_mixed_fuels` and `buildings__commercial__electrified_efficiency`.
+- `buildings__commercial__lighting_retrofit` and `buildings__commercial__hvac_tuning_bms` must share the same non-stacking group.
+- No accepted commercial package should apply to `buildings__commercial__deep_electric` in v1.
+- The commercial base rows should be rebaselined so the autonomous standards drift is explicit rather than double counted in `family_states.csv`.

@@ -32,3 +32,9 @@
 - `would_expand_to_explicit_capacity?` values across the family: false.
 - `would_expand_to_process_chain?` values across the family: true.
 - Contributors should treat the current family as the canonical authored unit and use the shared ledgers plus family-local notes for traceability.
+
+## Efficiency Checks
+
+- No `autonomous_efficiency_tracks.csv` file should be authored for this family in v1.
+- No `efficiency_packages.csv` file should be authored for this family in v1.
+- Current direct-energy improvements remain embodied in `agriculture__cropping_horticulture__mitigated` until the family boundary is split further.

@@ -33,3 +33,11 @@
 - `would_expand_to_explicit_capacity?` values across the family: false.
 - `would_expand_to_process_chain?` values across the family: false.
 - Contributors should treat the current family as the canonical authored unit and use the shared ledgers plus family-local notes for traceability.
+
+## Efficiency Checks
+
+- `autonomous_efficiency_tracks.csv` must contain one row per milestone year for `road_transport__passenger_road__background_new_vehicle_efficiency_drift`.
+- The passenger-road autonomous track must apply only to `road_transport__passenger_road__ice_fleet`.
+- No passenger-road `efficiency_packages.csv` file should be authored in v1.
+- Hybrid-transition and BEV efficiency remain embodied in the pathway states and should not receive generic portable efficiency overlays.
+- The ICE incumbent row should be rebaselined so the explicit autonomous track, not the base-state table, carries the accepted background fuel-intensity decline.

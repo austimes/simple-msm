@@ -46,6 +46,13 @@ The Phase 1 package keeps 2 state ids for this family so the explorer and solver
 - Another coarse residual sector block. Useful for whole-economy emissions and liquid-fuels demand, but not robust for commodity-level agricultural supply analysis.
 - Exploratory mitigation state. Best interpreted as a coarse abatement wedge placeholder.
 
+## Efficiency Artifacts
+
+- Research note: see `docs/prd/20260420-agriculture-electricity-efficiency-research.md`.
+- This family is an explicit `no_material_v1` case in the canonical efficiency inventory.
+- Do not author `autonomous_efficiency_tracks.csv` or `efficiency_packages.csv` rows for this family in v1.
+- The limited direct-energy improvement that exists today remains bundled into `agriculture__cropping_horticulture__mitigated` until the family is split into narrower agricultural subfamilies.
+
 ## Expansion path
 
 - Split into cattle, sheep, dairy, broadacre crops, horticulture, fertiliser and manure management submodules.

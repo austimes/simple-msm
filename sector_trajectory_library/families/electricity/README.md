@@ -54,6 +54,13 @@ The Phase 1 package keeps 3 state ids for this family so the explorer and solver
 - Intended as the declining incumbent benchmark. In Phase 1 this is a national average, not a state-specific dispatch profile.
 - Represents an efficient but more conservatively firmed near-zero electricity state. Useful as a sensitivity state when the model values residual emissions reduction more highly than system cost.
 
+## Efficiency Artifacts
+
+- Research note: see `docs/prd/20260420-agriculture-electricity-efficiency-research.md`.
+- `efficiency_packages.csv` now authors `electricity__grid_supply__thermal_auxiliary_load_tuning` on `electricity__grid_supply__incumbent_thermal_mix` only.
+- No autonomous electricity efficiency track is authored in v1. Network losses, transmission buildout, and broader supply-pathway change remain outside the current family-local efficiency path.
+- The accepted package is intentionally a low-single-digit operational wedge on incumbent thermal generation fuel use. It is not a proxy for generation-mix change or transmission expansion.
+
 ## Expansion path
 
 - Split into state/NEM region supply curves, renewable classes, storage classes, and explicit thermal backup processes.

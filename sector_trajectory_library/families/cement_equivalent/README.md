@@ -50,6 +50,14 @@ The Phase 1 package keeps 3 state ids for this family so the explorer and solver
 - CCS is probably necessary for very low clinker-sector emissions, but the Australian cost and rollout evidence is much weaker than for clinker-factor and fuel-switch changes.
 - This is the strongest non-CCS abatement state for Australian cement in Phase 1 because it is directly anchored to CIF pathway ratios and fuel-switch assumptions.
 
+## Efficiency Artifacts
+
+- Research note: see `docs/prd/20260420-steel-cement-efficiency-research.md`.
+- `autonomous_efficiency_tracks.csv` now authors `cement__cement_equivalent__background_kiln_grinding_drift` on the conventional and low-clinker states only.
+- `efficiency_packages.csv` now authors `cement__cement_equivalent__grinding_system_upgrade` and `cement__cement_equivalent__kiln_ai_process_optimisation`, sharing the same cement non-stacking group.
+- Portable cement efficiency remains intentionally narrow: grinding efficiency and operational kiln/process optimisation only.
+- Clinker-factor reduction, alternative-fuel substitution, and CCS remain embodied in the pathway states rather than being relabeled as portable efficiency packages.
+
 ## Expansion path
 
 - Split to clinker kiln, SCM supply, cement grinding and CCS modules, with explicit clinker-to-cement material balances.
