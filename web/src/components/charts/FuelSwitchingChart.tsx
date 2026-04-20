@@ -22,6 +22,7 @@ interface FuelSwitchingChartProps {
   onBasisChange: (basis: FuelSwitchBasis) => void;
   onYearChange: (year: number) => void;
   title?: string;
+  yDomainPersistenceKey?: string;
 }
 
 function formatPj(value: number): string {
@@ -107,6 +108,7 @@ export default function FuelSwitchingChart({
   rows,
   onBasisChange,
   title = 'Fuel switching by fuel pair',
+  yDomainPersistenceKey,
 }: FuelSwitchingChartProps) {
   const chartData = useMemo(
     () => buildFuelSwitchChartData(rows, availableYears, basis),
@@ -178,6 +180,9 @@ export default function FuelSwitchingChart({
       ? String(chartData.years[0])
       : `${chartData.years[0]}-${chartData.years[chartData.years.length - 1]}`;
   const hiddenLegendPairCount = stackedChartData.series.length - legendItems.length;
+  const basisScopedPersistenceKey = yDomainPersistenceKey == null
+    ? undefined
+    : `${yDomainPersistenceKey}:${basis}`;
 
   return (
     <StackedBarChart
@@ -195,6 +200,7 @@ export default function FuelSwitchingChart({
       headerAction={headerAction}
       layoutVariant="explorer-uniform"
       emptyMessage="No fuel switching for the selected basis."
+      yDomainPersistenceKey={basisScopedPersistenceKey}
     />
   );
 }

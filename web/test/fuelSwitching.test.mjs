@@ -217,6 +217,7 @@ test('fuel switching chart renders stacked years on the x-axis with pair-specifi
       selectedYear: null,
       onBasisChange: () => {},
       onYearChange: () => {},
+      yDomainPersistenceKey: 'run:fuel-switching',
     }),
   );
 
@@ -228,10 +229,15 @@ test('fuel switching chart renders stacked years on the x-axis with pair-specifi
   assert.match(html, /Fuel switching by fuel pair/);
   assert.match(html, /Years: 2030-2035/);
   assert.match(html, /2 fuel-switch pairs/);
+  assert.match(html, /aria-label="Reset y-axis range for Fuel switching by fuel pair"/);
   assert.match(html, />Gas -&gt; Elec</);
   assert.match(html, />Coal -&gt; Elec</);
   assert.match(html, /title="Natural gas -&gt; Electricity"/);
   assert.match(html, /title="Coal -&gt; Electricity"/);
+  assert.match(
+    html,
+    /stacked-chart-header-action-group[\s\S]*role="group" aria-label="Fuel switch basis"[\s\S]*stacked-chart-reset-button/,
+  );
   assert.doesNotMatch(html, /aria-label="Fuel switch year"/);
   assert.doesNotMatch(html, /workspace-chart-toggle/);
   assert.doesNotMatch(html, /role="tablist"/);
