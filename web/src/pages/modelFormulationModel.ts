@@ -636,7 +636,6 @@ export function buildModelFormulationViewModel({
   commodityBalance2025,
   emissionsBalance2025,
 }: ModelFormulationInput): ModelFormulationViewModel {
-  const normalizedRows = normalizeSolverRows({ sectorStates, appConfig });
   const overlaySummary = buildOverlaySummary(
     residualOverlays2025,
     commodityBalance2025,
@@ -672,6 +671,12 @@ export function buildModelFormulationViewModel({
   if (!liveExamplesWarning && !resolvedConfiguration) {
     liveExamplesWarning = 'Live examples are unavailable for the active configuration.';
   }
+
+  const normalizedRows = request?.rows
+    ?? normalizeSolverRows(
+      { sectorStates, appConfig, autonomousEfficiencyTracks, efficiencyPackages },
+      resolvedConfiguration?.efficiency,
+    );
 
   return {
     title: 'Model Formulation',
