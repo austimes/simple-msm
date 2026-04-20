@@ -2,6 +2,9 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import { buildSectorStateFamilies, findReferenceSectorState } from '../src/data/libraryInsights.ts';
 import type { SectorState } from '../src/data/types.ts';
+import { loadPkg } from './solverTestUtils.mjs';
+
+const pkg = loadPkg();
 
 function buildSectorState(
   overrides: Partial<SectorState> & Pick<SectorState, 'state_id' | 'state_label'>,
@@ -111,6 +114,42 @@ describe('libraryInsights', () => {
     const result = findReferenceSectorState(selected, [selected, conventional, baseline]);
 
     assert.equal(result?.state_id, baseline.state_id);
+  });
+
+  test('findReferenceSectorState returns the balanced-table incumbent for key package outputs', () => {
+    const cases = [
+      {
+        outputId: 'electricity',
+        expectedStateId: 'electricity__grid_supply__incumbent_thermal_mix',
+      },
+      {
+        outputId: 'passenger_road_transport',
+        expectedStateId: 'road_transport__passenger_road__ice_fleet',
+      },
+      {
+        outputId: 'crude_steel',
+        expectedStateId: 'steel__crude_steel__bf_bof_conventional',
+      },
+      {
+        outputId: 'residential_building_services',
+        expectedStateId: 'buildings__residential__incumbent_mixed_fuels',
+      },
+    ];
+
+    for (const { outputId, expectedStateId } of cases) {
+      const selected = pkg.sectorStates.find((row) => {
+        return row.service_or_output_name === outputId
+          && row.year === 2025
+          && row.state_id !== expectedStateId;
+      });
+
+      assert.ok(selected, `expected a non-incumbent 2025 row for ${outputId}`);
+
+      const result = findReferenceSectorState(selected, pkg.sectorStates);
+
+      assert.equal(result?.state_id, expectedStateId, `unexpected reference state for ${outputId}`);
+      assert.equal(result?.is_default_incumbent_2025, true, `expected explicit incumbent flag for ${outputId}`);
+    }
   });
 
   test('buildSectorStateFamilies orders families by state_sort_key before label order', () => {

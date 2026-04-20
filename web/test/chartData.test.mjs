@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { SOLVER_CONTRACT_VERSION } from '../src/solver/contract.ts';
+import { normalizeSolverRows } from '../src/solver/buildSolveRequest.ts';
 import { solveWithLpAdapter } from '../src/solver/lpAdapter.ts';
 import {
   buildCostByComponentChart,
@@ -11,6 +12,7 @@ import {
   buildRemovalsChartCards,
 } from '../src/results/chartData.ts';
 import { buildSolverContributionRows } from '../src/results/resultContributions.ts';
+import { loadPkg } from './solverTestUtils.mjs';
 
 const PATHWAY_INCUMBENT_ID = 'generic_industrial_heat__medium_temperature_heat__fossil';
 const PATHWAY_INCUMBENT_LABEL = 'Medium-temperature incumbent mixed-fuel heat';
@@ -30,6 +32,8 @@ function buildRequest(respectMaxShare) {
         year: 2030,
         stateId: PATHWAY_INCUMBENT_ID,
         stateLabel: PATHWAY_INCUMBENT_LABEL,
+        stateSortKey: '01_incumbent',
+        stateOptionRank: 0,
         sector: 'test',
         subsector: 'test',
         region: 'national',
@@ -51,6 +55,8 @@ function buildRequest(respectMaxShare) {
         year: 2030,
         stateId: PATHWAY_ELECTRIFIED_ID,
         stateLabel: PATHWAY_ELECTRIFIED_LABEL,
+        stateSortKey: '02_ambition1',
+        stateOptionRank: 1,
         sector: 'test',
         subsector: 'test',
         region: 'national',
@@ -72,6 +78,8 @@ function buildRequest(respectMaxShare) {
         year: 2035,
         stateId: PATHWAY_INCUMBENT_ID,
         stateLabel: PATHWAY_INCUMBENT_LABEL,
+        stateSortKey: '01_incumbent',
+        stateOptionRank: 0,
         sector: 'test',
         subsector: 'test',
         region: 'national',
@@ -93,6 +101,8 @@ function buildRequest(respectMaxShare) {
         year: 2035,
         stateId: PATHWAY_ELECTRIFIED_ID,
         stateLabel: PATHWAY_ELECTRIFIED_LABEL,
+        stateSortKey: '02_ambition1',
+        stateOptionRank: 1,
         sector: 'test',
         subsector: 'test',
         region: 'national',
@@ -917,6 +927,143 @@ test('buildPathwayChartCards excludes pathways whose cap and solved share stay a
   assert.equal(
     cards[0].capChart.series.some((series) => series.label === 'Standby heat'),
     false,
+  );
+});
+
+test('buildPathwayChartCards orders package pathways by metadata and prefers standardized labels', () => {
+  const pkg = loadPkg();
+  const rows = normalizeSolverRows(pkg)
+    .filter((row) => row.outputId === 'crude_steel' && row.year === 2025);
+  const request = {
+    contractVersion: SOLVER_CONTRACT_VERSION,
+    requestId: 'package-pathway-ordering',
+    rows,
+    configuration: {
+      name: 'Package pathway ordering',
+      description: null,
+      years: [2025],
+      controlsByOutput: {
+        crude_steel: {
+          2025: {
+            mode: 'optimize',
+            activeStateIds: null,
+            targetValue: null,
+          },
+        },
+      },
+      serviceDemandByOutput: {
+        crude_steel: { 2025: 100 },
+      },
+      externalCommodityDemandByCommodity: {},
+      commodityPriceByCommodity: {},
+      carbonPriceByYear: { 2025: 0 },
+      options: {
+        respectMaxShare: true,
+        respectMaxActivity: true,
+        softConstraints: false,
+        shareSmoothing: {
+          enabled: false,
+          maxDeltaPp: null,
+        },
+      },
+    },
+  };
+  const result = {
+    contractVersion: SOLVER_CONTRACT_VERSION,
+    requestId: 'package-pathway-ordering',
+    status: 'solved',
+    engine: { name: 'yalps', worker: true },
+    summary: {
+      rowCount: rows.length,
+      yearCount: 1,
+      outputCount: 1,
+      serviceDemandOutputCount: 1,
+      externalCommodityCount: 0,
+    },
+    reporting: {
+      commodityBalances: [],
+      stateShares: [
+        {
+          outputId: 'crude_steel',
+          outputLabel: 'Crude steel',
+          year: 2025,
+          stateId: 'steel__crude_steel__h2_dri_electric',
+          stateLabel: 'Hydrogen DRI-electric steel',
+          activity: 10,
+          share: 0.1,
+          rawMaxShare: 0.2,
+          effectiveMaxShare: 0.2,
+        },
+        {
+          outputId: 'crude_steel',
+          outputLabel: 'Crude steel',
+          year: 2025,
+          stateId: 'steel__crude_steel__bf_bof_ccs_transition',
+          stateLabel: 'CCS-influenced BF-BOF steel',
+          activity: 20,
+          share: 0.2,
+          rawMaxShare: 0.3,
+          effectiveMaxShare: 0.3,
+        },
+        {
+          outputId: 'crude_steel',
+          outputLabel: 'Crude steel',
+          year: 2025,
+          stateId: 'steel__crude_steel__scrap_eaf',
+          stateLabel: 'Scrap EAF steel',
+          activity: 30,
+          share: 0.3,
+          rawMaxShare: 0.4,
+          effectiveMaxShare: 0.4,
+        },
+        {
+          outputId: 'crude_steel',
+          outputLabel: 'Crude steel',
+          year: 2025,
+          stateId: 'steel__crude_steel__bf_bof_conventional',
+          stateLabel: 'Conventional BF-BOF steel',
+          activity: 40,
+          share: 0.4,
+          rawMaxShare: 0.5,
+          effectiveMaxShare: 0.5,
+        },
+      ],
+      bindingConstraints: [],
+      softConstraintViolations: [],
+    },
+    raw: null,
+    diagnostics: [],
+    timingsMs: {
+      total: 0,
+      solve: 0,
+    },
+  };
+
+  const cards = buildPathwayChartCards(request, result);
+  const steelCard = cards.find((card) => card.outputId === 'crude_steel');
+
+  assert.ok(steelCard, 'expected crude steel pathway chart card');
+  assert.deepEqual(
+    steelCard.outputChart.series.map((series) => series.key),
+    [
+      'steel__crude_steel__bf_bof_conventional',
+      'steel__crude_steel__scrap_eaf',
+      'steel__crude_steel__bf_bof_ccs_transition',
+      'steel__crude_steel__h2_dri_electric',
+    ],
+  );
+  assert.deepEqual(
+    steelCard.outputChart.series.map((series) => series.label),
+    [
+      'Incumbent | bf bof conventional',
+      'Ambition 1 | scrap eaf',
+      'Ambition 2 | bf bof ccs transition',
+      'Ambition 3 | h2 dri electric',
+    ],
+  );
+  assert.deepEqual(
+    steelCard.capChart.series.map((series) => series.key),
+    steelCard.outputChart.series.map((series) => series.key),
   );
 });
 

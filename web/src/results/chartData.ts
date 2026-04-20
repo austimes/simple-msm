@@ -70,6 +70,12 @@ export interface RemovalsChartCardData {
 
 type ShareLookupKey = string;
 
+interface PathwayStateMetadata {
+  label: string;
+  stateSortKey: string;
+  stateOptionRank: number | null;
+}
+
 function shareKey(outputId: string, year: number, stateId: string): ShareLookupKey {
   return `${outputId}::${year}::${stateId}`;
 }
@@ -88,14 +94,21 @@ function buildSeries(
   grouped: Map<string, Map<number, number>>,
   years: number[],
   options: {
+    orderedKeys?: string[];
     labelForKey: (key: string) => string;
     legendLabelForKey?: (key: string) => string;
     colorForKey: (key: string) => string;
   },
 ): StackedSeries[] {
   const series: StackedSeries[] = [];
+  const orderedKeys = options.orderedKeys ?? Array.from(grouped.keys());
 
-  for (const [key, yearMap] of grouped) {
+  for (const key of orderedKeys) {
+    const yearMap = grouped.get(key);
+    if (!yearMap) {
+      continue;
+    }
+
     const values = years.map((y) => ({ year: y, value: yearMap.get(y) ?? 0 }));
     const hasNonZero = values.some((v) => v.value !== 0);
     if (!hasNonZero) continue;
@@ -150,6 +163,62 @@ function buildPathwayCapSeries(
   }
 
   return series;
+}
+
+function compareStateSortKey(left: string, right: string): number {
+  if (!left || !right) {
+    return 0;
+  }
+
+  return left.localeCompare(right);
+}
+
+function compareStateOptionRank(left: number | null, right: number | null): number {
+  if (left == null || right == null) {
+    return 0;
+  }
+
+  return left - right;
+}
+
+function buildPathwayStateMetadata(
+  rows: NormalizedSolverRow[],
+  outputId: string,
+): Map<string, PathwayStateMetadata> {
+  const metadata = new Map<string, PathwayStateMetadata>();
+
+  for (const row of rows) {
+    if (row.outputId !== outputId || metadata.has(row.stateId)) {
+      continue;
+    }
+
+    metadata.set(row.stateId, {
+      label: row.stateDisplayLabel ?? row.stateLabel,
+      stateSortKey: row.stateSortKey?.trim() ?? '',
+      stateOptionRank: row.stateOptionRank ?? null,
+    });
+  }
+
+  return metadata;
+}
+
+function comparePathwayStateIds(
+  leftId: string,
+  rightId: string,
+  metadataById: ReadonlyMap<string, PathwayStateMetadata>,
+  labelById: ReadonlyMap<string, string>,
+): number {
+  const left = metadataById.get(leftId);
+  const right = metadataById.get(rightId);
+  const leftLabel = labelById.get(leftId) ?? left?.label ?? leftId;
+  const rightLabel = labelById.get(rightId) ?? right?.label ?? rightId;
+
+  return (
+    compareStateSortKey(left?.stateSortKey ?? '', right?.stateSortKey ?? '')
+    || compareStateOptionRank(left?.stateOptionRank ?? null, right?.stateOptionRank ?? null)
+    || leftLabel.localeCompare(rightLabel)
+    || leftId.localeCompare(rightId)
+  );
 }
 
 function stripOverlayPrefix(key: string): string {
@@ -538,8 +607,13 @@ export function buildPathwayChartCards(
       const outputGrouped = new Map<string, Map<number, number>>();
       const capGrouped = new Map<string, Map<number, number>>();
       const shareGrouped = new Map<string, Map<number, number>>();
-      const stateLabelById = new Map<string, string>();
-      const orderedStateIds: string[] = [];
+      const stateMetadataById = buildPathwayStateMetadata(request.rows, outputId);
+      const stateLabelById = new Map<string, string>(
+        Array.from(stateMetadataById.entries()).map(([stateId, stateMetadata]) => [
+          stateId,
+          stateMetadata.label,
+        ]),
+      );
       const seenStateIds = new Set<string>();
 
       for (const share of result.reporting.stateShares) {
@@ -547,11 +621,10 @@ export function buildPathwayChartCards(
           continue;
         }
 
-        if (!seenStateIds.has(share.stateId)) {
-          seenStateIds.add(share.stateId);
-          orderedStateIds.push(share.stateId);
+        seenStateIds.add(share.stateId);
+        if (!stateLabelById.has(share.stateId)) {
+          stateLabelById.set(share.stateId, share.stateLabel);
         }
-        stateLabelById.set(share.stateId, share.stateLabel);
 
         let outputYearMap = outputGrouped.get(share.stateId);
         if (!outputYearMap) {
@@ -577,6 +650,10 @@ export function buildPathwayChartCards(
         shareYearMap.set(share.year, solvedShare * 100);
       }
 
+      const orderedStateIds = Array.from(seenStateIds).sort((leftId, rightId) => {
+        return comparePathwayStateIds(leftId, rightId, stateMetadataById, stateLabelById);
+      });
+
       return {
         outputId,
         outputLabel: metadata.outputLabel,
@@ -590,6 +667,7 @@ export function buildPathwayChartCards(
             outputGrouped,
             years,
             {
+              orderedKeys: orderedStateIds,
               labelForKey: (key) => stateLabelById.get(key) ?? key,
               legendLabelForKey: (key) => getPresentation('state', key, stateLabelById.get(key) ?? key).legendLabel,
               colorForKey: (key) => getPresentation('state', key, stateLabelById.get(key) ?? key).color,
