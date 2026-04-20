@@ -35,6 +35,36 @@ describe('buildStateCatalog', () => {
     );
   });
 
+  test('orders crude steel states in O0 through O3 sequence from balanced metadata', () => {
+    const catalog = buildStateCatalog(pkg.sectorStates, pkg.appConfig);
+    const steel = catalog.find((entry) => entry.sector === 'steel');
+    const crudeSteel = steel?.subsectors.find((entry) => entry.outputId === 'crude_steel');
+    const steelRowsByStateId = new Map(
+      pkg.sectorStates
+        .filter((row) => row.service_or_output_name === 'crude_steel' && row.year === 2025)
+        .map((row) => [row.state_id, row]),
+    );
+
+    assert.ok(crudeSteel, 'expected crude steel catalog entry');
+    assert.deepEqual(
+      crudeSteel.states.map((state) => state.stateId),
+      [
+        'steel__crude_steel__bf_bof_conventional',
+        'steel__crude_steel__scrap_eaf',
+        'steel__crude_steel__bf_bof_ccs_transition',
+        'steel__crude_steel__h2_dri_electric',
+      ],
+    );
+    assert.deepEqual(
+      crudeSteel.states.map((state) => steelRowsByStateId.get(state.stateId)?.state_option_code),
+      ['O0', 'O1', 'O2', 'O3'],
+    );
+    assert.deepEqual(
+      crudeSteel.states.map((state) => steelRowsByStateId.get(state.stateId)?.state_option_rank),
+      [0, 1, 2, 3],
+    );
+  });
+
   test('falls back to label sorting and legacy labels when metadata is absent', () => {
     const legacySectorStates = [
       {

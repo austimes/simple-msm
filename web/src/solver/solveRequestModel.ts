@@ -27,6 +27,14 @@ function resolveYearValue(table: Record<string, number> | undefined, year: numbe
 
 const BASE_YEAR = 2025;
 
+function resolveStateDisplayLabel(row: SectorState): string {
+  const preferredLabel = (row.state_label_standardized ?? '').trim()
+    || (row.state_option_label ?? '').trim()
+    || (row.state_label ?? '').trim();
+
+  return preferredLabel || row.state_id;
+}
+
 function collectIncumbentStateIdsByOutput(
   sectorStates: Pick<SectorState, 'service_or_output_name' | 'year' | 'state_id' | 'is_default_incumbent_2025'>[] | undefined,
 ): Map<string, string[]> {
@@ -175,6 +183,9 @@ export function normalizeSolverRows(
       year: row.year,
       stateId: row.state_id,
       stateLabel: row.state_label,
+      stateDisplayLabel: resolveStateDisplayLabel(row),
+      stateSortKey: (row.state_sort_key ?? '').trim(),
+      stateOptionRank: row.state_option_rank,
       sector: row.sector,
       subsector: row.subsector,
       region: row.region,

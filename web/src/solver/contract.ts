@@ -40,6 +40,9 @@ export interface NormalizedSolverRow {
   year: number;
   stateId: string;
   stateLabel: string;
+  stateDisplayLabel?: string;
+  stateSortKey?: string;
+  stateOptionRank?: number | null;
   sector: string;
   subsector: string;
   region: string;
