@@ -160,7 +160,7 @@ test('buildSolveRequest materializes autonomous and package efficiency rows', ()
   assert.ok(base2030, 'expected the 2030 base row to be present');
   assert.equal(base2030.inputs[0].coefficient, 0.9);
   assert.equal(base2030.conversionCostPerUnit, 10);
-  assert.equal(base2030.directEmissions[0].value, 0.2);
+  assert.ok(Math.abs(base2030.directEmissions[0].value - 0.18) < 1e-9);
   assert.equal(base2030.provenance?.kind, 'base_state');
   assert.deepEqual(base2030.provenance?.autonomousTrackIds, ['background_drift']);
 
@@ -171,6 +171,7 @@ test('buildSolveRequest materializes autonomous and package efficiency rows', ()
   assert.equal(package2030.stateId, `effpkg:${BASE_STATE_ID}::${PACKAGE_ID}`);
   assert.ok(Math.abs(package2030.inputs[0].coefficient - 0.72) < 1e-9);
   assert.equal(package2030.conversionCostPerUnit, 12);
+  assert.ok(Math.abs(package2030.directEmissions[0].value - 0.144) < 1e-9);
   assert.equal(package2030.bounds.maxShare, 0.35);
   assert.equal(package2030.provenance?.baseStateId, BASE_STATE_ID);
   assert.equal(package2030.provenance?.baseStateLabel, 'Residential base');

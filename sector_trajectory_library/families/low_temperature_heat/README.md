@@ -48,6 +48,14 @@ The Phase 1 package keeps 3 state ids for this family so the explorer and solver
 - Exploratory flexibility state for users who need a fuel-switch option where electrification is judged infeasible.
 - Useful generic representation for low-temperature industrial heat; not a substitute for food, paper or chemical subsector models.
 
+## Efficiency Artifacts
+
+- Research note: see `docs/prd/20260420-industrial-heat-efficiency-research.md`.
+- `autonomous_efficiency_tracks.csv` now authors `industrial_heat__low_temperature__background_thermal_drift` for the fossil incumbent state only.
+- `efficiency_packages.csv` now authors `industrial_heat__low_temperature__thermal_system_retrofit` for the fossil incumbent state only.
+- The fossil `family_states.csv` rows intentionally hold the 2025 gas coefficient and direct-combustion intensity flat across later milestone years so the background drift travels through the explicit autonomous track instead of staying hidden in the base rows.
+- Electrified and low-carbon-fuel states remain free of portable efficiency overlays in this thin slice so route changes stay cleanly separated from carrier-preserving efficiency.
+
 ## Expansion path
 
 - Replace with subsector/process-specific service or process states (e.g., food boilers, alumina calciners, chemical steam, minerals kilns).

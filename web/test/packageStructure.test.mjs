@@ -77,6 +77,8 @@ test('sector trajectory library package structure is internally consistent', () 
 
   let totalRows = 0;
   const stateIds = new Set();
+  let autonomousTrackRowCount = 0;
+  let efficiencyPackageRowCount = 0;
 
   for (const family of families) {
     const familyDir = join(PACKAGE_ROOT, 'families', family.family_id);
@@ -127,10 +129,124 @@ test('sector trajectory library package structure is internally consistent', () 
         .sort((left, right) => Number(left) - Number(right));
       assert.deepEqual(years, MILESTONE_YEARS, `${family.family_id}.${stateId} must cover every milestone year`);
     }
+
+    const autonomousPath = join(familyDir, 'autonomous_efficiency_tracks.csv');
+    if (existsSync(autonomousPath)) {
+      assert.deepEqual(
+        parseHeader(`families/${family.family_id}/autonomous_efficiency_tracks.csv`),
+        AUTONOMOUS_EFFICIENCY_HEADERS,
+        `${family.family_id} autonomous_efficiency_tracks.csv should use the canonical header order`,
+      );
+
+      const trackRows = parseCsv(readText(`families/${family.family_id}/autonomous_efficiency_tracks.csv`));
+      autonomousTrackRowCount += trackRows.length;
+      const trackIds = new Set(trackRows.map((row) => row.track_id));
+
+      for (const row of trackRows) {
+        assert.equal(row.family_id, family.family_id, `${family.family_id} track rows must keep the correct family_id`);
+
+        const applicableStateIds = parseJsonArray(
+          row.applicable_state_ids,
+          `${family.family_id}.${row.track_id}.applicable_state_ids`,
+        );
+        const sourceArray = parseJsonArray(row.source_ids, `${family.family_id}.${row.track_id}.source_ids`);
+        const assumptionArray = parseJsonArray(row.assumption_ids, `${family.family_id}.${row.track_id}.assumption_ids`);
+        const affectedInputCommodities = parseJsonArray(
+          row.affected_input_commodities,
+          `${family.family_id}.${row.track_id}.affected_input_commodities`,
+        );
+        const inputMultipliers = parseJsonArray(
+          row.input_multipliers,
+          `${family.family_id}.${row.track_id}.input_multipliers`,
+        );
+
+        assert.equal(
+          affectedInputCommodities.length,
+          inputMultipliers.length,
+          `${family.family_id}.${row.track_id} input arrays must align`,
+        );
+
+        for (const stateId of applicableStateIds) {
+          assert.equal(familyStateIds.has(stateId), true, `${family.family_id}.${row.track_id} state ${stateId} must resolve`);
+        }
+        for (const sourceId of sourceArray) {
+          assert.equal(sourceIds.has(sourceId), true, `${family.family_id}.${row.track_id} source ${sourceId} must resolve`);
+        }
+        for (const assumptionId of assumptionArray) {
+          assert.equal(assumptionIds.has(assumptionId), true, `${family.family_id}.${row.track_id} assumption ${assumptionId} must resolve`);
+        }
+      }
+
+      for (const trackId of trackIds) {
+        const years = trackRows
+          .filter((row) => row.track_id === trackId)
+          .map((row) => row.year)
+          .sort((left, right) => Number(left) - Number(right));
+        assert.deepEqual(years, MILESTONE_YEARS, `${family.family_id}.${trackId} must cover every milestone year`);
+      }
+    }
+
+    const packagesPath = join(familyDir, 'efficiency_packages.csv');
+    if (existsSync(packagesPath)) {
+      assert.deepEqual(
+        parseHeader(`families/${family.family_id}/efficiency_packages.csv`),
+        EFFICIENCY_PACKAGE_HEADERS,
+        `${family.family_id} efficiency_packages.csv should use the canonical header order`,
+      );
+
+      const packageRows = parseCsv(readText(`families/${family.family_id}/efficiency_packages.csv`));
+      efficiencyPackageRowCount += packageRows.length;
+      const packageIds = new Set(packageRows.map((row) => row.package_id));
+
+      for (const row of packageRows) {
+        assert.equal(row.family_id, family.family_id, `${family.family_id} package rows must keep the correct family_id`);
+
+        const applicableStateIds = parseJsonArray(
+          row.applicable_state_ids,
+          `${family.family_id}.${row.package_id}.applicable_state_ids`,
+        );
+        const sourceArray = parseJsonArray(row.source_ids, `${family.family_id}.${row.package_id}.source_ids`);
+        const assumptionArray = parseJsonArray(row.assumption_ids, `${family.family_id}.${row.package_id}.assumption_ids`);
+        const affectedInputCommodities = parseJsonArray(
+          row.affected_input_commodities,
+          `${family.family_id}.${row.package_id}.affected_input_commodities`,
+        );
+        const inputMultipliers = parseJsonArray(
+          row.input_multipliers,
+          `${family.family_id}.${row.package_id}.input_multipliers`,
+        );
+
+        assert.equal(
+          affectedInputCommodities.length,
+          inputMultipliers.length,
+          `${family.family_id}.${row.package_id} input arrays must align`,
+        );
+
+        for (const stateId of applicableStateIds) {
+          assert.equal(familyStateIds.has(stateId), true, `${family.family_id}.${row.package_id} state ${stateId} must resolve`);
+        }
+        for (const sourceId of sourceArray) {
+          assert.equal(sourceIds.has(sourceId), true, `${family.family_id}.${row.package_id} source ${sourceId} must resolve`);
+        }
+        for (const assumptionId of assumptionArray) {
+          assert.equal(assumptionIds.has(assumptionId), true, `${family.family_id}.${row.package_id} assumption ${assumptionId} must resolve`);
+        }
+      }
+
+      for (const packageId of packageIds) {
+        const years = packageRows
+          .filter((row) => row.package_id === packageId)
+          .map((row) => row.year)
+          .sort((left, right) => Number(left) - Number(right));
+        assert.deepEqual(years, MILESTONE_YEARS, `${family.family_id}.${packageId} must cover every milestone year`);
+      }
+    }
   }
 
   assert.equal(totalRows, 228);
   assert.equal(stateIds.size, 38);
+  assert.ok(autonomousTrackRowCount > 0, 'expected at least one canonical autonomous efficiency track row');
+  assert.ok(efficiencyPackageRowCount > 0, 'expected at least one canonical efficiency package row');
 
   const externalCommodityDemands = parseCsv(readText('shared/external_commodity_demands.csv'));
   for (const row of externalCommodityDemands) {

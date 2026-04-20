@@ -48,12 +48,13 @@ The Phase 1 package keeps 3 state ids for this family so the explorer and solver
 - Energy intensity falls because the state represents a more efficient service package; direct on-site emissions collapse as gas exits.
 - Represents the high-electrification/efficiency end of the residential service frontier. Useful as the near-zero direct-emissions building state.
 
-## Draft Efficiency Extension Guidance
+## Efficiency Artifacts
 
 - Research note: see `docs/prd/20260420-buildings-efficiency-research.md`.
-- The current family boundary supports one portable v1 pure-efficiency candidate: a thermal-shell retrofit bundle covering insulation, draught sealing and window / glazing upgrades.
-- Heat-pump space heating, heat-pump hot water, induction cooking and wider electrified service-bundle effects should remain embodied in `buildings__residential__electrified_efficiency` and `buildings__residential__deep_electric` rather than becoming portable packages.
-- Any future explicit autonomous track should be treated as background standards / turnover drift and must be authored carefully to avoid double counting against the existing year-varying state coefficients.
+- `efficiency_packages.csv` now authors `buildings__residential__thermal_shell_retrofit` as the canonical v1 package for this family.
+- The package applies only to `buildings__residential__incumbent_mixed_fuels` and `buildings__residential__electrified_efficiency`, and it is kept materially smaller than the incumbent-to-electrified state jump so attribution stays interpretable.
+- Heat-pump space heating, heat-pump hot water, induction cooking, and the broader electrified service bundle remain embodied in `buildings__residential__electrified_efficiency` and `buildings__residential__deep_electric` rather than becoming portable packages.
+- No autonomous residential track is authored in this thin slice; that still needs a dedicated de-embedding pass so background standards drift does not double count against the family's existing year-varying coefficients.
 
 ## Expansion path
 

@@ -33,3 +33,10 @@
 - `would_expand_to_explicit_capacity?` values across the family: false.
 - `would_expand_to_process_chain?` values across the family: false.
 - Contributors should treat the current family as the canonical authored unit and use the shared ledgers plus family-local notes for traceability.
+
+## Efficiency Checks
+
+- `autonomous_efficiency_tracks.csv` must contain one row per milestone year for `industrial_heat__low_temperature__background_thermal_drift` and it must apply only to `generic_industrial_heat__low_temperature_heat__fossil`.
+- `efficiency_packages.csv` must contain one row per milestone year for `industrial_heat__low_temperature__thermal_system_retrofit` and it must apply only to `generic_industrial_heat__low_temperature_heat__fossil`.
+- The fossil `family_states.csv` gas coefficient and direct-combustion emissions should stay flat at the de-embedded 2025 level; the explicit autonomous track should carry the later-year background improvement instead.
+- Electrified and low-carbon-fuel states should not receive this family's portable efficiency artifacts in v1.

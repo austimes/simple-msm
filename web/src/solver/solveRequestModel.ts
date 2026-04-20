@@ -8,7 +8,7 @@ import type {
   ConfigurationServiceControl,
   SectorState,
 } from '../data/types.ts';
-import { normalizeCommodityInput } from '../data/commodityMetadata.ts';
+import { getCommodityMetadata, normalizeCommodityInput } from '../data/commodityMetadata.ts';
 import { materializeEfficiencyConfiguration } from '../data/configurationDocumentLoader.ts';
 import { resolveConfigurationDocument } from '../data/demandResolution.ts';
 import { derivePathwayStateIds } from '../data/pathwaySemantics.ts';
@@ -290,6 +290,59 @@ function applyInputMultipliers(
   }));
 }
 
+function isDirectCombustionCommodity(commodityId: string): boolean {
+  const metadata = getCommodityMetadata(commodityId);
+  if (metadata.kind !== 'fuel') {
+    return false;
+  }
+
+  return commodityId !== 'electricity' && commodityId !== 'hydrogen' && commodityId !== 'biomass';
+}
+
+function resolveEnergyEmissionMultiplier(
+  inputs: NormalizedSolverRow['inputs'],
+  affectedInputCommodities: readonly string[],
+  inputMultipliers: readonly number[],
+): number {
+  const multipliersByCommodity = new Map<string, number>();
+  for (const [index, commodityId] of affectedInputCommodities.entries()) {
+    multipliersByCommodity.set(commodityId, inputMultipliers[index] ?? 1);
+  }
+
+  let originalCombustionInputs = 0;
+  let adjustedCombustionInputs = 0;
+
+  for (const input of inputs) {
+    if (!isDirectCombustionCommodity(input.commodityId)) {
+      continue;
+    }
+
+    originalCombustionInputs += input.coefficient;
+    adjustedCombustionInputs += input.coefficient * (multipliersByCommodity.get(input.commodityId) ?? 1);
+  }
+
+  if (originalCombustionInputs === 0) {
+    return 1;
+  }
+
+  return adjustedCombustionInputs / originalCombustionInputs;
+}
+
+function applyEnergyEmissionMultiplier(
+  directEmissions: NormalizedSolverRow['directEmissions'],
+  multiplier: number,
+): NormalizedSolverRow['directEmissions'] {
+  if (multiplier === 1) {
+    return directEmissions;
+  }
+
+  return directEmissions.map((entry) => (
+    entry.source === 'energy'
+      ? { ...entry, value: entry.value * multiplier }
+      : entry
+  ));
+}
+
 function applyCostDelta(
   row: NormalizedSolverRow,
   deltaOutputCostPerUnit: number,
@@ -335,12 +388,21 @@ function applyAutonomousTracksToRow(
   for (const track of tracks) {
     const artifactLabel = `autonomous efficiency track ${JSON.stringify(track.track_id)}`;
     assertCostMetadataCompatible(resolvedRow, artifactLabel, track.currency, track.cost_basis_year);
+    const energyEmissionMultiplier = resolveEnergyEmissionMultiplier(
+      resolvedRow.inputs,
+      track.affected_input_commodities,
+      track.input_multipliers,
+    );
     resolvedRow = {
       ...resolvedRow,
       inputs: applyInputMultipliers(
         resolvedRow.inputs,
         track.affected_input_commodities,
         track.input_multipliers,
+      ),
+      directEmissions: applyEnergyEmissionMultiplier(
+        resolvedRow.directEmissions,
+        energyEmissionMultiplier,
       ),
       conversionCostPerUnit: applyCostDelta(
         resolvedRow,
@@ -382,6 +444,11 @@ function buildPackageRow(
   assertCostMetadataCompatible(baseRow, artifactLabel, pkg.currency, pkg.cost_basis_year);
   const stateId = buildEfficiencyPackageStateId(baseRow.provenance?.baseStateId ?? baseRow.stateId, pkg.package_id);
   const packageLabel = `${baseRow.stateDisplayLabel ?? baseRow.stateLabel} + ${pkg.package_label}`;
+  const energyEmissionMultiplier = resolveEnergyEmissionMultiplier(
+    baseRow.inputs,
+    pkg.affected_input_commodities,
+    pkg.input_multipliers,
+  );
 
   return {
     ...baseRow,
@@ -396,6 +463,7 @@ function buildPackageRow(
       pkg.affected_input_commodities,
       pkg.input_multipliers,
     ),
+    directEmissions: applyEnergyEmissionMultiplier(baseRow.directEmissions, energyEmissionMultiplier),
     provenance: {
       kind: 'efficiency_package',
       familyId: pkg.family_id,

@@ -34,9 +34,10 @@
 - `would_expand_to_process_chain?` values across the family: false.
 - Contributors should treat the current family as the canonical authored unit and use the shared ledgers plus family-local notes for traceability.
 
-## Draft Efficiency Extension Checks
+## Efficiency Checks
 
-- With any future autonomous track or package disabled, the 2025 incumbent row must still reproduce the current baseline anchor.
+- `efficiency_packages.csv` must contain one row per milestone year for `buildings__residential__thermal_shell_retrofit`.
+- `buildings__residential__thermal_shell_retrofit` must apply only to `buildings__residential__incumbent_mixed_fuels` and `buildings__residential__electrified_efficiency`.
 - Do not apply a generic portable efficiency package to `buildings__residential__deep_electric`; that state already embodies high shell and appliance efficiency.
-- Any residential thermal-shell package should remain materially smaller than the current incumbent-to-electrified state gap unless the family is split into narrower end uses.
-- Controls-only household measures should not be introduced as a v1 package without stronger measured Australian evidence and a persistence treatment.
+- With efficiency controls disabled, the 2025 incumbent row must still reproduce the current baseline anchor.
+- The thermal-shell package should remain materially smaller than the current incumbent-to-electrified state gap unless the family is split into narrower end uses.
