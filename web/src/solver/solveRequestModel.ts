@@ -215,6 +215,7 @@ function buildBaseRowProvenance(row: SectorState): NormalizedSolverRowProvenance
     kind: 'base_state',
     familyId: row.family_id,
     baseStateId: row.state_id,
+    baseStateLabel: resolveStateDisplayLabel(row),
     baseRowId: stateYearKey(row.state_id, row.year),
     autonomousTrackIds: [],
   };
@@ -399,6 +400,7 @@ function buildPackageRow(
       kind: 'efficiency_package',
       familyId: pkg.family_id,
       baseStateId: baseRow.provenance?.baseStateId ?? baseRow.stateId,
+      baseStateLabel: baseRow.provenance?.baseStateLabel ?? baseRow.stateDisplayLabel ?? baseRow.stateLabel,
       baseRowId: baseRow.provenance?.baseRowId ?? stateYearKey(baseRow.stateId, baseRow.year),
       autonomousTrackIds: [...(baseRow.provenance?.autonomousTrackIds ?? [])],
       packageId: pkg.package_id,

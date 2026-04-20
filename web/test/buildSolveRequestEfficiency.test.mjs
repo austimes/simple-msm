@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { resolveConfigurationDocument } from '../src/data/demandResolution.ts';
+import { buildSolverContributionRows } from '../src/results/resultContributions.ts';
 import { buildSolveRequest } from '../src/solver/buildSolveRequest.ts';
+import { solveWithLpAdapter } from '../src/solver/lpAdapter.ts';
 
 const OUTPUT_ID = 'residential_building_services';
 const FAMILY_ID = 'residential_building_services';
@@ -171,6 +173,7 @@ test('buildSolveRequest materializes autonomous and package efficiency rows', ()
   assert.equal(package2030.conversionCostPerUnit, 12);
   assert.equal(package2030.bounds.maxShare, 0.35);
   assert.equal(package2030.provenance?.baseStateId, BASE_STATE_ID);
+  assert.equal(package2030.provenance?.baseStateLabel, 'Residential base');
   assert.equal(package2030.provenance?.packageId, PACKAGE_ID);
   assert.deepEqual(package2030.provenance?.autonomousTrackIds, ['background_drift']);
 
@@ -181,4 +184,68 @@ test('buildSolveRequest materializes autonomous and package efficiency rows', ()
     control2030.activeStateIds,
     [BASE_STATE_ID, `effpkg:${BASE_STATE_ID}::${PACKAGE_ID}`],
   );
+});
+
+test('solver reporting and contribution rows carry efficiency provenance', () => {
+  const appConfig = loadAppConfig();
+  const configuration = {
+    ...buildConfiguration(appConfig, {
+      name: 'Efficiency reporting test',
+      serviceControls: {
+        [OUTPUT_ID]: {
+          mode: 'optimize',
+          active_state_ids: [BASE_STATE_ID],
+        },
+      },
+    }),
+    efficiency_controls: {
+      autonomous_mode: 'baseline',
+      package_mode: 'allow_list',
+      package_ids: [PACKAGE_ID],
+    },
+  };
+
+  const request = buildSolveRequest(
+    {
+      sectorStates: [makeSectorState(2025), makeSectorState(2030)],
+      appConfig,
+      autonomousEfficiencyTracks: [makeAutonomousTrack(2030, 0.9, -1)],
+      efficiencyPackages: [
+        makeEfficiencyPackage(2030, 0.1, -5),
+      ],
+    },
+    configuration,
+  );
+  const result = solveWithLpAdapter(request);
+
+  assert.equal(result.status, 'solved');
+
+  const packageStateId = `effpkg:${BASE_STATE_ID}::${PACKAGE_ID}`;
+  const packageShare = result.reporting.stateShares.find((share) => {
+    return share.outputId === OUTPUT_ID && share.year === 2030 && share.stateId === packageStateId;
+  });
+
+  assert.ok(packageShare, 'expected a reporting row for the package pathway');
+  assert.equal(packageShare.rowId, `${packageStateId}::2030`);
+  assert.equal(packageShare.pathwayStateId, BASE_STATE_ID);
+  assert.equal(packageShare.pathwayStateLabel, 'Residential base');
+  assert.equal(packageShare.provenance?.kind, 'efficiency_package');
+  assert.equal(packageShare.provenance?.packageId, PACKAGE_ID);
+  assert.equal(packageShare.provenance?.packageClassification, 'pure_efficiency_overlay');
+  assert.deepEqual(packageShare.provenance?.autonomousTrackIds, ['background_drift']);
+  assert.ok((packageShare.activity ?? 0) > 0, 'expected the package pathway to be selected');
+
+  const contributionRows = buildSolverContributionRows(request, result);
+  const packageFuelContribution = contributionRows.find((row) => {
+    return row.metric === 'fuel' && row.year === 2030 && row.sourceId === packageStateId;
+  });
+
+  assert.ok(packageFuelContribution, 'expected a package fuel contribution row');
+  assert.equal(packageFuelContribution.rowId, `${packageStateId}::2030`);
+  assert.equal(packageFuelContribution.pathwayStateId, BASE_STATE_ID);
+  assert.equal(packageFuelContribution.pathwayStateLabel, 'Residential base');
+  assert.equal(packageFuelContribution.provenance?.kind, 'efficiency_package');
+  assert.equal(packageFuelContribution.provenance?.packageId, PACKAGE_ID);
+  assert.equal(packageFuelContribution.provenance?.packageClassification, 'pure_efficiency_overlay');
+  assert.deepEqual(packageFuelContribution.provenance?.autonomousTrackIds, ['background_drift']);
 });

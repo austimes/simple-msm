@@ -1,4 +1,9 @@
-import type { SolveRequest, SolveResult, SolveStateShareSummary } from '../solver/contract.ts';
+import type {
+  NormalizedSolverRowProvenance,
+  SolveRequest,
+  SolveResult,
+  SolveStateShareSummary,
+} from '../solver/contract.ts';
 import type {
   ConfigurationDocument,
   ResidualOverlayDomain,
@@ -20,10 +25,14 @@ export interface ResultContributionRow {
   year: number;
   value: number;
   sourceKind: 'solver' | 'overlay';
+  rowId?: string | null;
   outputId: string | null;
   outputLabel: string | null;
   sourceId: string;
   sourceLabel: string;
+  pathwayStateId?: string | null;
+  pathwayStateLabel?: string | null;
+  provenance?: NormalizedSolverRowProvenance;
   sectorId: string;
   sectorLabel: string;
   subsectorId: string | null;
@@ -72,6 +81,24 @@ export function buildSolverContributionRows(
     const ss = lookup.get(shareKey(row.outputId, row.year, row.stateId));
     if (!ss || ss.activity === 0) continue;
 
+    const solverBase = {
+      sourceKind: 'solver' as const,
+      rowId: ss.rowId ?? row.rowId,
+      outputId: row.outputId,
+      outputLabel: row.outputLabel,
+      sourceId: row.stateId,
+      sourceLabel: row.stateLabel,
+      pathwayStateId: ss.pathwayStateId ?? row.provenance?.baseStateId ?? row.stateId,
+      pathwayStateLabel: ss.pathwayStateLabel ?? row.provenance?.baseStateLabel ?? row.stateLabel,
+      provenance: ss.provenance ?? row.provenance,
+      sectorId: row.sector,
+      sectorLabel: row.sector,
+      subsectorId: row.subsector,
+      subsectorLabel: row.subsector,
+      overlayId: null,
+      overlayDomain: null,
+    };
+
     // Emissions by sector (tCO2e — no conversion needed)
     const totalEmissions = row.directEmissions.reduce((sum, e) => sum + e.value, 0);
     if (totalEmissions !== 0) {
@@ -79,19 +106,9 @@ export function buildSolverContributionRows(
         metric: 'emissions',
         year: row.year,
         value: ss.activity * totalEmissions,
-        sourceKind: 'solver',
-        outputId: row.outputId,
-        outputLabel: row.outputLabel,
-        sourceId: row.stateId,
-        sourceLabel: row.stateLabel,
-        sectorId: row.sector,
-        sectorLabel: row.sector,
-        subsectorId: row.subsector,
-        subsectorLabel: row.subsector,
+        ...solverBase,
         commodityId: null,
         costComponent: null,
-        overlayId: null,
-        overlayDomain: null,
       });
     }
 
@@ -107,19 +124,9 @@ export function buildSolverContributionRows(
         metric: 'fuel',
         year: row.year,
         value: consumption,
-        sourceKind: 'solver',
-        outputId: row.outputId,
-        outputLabel: row.outputLabel,
-        sourceId: row.stateId,
-        sourceLabel: row.stateLabel,
-        sectorId: row.sector,
-        sectorLabel: row.sector,
-        subsectorId: row.subsector,
-        subsectorLabel: row.subsector,
+        ...solverBase,
         commodityId: input.commodityId,
         costComponent: null,
-        overlayId: null,
-        overlayDomain: null,
       });
     }
 
@@ -130,19 +137,9 @@ export function buildSolverContributionRows(
         metric: 'cost',
         year: row.year,
         value: conversion,
-        sourceKind: 'solver',
-        outputId: row.outputId,
-        outputLabel: row.outputLabel,
-        sourceId: row.stateId,
-        sourceLabel: row.stateLabel,
-        sectorId: row.sector,
-        sectorLabel: row.sector,
-        subsectorId: row.subsector,
-        subsectorLabel: row.subsector,
+        ...solverBase,
         commodityId: null,
         costComponent: 'conversion',
-        overlayId: null,
-        overlayDomain: null,
       });
     }
 
@@ -161,19 +158,9 @@ export function buildSolverContributionRows(
         metric: 'cost',
         year: row.year,
         value: commodity,
-        sourceKind: 'solver',
-        outputId: row.outputId,
-        outputLabel: row.outputLabel,
-        sourceId: row.stateId,
-        sourceLabel: row.stateLabel,
-        sectorId: row.sector,
-        sectorLabel: row.sector,
-        subsectorId: row.subsector,
-        subsectorLabel: row.subsector,
+        ...solverBase,
         commodityId: null,
         costComponent: 'commodity',
-        overlayId: null,
-        overlayDomain: null,
       });
     }
 
@@ -188,19 +175,9 @@ export function buildSolverContributionRows(
         metric: 'cost',
         year: row.year,
         value: carbon,
-        sourceKind: 'solver',
-        outputId: row.outputId,
-        outputLabel: row.outputLabel,
-        sourceId: row.stateId,
-        sourceLabel: row.stateLabel,
-        sectorId: row.sector,
-        sectorLabel: row.sector,
-        subsectorId: row.subsector,
-        subsectorLabel: row.subsector,
+        ...solverBase,
         commodityId: null,
         costComponent: 'carbon',
-        overlayId: null,
-        overlayDomain: null,
       });
     }
   }
@@ -225,10 +202,13 @@ export function buildOverlayContributionRows(
         year: p.year,
         value: totalEmissionsMt * 1_000_000,
         sourceKind: 'overlay',
+        rowId: null,
         outputId: null,
         outputLabel: null,
         sourceId: p.overlayId,
         sourceLabel: p.overlayLabel,
+        pathwayStateId: null,
+        pathwayStateLabel: null,
         sectorId: p.overlayId,
         sectorLabel: p.overlayLabel,
         subsectorId: p.overlayId,
@@ -252,10 +232,13 @@ export function buildOverlayContributionRows(
         year: p.year,
         value: p.finalEnergyPj,
         sourceKind: 'overlay',
+        rowId: null,
         outputId: null,
         outputLabel: null,
         sourceId: p.overlayId,
         sourceLabel: p.overlayLabel,
+        pathwayStateId: null,
+        pathwayStateLabel: null,
         sectorId: p.overlayId,
         sectorLabel: p.overlayLabel,
         subsectorId: p.overlayId,
@@ -275,10 +258,13 @@ export function buildOverlayContributionRows(
         year: p.year,
         value: commodityCost,
         sourceKind: 'overlay',
+        rowId: null,
         outputId: null,
         outputLabel: null,
         sourceId: p.overlayId,
         sourceLabel: p.overlayLabel,
+        pathwayStateId: null,
+        pathwayStateLabel: null,
         sectorId: p.overlayId,
         sectorLabel: p.overlayLabel,
         subsectorId: p.overlayId,
@@ -298,10 +284,13 @@ export function buildOverlayContributionRows(
         year: p.year,
         value: conversionCost,
         sourceKind: 'overlay',
+        rowId: null,
         outputId: null,
         outputLabel: null,
         sourceId: p.overlayId,
         sourceLabel: p.overlayLabel,
+        pathwayStateId: null,
+        pathwayStateLabel: null,
         sectorId: p.overlayId,
         sectorLabel: p.overlayLabel,
         subsectorId: p.overlayId,
@@ -324,10 +313,13 @@ export function buildOverlayContributionRows(
         year: p.year,
         value: carbonCost,
         sourceKind: 'overlay',
+        rowId: null,
         outputId: null,
         outputLabel: null,
         sourceId: p.overlayId,
         sourceLabel: p.overlayLabel,
+        pathwayStateId: null,
+        pathwayStateLabel: null,
         sectorId: p.overlayId,
         sectorLabel: p.overlayLabel,
         subsectorId: p.overlayId,

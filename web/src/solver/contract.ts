@@ -2,10 +2,11 @@ import type {
   ConfigurationAutonomousEfficiencyMode,
   ConfigurationControlMode,
   ConfigurationEfficiencyPackageMode,
+  EfficiencyPackageClassification,
   OutputRole,
 } from '../data/types.ts';
 
-export const SOLVER_CONTRACT_VERSION = 4 as const;
+export const SOLVER_CONTRACT_VERSION = 5 as const;
 
 export type SolverContractVersion = typeof SOLVER_CONTRACT_VERSION;
 export type SolveStatus = 'partial' | 'solved' | 'error';
@@ -41,10 +42,11 @@ export interface NormalizedSolverRowProvenance {
   kind: 'base_state' | 'efficiency_package';
   familyId: string;
   baseStateId: string;
+  baseStateLabel: string;
   baseRowId: string;
   autonomousTrackIds: string[];
   packageId?: string;
-  packageClassification?: 'pure_efficiency_overlay' | 'operational_efficiency_overlay';
+  packageClassification?: EfficiencyPackageClassification;
 }
 
 export interface NormalizedSolverRow {
@@ -196,8 +198,12 @@ export interface SolveStateShareSummary {
   outputId: string;
   outputLabel: string;
   year: number;
+  rowId?: string;
   stateId: string;
   stateLabel: string;
+  pathwayStateId?: string;
+  pathwayStateLabel?: string;
+  provenance?: NormalizedSolverRowProvenance;
   activity: number;
   share: number | null;
   rawMaxShare: number | null;
