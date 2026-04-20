@@ -222,6 +222,24 @@ function buildResult() {
   };
 }
 
+function buildFuelSwitchRequest(commodityId) {
+  const request = buildRequest();
+
+  return {
+    ...request,
+    rows: request.rows.map((row) => {
+      if (row.outputId !== 'industry_heat') {
+        return row;
+      }
+
+      return {
+        ...row,
+        inputs: [{ commodityId, coefficient: 1, unit: 'PJ' }],
+      };
+    }),
+  };
+}
+
 test('solved workspace renders Cost by Component with diverging chart net metadata', () => {
   const html = renderToStaticMarkup(
     React.createElement(ConfigurationWorkspaceCenter, buildCenterProps()),
@@ -238,6 +256,36 @@ test('solved workspace renders Cost by Component with diverging chart net metada
   assert.match(html, /aria-label="Reset y-axis range for Demand by Sector"/);
   assert.equal(netSeriesMatches.length, 2);
   assert.equal(resetMatches.length, 4);
+});
+
+test('comparison-enabled workspace shows the fuel-switching chart with its reset control', () => {
+  const focusRequest = buildFuelSwitchRequest('electricity');
+  const baseRequest = buildFuelSwitchRequest('natural_gas');
+  const html = renderToStaticMarkup(
+    React.createElement(ConfigurationWorkspaceCenter, buildCenterProps({
+      baseConfigId: 'reference-base',
+      baseSelectionMode: 'manual',
+      comparisonEnabled: true,
+      commonComparisonYears: [2030],
+      focusSolve: buildSolveState({
+        request: focusRequest,
+        result: buildResult(),
+        solvedConfiguration: focusRequest.configuration,
+      }),
+      baseSolve: buildSolveState({
+        request: baseRequest,
+        result: buildResult(),
+        solvedConfiguration: baseRequest.configuration,
+      }),
+    })),
+  );
+
+  const resetMatches = html.match(/stacked-chart-reset-button/g) ?? [];
+
+  assert.match(html, /Fuel switching by fuel pair/);
+  assert.match(html, /1 fuel-switch pairs/);
+  assert.match(html, /aria-label="Reset y-axis range for Fuel switching by fuel pair"/);
+  assert.equal(resetMatches.length, 5);
 });
 
 test('refreshing workspace keeps the previous chart grid mounted without a visible status overlay', () => {

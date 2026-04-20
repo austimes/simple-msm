@@ -365,6 +365,7 @@ export default function ConfigurationWorkspaceCenter({
                 }
                 onBasisChange={onFuelSwitchBasisChange}
                 onYearChange={onFuelSwitchYearChange}
+                yDomainPersistenceKey="run:fuel-switching"
               />
             </div>
           )}
