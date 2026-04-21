@@ -121,4 +121,40 @@ describe('deriveRightSidebarTree', () => {
     assert.equal(sector.subsectors[0].isCollapsed, true);
     assert.deepEqual(sector.subsectors[0].activeStateIds, []);
   });
+
+  test('attaches efficiency controls to matching subsectors', () => {
+    const catalog = [
+      {
+        sector: 'buildings',
+        subsectors: [
+          buildSubsector('residential_building_services', 'Residential buildings'),
+          buildSubsector('commercial_building_services', 'Commercial buildings'),
+        ],
+      },
+    ];
+    const statuses = {
+      residential_building_services: buildStatus('residential_building_services'),
+      commercial_building_services: buildStatus('commercial_building_services'),
+    };
+    const efficiencyControls = [
+      {
+        outputId: 'residential_building_services',
+        hasControls: true,
+        autonomousTracks: [],
+        packages: [],
+        embodiedStateIds: ['buildings__residential__deep_electric'],
+      },
+    ];
+
+    const [sector] = deriveRightSidebarTree(
+      catalog,
+      statuses,
+      new Set(),
+      new Set(),
+      efficiencyControls,
+    );
+
+    assert.equal(sector.subsectors[0].efficiencyControls?.outputId, 'residential_building_services');
+    assert.equal(sector.subsectors[1].efficiencyControls, undefined);
+  });
 });

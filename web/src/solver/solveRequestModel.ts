@@ -11,6 +11,7 @@ import type {
 import { getCommodityMetadata, normalizeCommodityInput } from '../data/commodityMetadata.ts';
 import { materializeEfficiencyConfiguration } from '../data/configurationDocumentLoader.ts';
 import { resolveConfigurationDocument } from '../data/demandResolution.ts';
+import { resolveActiveEfficiencyPackageIds } from '../data/efficiencyControlModel.ts';
 import { derivePathwayStateIds } from '../data/pathwaySemantics.ts';
 import type {
   NormalizedSolverRow,
@@ -161,7 +162,7 @@ function resolveCommodityPriceSeries(
 
 function resolveEfficiencyControlsForSolve(
   configuration: ConfigurationDocument,
-  autonomousEfficiencyTracks: Pick<AutonomousEfficiencyTrack, 'track_id'>[],
+  autonomousEfficiencyTracks: Pick<AutonomousEfficiencyTrack, 'family_id' | 'track_id'>[],
   efficiencyPackages: Pick<EfficiencyPackage, 'family_id' | 'package_id'>[],
 ): ResolvedConfigurationEfficiencyControls {
   const materializedConfiguration = materializeEfficiencyConfiguration(
@@ -170,27 +171,29 @@ function resolveEfficiencyControlsForSolve(
     efficiencyPackages,
   );
   const controls = materializedConfiguration.efficiency_controls;
-  const allTrackIds = Array.from(
-    new Set(autonomousEfficiencyTracks.map((track) => track.track_id)),
-  ).sort((left, right) => left.localeCompare(right));
-  const allPackageIds = Array.from(
-    new Set(efficiencyPackages.map((pkg) => pkg.package_id)),
+  const autonomousModesByOutput = controls?.autonomous_modes_by_output ?? {};
+  const activeTrackIds = Array.from(
+    new Set(
+      autonomousEfficiencyTracks
+        .filter((track) => {
+          const effectiveMode =
+            autonomousModesByOutput[track.family_id]
+            ?? controls?.autonomous_mode
+            ?? 'baseline';
+          return effectiveMode === 'baseline';
+        })
+        .map((track) => track.track_id),
+    ),
   ).sort((left, right) => left.localeCompare(right));
   const configuredPackageIds = controls?.package_ids ?? [];
-  const deniedIds = new Set(configuredPackageIds);
 
   return {
     autonomousMode: controls?.autonomous_mode ?? 'baseline',
-    activeTrackIds: controls?.autonomous_mode === 'off' ? [] : allTrackIds,
+    autonomousModesByOutput,
+    activeTrackIds,
     packageMode: controls?.package_mode ?? 'off',
     configuredPackageIds,
-    activePackageIds: controls?.package_mode === 'all'
-      ? allPackageIds
-      : controls?.package_mode === 'allow_list'
-        ? configuredPackageIds
-        : controls?.package_mode === 'deny_list'
-          ? allPackageIds.filter((packageId) => !deniedIds.has(packageId))
-          : [],
+    activePackageIds: resolveActiveEfficiencyPackageIds(controls, efficiencyPackages),
   };
 }
 
@@ -473,6 +476,7 @@ function buildPackageRow(
       autonomousTrackIds: [...(baseRow.provenance?.autonomousTrackIds ?? [])],
       packageId: pkg.package_id,
       packageClassification: pkg.classification,
+      packageNonStackingGroup: pkg.non_stacking_group ?? null,
     },
     bounds: {
       minShare: null,
@@ -484,12 +488,21 @@ function buildPackageRow(
 
 function collectAutonomousTracksByStateYear(
   tracks: AutonomousEfficiencyTrack[],
-  activeTrackIds: Set<string>,
+  efficiency: ResolvedConfigurationEfficiencyControls | undefined,
 ): Map<string, AutonomousEfficiencyTrack[]> {
   const byStateYear = new Map<string, AutonomousEfficiencyTrack[]>();
+  const activeTrackIds = new Set(efficiency?.activeTrackIds ?? []);
 
   for (const track of tracks) {
     if (!activeTrackIds.has(track.track_id)) {
+      continue;
+    }
+
+    const effectiveMode =
+      efficiency?.autonomousModesByOutput[track.family_id]
+      ?? efficiency?.autonomousMode
+      ?? 'baseline';
+    if (effectiveMode !== 'baseline') {
       continue;
     }
 
@@ -549,7 +562,7 @@ export function normalizeSolverRows(
 ): NormalizedSolverRow[] {
   const autonomousTracksByStateYear = collectAutonomousTracksByStateYear(
     pkg.autonomousEfficiencyTracks ?? [],
-    new Set(efficiency?.activeTrackIds ?? []),
+    efficiency,
   );
   const packagesByStateYear = collectPackagesByStateYear(
     pkg.efficiencyPackages ?? [],

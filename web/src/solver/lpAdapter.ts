@@ -83,6 +83,11 @@ interface ResolvedMaxShareBounds {
   effectiveMaxShare: number | null;
 }
 
+interface MaxShareNormalizationGroup {
+  weight: number;
+  rows: NormalizedSolverRow[];
+}
+
 interface RowShareProfile {
   row: NormalizedSolverRow;
   active: boolean;
@@ -94,6 +99,21 @@ interface RowShareProfile {
   maxShareLimit: number | null;
   maxActivityLimit: number | null;
   commodityCoefficient: number;
+}
+
+interface PackageNonStackingGroup {
+  outputId: string;
+  outputLabel: string;
+  year: number;
+  baseStateId: string;
+  baseStateLabel: string;
+  nonStackingGroup: string;
+  effectiveMaxShare: number;
+  rows: NormalizedSolverRow[];
+}
+
+interface MutablePackageNonStackingGroup extends Omit<PackageNonStackingGroup, 'effectiveMaxShare'> {
+  effectiveMaxShare: number | null;
 }
 
 interface ConfigurationLpBuild {
@@ -320,6 +340,44 @@ function addShareConstraint(
   for (const groupVariableId of groupVariableIds) {
     const coefficient = groupVariableId === constrainedVariableId ? 1 - share : -share;
     setVariableConstraintCoefficient(variables, groupVariableId, constraintId, coefficient);
+  }
+}
+
+function addMultiVariableConstraint(
+  constraints: Record<string, ConstraintBounds>,
+  trackedConstraints: Record<string, TrackedConstraint>,
+  variables: Record<string, Record<string, number>>,
+  variableIds: string[],
+  constraintId: string,
+  constraint: ConstraintBounds,
+  metadata: TrackedConstraintInput,
+): void {
+  trackConstraint(constraints, trackedConstraints, constraintId, constraint, metadata);
+
+  for (const variableId of variableIds) {
+    setVariableConstraintCoefficient(variables, variableId, constraintId, 1);
+  }
+}
+
+function addGroupedShareConstraint(
+  constraints: Record<string, ConstraintBounds>,
+  trackedConstraints: Record<string, TrackedConstraint>,
+  variables: Record<string, Record<string, number>>,
+  denominatorVariableIds: string[],
+  numeratorVariableIds: string[],
+  share: number,
+  constraintId: string,
+  constraint: ConstraintBounds,
+  metadata: TrackedConstraintInput,
+): void {
+  trackConstraint(constraints, trackedConstraints, constraintId, constraint, metadata);
+
+  for (const variableId of denominatorVariableIds) {
+    setVariableConstraintCoefficient(variables, variableId, constraintId, -share);
+  }
+
+  for (const variableId of numeratorVariableIds) {
+    setVariableConstraintCoefficient(variables, variableId, constraintId, 1);
   }
 }
 
@@ -571,25 +629,119 @@ function buildEffectiveMaxShareLookup(
     return lookup;
   }
 
-  const weights = activeRows.map((row) => ({
-    rowId: row.rowId,
-    weight: clampShare(row.bounds.maxShare ?? 1),
-  }));
-  const totalWeight = weights.reduce((sum, entry) => sum + entry.weight, 0);
+  const normalizationGroups = new Map<string, MaxShareNormalizationGroup>();
+
+  for (const row of activeRows) {
+    const nonStackingGroup = row.provenance?.packageNonStackingGroup?.trim();
+    const key = row.provenance?.kind === 'efficiency_package' && nonStackingGroup
+      ? [
+          'efficiency_non_stacking_group',
+          row.outputId,
+          String(row.year),
+          row.provenance.baseStateId,
+          nonStackingGroup,
+        ].join(':')
+      : row.rowId;
+    const weight = clampShare(row.bounds.maxShare ?? 1);
+    const group = normalizationGroups.get(key) ?? {
+      weight: 0,
+      rows: [],
+    };
+
+    group.weight = Math.max(group.weight, weight);
+    group.rows.push(row);
+    normalizationGroups.set(key, group);
+  }
+
+  const groups = Array.from(normalizationGroups.values());
+  const totalWeight = groups.reduce((sum, entry) => sum + entry.weight, 0);
   const shouldNormalize = totalWeight > SHARE_TOLERANCE && totalWeight < 1 - SHARE_TOLERANCE;
+  const normalizationFactor = shouldNormalize ? 1 / totalWeight : 1;
 
-  for (const { rowId, weight } of weights) {
-    const existing = lookup.get(rowId);
-    if (!existing) {
-      continue;
+  for (const group of groups) {
+    for (const row of group.rows) {
+      const existing = lookup.get(row.rowId);
+      if (!existing) {
+        continue;
+      }
+
+      existing.effectiveMaxShare = clampShare(row.bounds.maxShare ?? 1) * normalizationFactor;
     }
-
-    existing.effectiveMaxShare = shouldNormalize
-      ? weight / totalWeight
-      : weight;
   }
 
   return lookup;
+}
+
+function nonStackingConstraintId(group: PackageNonStackingGroup): string {
+  return [
+    'efficiency_non_stacking_group',
+    group.outputId,
+    String(group.year),
+    group.baseStateId,
+    group.nonStackingGroup,
+  ].join(':');
+}
+
+function collectPackageNonStackingGroups(
+  rows: NormalizedSolverRow[],
+  control: ResolvedSolveControl,
+  maxShareLookup: Map<string, ResolvedMaxShareBounds>,
+): PackageNonStackingGroup[] {
+  const pathwayStateIds = derivePathwayStateIds(
+    rows.map((row) => row.stateId),
+    control,
+  );
+  const activeStateIds = new Set(pathwayStateIds.activeStateIds);
+  const groups = new Map<string, MutablePackageNonStackingGroup>();
+
+  for (const row of rows) {
+    const nonStackingGroup = row.provenance?.packageNonStackingGroup?.trim();
+    if (row.provenance?.kind !== 'efficiency_package' || !nonStackingGroup) {
+      continue;
+    }
+
+    const key = [
+      row.outputId,
+      String(row.year),
+      row.provenance.baseStateId,
+      nonStackingGroup,
+    ].join('::');
+    const existing: MutablePackageNonStackingGroup = groups.get(key) ?? {
+      outputId: row.outputId,
+      outputLabel: row.outputLabel,
+      year: row.year,
+      baseStateId: row.provenance.baseStateId,
+      baseStateLabel: row.provenance.baseStateLabel,
+      nonStackingGroup,
+      effectiveMaxShare: null,
+      rows: [],
+    };
+
+    existing.rows.push(row);
+
+    if (activeStateIds.has(row.stateId)) {
+      const effectiveMaxShare = maxShareLookup.get(row.rowId)?.effectiveMaxShare
+        ?? (row.bounds.maxShare == null ? 1 : clampShare(row.bounds.maxShare));
+      existing.effectiveMaxShare = Math.max(existing.effectiveMaxShare ?? 0, effectiveMaxShare);
+    }
+
+    groups.set(key, existing);
+  }
+
+  return Array.from(groups.values())
+    .filter((group): group is MutablePackageNonStackingGroup & { effectiveMaxShare: number } => {
+      return group.effectiveMaxShare != null;
+    })
+    .map((group) => ({
+      ...group,
+      effectiveMaxShare: group.effectiveMaxShare,
+    }))
+    .sort((left, right) => {
+      return left.year - right.year
+        || left.outputId.localeCompare(right.outputId)
+        || left.baseStateId.localeCompare(right.baseStateId)
+        || left.nonStackingGroup.localeCompare(right.nonStackingGroup);
+    });
 }
 
 function buildRowShareProfiles(
@@ -1209,6 +1361,28 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
         }
       }
     }
+
+    for (const packageGroup of collectPackageNonStackingGroups(group.rows, group.control, maxShareLookup)) {
+      const constraintId = nonStackingConstraintId(packageGroup);
+      addMultiVariableConstraint(
+        constraints,
+        trackedConstraints,
+        variables,
+        packageGroup.rows.map((row) => activityVariableId(row)),
+        constraintId,
+        scaleConstraintBounds({ max: packageGroup.effectiveMaxShare * group.demand }, activityScale),
+        {
+          kind: 'efficiency_non_stacking_group',
+          outputId: group.outputId,
+          outputLabel: group.outputLabel,
+          year: group.year,
+          stateId: packageGroup.baseStateId,
+          stateLabel: packageGroup.baseStateLabel,
+          mode: group.control.mode,
+          message: `${packageGroup.baseStateLabel} efficiency packages in non-stacking group ${packageGroup.nonStackingGroup} stay within their shared cap for ${group.outputLabel} in ${group.year}.`,
+        },
+      );
+    }
   }
 
   for (const group of supplyGroups) {
@@ -1394,6 +1568,31 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
           );
         }
       }
+    }
+
+    for (const packageGroup of collectPackageNonStackingGroups(group.rows, group.control, maxShareLookup)) {
+      const constraintId = nonStackingConstraintId(packageGroup);
+      addGroupedShareConstraint(
+        constraints,
+        trackedConstraints,
+        variables,
+        variableIds,
+        packageGroup.rows.map((row) => activityVariableId(row)),
+        packageGroup.effectiveMaxShare,
+        constraintId,
+        { max: 0 },
+        {
+          kind: 'efficiency_non_stacking_group',
+          outputId: group.commodityId,
+          outputLabel: group.commodityLabel,
+          year: group.year,
+          stateId: packageGroup.baseStateId,
+          stateLabel: packageGroup.baseStateLabel,
+          commodityId: group.commodityId,
+          mode: group.control.mode,
+          message: `${packageGroup.baseStateLabel} efficiency packages in non-stacking group ${packageGroup.nonStackingGroup} stay within their shared supply share for ${group.commodityLabel} in ${group.year}.`,
+        },
+      );
     }
   }
 

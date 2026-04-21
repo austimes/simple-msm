@@ -14,6 +14,7 @@ function createRow({
   maxShare = null,
   minShare = null,
   maxActivity = null,
+  provenance = undefined,
 }) {
   return {
     rowId,
@@ -30,6 +31,7 @@ function createRow({
     conversionCostPerUnit: cost,
     inputs,
     directEmissions: [],
+    provenance,
     bounds: {
       minShare,
       maxShare,
@@ -63,6 +65,20 @@ function findStateShare(result, outputId, year, stateId) {
   return result.reporting.stateShares.find((share) => {
     return share.outputId === outputId && share.year === year && share.stateId === stateId;
   });
+}
+
+function packageProvenance(baseStateId, packageId, group) {
+  return {
+    kind: 'efficiency_package',
+    familyId: 'service',
+    baseStateId,
+    baseStateLabel: baseStateId,
+    baseRowId: `${baseStateId}::2030`,
+    autonomousTrackIds: [],
+    packageId,
+    packageClassification: 'pure_efficiency_overlay',
+    packageNonStackingGroup: group,
+  };
 }
 
 test('required-service LP solves exact-share and optimize controls generically', () => {
@@ -1050,4 +1066,260 @@ test('one-hot exact-share controls normalize caps over active states', () => {
   assertClose(variables.get('activity:available_b::2030'), 80, 'remaining demand on the uncapped state');
   assertClose(selectedShare?.effectiveMaxShare, 0.2, 'selected state effective max share unchanged when total weight > 1');
   assertClose(availableShare?.effectiveMaxShare, 1, 'uncapped state retains full effective share');
+});
+
+test('efficiency package rows in the same non-stacking group share the group cap', () => {
+  const request = {
+    contractVersion: SOLVER_CONTRACT_VERSION,
+    requestId: 'lp-adapter-efficiency-non-stacking-service',
+    rows: [
+      createRow({
+        rowId: 'base::2030',
+        outputId: 'service',
+        year: 2030,
+        stateId: 'base',
+        cost: 10,
+      }),
+      createRow({
+        rowId: 'effpkg:base::pkg_a::2030',
+        outputId: 'service',
+        year: 2030,
+        stateId: 'effpkg:base::pkg_a',
+        cost: 1,
+        maxShare: 0.35,
+        provenance: packageProvenance('base', 'pkg_a', 'retrofit'),
+      }),
+      createRow({
+        rowId: 'effpkg:base::pkg_b::2030',
+        outputId: 'service',
+        year: 2030,
+        stateId: 'effpkg:base::pkg_b',
+        cost: 0.5,
+        maxShare: 0.35,
+        provenance: packageProvenance('base', 'pkg_b', 'retrofit'),
+      }),
+    ],
+    configuration: {
+      name: 'Non-stacking required service regression',
+      description: null,
+      years: [2030],
+      controlsByOutput: {
+        service: {
+          2030: {
+            mode: 'optimize',
+            activeStateIds: ['base', 'effpkg:base::pkg_a', 'effpkg:base::pkg_b'],
+            targetValue: null,
+          },
+        },
+      },
+      serviceDemandByOutput: {
+        service: { 2030: 100 },
+      },
+      externalCommodityDemandByCommodity: {},
+      commodityPriceByCommodity: {},
+      carbonPriceByYear: { 2030: 0 },
+      options: {
+        respectMaxShare: true,
+        respectMaxActivity: true,
+        softConstraints: false,
+        shareSmoothing: {
+          enabled: false,
+          maxDeltaPp: null,
+        },
+      },
+    },
+  };
+
+  const result = solveWithLpAdapter(request);
+  const variables = getVariableMap(result);
+  const packageTotal =
+    (variables.get('activity:effpkg:base::pkg_a::2030') ?? 0)
+    + (variables.get('activity:effpkg:base::pkg_b::2030') ?? 0);
+  const nonStackingConstraint = result.reporting.bindingConstraints.find((constraint) => {
+    return constraint.kind === 'efficiency_non_stacking_group';
+  });
+
+  assert.equal(result.status, 'solved');
+  assertClose(packageTotal, 35, 'same-group package total');
+  assertClose(nonStackingConstraint?.boundValue, 35, 'non-stacking group cap');
+  assertClose(nonStackingConstraint?.actualValue, 35, 'non-stacking group activity');
+});
+
+test('efficiency package rows in different non-stacking groups remain independently available', () => {
+  const request = {
+    contractVersion: SOLVER_CONTRACT_VERSION,
+    requestId: 'lp-adapter-efficiency-independent-groups',
+    rows: [
+      createRow({
+        rowId: 'base::2030',
+        outputId: 'service',
+        year: 2030,
+        stateId: 'base',
+        cost: 10,
+      }),
+      createRow({
+        rowId: 'effpkg:base::pkg_a::2030',
+        outputId: 'service',
+        year: 2030,
+        stateId: 'effpkg:base::pkg_a',
+        cost: 1,
+        maxShare: 0.35,
+        provenance: packageProvenance('base', 'pkg_a', 'retrofit_a'),
+      }),
+      createRow({
+        rowId: 'effpkg:base::pkg_b::2030',
+        outputId: 'service',
+        year: 2030,
+        stateId: 'effpkg:base::pkg_b',
+        cost: 0.5,
+        maxShare: 0.35,
+        provenance: packageProvenance('base', 'pkg_b', 'retrofit_b'),
+      }),
+    ],
+    configuration: {
+      name: 'Independent non-stacking groups regression',
+      description: null,
+      years: [2030],
+      controlsByOutput: {
+        service: {
+          2030: {
+            mode: 'optimize',
+            activeStateIds: ['base', 'effpkg:base::pkg_a', 'effpkg:base::pkg_b'],
+            targetValue: null,
+          },
+        },
+      },
+      serviceDemandByOutput: {
+        service: { 2030: 100 },
+      },
+      externalCommodityDemandByCommodity: {},
+      commodityPriceByCommodity: {},
+      carbonPriceByYear: { 2030: 0 },
+      options: {
+        respectMaxShare: true,
+        respectMaxActivity: true,
+        softConstraints: false,
+        shareSmoothing: {
+          enabled: false,
+          maxDeltaPp: null,
+        },
+      },
+    },
+  };
+
+  const result = solveWithLpAdapter(request);
+  const variables = getVariableMap(result);
+  const packageTotal =
+    (variables.get('activity:effpkg:base::pkg_a::2030') ?? 0)
+    + (variables.get('activity:effpkg:base::pkg_b::2030') ?? 0);
+
+  assert.equal(result.status, 'solved');
+  assertClose(packageTotal, 70, 'different-group package total');
+});
+
+test('endogenous supply efficiency package non-stacking groups use total supply share', () => {
+  const request = {
+    contractVersion: SOLVER_CONTRACT_VERSION,
+    requestId: 'lp-adapter-efficiency-non-stacking-supply',
+    rows: [
+      createRow({
+        rowId: 'process::2030',
+        outputId: 'process',
+        year: 2030,
+        stateId: 'process',
+        cost: 1,
+        inputs: [
+          {
+            commodityId: 'electricity',
+            coefficient: 1,
+            unit: 'MWh/unit',
+          },
+        ],
+      }),
+      createRow({
+        rowId: 'grid_base::2030',
+        outputId: 'electricity',
+        outputRole: 'endogenous_supply_commodity',
+        year: 2030,
+        stateId: 'grid_base',
+        cost: 10,
+      }),
+      createRow({
+        rowId: 'effpkg:grid_base::grid_pkg_a::2030',
+        outputId: 'electricity',
+        outputRole: 'endogenous_supply_commodity',
+        year: 2030,
+        stateId: 'effpkg:grid_base::grid_pkg_a',
+        cost: 1,
+        maxShare: 0.35,
+        provenance: packageProvenance('grid_base', 'grid_pkg_a', 'grid_retrofit'),
+      }),
+      createRow({
+        rowId: 'effpkg:grid_base::grid_pkg_b::2030',
+        outputId: 'electricity',
+        outputRole: 'endogenous_supply_commodity',
+        year: 2030,
+        stateId: 'effpkg:grid_base::grid_pkg_b',
+        cost: 0.5,
+        maxShare: 0.35,
+        provenance: packageProvenance('grid_base', 'grid_pkg_b', 'grid_retrofit'),
+      }),
+    ],
+    configuration: {
+      name: 'Non-stacking supply regression',
+      description: null,
+      years: [2030],
+      controlsByOutput: {
+        process: {
+          2030: {
+            mode: 'optimize',
+            activeStateIds: ['process'],
+            targetValue: null,
+          },
+        },
+        electricity: {
+          2030: {
+            mode: 'optimize',
+            activeStateIds: ['grid_base', 'effpkg:grid_base::grid_pkg_a', 'effpkg:grid_base::grid_pkg_b'],
+            targetValue: null,
+          },
+        },
+      },
+      serviceDemandByOutput: {
+        process: { 2030: 100 },
+      },
+      externalCommodityDemandByCommodity: {
+        electricity: { 2030: 0 },
+      },
+      commodityPriceByCommodity: {
+        electricity: {
+          unit: 'AUD/MWh',
+          valuesByYear: { 2030: 0 },
+        },
+      },
+      carbonPriceByYear: { 2030: 0 },
+      options: {
+        respectMaxShare: true,
+        respectMaxActivity: true,
+        softConstraints: false,
+        shareSmoothing: {
+          enabled: false,
+          maxDeltaPp: null,
+        },
+      },
+    },
+  };
+
+  const result = solveWithLpAdapter(request);
+  const variables = getVariableMap(result);
+  const packageTotal =
+    (variables.get('activity:effpkg:grid_base::grid_pkg_a::2030') ?? 0)
+    + (variables.get('activity:effpkg:grid_base::grid_pkg_b::2030') ?? 0);
+  const electricitySummary = result.reporting.commodityBalances.find(
+    (summary) => summary.commodityId === 'electricity',
+  );
+
+  assert.equal(result.status, 'solved');
+  assertClose(electricitySummary?.supply, 100, 'electricity supply');
+  assertClose(packageTotal, 35, 'supply package group share');
 });

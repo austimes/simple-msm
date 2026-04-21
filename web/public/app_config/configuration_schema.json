@@ -232,6 +232,49 @@
         "type": "number"
       }
     },
+    "efficiency_controls": {
+      "type": "object",
+      "properties": {
+        "autonomous_mode": {
+          "type": "string",
+          "enum": [
+            "baseline",
+            "off"
+          ]
+        },
+        "autonomous_modes_by_output": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string",
+            "enum": [
+              "baseline",
+              "off"
+            ]
+          }
+        },
+        "package_mode": {
+          "type": "string",
+          "enum": [
+            "off",
+            "all",
+            "allow_list",
+            "deny_list"
+          ]
+        },
+        "package_ids": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "solver_options": {
       "type": "object",
       "properties": {

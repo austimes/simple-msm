@@ -3,6 +3,7 @@ import { usePackageStore } from '../../data/packageStore';
 import {
   buildStateCatalog,
 } from '../../data/configurationWorkspaceModel';
+import { buildEfficiencyControlCatalog } from '../../data/efficiencyControlModel';
 import { deriveOutputRunStatusesForConfiguration } from '../../solver/solveScope.ts';
 import { deriveRightSidebarTree } from './rightSidebarTree';
 import RightSidebarContent from './RightSidebarContent';
@@ -14,6 +15,9 @@ export default function RightSidebar() {
   const efficiencyPackages = usePackageStore((s) => s.efficiencyPackages);
   const currentConfiguration = usePackageStore((s) => s.currentConfiguration);
   const toggleStateActive = usePackageStore((s) => s.toggleStateActive);
+  const setAutonomousEfficiencyForOutput = usePackageStore((s) => s.setAutonomousEfficiencyForOutput);
+  const setEfficiencyPackageEnabled = usePackageStore((s) => s.setEfficiencyPackageEnabled);
+  const setAllEfficiencyPackagesForOutput = usePackageStore((s) => s.setAllEfficiencyPackagesForOutput);
 
   const [expandedSubsectors, setExpandedSubsectors] = useState<Set<string>>(new Set());
   const [expandedSectors, setExpandedSectors] = useState<Set<string>>(new Set());
@@ -55,9 +59,25 @@ export default function RightSidebar() {
     [sectorStates, appConfig, autonomousEfficiencyTracks, efficiencyPackages, currentConfiguration],
   );
 
+  const efficiencyControls = useMemo(
+    () => buildEfficiencyControlCatalog(
+      currentConfiguration,
+      sectorStates,
+      autonomousEfficiencyTracks,
+      efficiencyPackages,
+    ),
+    [currentConfiguration, sectorStates, autonomousEfficiencyTracks, efficiencyPackages],
+  );
+
   const tree = useMemo(
-    () => deriveRightSidebarTree(catalog, outputStatuses, expandedSubsectors, expandedSectors),
-    [catalog, outputStatuses, expandedSubsectors, expandedSectors],
+    () => deriveRightSidebarTree(
+      catalog,
+      outputStatuses,
+      expandedSubsectors,
+      expandedSectors,
+      efficiencyControls,
+    ),
+    [catalog, outputStatuses, expandedSubsectors, expandedSectors, efficiencyControls],
   );
 
   return (
@@ -66,6 +86,9 @@ export default function RightSidebar() {
       onToggleExpandedSector={toggleExpandedSector}
       onToggleExpandedSubsector={toggleExpandedSubsector}
       onToggleStateActive={toggleStateActive}
+      onSetAutonomousEfficiencyForOutput={setAutonomousEfficiencyForOutput}
+      onSetEfficiencyPackageEnabled={setEfficiencyPackageEnabled}
+      onSetAllEfficiencyPackagesForOutput={setAllEfficiencyPackagesForOutput}
     />
   );
 }

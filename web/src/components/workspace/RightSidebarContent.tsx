@@ -9,11 +9,29 @@ function formatSectorName(sector: string): string {
   return sector.replaceAll('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+function formatEfficiencyPackageClassification(classification: string): string {
+  return classification === 'pure_efficiency_overlay' ? 'Pure' : 'Operational';
+}
+
+function formatMaxShareByYear(maxShareByYear: Record<string, number | null>): string {
+  const entries = Object.entries(maxShareByYear);
+  if (entries.length === 0) {
+    return '';
+  }
+
+  return entries
+    .map(([year, share]) => `${year}: ${share == null ? 'uncapped' : `${Math.round(share * 100)}%`}`)
+    .join(', ');
+}
+
 export interface RightSidebarContentProps {
   tree: RightSidebarSectorNode[];
   onToggleExpandedSector: (sector: string) => void;
   onToggleExpandedSubsector: (outputId: string) => void;
   onToggleStateActive: (outputId: string, stateId: string) => void;
+  onSetAutonomousEfficiencyForOutput: (outputId: string, mode: 'baseline' | 'off') => void;
+  onSetEfficiencyPackageEnabled: (packageId: string, enabled: boolean) => void;
+  onSetAllEfficiencyPackagesForOutput: (outputId: string, enabled: boolean) => void;
 }
 
 export default function RightSidebarContent({
@@ -21,6 +39,9 @@ export default function RightSidebarContent({
   onToggleExpandedSector,
   onToggleExpandedSubsector,
   onToggleStateActive,
+  onSetAutonomousEfficiencyForOutput,
+  onSetEfficiencyPackageEnabled,
+  onSetAllEfficiencyPackagesForOutput,
 }: RightSidebarContentProps) {
   return (
     <React.Fragment>
@@ -57,6 +78,10 @@ export default function RightSidebarContent({
             const outOfScope = sub.outOfScope;
             const isCollapsed = sub.isCollapsed;
             const badges = sub.badges;
+            const efficiencyControls = sub.efficiencyControls;
+            const hasEfficiencyControls = efficiencyControls?.hasControls === true;
+            const autonomousEnabled = efficiencyControls?.autonomousTracks.some((track) => track.enabled) ?? false;
+            const embodiedStateIdSet = new Set(efficiencyControls?.embodiedStateIds ?? []);
 
             return (
               <div
@@ -104,9 +129,12 @@ export default function RightSidebarContent({
                           ? 'workspace-state-chip--on'
                           : 'workspace-state-chip--off';
                       const chipLabel = formatWorkspacePillLabel(state.stateLabel);
+                      const hasEmbodiedEfficiency = embodiedStateIdSet.has(state.stateId);
                       const chipTitle = pathwaysInactive
                         ? `${state.stateLabel}. ${sub.presentation.detail}`
-                        : state.stateLabel;
+                        : hasEmbodiedEfficiency
+                          ? `${state.stateLabel}. Embodied efficiency pathway.`
+                          : state.stateLabel;
 
                       return (
                         <button
@@ -121,9 +149,99 @@ export default function RightSidebarContent({
                           title={chipTitle}
                         >
                           <span className="workspace-pill-label">{chipLabel}</span>
+                          {hasEmbodiedEfficiency && (
+                            <span className="workspace-state-chip-badge">Embodied</span>
+                          )}
                         </button>
                       );
                     })}
+                  </div>
+                )}
+                {!isCollapsed && hasEfficiencyControls && efficiencyControls && (
+                  <div className="workspace-efficiency-controls">
+                    <div className="workspace-efficiency-heading">Efficiency</div>
+                    {efficiencyControls.autonomousTracks.length > 0 && (
+                      <button
+                        type="button"
+                        className={`workspace-efficiency-toggle${autonomousEnabled ? ' workspace-efficiency-toggle--on' : ''}`}
+                        aria-pressed={autonomousEnabled}
+                        onClick={() => onSetAutonomousEfficiencyForOutput(
+                          sub.outputId,
+                          autonomousEnabled ? 'off' : 'baseline',
+                        )}
+                        title={efficiencyControls.autonomousTracks.map((track) => track.label).join(', ')}
+                      >
+                        <span>Autonomous</span>
+                        <span className={`workspace-mode-badge workspace-mode-badge--${autonomousEnabled ? 'success' : 'muted'}`}>
+                          {autonomousEnabled ? 'On' : 'Off'}
+                        </span>
+                      </button>
+                    )}
+                    {efficiencyControls.packages.length > 0 && (
+                      <div className="workspace-efficiency-package-stack">
+                        {efficiencyControls.packages.length > 1 && (
+                          <div className="workspace-efficiency-package-actions">
+                            <button
+                              type="button"
+                              className="workspace-mode-toggle"
+                              onClick={() => onSetAllEfficiencyPackagesForOutput(sub.outputId, true)}
+                            >
+                              All packages on
+                            </button>
+                            <button
+                              type="button"
+                              className="workspace-mode-toggle"
+                              onClick={() => onSetAllEfficiencyPackagesForOutput(sub.outputId, false)}
+                            >
+                              All packages off
+                            </button>
+                          </div>
+                        )}
+                        {efficiencyControls.packages.map((pkg) => {
+                          const maxShareTitle = formatMaxShareByYear(pkg.maxShareByYear);
+                          const metadataTitle = [
+                            pkg.nonStackingGroup ? `Non-stacking group: ${pkg.nonStackingGroup}` : null,
+                            maxShareTitle || null,
+                          ].filter(Boolean).join('. ');
+
+                          return (
+                            <button
+                              key={pkg.packageId}
+                              type="button"
+                              className={`workspace-efficiency-package${pkg.enabled ? ' workspace-efficiency-package--on' : ''}`}
+                              aria-pressed={pkg.enabled}
+                              onClick={() => onSetEfficiencyPackageEnabled(pkg.packageId, !pkg.enabled)}
+                              title={metadataTitle || pkg.label}
+                            >
+                              <span className="workspace-efficiency-package-label">{pkg.label}</span>
+                              <span className="workspace-efficiency-package-meta">
+                                <span className="workspace-mode-badge workspace-mode-badge--info">
+                                  {formatEfficiencyPackageClassification(pkg.classification)}
+                                </span>
+                                {pkg.nonStackingGroup && (
+                                  <span
+                                    className="workspace-mode-badge workspace-mode-badge--muted"
+                                    title={`Non-stacking group: ${pkg.nonStackingGroup}`}
+                                  >
+                                    Group
+                                  </span>
+                                )}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {efficiencyControls.embodiedStateIds.length > 0 && (
+                      <div className="workspace-efficiency-readonly">
+                        <span className="workspace-mode-badge workspace-mode-badge--muted">
+                          Embodied
+                        </span>
+                        <span className="workspace-efficiency-readonly-text">
+                          Controlled by pathway state
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

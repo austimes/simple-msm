@@ -78,6 +78,7 @@ export type ConfigurationEfficiencyPackageMode =
 
 export interface ConfigurationEfficiencyControls {
   autonomous_mode?: ConfigurationAutonomousEfficiencyMode;
+  autonomous_modes_by_output?: Record<string, ConfigurationAutonomousEfficiencyMode> | null;
   package_mode?: ConfigurationEfficiencyPackageMode;
   package_ids?: string[] | null;
 }

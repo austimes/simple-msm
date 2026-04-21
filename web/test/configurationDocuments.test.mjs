@@ -179,6 +179,9 @@ test('configuration documents accept the compact efficiency control shape', asyn
 
   configuration.efficiency_controls = {
     autonomous_mode: 'off',
+    autonomous_modes_by_output: {
+      residential_building_services: 'baseline',
+    },
     package_mode: 'allow_list',
     package_ids: ['retrofit_package'],
   };
@@ -202,7 +205,7 @@ test('efficiency materialization backfills defaults, normalizes package ids, and
   const { materializeEfficiencyConfiguration } = await loadViteModule('/src/data/configurationDocumentLoader.ts');
   const configuration = structuredClone(readJson('../src/configurations/reference-baseline.json'));
   const tracks = [
-    { track_id: 'background_standards_drift' },
+    { family_id: 'residential_building_services', track_id: 'background_standards_drift' },
   ];
   const packages = [
     { family_id: 'residential_building_services', package_id: 'retrofit_shell' },
@@ -217,12 +220,16 @@ test('efficiency materialization backfills defaults, normalizes package ids, and
 
   assert.deepEqual(defaults.efficiency_controls, {
     autonomous_mode: 'baseline',
+    autonomous_modes_by_output: {},
     package_mode: 'off',
     package_ids: [],
   });
 
   configuration.efficiency_controls = {
     autonomous_mode: 'baseline',
+    autonomous_modes_by_output: {
+      residential_building_services: 'off',
+    },
     package_mode: 'allow_list',
     package_ids: ['hvac_tuning', 'retrofit_shell', 'hvac_tuning'],
   };
@@ -230,10 +237,22 @@ test('efficiency materialization backfills defaults, normalizes package ids, and
   const allowList = materializeEfficiencyConfiguration(configuration, tracks, packages);
   assert.deepEqual(allowList.efficiency_controls, {
     autonomous_mode: 'baseline',
+    autonomous_modes_by_output: {
+      residential_building_services: 'off',
+    },
     package_mode: 'allow_list',
     package_ids: ['hvac_tuning', 'retrofit_shell'],
   });
 
+  configuration.efficiency_controls.autonomous_modes_by_output = {
+    missing_output: 'off',
+  };
+  assert.throws(
+    () => materializeEfficiencyConfiguration(configuration, tracks, packages),
+    /Unknown autonomous efficiency output id "missing_output"/,
+  );
+
+  configuration.efficiency_controls.autonomous_modes_by_output = {};
   configuration.efficiency_controls.package_ids = ['missing_package'];
   assert.throws(
     () => materializeEfficiencyConfiguration(configuration, tracks, packages),
@@ -244,7 +263,10 @@ test('efficiency materialization backfills defaults, normalizes package ids, and
 test('buildSolveRequest resolves efficiency controls into active track and package ids', () => {
   const configuration = structuredClone(readJson('../src/configurations/demo-buildings-efficiency.json'));
   configuration.efficiency_controls = {
-    autonomous_mode: 'off',
+    autonomous_mode: 'baseline',
+    autonomous_modes_by_output: {
+      residential_building_services: 'off',
+    },
     package_mode: 'deny_list',
     package_ids: ['commercial_hvac_tuning'],
   };
@@ -253,8 +275,8 @@ test('buildSolveRequest resolves efficiency controls into active track and packa
     {
       ...pkg,
       autonomousEfficiencyTracks: [
-        { track_id: 'background_standards_drift' },
-        { track_id: 'background_vehicle_efficiency_drift' },
+        { family_id: 'residential_building_services', track_id: 'background_standards_drift' },
+        { family_id: 'commercial_building_services', track_id: 'background_commercial_efficiency_drift' },
       ],
       efficiencyPackages: [
         { family_id: 'residential_building_services', package_id: 'residential_shell_retrofit' },
@@ -266,8 +288,11 @@ test('buildSolveRequest resolves efficiency controls into active track and packa
   );
 
   assert.deepEqual(request.configuration.efficiency, {
-    autonomousMode: 'off',
-    activeTrackIds: [],
+    autonomousMode: 'baseline',
+    autonomousModesByOutput: {
+      residential_building_services: 'off',
+    },
+    activeTrackIds: ['background_commercial_efficiency_drift'],
     packageMode: 'deny_list',
     configuredPackageIds: ['commercial_hvac_tuning'],
     activePackageIds: ['boiler_insulation', 'residential_shell_retrofit'],

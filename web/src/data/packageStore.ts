@@ -24,6 +24,7 @@ import {
   materializeEfficiencyConfiguration,
   materializeResidualOverlayConfiguration,
 } from './configurationDocumentLoader.ts';
+import { buildNextPackageAllowList } from './efficiencyControlModel.ts';
 import { isAggregatableResidualOverlay } from './residualOverlayPresentation.ts';
 import { getActiveStateIds } from './configurationWorkspaceModel.ts';
 
@@ -50,6 +51,9 @@ interface PackageStore extends PackageData {
   setCarbonPricePreset: (presetId: string) => void;
   toggleStateActive: (outputId: string, stateId: string) => void;
   setOutputControlMode: (outputId: string, mode: ConfigurationControlMode) => void;
+  setAutonomousEfficiencyForOutput: (outputId: string, mode: 'baseline' | 'off') => void;
+  setEfficiencyPackageEnabled: (packageId: string, enabled: boolean) => void;
+  setAllEfficiencyPackagesForOutput: (outputId: string, enabled: boolean) => void;
 
   setResidualOverlayIncluded: (overlayId: string, included: boolean) => void;
   setAllResidualOverlaysIncluded: (included: boolean) => void;
@@ -386,6 +390,54 @@ export const usePackageStore = create<PackageStore>((set, get) => {
       nextConfiguration.service_controls[outputId] = {
         ...control,
         mode,
+      };
+      commitConfigurationEdit(nextConfiguration);
+    },
+    setAutonomousEfficiencyForOutput: (outputId, mode) => {
+      const nextConfiguration = cloneConfiguration(get().currentConfiguration);
+      const existingControls = nextConfiguration.efficiency_controls ?? {};
+      nextConfiguration.efficiency_controls = {
+        autonomous_mode: existingControls.autonomous_mode ?? 'baseline',
+        autonomous_modes_by_output: {
+          ...(existingControls.autonomous_modes_by_output ?? {}),
+          [outputId]: mode,
+        },
+        package_mode: existingControls.package_mode ?? 'off',
+        package_ids: existingControls.package_ids ?? [],
+      };
+      commitConfigurationEdit(nextConfiguration);
+    },
+    setEfficiencyPackageEnabled: (packageId, enabled) => {
+      const nextConfiguration = cloneConfiguration(get().currentConfiguration);
+      const existingControls = nextConfiguration.efficiency_controls ?? {};
+      const packageIds = buildNextPackageAllowList(
+        existingControls,
+        get().efficiencyPackages,
+        { packageId, enabled },
+      );
+
+      nextConfiguration.efficiency_controls = {
+        autonomous_mode: existingControls.autonomous_mode ?? 'baseline',
+        autonomous_modes_by_output: existingControls.autonomous_modes_by_output ?? {},
+        package_mode: 'allow_list',
+        package_ids: packageIds,
+      };
+      commitConfigurationEdit(nextConfiguration);
+    },
+    setAllEfficiencyPackagesForOutput: (outputId, enabled) => {
+      const nextConfiguration = cloneConfiguration(get().currentConfiguration);
+      const existingControls = nextConfiguration.efficiency_controls ?? {};
+      const packageIds = buildNextPackageAllowList(
+        existingControls,
+        get().efficiencyPackages,
+        { outputId, enabled },
+      );
+
+      nextConfiguration.efficiency_controls = {
+        autonomous_mode: existingControls.autonomous_mode ?? 'baseline',
+        autonomous_modes_by_output: existingControls.autonomous_modes_by_output ?? {},
+        package_mode: 'allow_list',
+        package_ids: packageIds,
       };
       commitConfigurationEdit(nextConfiguration);
     },

@@ -242,6 +242,19 @@
             "off"
           ]
         },
+        "autonomous_modes_by_output": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string",
+            "enum": [
+              "baseline",
+              "off"
+            ]
+          }
+        },
         "package_mode": {
           "type": "string",
           "enum": [

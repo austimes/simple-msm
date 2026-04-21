@@ -15,6 +15,28 @@ import {
 
 const pkg = loadPkg();
 
+function findElement(
+  element: React.ReactNode,
+  predicate: (element: React.ReactElement) => boolean,
+): React.ReactElement | null {
+  if (!React.isValidElement(element)) {
+    return null;
+  }
+
+  if (predicate(element)) {
+    return element;
+  }
+
+  for (const child of React.Children.toArray(element.props.children)) {
+    const found = findElement(child, predicate);
+    if (found) {
+      return found;
+    }
+  }
+
+  return null;
+}
+
 describe('RightSidebarContent', () => {
   test('renders the legend after the real state cards', () => {
     const configuration = buildConfiguration(pkg.appConfig);
@@ -31,6 +53,9 @@ describe('RightSidebarContent', () => {
         onToggleExpandedSector={() => {}}
         onToggleExpandedSubsector={() => {}}
         onToggleStateActive={() => {}}
+        onSetAutonomousEfficiencyForOutput={() => {}}
+        onSetEfficiencyPackageEnabled={() => {}}
+        onSetAllEfficiencyPackagesForOutput={() => {}}
       />,
     );
 
@@ -88,6 +113,9 @@ describe('RightSidebarContent', () => {
         onToggleExpandedSector={() => {}}
         onToggleExpandedSubsector={() => {}}
         onToggleStateActive={() => {}}
+        onSetAutonomousEfficiencyForOutput={() => {}}
+        onSetEfficiencyPackageEnabled={() => {}}
+        onSetAllEfficiencyPackagesForOutput={() => {}}
       />,
     );
 
@@ -98,5 +126,130 @@ describe('RightSidebarContent', () => {
     assert.doesNotMatch(html, />Inactive</);
     assert.match(html, /aria-pressed="true"/);
     assert.match(html, /aria-pressed="false"/);
+  });
+
+  test('renders subsector efficiency controls and wires package toggles', () => {
+    const tree: RightSidebarSectorNode[] = [
+      {
+        sector: 'buildings',
+        subsectors: [
+          {
+            subsector: 'residential',
+            outputId: 'residential_building_services',
+            outputLabel: 'Residential buildings',
+            states: [
+              {
+                stateId: 'buildings__residential__deep_electric',
+                stateLabel: 'Deep electric',
+              },
+            ],
+            status: undefined,
+            presentation: {
+              summary: 'Has active pathways and participates in this solve.',
+              detail: 'Has active pathways and participates in this solve.',
+              badges: [],
+              isDimmed: false,
+              arePathwaysInactive: false,
+            },
+            badges: [],
+            activeStateIds: ['buildings__residential__deep_electric'],
+            allDisabled: false,
+            pathwaysInactive: false,
+            outOfScope: false,
+            canCollapse: false,
+            isCollapsed: false,
+            efficiencyControls: {
+              outputId: 'residential_building_services',
+              hasControls: true,
+              autonomousTracks: [
+                {
+                  trackId: 'background',
+                  label: 'Background',
+                  enabled: true,
+                  applicableStateIds: ['buildings__residential__deep_electric'],
+                },
+              ],
+              packages: [
+                {
+                  packageId: 'shell_retrofit',
+                  label: 'Shell retrofit',
+                  classification: 'pure_efficiency_overlay',
+                  enabled: true,
+                  applicableStateIds: ['buildings__residential__deep_electric'],
+                  nonStackingGroup: 'retrofit',
+                  maxShareByYear: { 2030: 0.3 },
+                },
+              ],
+              embodiedStateIds: ['buildings__residential__deep_electric'],
+            },
+          },
+          {
+            subsector: 'empty',
+            outputId: 'empty_output',
+            outputLabel: 'No artifacts',
+            states: [{ stateId: 'empty_state', stateLabel: 'Empty state' }],
+            status: undefined,
+            presentation: {
+              summary: 'Has active pathways and participates in this solve.',
+              detail: 'Has active pathways and participates in this solve.',
+              badges: [],
+              isDimmed: false,
+              arePathwaysInactive: false,
+            },
+            badges: [],
+            activeStateIds: ['empty_state'],
+            allDisabled: false,
+            pathwaysInactive: false,
+            outOfScope: false,
+            canCollapse: false,
+            isCollapsed: false,
+            efficiencyControls: {
+              outputId: 'empty_output',
+              hasControls: false,
+              autonomousTracks: [],
+              packages: [],
+              embodiedStateIds: [],
+            },
+          },
+        ],
+        isExcluded: false,
+        isCollapsed: false,
+      },
+    ];
+    let packageToggle;
+
+    const props = {
+      tree,
+      onToggleExpandedSector: () => {},
+      onToggleExpandedSubsector: () => {},
+      onToggleStateActive: () => {},
+      onSetAutonomousEfficiencyForOutput: () => {},
+      onSetEfficiencyPackageEnabled: (packageId: string, enabled: boolean) => {
+        packageToggle = { packageId, enabled };
+      },
+      onSetAllEfficiencyPackagesForOutput: () => {},
+    };
+    const element = <RightSidebarContent {...props} />;
+    const html = renderToStaticMarkup(element);
+
+    assert.equal(html.match(/workspace-efficiency-controls/g)?.length, 1);
+    assert.match(html, /Autonomous/);
+    assert.match(html, /Shell retrofit/);
+    assert.match(html, /Pure/);
+    assert.match(html, /Embodied/);
+    assert.match(html, /Controlled by pathway state/);
+
+    const packageButton = findElement(RightSidebarContent(props), (candidate) => {
+      return candidate.type === 'button'
+        && typeof candidate.props.className === 'string'
+        && candidate.props.className.includes('workspace-efficiency-package');
+    });
+    assert.ok(packageButton, 'expected package toggle button');
+
+    packageButton.props.onClick();
+    assert.deepEqual(packageToggle, {
+      packageId: 'shell_retrofit',
+      enabled: false,
+    });
   });
 });

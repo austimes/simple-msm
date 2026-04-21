@@ -6,7 +6,7 @@ import type {
   OutputRole,
 } from '../data/types.ts';
 
-export const SOLVER_CONTRACT_VERSION = 5 as const;
+export const SOLVER_CONTRACT_VERSION = 6 as const;
 
 export type SolverContractVersion = typeof SOLVER_CONTRACT_VERSION;
 export type SolveStatus = 'partial' | 'solved' | 'error';
@@ -47,6 +47,7 @@ export interface NormalizedSolverRowProvenance {
   autonomousTrackIds: string[];
   packageId?: string;
   packageClassification?: EfficiencyPackageClassification;
+  packageNonStackingGroup?: string | null;
 }
 
 export interface NormalizedSolverRow {
@@ -90,6 +91,7 @@ export interface ResolvedCommodityPriceSeries {
 
 export interface ResolvedConfigurationEfficiencyControls {
   autonomousMode: ConfigurationAutonomousEfficiencyMode;
+  autonomousModesByOutput: Record<string, ConfigurationAutonomousEfficiencyMode>;
   activeTrackIds: string[];
   packageMode: ConfigurationEfficiencyPackageMode;
   configuredPackageIds: string[];
@@ -177,7 +179,8 @@ export type SolveConstraintKind =
   | 'max_share'
   | 'max_activity'
   | 'inactive_state'
-  | 'externalized_supply';
+  | 'externalized_supply'
+  | 'efficiency_non_stacking_group';
 export type SolveSoftConstraintKind = Extract<SolveConstraintKind, 'max_share' | 'max_activity'>;
 
 export interface SolveCommodityBalanceSummary {
