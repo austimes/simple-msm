@@ -1,9 +1,16 @@
 import type {
+  NormalizedSolverEmission,
+  NormalizedSolverInput,
+  NormalizedSolverRow,
   NormalizedSolverRowProvenance,
   SolveRequest,
   SolveResult,
   SolveStateShareSummary,
 } from '../solver/contract.ts';
+import type {
+  EfficiencyAttributionCategory,
+  EfficiencyAttributionComponentMap,
+} from './efficiencyAttributionTypes.ts';
 import type {
   ConfigurationDocument,
   ResidualOverlayDomain,
@@ -39,11 +46,15 @@ export interface ResultContributionRow {
   subsectorLabel: string | null;
   commodityId: string | null;
   costComponent: 'conversion' | 'commodity' | 'carbon' | null;
+  efficiencyAttributionComponents?: EfficiencyAttributionComponentMap;
   overlayId: string | null;
   overlayDomain: ResidualOverlayDomain | null;
 }
 
+const ATTRIBUTION_EPSILON = 1e-9;
+
 type ShareLookupKey = string;
+type EfficiencyAttributionBasis = NonNullable<NormalizedSolverRow['efficiencyAttributionBasis']>;
 
 function shareKey(outputId: string, year: number, stateId: string): ShareLookupKey {
   return `${outputId}::${year}::${stateId}`;
@@ -62,6 +73,119 @@ function buildShareLookup(
 function convertFuelConsumptionToPj(value: number, unit: string): number {
   const { numerator } = parseUnitRatio(unit);
   return convertUnitQuantity(value, numerator as 'GJ' | 'MWh' | 'PJ', 'PJ');
+}
+
+function resolveEfficiencyAttributionBasis(row: NormalizedSolverRow): EfficiencyAttributionBasis {
+  return row.efficiencyAttributionBasis ?? {
+    baseInputs: row.inputs,
+    baseDirectEmissions: row.directEmissions,
+    baseConversionCostPerUnit: row.conversionCostPerUnit,
+    autonomousInputs: row.inputs,
+    autonomousDirectEmissions: row.directEmissions,
+    autonomousConversionCostPerUnit: row.conversionCostPerUnit,
+  };
+}
+
+function resolvePackageAttributionCategory(
+  row: NormalizedSolverRow,
+): EfficiencyAttributionCategory | null {
+  if (row.provenance?.kind !== 'efficiency_package') {
+    return null;
+  }
+
+  if (row.provenance.packageClassification === 'pure_efficiency_overlay') {
+    return 'pure_efficiency_package';
+  }
+
+  if (row.provenance.packageClassification === 'operational_efficiency_overlay') {
+    return 'operational_efficiency_package';
+  }
+
+  return null;
+}
+
+function addAttributionComponent(
+  components: EfficiencyAttributionComponentMap,
+  category: EfficiencyAttributionCategory,
+  value: number,
+): void {
+  if (Math.abs(value) <= ATTRIBUTION_EPSILON) {
+    return;
+  }
+
+  components[category] = (components[category] ?? 0) + value;
+}
+
+function buildEfficiencyAttributionComponents(
+  row: NormalizedSolverRow,
+  autonomousComponent: number,
+  packageComponent: number,
+): EfficiencyAttributionComponentMap | undefined {
+  const components: EfficiencyAttributionComponentMap = {};
+  addAttributionComponent(components, 'autonomous_efficiency', autonomousComponent);
+
+  const packageCategory = resolvePackageAttributionCategory(row);
+  if (packageCategory) {
+    addAttributionComponent(components, packageCategory, packageComponent);
+  }
+
+  return Object.keys(components).length > 0 ? components : undefined;
+}
+
+function shouldEmitContribution(value: number, components: EfficiencyAttributionComponentMap | undefined): boolean {
+  return Math.abs(value) > ATTRIBUTION_EPSILON || components != null;
+}
+
+function totalDirectEmissions(directEmissions: NormalizedSolverEmission[]): number {
+  return directEmissions.reduce((sum, emission) => sum + emission.value, 0);
+}
+
+function collectFuelCommodityIds(
+  ...inputGroups: NormalizedSolverInput[][]
+): string[] {
+  const commodityIds = new Set<string>();
+
+  for (const inputs of inputGroups) {
+    for (const input of inputs) {
+      if (getCommodityMetadata(input.commodityId).kind === 'fuel') {
+        commodityIds.add(input.commodityId);
+      }
+    }
+  }
+
+  return Array.from(commodityIds);
+}
+
+function fuelConsumptionForCommodityPj(
+  activity: number,
+  inputs: NormalizedSolverInput[],
+  commodityId: string,
+): number {
+  return inputs.reduce((total, input) => {
+    if (input.commodityId !== commodityId) {
+      return total;
+    }
+
+    return total + convertFuelConsumptionToPj(activity * input.coefficient, input.unit);
+  }, 0);
+}
+
+function commodityCostForInputs(
+  request: SolveRequest,
+  balancedCommodityKeys: Set<string>,
+  year: number,
+  activity: number,
+  inputs: NormalizedSolverInput[],
+): number {
+  return activity * inputs.reduce((total, input) => {
+    if (balancedCommodityKeys.has(`${input.commodityId}::${year}`)) {
+      return total;
+    }
+    const price =
+      request.configuration.commodityPriceByCommodity[input.commodityId]
+        ?.valuesByYear[String(year)] ?? 0;
+    return total + input.coefficient * price;
+  }, 0);
 }
 
 export function buildSolverContributionRows(
@@ -98,41 +222,78 @@ export function buildSolverContributionRows(
       overlayId: null,
       overlayDomain: null,
     };
+    const attributionBasis = resolveEfficiencyAttributionBasis(row);
 
     // Emissions by sector (tCO2e — no conversion needed)
-    const totalEmissions = row.directEmissions.reduce((sum, e) => sum + e.value, 0);
-    if (totalEmissions !== 0) {
+    const baseEmissions = ss.activity * totalDirectEmissions(attributionBasis.baseDirectEmissions);
+    const autonomousEmissions = ss.activity * totalDirectEmissions(attributionBasis.autonomousDirectEmissions);
+    const totalEmissions = ss.activity * totalDirectEmissions(row.directEmissions);
+    const emissionsAttributionComponents = buildEfficiencyAttributionComponents(
+      row,
+      autonomousEmissions - baseEmissions,
+      totalEmissions - autonomousEmissions,
+    );
+    if (shouldEmitContribution(totalEmissions, emissionsAttributionComponents)) {
       rows.push({
         metric: 'emissions',
         year: row.year,
-        value: ss.activity * totalEmissions,
+        value: totalEmissions,
         ...solverBase,
         commodityId: null,
         costComponent: null,
+        ...(emissionsAttributionComponents
+          ? { efficiencyAttributionComponents: emissionsAttributionComponents }
+          : {}),
       });
     }
 
     // Fuel consumption by commodity (PJ)
-    for (const input of row.inputs) {
-      const metadata = getCommodityMetadata(input.commodityId);
-      if (metadata.kind !== 'fuel') continue;
-
-      const consumption = convertFuelConsumptionToPj(ss.activity * input.coefficient, input.unit);
-      if (consumption === 0) continue;
+    for (const commodityId of collectFuelCommodityIds(
+      row.inputs,
+      attributionBasis.baseInputs,
+      attributionBasis.autonomousInputs,
+    )) {
+      const baseConsumption = fuelConsumptionForCommodityPj(
+        ss.activity,
+        attributionBasis.baseInputs,
+        commodityId,
+      );
+      const autonomousConsumption = fuelConsumptionForCommodityPj(
+        ss.activity,
+        attributionBasis.autonomousInputs,
+        commodityId,
+      );
+      const consumption = fuelConsumptionForCommodityPj(ss.activity, row.inputs, commodityId);
+      const fuelAttributionComponents = buildEfficiencyAttributionComponents(
+        row,
+        autonomousConsumption - baseConsumption,
+        consumption - autonomousConsumption,
+      );
+      if (!shouldEmitContribution(consumption, fuelAttributionComponents)) continue;
 
       rows.push({
         metric: 'fuel',
         year: row.year,
         value: consumption,
         ...solverBase,
-        commodityId: input.commodityId,
+        commodityId,
         costComponent: null,
+        ...(fuelAttributionComponents
+          ? { efficiencyAttributionComponents: fuelAttributionComponents }
+          : {}),
       });
     }
 
     // Cost: conversion component
+    const baseConversion = ss.activity * (attributionBasis.baseConversionCostPerUnit ?? 0);
+    const autonomousConversion = ss.activity * (attributionBasis.autonomousConversionCostPerUnit ?? 0);
     const conversion = ss.activity * (row.conversionCostPerUnit ?? 0);
-    if (conversion !== 0) {
+    const conversionAttributionComponents = buildEfficiencyAttributionComponents(
+      row,
+      autonomousConversion - baseConversion,
+      conversion - autonomousConversion,
+    );
+    if (shouldEmitContribution(conversion, conversionAttributionComponents)) {
       rows.push({
         metric: 'cost',
         year: row.year,
@@ -140,20 +301,40 @@ export function buildSolverContributionRows(
         ...solverBase,
         commodityId: null,
         costComponent: 'conversion',
+        ...(conversionAttributionComponents
+          ? { efficiencyAttributionComponents: conversionAttributionComponents }
+          : {}),
       });
     }
 
     // Cost: commodity component
-    const commodity = ss.activity * row.inputs.reduce((total, input) => {
-      if (balancedCommodityKeys.has(`${input.commodityId}::${row.year}`)) {
-        return total;
-      }
-      const price =
-        request.configuration.commodityPriceByCommodity[input.commodityId]
-          ?.valuesByYear[String(row.year)] ?? 0;
-      return total + input.coefficient * price;
-    }, 0);
-    if (commodity !== 0) {
+    const baseCommodity = commodityCostForInputs(
+      request,
+      balancedCommodityKeys,
+      row.year,
+      ss.activity,
+      attributionBasis.baseInputs,
+    );
+    const autonomousCommodity = commodityCostForInputs(
+      request,
+      balancedCommodityKeys,
+      row.year,
+      ss.activity,
+      attributionBasis.autonomousInputs,
+    );
+    const commodity = commodityCostForInputs(
+      request,
+      balancedCommodityKeys,
+      row.year,
+      ss.activity,
+      row.inputs,
+    );
+    const commodityAttributionComponents = buildEfficiencyAttributionComponents(
+      row,
+      autonomousCommodity - baseCommodity,
+      commodity - autonomousCommodity,
+    );
+    if (shouldEmitContribution(commodity, commodityAttributionComponents)) {
       rows.push({
         metric: 'cost',
         year: row.year,
@@ -161,16 +342,23 @@ export function buildSolverContributionRows(
         ...solverBase,
         commodityId: null,
         costComponent: 'commodity',
+        ...(commodityAttributionComponents
+          ? { efficiencyAttributionComponents: commodityAttributionComponents }
+          : {}),
       });
     }
 
     // Cost: carbon component
-    const emissionsPerUnit = row.directEmissions.reduce((sum, e) => sum + e.value, 0);
-    const carbon =
-      ss.activity *
-      emissionsPerUnit *
-      (request.configuration.carbonPriceByYear[String(row.year)] ?? 0);
-    if (carbon !== 0) {
+    const carbonPrice = request.configuration.carbonPriceByYear[String(row.year)] ?? 0;
+    const baseCarbon = baseEmissions * carbonPrice;
+    const autonomousCarbon = autonomousEmissions * carbonPrice;
+    const carbon = totalEmissions * carbonPrice;
+    const carbonAttributionComponents = buildEfficiencyAttributionComponents(
+      row,
+      autonomousCarbon - baseCarbon,
+      carbon - autonomousCarbon,
+    );
+    if (shouldEmitContribution(carbon, carbonAttributionComponents)) {
       rows.push({
         metric: 'cost',
         year: row.year,
@@ -178,6 +366,9 @@ export function buildSolverContributionRows(
         ...solverBase,
         commodityId: null,
         costComponent: 'carbon',
+        ...(carbonAttributionComponents
+          ? { efficiencyAttributionComponents: carbonAttributionComponents }
+          : {}),
       });
     }
   }

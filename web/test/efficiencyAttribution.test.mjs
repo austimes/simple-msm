@@ -1,6 +1,17 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { buildEfficiencyAttributionRows } from '../src/results/efficiencyAttribution.ts';
+import { buildSolverContributionRows } from '../src/results/resultContributions.ts';
+import {
+  INCUMBENT_STATE_IDS,
+  loadPkg,
+  solveScoped,
+} from './solverTestUtils.mjs';
+
+const COMMERCIAL_OUTPUT_ID = 'commercial_building_services';
+const COMMERCIAL_INCUMBENT_STATE_ID = INCUMBENT_STATE_IDS[COMMERCIAL_OUTPUT_ID];
+const COMMERCIAL_HVAC_PACKAGE_ID = 'buildings__commercial__hvac_tuning_bms';
+const COMMERCIAL_LIGHTING_PACKAGE_ID = 'buildings__commercial__lighting_retrofit';
 
 function buildContribution({
   metric = 'fuel',
@@ -12,6 +23,7 @@ function buildContribution({
   sourceId,
   pathwayStateId,
   provenance,
+  efficiencyAttributionComponents,
 }) {
   return {
     metric,
@@ -32,12 +44,26 @@ function buildContribution({
     subsectorLabel: outputLabel,
     commodityId: metric === 'fuel' ? 'natural_gas' : null,
     costComponent: metric === 'cost' ? 'commodity' : null,
+    efficiencyAttributionComponents,
     overlayId: null,
     overlayDomain: null,
   };
 }
 
-test('package attribution owns lineages even when package rows inherit autonomous provenance', () => {
+function valueFor(rows, category, metric = 'fuel', year = 2030) {
+  return rows.find((row) => (
+    row.metric === metric && row.year === year && row.category === category
+  ))?.value ?? 0;
+}
+
+function assertApprox(actual, expected, tolerance = 1e-6) {
+  assert.ok(
+    Math.abs(actual - expected) <= tolerance,
+    `expected ${actual} to be within ${tolerance} of ${expected}`,
+  );
+}
+
+test('package rows split inherited autonomous provenance from package effects', () => {
   const base = [
     buildContribution({
       value: 10,
@@ -56,7 +82,7 @@ test('package attribution owns lineages even when package rows inherit autonomou
   ];
   const focus = [
     buildContribution({
-      value: 8,
+      value: 7,
       rowId: 'effpkg:heat::retrofit::2030',
       sourceId: 'effpkg:generic_industrial_heat__low_temperature_heat__fossil::retrofit',
       pathwayStateId: 'generic_industrial_heat__low_temperature_heat__fossil',
@@ -70,6 +96,10 @@ test('package attribution owns lineages even when package rows inherit autonomou
         packageId: 'retrofit',
         packageClassification: 'pure_efficiency_overlay',
       },
+      efficiencyAttributionComponents: {
+        autonomous_efficiency: -1,
+        pure_efficiency_package: -2,
+      },
     }),
   ];
 
@@ -79,7 +109,65 @@ test('package attribution owns lineages even when package rows inherit autonomou
     {
       metric: 'fuel',
       year: 2030,
+      category: 'autonomous_efficiency',
+      value: -1,
+    },
+    {
+      metric: 'fuel',
+      year: 2030,
       category: 'pure_efficiency_package',
+      value: -2,
+    },
+  ]);
+});
+
+test('when the base already has autonomous efficiency, focus package attribution excludes autonomous rollover', () => {
+  const autonomousProvenance = {
+    kind: 'base_state',
+    familyId: 'low_temperature_heat',
+    baseStateId: 'generic_industrial_heat__low_temperature_heat__fossil',
+    baseStateLabel: 'Fossil heat',
+    baseRowId: 'heat::2030',
+    autonomousTrackIds: ['background_drift'],
+  };
+  const base = [
+    buildContribution({
+      value: 9,
+      rowId: 'heat::2030',
+      sourceId: 'generic_industrial_heat__low_temperature_heat__fossil',
+      pathwayStateId: 'generic_industrial_heat__low_temperature_heat__fossil',
+      provenance: autonomousProvenance,
+      efficiencyAttributionComponents: {
+        autonomous_efficiency: -1,
+      },
+    }),
+  ];
+  const focus = [
+    buildContribution({
+      value: 7,
+      rowId: 'effpkg:heat::retrofit::2030',
+      sourceId: 'effpkg:generic_industrial_heat__low_temperature_heat__fossil::retrofit',
+      pathwayStateId: 'generic_industrial_heat__low_temperature_heat__fossil',
+      provenance: {
+        ...autonomousProvenance,
+        kind: 'efficiency_package',
+        packageId: 'retrofit',
+        packageClassification: 'operational_efficiency_overlay',
+      },
+      efficiencyAttributionComponents: {
+        autonomous_efficiency: -1,
+        operational_efficiency_package: -2,
+      },
+    }),
+  ];
+
+  const rows = buildEfficiencyAttributionRows(base, focus);
+
+  assert.deepEqual(rows, [
+    {
+      metric: 'fuel',
+      year: 2030,
+      category: 'operational_efficiency_package',
       value: -2,
     },
   ]);
@@ -116,6 +204,9 @@ test('autonomous track deltas stay in the autonomous category', () => {
         baseRowId: 'heat::2030',
         autonomousTrackIds: ['background_new_vehicle_efficiency_drift'],
       },
+      efficiencyAttributionComponents: {
+        autonomous_efficiency: -1,
+      },
     }),
   ];
 
@@ -129,6 +220,72 @@ test('autonomous track deltas stay in the autonomous category', () => {
       value: -1,
     },
   ]);
+});
+
+function buildCommercialConfiguration(pkg, {
+  autonomousMode,
+  packageIds = [],
+}) {
+  const defaultConfiguration = pkg.defaultConfiguration;
+  const referenceConfiguration = {
+    ...defaultConfiguration,
+    service_controls: {
+      ...defaultConfiguration.service_controls,
+      [COMMERCIAL_OUTPUT_ID]: {
+        mode: 'optimize',
+        active_state_ids: [COMMERCIAL_INCUMBENT_STATE_ID],
+      },
+    },
+    efficiency_controls: {
+      autonomous_mode: autonomousMode,
+      package_mode: packageIds.length > 0 ? 'allow_list' : 'off',
+      package_ids: packageIds,
+    },
+  };
+
+  return referenceConfiguration;
+}
+
+function solveCommercialContributions(pkg, configuration) {
+  const snapshot = solveScoped(pkg, configuration, [COMMERCIAL_OUTPUT_ID]);
+  assert.equal(snapshot.result.status, 'solved');
+  return buildSolverContributionRows(snapshot.request, snapshot.result);
+}
+
+test('commercial building efficiency attribution keeps autonomous and package fuel effects separate in 2050', () => {
+  const pkg = loadPkg();
+  const baseContributions = solveCommercialContributions(
+    pkg,
+    buildCommercialConfiguration(pkg, { autonomousMode: 'off' }),
+  );
+  const autonomousContributions = solveCommercialContributions(
+    pkg,
+    buildCommercialConfiguration(pkg, { autonomousMode: 'baseline' }),
+  );
+  const hvacContributions = solveCommercialContributions(
+    pkg,
+    buildCommercialConfiguration(pkg, {
+      autonomousMode: 'baseline',
+      packageIds: [COMMERCIAL_HVAC_PACKAGE_ID],
+    }),
+  );
+  const lightingContributions = solveCommercialContributions(
+    pkg,
+    buildCommercialConfiguration(pkg, {
+      autonomousMode: 'baseline',
+      packageIds: [COMMERCIAL_LIGHTING_PACKAGE_ID],
+    }),
+  );
+
+  const autonomousRows = buildEfficiencyAttributionRows(baseContributions, autonomousContributions);
+  const hvacRows = buildEfficiencyAttributionRows(baseContributions, hvacContributions);
+  const lightingRows = buildEfficiencyAttributionRows(baseContributions, lightingContributions);
+
+  assertApprox(valueFor(autonomousRows, 'autonomous_efficiency', 'fuel', 2050), -32.954392);
+  assertApprox(valueFor(hvacRows, 'autonomous_efficiency', 'fuel', 2050), -32.954392);
+  assertApprox(valueFor(hvacRows, 'operational_efficiency_package', 'fuel', 2050), -4.242605);
+  assertApprox(valueFor(lightingRows, 'autonomous_efficiency', 'fuel', 2050), -32.954392);
+  assertApprox(valueFor(lightingRows, 'pure_efficiency_package', 'fuel', 2050), -6.383547);
 });
 
 test('embodied pathway transitions absorb the untagged incumbent delta after cleanup', () => {

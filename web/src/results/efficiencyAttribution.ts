@@ -1,14 +1,11 @@
 import type { StackedChartData } from './chartData.ts';
 import type { ResultContributionRow } from './resultContributions.ts';
+import type { EfficiencyAttributionCategory } from './efficiencyAttributionTypes.ts';
 import { embodiedEfficiencyPathwayStateIds } from '../data/efficiencyAttributionRegistry.ts';
 
 const ATTRIBUTION_EPSILON = 1e-9;
 
-export type EfficiencyAttributionCategory =
-  | 'autonomous_efficiency'
-  | 'pure_efficiency_package'
-  | 'operational_efficiency_package'
-  | 'embodied_efficiency';
+export type { EfficiencyAttributionCategory } from './efficiencyAttributionTypes.ts';
 
 export type EfficiencyAttributionMetric = ResultContributionRow['metric'];
 
@@ -25,13 +22,13 @@ interface EfficiencyAttributionMetricMetadata {
   yAxisLabel: string;
 }
 
-interface EfficiencyAttributionLineage {
+interface EfficiencyAttributionOutputMetric {
   metric: EfficiencyAttributionMetric;
   year: number;
   outputId: string;
   totalsByRun: Record<RunSide, number>;
-  bucketTotalsByRun: Record<RunSide, Map<AttributionBucket, number>>;
-  presentBuckets: Set<AttributionBucket>;
+  componentTotalsByRun: Record<RunSide, Map<EfficiencyAttributionCategory, number>>;
+  hasEmbodiedPathwayState: boolean;
 }
 
 export interface EfficiencyAttributionRow {
@@ -88,59 +85,27 @@ const efficiencyAttributionMetricMetadata: Record<
   },
 };
 
-function addToMap(map: Map<AttributionBucket, number>, key: AttributionBucket, value: number): void {
+function addToMap<T extends string>(map: Map<T, number>, key: T, value: number): void {
   map.set(key, (map.get(key) ?? 0) + value);
-}
-
-function getBucketValue(map: Map<AttributionBucket, number>, key: AttributionBucket): number {
-  return map.get(key) ?? 0;
 }
 
 function getTaggedStateId(row: ResultContributionRow): string | null {
   return row.pathwayStateId ?? row.provenance?.baseStateId ?? row.sourceId;
 }
 
-function classifyContributionRow(row: ResultContributionRow): AttributionBucket {
-  const provenance = row.provenance;
-  if (!provenance) {
-    return 'none';
-  }
-
-  if (provenance.kind === 'efficiency_package') {
-    if (provenance.packageClassification === 'pure_efficiency_overlay') {
-      return 'pure_efficiency_package';
-    }
-
-    if (provenance.packageClassification === 'operational_efficiency_overlay') {
-      return 'operational_efficiency_package';
-    }
-
-    return 'none';
-  }
-
-  if ((provenance.autonomousTrackIds?.length ?? 0) > 0) {
-    return 'autonomous_efficiency';
-  }
-
-  return embodiedEfficiencyPathwayStateIds.has(getTaggedStateId(row) ?? '')
-    ? 'embodied_efficiency'
-    : 'none';
+function hasEmbodiedPathwayState(row: ResultContributionRow): boolean {
+  return embodiedEfficiencyPathwayStateIds.has(getTaggedStateId(row) ?? '');
 }
 
-function buildLineageKey(row: ResultContributionRow): string {
-  return [
-    row.metric,
-    String(row.year),
-    row.outputId ?? row.sourceId,
-    row.provenance?.baseRowId ?? row.rowId ?? row.sourceId,
-  ].join('::');
+function buildOutputMetricKey(row: ResultContributionRow): string {
+  return [row.metric, String(row.year), row.outputId ?? row.sourceId].join('::');
 }
 
-function collectLineages(
+function collectOutputMetrics(
   baseContributions: ResultContributionRow[],
   focusContributions: ResultContributionRow[],
-): Map<string, EfficiencyAttributionLineage> {
-  const lineages = new Map<string, EfficiencyAttributionLineage>();
+): Map<string, EfficiencyAttributionOutputMetric> {
+  const outputMetrics = new Map<string, EfficiencyAttributionOutputMetric>();
 
   function accumulate(runSide: RunSide, rows: ResultContributionRow[]): void {
     for (const row of rows) {
@@ -148,106 +113,107 @@ function collectLineages(
         continue;
       }
 
-      const key = buildLineageKey(row);
-      const bucket = classifyContributionRow(row);
-      const lineage = lineages.get(key) ?? {
+      const key = buildOutputMetricKey(row);
+      const outputMetric = outputMetrics.get(key) ?? {
         metric: row.metric,
         year: row.year,
         outputId: row.outputId,
         totalsByRun: { base: 0, focus: 0 },
-        bucketTotalsByRun: { base: new Map(), focus: new Map() },
-        presentBuckets: new Set(),
-      } satisfies EfficiencyAttributionLineage;
+        componentTotalsByRun: { base: new Map(), focus: new Map() },
+        hasEmbodiedPathwayState: false,
+      } satisfies EfficiencyAttributionOutputMetric;
 
-      lineage.totalsByRun[runSide] += row.value;
-      addToMap(lineage.bucketTotalsByRun[runSide], bucket, row.value);
-      lineage.presentBuckets.add(bucket);
-      lineages.set(key, lineage);
+      outputMetric.totalsByRun[runSide] += row.value;
+      for (const [category, value] of Object.entries(row.efficiencyAttributionComponents ?? {})) {
+        addToMap(
+          outputMetric.componentTotalsByRun[runSide],
+          category as EfficiencyAttributionCategory,
+          value,
+        );
+      }
+      outputMetric.hasEmbodiedPathwayState ||= hasEmbodiedPathwayState(row);
+      outputMetrics.set(key, outputMetric);
     }
   }
 
   accumulate('base', baseContributions);
   accumulate('focus', focusContributions);
 
-  return lineages;
+  return outputMetrics;
 }
 
-function distributeValue(
+function distributeResidualAcrossCategories(
   bucketTotals: Map<AttributionBucket, number>,
   categories: EfficiencyAttributionCategory[],
-  delta: number,
-  explicitWeights?: Map<AttributionBucket, number>,
+  residual: number,
 ): void {
-  if (categories.length === 0 || Math.abs(delta) <= ATTRIBUTION_EPSILON) {
+  if (categories.length === 0 || residual === 0) {
     return;
   }
 
-  const weights = categories.map((category) =>
-    explicitWeights?.get(category) ?? Math.abs(bucketTotals.get(category) ?? 0));
+  const weights = categories.map((category) => Math.abs(bucketTotals.get(category) ?? 0));
   const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
   let assigned = 0;
 
   categories.forEach((category, index) => {
     const isLast = index === categories.length - 1;
     const share = isLast
-      ? delta - assigned
+      ? residual - assigned
       : totalWeight <= ATTRIBUTION_EPSILON
-        ? delta / categories.length
-        : delta * (weights[index] / totalWeight);
+        ? residual / categories.length
+        : residual * (weights[index] / totalWeight);
 
     assigned += share;
     bucketTotals.set(category, (bucketTotals.get(category) ?? 0) + share);
   });
 }
 
-function collapseLineage(lineage: EfficiencyAttributionLineage): Map<AttributionBucket, number> {
+function collapseOutputMetric(
+  outputMetric: EfficiencyAttributionOutputMetric,
+): Map<AttributionBucket, number> {
   const totals = new Map<AttributionBucket, number>();
-  const lineageNetDelta = lineage.totalsByRun.focus - lineage.totalsByRun.base;
-  const directDeltaByBucket = new Map<AttributionBucket, number>();
-  for (const bucket of ['none', ...efficiencyAttributionCategoryOrder] as AttributionBucket[]) {
-    directDeltaByBucket.set(
-      bucket,
-      getBucketValue(lineage.bucketTotalsByRun.focus, bucket)
-        - getBucketValue(lineage.bucketTotalsByRun.base, bucket),
+  const actualNetDelta = outputMetric.totalsByRun.focus - outputMetric.totalsByRun.base;
+  let explicitComponentDelta = 0;
+
+  for (const category of efficiencyAttributionCategoryOrder) {
+    const componentDelta =
+      (outputMetric.componentTotalsByRun.focus.get(category) ?? 0)
+      - (outputMetric.componentTotalsByRun.base.get(category) ?? 0);
+
+    if (Math.abs(componentDelta) <= ATTRIBUTION_EPSILON) {
+      continue;
+    }
+
+    totals.set(category, componentDelta);
+    explicitComponentDelta += componentDelta;
+  }
+
+  const residual = actualNetDelta - explicitComponentDelta;
+  if (Math.abs(residual) <= ATTRIBUTION_EPSILON) {
+    distributeResidualAcrossCategories(
+      totals,
+      efficiencyAttributionCategoryOrder.filter((category) =>
+        Math.abs(totals.get(category) ?? 0) > ATTRIBUTION_EPSILON),
+      residual,
     );
-  }
-  const packageCategories = efficiencyAttributionCategoryOrder.filter((category) =>
-    (category === 'pure_efficiency_package' || category === 'operational_efficiency_package')
-    && lineage.presentBuckets.has(category));
-
-  if (packageCategories.length > 0) {
-    const packageWeights = new Map<AttributionBucket, number>(
-      packageCategories.map((category) => [category, Math.abs(directDeltaByBucket.get(category) ?? 0)]),
-    );
-    distributeValue(totals, packageCategories, lineageNetDelta, packageWeights);
-    return totals;
+  } else if (outputMetric.hasEmbodiedPathwayState) {
+    addToMap(totals, 'embodied_efficiency', residual);
+  } else {
+    totals.set('none', residual);
   }
 
-  if (lineage.presentBuckets.has('autonomous_efficiency')) {
-    totals.set('autonomous_efficiency', lineageNetDelta);
-    return totals;
-  }
-
-  if (lineage.presentBuckets.has('embodied_efficiency')) {
-    totals.set('embodied_efficiency', lineageNetDelta);
-    return totals;
-  }
-
-  const noneDelta = getBucketValue(lineage.bucketTotalsByRun.focus, 'none')
-    - getBucketValue(lineage.bucketTotalsByRun.base, 'none');
-  totals.set('none', noneDelta);
   return totals;
 }
 
 function buildOutputMetricBuckets(
-  lineages: Map<string, EfficiencyAttributionLineage>,
+  outputMetrics: Map<string, EfficiencyAttributionOutputMetric>,
 ): Map<string, Map<AttributionBucket, number>> {
   const grouped = new Map<string, Map<AttributionBucket, number>>();
 
-  for (const lineage of lineages.values()) {
-    const key = `${lineage.metric}::${lineage.year}::${lineage.outputId}`;
+  for (const outputMetric of outputMetrics.values()) {
+    const key = `${outputMetric.metric}::${outputMetric.year}::${outputMetric.outputId}`;
     const bucketTotals = grouped.get(key) ?? new Map<AttributionBucket, number>();
-    const collapsed = collapseLineage(lineage);
+    const collapsed = collapseOutputMetric(outputMetric);
 
     for (const [bucket, value] of collapsed) {
       addToMap(bucketTotals, bucket, value);
@@ -259,41 +225,16 @@ function buildOutputMetricBuckets(
   return grouped;
 }
 
-function rebalanceUnattributedDeltas(bucketTotals: Map<AttributionBucket, number>): void {
-  const residual = bucketTotals.get('none') ?? 0;
-  if (Math.abs(residual) <= ATTRIBUTION_EPSILON) {
-    return;
-  }
-
-  let targets = efficiencyAttributionCategoryOrder.filter((category) => {
-    const value = bucketTotals.get(category) ?? 0;
-    return residual < 0 ? value > ATTRIBUTION_EPSILON : value < -ATTRIBUTION_EPSILON;
-  });
-
-  if (targets.length === 0) {
-    targets = efficiencyAttributionCategoryOrder.filter((category) =>
-      Math.abs(bucketTotals.get(category) ?? 0) > ATTRIBUTION_EPSILON);
-  }
-
-  if (targets.length === 0) {
-    return;
-  }
-
-  distributeValue(bucketTotals, targets, residual);
-  bucketTotals.set('none', 0);
-}
-
 export function buildEfficiencyAttributionRows(
   baseContributions: ResultContributionRow[],
   focusContributions: ResultContributionRow[],
 ): EfficiencyAttributionRow[] {
   const groupedByOutputMetric = buildOutputMetricBuckets(
-    collectLineages(baseContributions, focusContributions),
+    collectOutputMetrics(baseContributions, focusContributions),
   );
   const totalsByMetricYearCategory = new Map<string, number>();
 
   for (const [groupKey, bucketTotals] of groupedByOutputMetric) {
-    rebalanceUnattributedDeltas(bucketTotals);
     const [metric, yearValue] = groupKey.split('::');
     const year = Number(yearValue);
 

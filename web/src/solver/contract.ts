@@ -38,6 +38,15 @@ export interface NormalizedSolverEmission {
   source: 'energy' | 'process';
 }
 
+export interface NormalizedSolverRowEfficiencyAttributionBasis {
+  baseInputs: NormalizedSolverInput[];
+  baseDirectEmissions: NormalizedSolverEmission[];
+  baseConversionCostPerUnit: number | null;
+  autonomousInputs: NormalizedSolverInput[];
+  autonomousDirectEmissions: NormalizedSolverEmission[];
+  autonomousConversionCostPerUnit: number | null;
+}
+
 export interface NormalizedSolverRowProvenance {
   kind: 'base_state' | 'efficiency_package';
   familyId: string;
@@ -70,6 +79,7 @@ export interface NormalizedSolverRow {
   costBasisYear?: number | null;
   inputs: NormalizedSolverInput[];
   directEmissions: NormalizedSolverEmission[];
+  efficiencyAttributionBasis?: NormalizedSolverRowEfficiencyAttributionBasis;
   provenance?: NormalizedSolverRowProvenance;
   bounds: {
     minShare: number | null;

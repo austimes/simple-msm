@@ -236,6 +236,20 @@ function buildBaseNormalizedRow(
     );
   }
 
+  const inputs = buildNormalizedInputs(row);
+  const directEmissions = [
+    ...row.energy_emissions_by_pollutant.map((entry) => ({
+      pollutant: entry.pollutant,
+      value: entry.value,
+      source: 'energy' as const,
+    })),
+    ...row.process_emissions_by_pollutant.map((entry) => ({
+      pollutant: entry.pollutant,
+      value: entry.value,
+      source: 'process' as const,
+    })),
+  ];
+
   return {
     rowId: stateYearKey(row.state_id, row.year),
     outputId: row.service_or_output_name,
@@ -254,19 +268,16 @@ function buildBaseNormalizedRow(
     conversionCostPerUnit: row.output_cost_per_unit,
     currency: row.currency,
     costBasisYear: row.cost_basis_year,
-    inputs: buildNormalizedInputs(row),
-    directEmissions: [
-      ...row.energy_emissions_by_pollutant.map((entry) => ({
-        pollutant: entry.pollutant,
-        value: entry.value,
-        source: 'energy' as const,
-      })),
-      ...row.process_emissions_by_pollutant.map((entry) => ({
-        pollutant: entry.pollutant,
-        value: entry.value,
-        source: 'process' as const,
-      })),
-    ],
+    inputs,
+    directEmissions,
+    efficiencyAttributionBasis: {
+      baseInputs: inputs,
+      baseDirectEmissions: directEmissions,
+      baseConversionCostPerUnit: row.output_cost_per_unit,
+      autonomousInputs: inputs,
+      autonomousDirectEmissions: directEmissions,
+      autonomousConversionCostPerUnit: row.output_cost_per_unit,
+    },
     provenance: buildBaseRowProvenance(row),
     bounds: {
       minShare: row.min_share,
@@ -420,8 +431,23 @@ function applyAutonomousTracksToRow(
     throw new Error(`Missing base-row provenance for ${JSON.stringify(resolvedRow.rowId)}.`);
   }
 
+  const basis = resolvedRow.efficiencyAttributionBasis ?? {
+    baseInputs: row.inputs,
+    baseDirectEmissions: row.directEmissions,
+    baseConversionCostPerUnit: row.conversionCostPerUnit,
+    autonomousInputs: row.inputs,
+    autonomousDirectEmissions: row.directEmissions,
+    autonomousConversionCostPerUnit: row.conversionCostPerUnit,
+  };
+
   return {
     ...resolvedRow,
+    efficiencyAttributionBasis: {
+      ...basis,
+      autonomousInputs: resolvedRow.inputs,
+      autonomousDirectEmissions: resolvedRow.directEmissions,
+      autonomousConversionCostPerUnit: resolvedRow.conversionCostPerUnit,
+    },
     provenance: {
       ...resolvedRow.provenance,
       autonomousTrackIds,

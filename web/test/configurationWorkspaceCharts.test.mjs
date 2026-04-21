@@ -410,6 +410,7 @@ function buildEfficiencyAttributionRequest({
   inputCoefficient,
   emissionsPerUnit,
   provenance,
+  efficiencyAttributionBasis,
 }) {
   return {
     contractVersion: SOLVER_CONTRACT_VERSION,
@@ -430,6 +431,7 @@ function buildEfficiencyAttributionRequest({
         conversionCostPerUnit: 1,
         inputs: [{ commodityId: 'natural_gas', coefficient: inputCoefficient, unit: 'PJ' }],
         directEmissions: [{ pollutant: 'co2', value: emissionsPerUnit, source: 'energy' }],
+        ...(efficiencyAttributionBasis ? { efficiencyAttributionBasis } : {}),
         provenance,
         bounds: {
           minShare: null,
@@ -677,6 +679,14 @@ test('attribution-safe comparison renders the efficiency attribution section', (
       autonomousTrackIds: [],
       packageId: 'retrofit',
       packageClassification: 'pure_efficiency_overlay',
+    },
+    efficiencyAttributionBasis: {
+      baseInputs: [{ commodityId: 'natural_gas', coefficient: 1, unit: 'PJ' }],
+      baseDirectEmissions: [{ pollutant: 'co2', value: 0.2, source: 'energy' }],
+      baseConversionCostPerUnit: 1,
+      autonomousInputs: [{ commodityId: 'natural_gas', coefficient: 1, unit: 'PJ' }],
+      autonomousDirectEmissions: [{ pollutant: 'co2', value: 0.2, source: 'energy' }],
+      autonomousConversionCostPerUnit: 1,
     },
   });
   const html = renderToStaticMarkup(
