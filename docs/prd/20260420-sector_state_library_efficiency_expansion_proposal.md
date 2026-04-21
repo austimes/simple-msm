@@ -13,6 +13,8 @@ The consolidated first-wave accepted inventory, embodied items, and explicit v1 
 
 The canonical v1 filenames, row grain, required fields, applicability rules, and explicit non-goals now live in [20260420-efficiency-authoring-shape-decision.md](./20260420-efficiency-authoring-shape-decision.md). That decision document wins over the more exploratory schema sketches later in this proposal.
 
+The shared Explorer and Library efficiency taxonomy plus the Base-versus-Focus comparison UX rules now live in [20260421-efficiency-attribution-taxonomy-and-explorer-comparison-ux.md](./20260421-efficiency-attribution-taxonomy-and-explorer-comparison-ux.md).
+
 The key design decision is:
 
 > Efficiency must not exist only as a hidden ingredient inside year-specific sector states.

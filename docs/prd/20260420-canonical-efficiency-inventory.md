@@ -12,6 +12,8 @@ Use this document as the canonical accepted inventory for v1 efficiency authorin
 
 Use [20260420-efficiency-authoring-shape-decision.md](./20260420-efficiency-authoring-shape-decision.md) for the canonical v1 file locations, row grain, required fields, applicability conventions, and non-goals.
 
+Use [20260421-efficiency-attribution-taxonomy-and-explorer-comparison-ux.md](./20260421-efficiency-attribution-taxonomy-and-explorer-comparison-ux.md) for the user-facing taxonomy that Explorer and Library must share.
+
 ## 1. Canonical Conventions
 
 ### Status Buckets
