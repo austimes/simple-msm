@@ -223,7 +223,7 @@ function buildResult() {
   };
 }
 
-function buildFuelSwitchRequest(commodityId) {
+function buildFuelSwitchRequest(commodityId, coefficient = 1) {
   const request = buildRequest();
 
   return {
@@ -235,9 +235,129 @@ function buildFuelSwitchRequest(commodityId) {
 
       return {
         ...row,
-        inputs: [{ commodityId, coefficient: 1, unit: 'PJ' }],
+        inputs: [{ commodityId, coefficient, unit: 'PJ' }],
       };
     }),
+  };
+}
+
+function buildCommercialFuelMixRequest(requestId, inputs) {
+  return {
+    contractVersion: SOLVER_CONTRACT_VERSION,
+    requestId,
+    rows: [
+      {
+        rowId: 'commercial_services::2030',
+        outputId: 'commercial_services',
+        outputRole: 'required_service',
+        outputLabel: 'Commercial services',
+        year: 2030,
+        stateId: 'commercial_services_path',
+        stateLabel: 'Commercial services path',
+        sector: 'commercial',
+        subsector: 'commercial_buildings',
+        region: 'national',
+        outputUnit: 'activity',
+        conversionCostPerUnit: 0,
+        inputs: inputs.map(([commodityId, coefficient]) => ({
+          commodityId,
+          coefficient,
+          unit: 'PJ',
+        })),
+        directEmissions: [],
+        bounds: {
+          minShare: null,
+          maxShare: null,
+          maxActivity: null,
+        },
+      },
+    ],
+    configuration: {
+      name: requestId,
+      description: null,
+      years: [2030],
+      controlsByOutput: {
+        commercial_services: {
+          2030: {
+            mode: 'optimize',
+            fixedShares: null,
+            disabledStateIds: [],
+            targetValue: null,
+          },
+        },
+      },
+      serviceDemandByOutput: {
+        commercial_services: { 2030: 100 },
+      },
+      externalCommodityDemandByCommodity: {},
+      commodityPriceByCommodity: {
+        electricity: {
+          unit: 'AUD/PJ',
+          valuesByYear: { 2030: 10 },
+        },
+        natural_gas: {
+          unit: 'AUD/PJ',
+          valuesByYear: { 2030: 10 },
+        },
+        refined_liquid_fuels: {
+          unit: 'AUD/PJ',
+          valuesByYear: { 2030: 10 },
+        },
+      },
+      carbonPriceByYear: { 2030: 20 },
+      options: {
+        respectMaxShare: true,
+        respectMaxActivity: true,
+        softConstraints: false,
+        shareSmoothing: {
+          enabled: false,
+          maxDeltaPp: null,
+        },
+      },
+    },
+  };
+}
+
+function buildCommercialFuelMixResult(request) {
+  const [row] = request.rows;
+
+  return {
+    contractVersion: SOLVER_CONTRACT_VERSION,
+    requestId: request.requestId,
+    status: 'solved',
+    engine: { name: 'yalps', worker: true },
+    summary: {
+      rowCount: 1,
+      yearCount: 1,
+      outputCount: 1,
+      serviceDemandOutputCount: 1,
+      externalCommodityCount: 0,
+    },
+    reporting: {
+      commodityBalances: [],
+      stateShares: [
+        {
+          outputId: row.outputId,
+          outputLabel: row.outputLabel,
+          year: row.year,
+          rowId: row.rowId,
+          stateId: row.stateId,
+          stateLabel: row.stateLabel,
+          activity: 100,
+          share: 1,
+          rawMaxShare: null,
+          effectiveMaxShare: null,
+        },
+      ],
+      bindingConstraints: [],
+      softConstraintViolations: [],
+    },
+    raw: null,
+    diagnostics: [],
+    timingsMs: {
+      total: 0,
+      solve: 0,
+    },
   };
 }
 
@@ -379,7 +499,7 @@ test('solved workspace renders Cost by Component with diverging chart net metada
 });
 
 test('comparison-enabled workspace shows the fuel-switching chart with its reset control', () => {
-  const focusRequest = buildFuelSwitchRequest('electricity');
+  const focusRequest = buildFuelSwitchRequest('electricity', 0.8);
   const baseRequest = buildFuelSwitchRequest('natural_gas');
   const html = renderToStaticMarkup(
     React.createElement(ConfigurationWorkspaceCenter, buildCenterProps({
@@ -402,10 +522,48 @@ test('comparison-enabled workspace shows the fuel-switching chart with its reset
 
   const resetMatches = html.match(/stacked-chart-reset-button/g) ?? [];
 
-  assert.match(html, /Fuel switching by fuel pair/);
+  assert.match(html, /Fuel-mix switching by fuel pair/);
   assert.match(html, /1 fuel-switch pairs/);
-  assert.match(html, /aria-label="Reset y-axis range for Fuel switching by fuel pair"/);
+  assert.match(html, /Intensity effect: -2\.0 PJ/);
+  assert.match(html, /aria-label="Reset y-axis range for Fuel-mix switching by fuel pair"/);
   assert.equal(resetMatches.length, 5);
+});
+
+test('commercial base versus O1-style fuel mix renders gas and liquid switching to electricity after 2025', () => {
+  const baseRequest = buildCommercialFuelMixRequest('commercial-base', [
+    ['electricity', 1],
+    ['natural_gas', 2],
+    ['refined_liquid_fuels', 1],
+  ]);
+  const focusRequest = buildCommercialFuelMixRequest('commercial-o1', [
+    ['electricity', 0.9],
+    ['natural_gas', 0.6],
+    ['refined_liquid_fuels', 0.3],
+  ]);
+  const html = renderToStaticMarkup(
+    React.createElement(ConfigurationWorkspaceCenter, buildCenterProps({
+      baseConfigId: 'reference-baseline',
+      baseSelectionMode: 'manual',
+      comparisonEnabled: true,
+      commonComparisonYears: [2030],
+      focusSolve: buildSolveState({
+        request: focusRequest,
+        result: buildCommercialFuelMixResult(focusRequest),
+        solvedConfiguration: focusRequest.configuration,
+      }),
+      baseSolve: buildSolveState({
+        request: baseRequest,
+        result: buildCommercialFuelMixResult(baseRequest),
+        solvedConfiguration: baseRequest.configuration,
+      }),
+    })),
+  );
+
+  assert.match(html, /Fuel-mix switching by fuel pair/);
+  assert.match(html, /2 fuel-switch pairs/);
+  assert.match(html, />Gas -&gt; Elec</);
+  assert.match(html, />Liq fuels -&gt; Elec</);
+  assert.match(html, /Intensity effect: -220\.0 PJ/);
 });
 
 test('attribution-safe comparison renders the efficiency attribution section', () => {
@@ -734,7 +892,7 @@ test('base comparison disabled keeps Explorer absolute charts and hides the fuel
 
   assert.match(html, /Base comparison is disabled/);
   assert.match(html, /Fuel Consumption/);
-  assert.doesNotMatch(html, /Fuel switching by fuel pair/);
+  assert.doesNotMatch(html, /Fuel-mix switching by fuel pair/);
 });
 
 test('base comparison failure keeps focus charts visible and shows a comparison-only error panel', () => {

@@ -20,12 +20,16 @@ import {
   formatEfficiencyAttributionValue,
 } from '../../results/efficiencyAttribution.ts';
 import { buildAllContributionRows, buildSolverContributionRows } from '../../results/resultContributions.ts';
-import { buildFuelSwitchAttributionRows } from '../../results/fuelSwitching.ts';
+import {
+  buildFuelSwitchDecomposition,
+  type FuelSwitchActivityRow,
+} from '../../results/fuelSwitching.ts';
 import { usePackageStore } from '../../data/packageStore.ts';
 import { getResidualOverlayDisplayMode } from '../../data/residualOverlayPresentation.ts';
 import type { WorkspaceComparisonBaseSelectionMode } from '../../data/appUiState.ts';
 import type { FuelSwitchBasis } from '../../data/types.ts';
 import type { SolveState } from '../../hooks/useConfigurationSolve.ts';
+import type { SolveStateShareSummary } from '../../solver/contract.ts';
 
 void React;
 
@@ -39,6 +43,28 @@ function formatNumber(value: number): string {
   if (Math.abs(value) >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
   if (Math.abs(value) >= 1_000) return `${(value / 1_000).toFixed(0)}k`;
   return value.toFixed(0);
+}
+
+function buildFuelSwitchActivityRows(
+  stateShares: SolveStateShareSummary[] | undefined,
+): FuelSwitchActivityRow[] {
+  const rowsByKey = new Map<string, FuelSwitchActivityRow>();
+
+  for (const stateShare of stateShares ?? []) {
+    const key = `${stateShare.year}::${stateShare.outputId}`;
+    const row = rowsByKey.get(key) ?? {
+      outputId: stateShare.outputId,
+      outputLabel: stateShare.outputLabel,
+      year: stateShare.year,
+      activity: 0,
+    };
+
+    row.activity += stateShare.activity;
+    row.outputLabel = stateShare.outputLabel;
+    rowsByKey.set(key, row);
+  }
+
+  return Array.from(rowsByKey.values());
 }
 
 function PathwayChartCard({ chart }: { chart: PathwayChartCardData }) {
@@ -243,9 +269,30 @@ export default function ConfigurationWorkspaceCenter({
     () => (focusSolve.request && focusSolve.result ? buildRemovalsChartCards(focusSolve.request, focusSolve.result) : []),
     [focusSolve.request, focusSolve.result],
   );
-  const fuelSwitchRows = useMemo(
-    () => (baseHasSolvedSnapshot ? buildFuelSwitchAttributionRows(baseContributions, focusContributions) : []),
-    [baseContributions, baseHasSolvedSnapshot, focusContributions],
+  const baseFuelSwitchActivities = useMemo(
+    () => buildFuelSwitchActivityRows(baseSolve.result?.reporting.stateShares),
+    [baseSolve.result],
+  );
+  const focusFuelSwitchActivities = useMemo(
+    () => buildFuelSwitchActivityRows(focusSolve.result?.reporting.stateShares),
+    [focusSolve.result],
+  );
+  const fuelSwitchDecomposition = useMemo(
+    () => (
+      baseHasSolvedSnapshot
+        ? buildFuelSwitchDecomposition(baseContributions, focusContributions, {
+          baseActivities: baseFuelSwitchActivities,
+          focusActivities: focusFuelSwitchActivities,
+        })
+        : { switchRows: [], residualRows: [], netDeltaRows: [] }
+    ),
+    [
+      baseContributions,
+      baseFuelSwitchActivities,
+      baseHasSolvedSnapshot,
+      focusContributions,
+      focusFuelSwitchActivities,
+    ],
   );
   const efficiencyAttributionRows = useMemo(
     () => (
@@ -384,7 +431,8 @@ export default function ConfigurationWorkspaceCenter({
               <FuelSwitchingChart
                 availableYears={commonComparisonYears}
                 basis={fuelSwitchBasis}
-                rows={fuelSwitchRows}
+                residualRows={fuelSwitchDecomposition.residualRows}
+                rows={fuelSwitchDecomposition.switchRows}
                 selectedYear={
                   commonComparisonYears.includes(selectedFuelSwitchYear ?? Number.NaN)
                     ? selectedFuelSwitchYear

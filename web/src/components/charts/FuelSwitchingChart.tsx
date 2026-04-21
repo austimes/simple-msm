@@ -5,6 +5,7 @@ import type { StackedChartData } from '../../results/chartData.ts';
 import {
   buildFuelSwitchChartData,
   type FuelSwitchAttributionRow,
+  type FuelSwitchResidualRow,
 } from '../../results/fuelSwitching.ts';
 import type { ChartLegendItem } from './ChartFrame.tsx';
 import StackedBarChart from './StackedBarChart.tsx';
@@ -13,10 +14,13 @@ void React;
 
 const FUEL_SWITCH_LEGEND_MIN_PJ = 0.5;
 const FUEL_SWITCH_LEGEND_VISIBILITY_RATIO = 0.004;
+const FUEL_SWITCH_RESIDUAL_EPSILON_PJ = 1e-6;
+const FUEL_SWITCH_RESIDUAL_EFFECTS: FuelSwitchResidualRow['effect'][] = ['activity', 'intensity', 'scale'];
 
 interface FuelSwitchingChartProps {
   availableYears: number[];
   basis: FuelSwitchBasis;
+  residualRows?: FuelSwitchResidualRow[];
   rows: FuelSwitchAttributionRow[];
   selectedYear: number | null;
   onBasisChange: (basis: FuelSwitchBasis) => void;
@@ -27,6 +31,14 @@ interface FuelSwitchingChartProps {
 
 function formatPj(value: number): string {
   return `${value.toFixed(2)} PJ`;
+}
+
+function formatSummaryPj(value: number): string {
+  return `${value.toFixed(1)} PJ`;
+}
+
+function formatResidualEffect(effect: FuelSwitchResidualRow['effect']): string {
+  return `${effect[0].toUpperCase()}${effect.slice(1)}`;
 }
 
 function clampChannel(value: number): number {
@@ -105,9 +117,10 @@ function buildFuelPairColor(
 export default function FuelSwitchingChart({
   availableYears,
   basis,
+  residualRows = [],
   rows,
   onBasisChange,
-  title = 'Fuel switching by fuel pair',
+  title = 'Fuel-mix switching by fuel pair',
   yDomainPersistenceKey,
 }: FuelSwitchingChartProps) {
   const chartData = useMemo(
@@ -154,6 +167,24 @@ export default function FuelSwitchingChart({
       color: entry.color,
     }));
   }, [stackedChartData]);
+  const residualSummaryItems = useMemo(() => {
+    const totalsByEffect = new Map<FuelSwitchResidualRow['effect'], number>();
+
+    for (const row of residualRows) {
+      totalsByEffect.set(row.effect, (totalsByEffect.get(row.effect) ?? 0) + row.valuePj);
+    }
+
+    return FUEL_SWITCH_RESIDUAL_EFFECTS.flatMap((effect) => {
+      const total = totalsByEffect.get(effect) ?? 0;
+
+      return Math.abs(total) <= FUEL_SWITCH_RESIDUAL_EPSILON_PJ
+        ? []
+        : [{
+          key: `residual-${effect}`,
+          label: `${formatResidualEffect(effect)} effect: ${formatSummaryPj(total)}`,
+        }];
+    });
+  }, [residualRows]);
   const headerAction = (
     <div className="stacked-chart-control-group" role="group" aria-label="Fuel switch basis">
       <button
@@ -192,6 +223,7 @@ export default function FuelSwitchingChart({
         { key: 'basis', label: `Basis: ${basis === 'to' ? 'To fuel' : 'From fuel'}` },
         { key: 'years', label: `Years: ${yearSpanLabel}` },
         { key: 'rows', label: `${chartData.series.length} fuel-switch pairs` },
+        ...residualSummaryItems,
         ...(hiddenLegendPairCount > 0
           ? [{ key: 'legend', label: `Legend hides ${hiddenLegendPairCount} minor pairs` }]
           : []),
@@ -199,7 +231,7 @@ export default function FuelSwitchingChart({
       legendItems={legendItems}
       headerAction={headerAction}
       layoutVariant="explorer-uniform"
-      emptyMessage="No fuel switching for the selected basis."
+      emptyMessage="No fuel-mix switching for the selected basis."
       yDomainPersistenceKey={basisScopedPersistenceKey}
     />
   );
