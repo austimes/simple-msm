@@ -1,4 +1,7 @@
 [
+  "reference-baseline",
+  "reference-efficiency-open",
+  "reference-efficiency-off",
   "reference-base",
   "reference-all",
   "full-model-incumbents",
