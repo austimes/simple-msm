@@ -1,4 +1,9 @@
-import type { EmissionEntry, SectorState } from './types.ts';
+import type {
+  AutonomousEfficiencyTrack,
+  EfficiencyPackage,
+  EmissionEntry,
+  SectorState,
+} from './types.ts';
 
 export interface SectorStateFamily {
   stateId: string;
@@ -57,6 +62,44 @@ export interface InputCommoditySeries {
   }>;
 }
 
+export interface FamilyAutonomousTrackSummary {
+  trackId: string;
+  label: string;
+  description: string;
+  years: number[];
+  applicableStateIds: string[];
+  affectedInputCommodities: string[];
+  confidenceRatings: string[];
+  sourceIds: string[];
+  assumptionIds: string[];
+  rows: AutonomousEfficiencyTrack[];
+}
+
+export interface FamilyEfficiencyPackageSummary {
+  packageId: string;
+  label: string;
+  description: string;
+  classification: EfficiencyPackage['classification'];
+  years: number[];
+  applicableStateIds: string[];
+  affectedInputCommodities: string[];
+  confidenceRatings: string[];
+  sourceIds: string[];
+  assumptionIds: string[];
+  nonStackingGroup: string | null;
+  rows: EfficiencyPackage[];
+}
+
+export interface FamilyEfficiencyOverview {
+  familyId: string;
+  orderedStateIds: string[];
+  stateLabelById: Record<string, string>;
+  tracks: FamilyAutonomousTrackSummary[];
+  packages: FamilyEfficiencyPackageSummary[];
+  applicableTrackIdsByStateId: Record<string, string[]>;
+  applicablePackageIdsByStateId: Record<string, string[]>;
+}
+
 const referencePatterns = [
   { pattern: /incumbent/i, score: 40 },
   { pattern: /baseline/i, score: 35 },
@@ -93,6 +136,16 @@ function compareSectorStateDisplayOrder(left: SectorState, right: SectorState): 
 
 function uniqueStrings(values: string[]): string[] {
   return Array.from(new Set(values.filter(Boolean))).sort((left, right) => left.localeCompare(right));
+}
+
+function orderedUniqueStrings(values: string[]): string[] {
+  return Array.from(new Set(values.filter(Boolean)));
+}
+
+function orderStateIds(stateIds: string[], orderedStateIds: string[]): string[] {
+  const ids = new Set(stateIds);
+
+  return orderedStateIds.filter((stateId) => ids.has(stateId));
 }
 
 export function sumEmissionEntries(entries: EmissionEntry[]): number {
@@ -244,6 +297,126 @@ export function buildInputCommoditySeries(family: SectorStateFamily): InputCommo
         };
       }),
     }));
+}
+
+export function buildFamilyEfficiencyOverview(
+  familyId: string,
+  sectorStates: SectorState[],
+  autonomousEfficiencyTracks: AutonomousEfficiencyTrack[],
+  efficiencyPackages: EfficiencyPackage[],
+): FamilyEfficiencyOverview | null {
+  const stateFamilies = buildSectorStateFamilies(
+    sectorStates.filter((row) => row.family_id === familyId),
+  );
+
+  if (stateFamilies.length === 0) {
+    return null;
+  }
+
+  const orderedStateIds = stateFamilies.map((family) => family.stateId);
+  const stateLabelById = Object.fromEntries(
+    stateFamilies.map((family) => [family.stateId, family.label]),
+  );
+  const applicableTrackIdsByStateId = Object.fromEntries(
+    orderedStateIds.map((stateId) => [stateId, [] as string[]]),
+  );
+  const applicablePackageIdsByStateId = Object.fromEntries(
+    orderedStateIds.map((stateId) => [stateId, [] as string[]]),
+  );
+
+  const tracks = Array.from(
+    autonomousEfficiencyTracks
+      .filter((row) => row.family_id === familyId)
+      .reduce<Map<string, AutonomousEfficiencyTrack[]>>((result, row) => {
+        const rows = result.get(row.track_id) ?? [];
+
+        rows.push(row);
+        result.set(row.track_id, rows);
+        return result;
+      }, new Map())
+      .entries(),
+  )
+    .map(([trackId, rows]) => {
+      const sortedRows = [...rows].sort((left, right) => left.year - right.year);
+      const representative = sortedRows[0];
+      const applicableStateIds = orderStateIds(
+        orderedUniqueStrings(sortedRows.flatMap((row) => row.applicable_state_ids)),
+        orderedStateIds,
+      );
+
+      applicableStateIds.forEach((stateId) => {
+        applicableTrackIdsByStateId[stateId]?.push(trackId);
+      });
+
+      return {
+        trackId,
+        label: representative.track_label,
+        description: representative.track_description,
+        years: sortedRows.map((row) => row.year),
+        applicableStateIds,
+        affectedInputCommodities: uniqueStrings(
+          sortedRows.flatMap((row) => row.affected_input_commodities),
+        ),
+        confidenceRatings: uniqueStrings(sortedRows.map((row) => row.confidence_rating)),
+        sourceIds: uniqueStrings(sortedRows.flatMap((row) => row.source_ids)),
+        assumptionIds: uniqueStrings(sortedRows.flatMap((row) => row.assumption_ids)),
+        rows: sortedRows,
+      };
+    })
+    .sort((left, right) => left.label.localeCompare(right.label) || left.trackId.localeCompare(right.trackId));
+
+  const packages = Array.from(
+    efficiencyPackages
+      .filter((row) => row.family_id === familyId)
+      .reduce<Map<string, EfficiencyPackage[]>>((result, row) => {
+        const rows = result.get(row.package_id) ?? [];
+
+        rows.push(row);
+        result.set(row.package_id, rows);
+        return result;
+      }, new Map())
+      .entries(),
+  )
+    .map(([packageId, rows]) => {
+      const sortedRows = [...rows].sort((left, right) => left.year - right.year);
+      const representative = sortedRows[0];
+      const applicableStateIds = orderStateIds(
+        orderedUniqueStrings(sortedRows.flatMap((row) => row.applicable_state_ids)),
+        orderedStateIds,
+      );
+
+      applicableStateIds.forEach((stateId) => {
+        applicablePackageIdsByStateId[stateId]?.push(packageId);
+      });
+
+      return {
+        packageId,
+        label: representative.package_label,
+        description: representative.package_description,
+        classification: representative.classification,
+        years: sortedRows.map((row) => row.year),
+        applicableStateIds,
+        affectedInputCommodities: uniqueStrings(
+          sortedRows.flatMap((row) => row.affected_input_commodities),
+        ),
+        confidenceRatings: uniqueStrings(sortedRows.map((row) => row.confidence_rating)),
+        sourceIds: uniqueStrings(sortedRows.flatMap((row) => row.source_ids)),
+        assumptionIds: uniqueStrings(sortedRows.flatMap((row) => row.assumption_ids)),
+        nonStackingGroup: representative.non_stacking_group,
+        rows: sortedRows,
+      };
+    })
+    .sort((left, right) => left.label.localeCompare(right.label) || left.packageId.localeCompare(right.packageId));
+
+  return {
+    familyId,
+    orderedStateIds,
+    stateLabelById,
+    tracks,
+    packages,
+    applicableTrackIdsByStateId,
+    applicablePackageIdsByStateId,
+  };
 }
 
 function scoreReferenceCandidate(row: SectorState): number {

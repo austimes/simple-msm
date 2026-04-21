@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
-import { buildSectorStateFamilies, findReferenceSectorState } from '../src/data/libraryInsights.ts';
+import {
+  buildFamilyEfficiencyOverview,
+  buildSectorStateFamilies,
+  findReferenceSectorState,
+} from '../src/data/libraryInsights.ts';
 import type { SectorState } from '../src/data/types.ts';
 import { loadPkg } from './solverTestUtils.mjs';
 
@@ -195,6 +199,55 @@ describe('libraryInsights', () => {
     assert.deepEqual(
       families.map((family) => family.stateId),
       [alpha.state_id, zebra.state_id],
+    );
+  });
+
+  test('buildFamilyEfficiencyOverview groups canonical family artifacts and preserves state applicability order', () => {
+    const overview = buildFamilyEfficiencyOverview(
+      'commercial_building_services',
+      pkg.sectorStates,
+      pkg.autonomousEfficiencyTracks,
+      pkg.efficiencyPackages,
+    );
+
+    assert.ok(overview, 'expected a commercial building efficiency overview');
+    if (!overview) {
+      return;
+    }
+
+    assert.deepEqual(overview.tracks.map((track) => track.trackId), [
+      'buildings__commercial__background_standards_drift',
+    ]);
+    assert.deepEqual(overview.packages.map((entry) => entry.packageId), [
+      'buildings__commercial__hvac_tuning_bms',
+      'buildings__commercial__lighting_retrofit',
+    ]);
+    assert.deepEqual(overview.orderedStateIds, [
+      'buildings__commercial__incumbent_mixed_fuels',
+      'buildings__commercial__electrified_efficiency',
+      'buildings__commercial__deep_electric',
+    ]);
+    assert.deepEqual(
+      overview.applicableTrackIdsByStateId.buildings__commercial__deep_electric,
+      [],
+    );
+    assert.deepEqual(
+      overview.applicablePackageIdsByStateId.buildings__commercial__deep_electric,
+      [],
+    );
+    assert.deepEqual(
+      overview.tracks[0].applicableStateIds,
+      [
+        'buildings__commercial__incumbent_mixed_fuels',
+        'buildings__commercial__electrified_efficiency',
+      ],
+    );
+    assert.deepEqual(
+      overview.packages[0].applicableStateIds,
+      [
+        'buildings__commercial__incumbent_mixed_fuels',
+        'buildings__commercial__electrified_efficiency',
+      ],
     );
   });
 });

@@ -6,10 +6,13 @@ import {
 } from '../data/chartPresentation.ts';
 import {
   buildInputCommoditySeries,
+  buildFamilyEfficiencyOverview,
   buildSectorStateFamilies,
   buildSectorStateFamilySearchText,
   buildSectorStateTrajectory,
   buildSectorSubsectorIndex,
+  type FamilyAutonomousTrackSummary,
+  type FamilyEfficiencyPackageSummary,
   type SectorStateTrajectory,
 } from '../data/libraryInsights';
 import { type LibraryFilters } from '../data/appUiState.ts';
@@ -108,6 +111,192 @@ function buildNarrativeEntries(rows: SectorState[], pick: (row: SectorState) => 
   };
 }
 
+function renderNarrativeDetail<Row extends { year: number }>(
+  label: string,
+  rows: Row[],
+  pick: (row: Row) => string,
+) {
+  const detail = rows
+    .map((row) => ({ year: row.year, value: pick(row).trim() }))
+    .filter((entry) => entry.value.length > 0);
+  const uniqueValues = Array.from(new Set(detail.map((entry) => entry.value)));
+
+  return (
+    <div>
+      <dt>{label}</dt>
+      <dd>
+        {uniqueValues.length === 1 ? (
+          uniqueValues[0]
+        ) : detail.length > 0 ? (
+          <div className="library-yearly-note-list">
+            {detail.map((entry) => (
+              <div key={`${label}:${entry.year}:${entry.value}`} className="library-yearly-note-item">
+                <span>{entry.year}</span>
+                <p>{entry.value}</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          '—'
+        )}
+      </dd>
+    </div>
+  );
+}
+
+function formatPackageClassification(label: FamilyEfficiencyPackageSummary['classification']): string {
+  return label === 'operational_efficiency_overlay'
+    ? 'Operational efficiency overlay'
+    : 'Pure efficiency overlay';
+}
+
+function resolveStateLabels(stateIds: string[], stateLabelById: Record<string, string>): string[] {
+  return stateIds.map((stateId) => stateLabelById[stateId] ?? stateId);
+}
+
+function FamilyAutonomousTrackCard({
+  track,
+  stateLabelById,
+  selectedStateId,
+}: {
+  track: FamilyAutonomousTrackSummary;
+  stateLabelById: Record<string, string>;
+  selectedStateId: string;
+}) {
+  const appliesToSelectedTrajectory = track.applicableStateIds.includes(selectedStateId);
+
+  return (
+    <article className="library-artifact-card">
+      <div className="library-artifact-header">
+        <div className="library-badge-row">
+          <span className="configuration-badge">Autonomous track</span>
+          <span
+            className={`library-artifact-status${appliesToSelectedTrajectory ? ' library-artifact-status--active' : ''}`}
+          >
+            {appliesToSelectedTrajectory ? 'Applies to selected trajectory' : 'Not authored for selected trajectory'}
+          </span>
+        </div>
+        <div>
+          <h4>{track.label}</h4>
+          <p>{track.description}</p>
+        </div>
+      </div>
+
+      <div className="library-tag-groups">
+        <div>
+          <span className="library-tag-group-title">Applicable states</span>
+          <div className="library-tag-list">
+            {resolveStateLabels(track.applicableStateIds, stateLabelById).map((label) => (
+              <span key={`${track.trackId}:${label}`} className="library-tag">
+                {label}
+              </span>
+            ))}
+          </div>
+        </div>
+        <div>
+          <span className="library-tag-group-title">Affected inputs</span>
+          <div className="library-tag-list">
+            {track.affectedInputCommodities.map((commodity) => (
+              <span key={`${track.trackId}:${commodity}`} className="library-tag">
+                {resolveCommodityLabel(commodity)}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <dl className="library-detail-list">
+        <div>
+          <dt>Track ID</dt>
+          <dd>{track.trackId}</dd>
+        </div>
+        <div>
+          <dt>Milestone years</dt>
+          <dd>{track.years.join(', ')}</dd>
+        </div>
+        {renderNarrativeDetail('Evidence summary', track.rows, (row) => row.evidence_summary)}
+        {renderNarrativeDetail('Confidence rating', track.rows, (row) => row.confidence_rating)}
+        {renderNarrativeDetail('Applicability guardrail', track.rows, (row) => row.double_counting_guardrail)}
+        {renderNarrativeDetail('Review notes', track.rows, (row) => row.review_notes)}
+      </dl>
+    </article>
+  );
+}
+
+function FamilyEfficiencyPackageCard({
+  pkg,
+  stateLabelById,
+  selectedStateId,
+}: {
+  pkg: FamilyEfficiencyPackageSummary;
+  stateLabelById: Record<string, string>;
+  selectedStateId: string;
+}) {
+  const appliesToSelectedTrajectory = pkg.applicableStateIds.includes(selectedStateId);
+
+  return (
+    <article className="library-artifact-card">
+      <div className="library-artifact-header">
+        <div className="library-badge-row">
+          <span className="configuration-badge">Efficiency package</span>
+          <span className="library-tag">{formatPackageClassification(pkg.classification)}</span>
+          <span
+            className={`library-artifact-status${appliesToSelectedTrajectory ? ' library-artifact-status--active' : ''}`}
+          >
+            {appliesToSelectedTrajectory ? 'Applies to selected trajectory' : 'Not authored for selected trajectory'}
+          </span>
+        </div>
+        <div>
+          <h4>{pkg.label}</h4>
+          <p>{pkg.description}</p>
+        </div>
+      </div>
+
+      <div className="library-tag-groups">
+        <div>
+          <span className="library-tag-group-title">Applicable states</span>
+          <div className="library-tag-list">
+            {resolveStateLabels(pkg.applicableStateIds, stateLabelById).map((label) => (
+              <span key={`${pkg.packageId}:${label}`} className="library-tag">
+                {label}
+              </span>
+            ))}
+          </div>
+        </div>
+        <div>
+          <span className="library-tag-group-title">Affected inputs</span>
+          <div className="library-tag-list">
+            {pkg.affectedInputCommodities.map((commodity) => (
+              <span key={`${pkg.packageId}:${commodity}`} className="library-tag">
+                {resolveCommodityLabel(commodity)}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <dl className="library-detail-list">
+        <div>
+          <dt>Package ID</dt>
+          <dd>{pkg.packageId}</dd>
+        </div>
+        <div>
+          <dt>Milestone years</dt>
+          <dd>{pkg.years.join(', ')}</dd>
+        </div>
+        <div>
+          <dt>Non-stacking group</dt>
+          <dd>{pkg.nonStackingGroup ?? '—'}</dd>
+        </div>
+        {renderNarrativeDetail('Evidence summary', pkg.rows, (row) => row.evidence_summary)}
+        {renderNarrativeDetail('Confidence rating', pkg.rows, (row) => row.confidence_rating)}
+        {renderNarrativeDetail('Rollout limit notes', pkg.rows, (row) => row.rollout_limit_notes)}
+        {renderNarrativeDetail('Review notes', pkg.rows, (row) => row.review_notes)}
+      </dl>
+    </article>
+  );
+}
+
 function matchesTrajectoryFilters(
   trajectory: ReturnType<typeof buildSectorStateFamilies>[number],
   selectedSector: string,
@@ -182,6 +371,8 @@ function TrajectoryNarrative({ label, rows, pick }: TrajectoryNarrativeProps) {
 export default function LibraryPage() {
   const enrichment = usePackageStore((state) => state.enrichment);
   const sectorStates = usePackageStore((state) => state.sectorStates);
+  const autonomousEfficiencyTracks = usePackageStore((state) => state.autonomousEfficiencyTracks);
+  const efficiencyPackages = usePackageStore((state) => state.efficiencyPackages);
   const {
     filters,
     sidebarCollapsed,
@@ -426,6 +617,35 @@ export default function LibraryPage() {
       coefficients: resolveSharedUnitLabel(coefficientChart.units.map((unit) => formatUnitLabel(unit))),
     };
   }, [coefficientChart.units, visibleTrajectories]);
+
+  const selectedFamilyId = selectedTrajectory?.representative.family_id ?? null;
+  const selectedStateId = selectedTrajectory?.stateId ?? null;
+
+  const selectedFamilyEfficiency = selectedFamilyId
+    ? buildFamilyEfficiencyOverview(
+        selectedFamilyId,
+        sectorStates,
+        autonomousEfficiencyTracks,
+        efficiencyPackages,
+      )
+    : null;
+
+  const selectedApplicableTrackIds = selectedStateId && selectedFamilyEfficiency
+    ? selectedFamilyEfficiency.applicableTrackIdsByStateId[selectedStateId] ?? []
+    : [];
+  const selectedApplicablePackageIds = selectedStateId && selectedFamilyEfficiency
+    ? selectedFamilyEfficiency.applicablePackageIdsByStateId[selectedStateId] ?? []
+    : [];
+  const hasFamilyEfficiencyArtifacts = Boolean(
+    selectedFamilyEfficiency
+      && (selectedFamilyEfficiency.tracks.length > 0 || selectedFamilyEfficiency.packages.length > 0),
+  );
+  const selectedStateEmbedsEfficiency = Boolean(
+    selectedTrajectory
+      && hasFamilyEfficiencyArtifacts
+      && selectedApplicableTrackIds.length === 0
+      && selectedApplicablePackageIds.length === 0,
+  );
 
   const resetFilters = () => {
     resetLibraryUi();
@@ -847,6 +1067,47 @@ export default function LibraryPage() {
                           <TrajectoryNarrative label="Input basis notes" rows={selectedTrajectory.rows} pick={(row) => row.input_basis_notes} />
                           <TrajectoryNarrative label="Emissions boundary notes" rows={selectedTrajectory.rows} pick={(row) => row.emissions_boundary_notes} />
                         </dl>
+                      </section>
+                    </div>
+
+                    <div className="library-detail-grid">
+                      <section className="library-detail-section">
+                        <h3>Family efficiency artifacts</h3>
+                        <p className="library-inline-note">
+                          Family-local autonomous tracks and portable efficiency packages are loaded from the canonical package inventory and then tied back to the selected trajectory by applicability.
+                        </p>
+
+                        {hasFamilyEfficiencyArtifacts && selectedFamilyEfficiency ? (
+                          <div className="library-artifact-stack">
+                            {selectedStateEmbedsEfficiency ? (
+                              <div className="library-artifact-callout">
+                                Portable family packages and autonomous tracks are not authored for this pathway state. Any efficiency improvement in the selected trajectory is represented directly in the pathway-state rows and curves rather than being mislabeled as a separate package.
+                              </div>
+                            ) : null}
+
+                            {selectedFamilyEfficiency.tracks.map((track) => (
+                              <FamilyAutonomousTrackCard
+                                key={track.trackId}
+                                track={track}
+                                stateLabelById={selectedFamilyEfficiency.stateLabelById}
+                                selectedStateId={selectedTrajectory.stateId}
+                              />
+                            ))}
+
+                            {selectedFamilyEfficiency.packages.map((pkg) => (
+                              <FamilyEfficiencyPackageCard
+                                key={pkg.packageId}
+                                pkg={pkg}
+                                stateLabelById={selectedFamilyEfficiency.stateLabelById}
+                                selectedStateId={selectedTrajectory.stateId}
+                              />
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="library-inline-note">
+                            No autonomous efficiency tracks or portable efficiency packages are authored for this family in the canonical loaded package data.
+                          </p>
+                        )}
                       </section>
                     </div>
 
