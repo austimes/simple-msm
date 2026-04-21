@@ -32,6 +32,8 @@ bun run build
 bun run test
 ```
 
+`bun run test` is the supported test entrypoint for the web app. It invokes `tsx --test` over the `test/*.test.{mjs,ts,tsx}` files, which are authored against Node's built-in `node:test` APIs rather than Vitest.
+
 ## Main Folders
 
 - `src/configurations/` — built-in full configuration documents.
