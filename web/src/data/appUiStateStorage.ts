@@ -133,6 +133,14 @@ function sanitizeLibraryFilters(value: unknown): LibraryFilters {
     region: readString(value.region, fallback.region),
     sourceId: readString(value.sourceId, fallback.sourceId),
     assumptionId: readString(value.assumptionId, fallback.assumptionId),
+    efficiencyApplicability: readString(
+      value.efficiencyApplicability,
+      fallback.efficiencyApplicability,
+    ),
+    efficiencyArtifactType: readString(
+      value.efficiencyArtifactType,
+      fallback.efficiencyArtifactType,
+    ),
   };
 }
 

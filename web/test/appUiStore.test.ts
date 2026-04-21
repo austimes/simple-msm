@@ -4,7 +4,11 @@ import { fileURLToPath } from 'node:url';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createServer } from 'vite';
-import { buildSectorStateFamilies, buildSectorStateTrajectory } from '../src/data/libraryInsights.ts';
+import {
+  buildFamilyEfficiencyOverview,
+  buildSectorStateFamilies,
+  buildSectorStateTrajectory,
+} from '../src/data/libraryInsights.ts';
 import { DEFAULT_APP_UI_STATE, type AppUiState } from '../src/data/appUiState.ts';
 import {
   APP_UI_STATE_STORAGE_KEY,
@@ -166,12 +170,26 @@ describe('appUiStore route persistence', () => {
   });
 
   test('preserves library filters, scope selection, trajectory selection, and sidebar collapse across remount', async () => {
-    const candidate = buildSectorStateFamilies(usePackageStore.getState().sectorStates).find((family) => (
-      family.confidenceRatings.length > 0
-      && family.sourceIds.length > 0
-      && family.assumptionIds.length > 0
-      && family.rows.length > 0
-    ));
+    const packageState = usePackageStore.getState();
+    const candidate = buildSectorStateFamilies(packageState.sectorStates).find((family) => {
+      if (
+        family.confidenceRatings.length === 0
+        || family.sourceIds.length === 0
+        || family.assumptionIds.length === 0
+        || family.rows.length === 0
+      ) {
+        return false;
+      }
+
+      const efficiency = buildFamilyEfficiencyOverview(
+        family.representative.family_id,
+        packageState.sectorStates,
+        packageState.autonomousEfficiencyTracks,
+        packageState.efficiencyPackages,
+      );
+
+      return Boolean(efficiency?.packages.some((pkg) => pkg.classification === 'pure_efficiency_overlay'));
+    });
 
     assert.ok(candidate, 'expected at least one family with confidence, source, and assumption metadata');
 
@@ -187,6 +205,8 @@ describe('appUiStore route persistence', () => {
           region: candidate.rows[0]?.region ?? '',
           sourceId: candidate.sourceIds[0] ?? '',
           assumptionId: candidate.assumptionIds[0] ?? '',
+          efficiencyApplicability: 'with_applicable_artifacts',
+          efficiencyArtifactType: 'pure_efficiency_overlay',
         },
         selectedSector: candidate.sector,
         selectedSubsector: candidate.subsector,
@@ -222,6 +242,8 @@ describe('appUiStore route persistence', () => {
       htmls,
       new RegExp(`option value="${escapeForRegex(candidate.assumptionIds[0] ?? '')}" selected=""`),
     );
+    assertMatchesBoth(htmls, /option value="with_applicable_artifacts" selected=""/);
+    assertMatchesBoth(htmls, /option value="pure_efficiency_overlay" selected=""/);
     assertMatchesBoth(
       htmls,
       new RegExp(`library-state-selector-button library-state-selector-button--active[\\s\\S]*?<span>${escapeForRegex(selectedTrajectoryId)}</span>`),

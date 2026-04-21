@@ -9,6 +9,8 @@ export interface LibraryFilters {
   region: string;
   sourceId: string;
   assumptionId: string;
+  efficiencyApplicability: string;
+  efficiencyArtifactType: string;
 }
 
 export const LEFT_SIDEBAR_SECTION_KEYS = [
@@ -98,6 +100,8 @@ export const DEFAULT_APP_UI_STATE: AppUiState = {
       region: '',
       sourceId: '',
       assumptionId: '',
+      efficiencyApplicability: '',
+      efficiencyArtifactType: '',
     },
     selectedSector: '',
     selectedSubsector: '',

@@ -12,6 +12,7 @@ import {
   buildSectorStateTrajectory,
   buildSectorSubsectorIndex,
   type FamilyAutonomousTrackSummary,
+  type FamilyEfficiencyOverview,
   type FamilyEfficiencyPackageSummary,
   type SectorStateTrajectory,
 } from '../data/libraryInsights';
@@ -55,6 +56,27 @@ const axisPercentFormatter = new Intl.NumberFormat('en-AU', {
   maximumFractionDigits: 0,
 });
 
+const EFFICIENCY_APPLICABILITY_OPTIONS = [
+  { value: 'with_applicable_artifacts', label: 'Explicit artifacts apply' },
+  { value: 'embedded_in_state', label: 'Embedded in pathway state' },
+  { value: 'no_family_artifacts', label: 'No authored family artifacts' },
+] as const;
+
+const EFFICIENCY_ARTIFACT_TYPE_OPTIONS = [
+  { value: 'autonomous_efficiency_track', label: 'Autonomous track' },
+  { value: 'pure_efficiency_overlay', label: 'Pure efficiency overlay' },
+  { value: 'operational_efficiency_overlay', label: 'Operational efficiency overlay' },
+] as const;
+
+interface TrajectoryEfficiencyMetadata {
+  familyEfficiency: FamilyEfficiencyOverview | null;
+  applicableTracks: FamilyAutonomousTrackSummary[];
+  applicablePackages: FamilyEfficiencyPackageSummary[];
+  hasFamilyArtifacts: boolean;
+  hasApplicableArtifacts: boolean;
+  embedsEfficiency: boolean;
+}
+
 function formatUnitLabel(unit: string): string {
   return unit.trim().replaceAll('_', ' ');
 }
@@ -91,6 +113,70 @@ function formatNullableNumber(value: number | null, suffix = ''): string {
 
 function formatPercentAxis(value: number): string {
   return axisPercentFormatter.format(value);
+}
+
+function hasFamilyEfficiencyArtifacts(familyEfficiency: FamilyEfficiencyOverview | null): boolean {
+  return Boolean(familyEfficiency && (familyEfficiency.tracks.length > 0 || familyEfficiency.packages.length > 0));
+}
+
+function buildTrajectoryEfficiencyMetadata(
+  trajectory: ReturnType<typeof buildSectorStateFamilies>[number],
+  familyEfficiency: FamilyEfficiencyOverview | null,
+): TrajectoryEfficiencyMetadata {
+  const applicableTracks = familyEfficiency?.tracks.filter((track) =>
+    track.applicableStateIds.includes(trajectory.stateId)) ?? [];
+  const applicablePackages = familyEfficiency?.packages.filter((pkg) =>
+    pkg.applicableStateIds.includes(trajectory.stateId)) ?? [];
+  const hasFamilyArtifacts = hasFamilyEfficiencyArtifacts(familyEfficiency);
+  const hasApplicableArtifacts = applicableTracks.length > 0 || applicablePackages.length > 0;
+
+  return {
+    familyEfficiency,
+    applicableTracks,
+    applicablePackages,
+    hasFamilyArtifacts,
+    hasApplicableArtifacts,
+    embedsEfficiency: hasFamilyArtifacts && !hasApplicableArtifacts,
+  };
+}
+
+function buildTrajectoryEfficiencySearchText(metadata: TrajectoryEfficiencyMetadata): string {
+  return [
+    ...metadata.applicableTracks.flatMap((track) => [
+      track.trackId,
+      track.label,
+      track.description,
+      track.affectedInputCommodities.join(' '),
+      track.confidenceRatings.join(' '),
+      track.sourceIds.join(' '),
+      track.assumptionIds.join(' '),
+      ...track.rows.flatMap((row) => [
+        row.evidence_summary,
+        row.derivation_method,
+        row.double_counting_guardrail,
+        row.review_notes,
+      ]),
+    ]),
+    ...metadata.applicablePackages.flatMap((pkg) => [
+      pkg.packageId,
+      pkg.label,
+      pkg.description,
+      pkg.classification,
+      pkg.nonStackingGroup ?? '',
+      pkg.affectedInputCommodities.join(' '),
+      pkg.confidenceRatings.join(' '),
+      pkg.sourceIds.join(' '),
+      pkg.assumptionIds.join(' '),
+      ...pkg.rows.flatMap((row) => [
+        row.rollout_limit_notes,
+        row.evidence_summary,
+        row.derivation_method,
+        row.review_notes,
+      ]),
+    ]),
+  ]
+    .join(' ')
+    .toLowerCase();
 }
 
 function collectChartSeriesValues(series: LineChartSeries[]): number[] {
@@ -302,6 +388,7 @@ function matchesTrajectoryFilters(
   selectedSector: string,
   selectedSubsector: string,
   filters: LibraryFilters,
+  efficiency: TrajectoryEfficiencyMetadata,
 ) {
   if (selectedSector && trajectory.sector !== selectedSector) {
     return false;
@@ -327,8 +414,32 @@ function matchesTrajectoryFilters(
     return false;
   }
 
+  if (filters.efficiencyApplicability === 'with_applicable_artifacts' && !efficiency.hasApplicableArtifacts) {
+    return false;
+  }
+
+  if (filters.efficiencyApplicability === 'embedded_in_state' && !efficiency.embedsEfficiency) {
+    return false;
+  }
+
+  if (filters.efficiencyApplicability === 'no_family_artifacts' && efficiency.hasFamilyArtifacts) {
+    return false;
+  }
+
+  if (filters.efficiencyArtifactType === 'autonomous_efficiency_track' && efficiency.applicableTracks.length === 0) {
+    return false;
+  }
+
+  if (
+    filters.efficiencyArtifactType
+    && filters.efficiencyArtifactType !== 'autonomous_efficiency_track'
+    && !efficiency.applicablePackages.some((pkg) => pkg.classification === filters.efficiencyArtifactType)
+  ) {
+    return false;
+  }
+
   if (filters.search) {
-    const searchText = buildSectorStateFamilySearchText(trajectory);
+    const searchText = `${buildSectorStateFamilySearchText(trajectory)} ${buildTrajectoryEfficiencySearchText(efficiency)}`;
     const tokens = filters.search
       .toLowerCase()
       .split(/\s+/)
@@ -406,9 +517,53 @@ export default function LibraryPage() {
     };
   }, [sectorStates]);
 
+  const familyEfficiencyByFamilyId = useMemo(() => {
+    return new Map(
+      Array.from(new Set(families.map((family) => family.representative.family_id))).map((familyId) => [
+        familyId,
+        buildFamilyEfficiencyOverview(
+          familyId,
+          sectorStates,
+          autonomousEfficiencyTracks,
+          efficiencyPackages,
+        ),
+      ]),
+    );
+  }, [autonomousEfficiencyTracks, efficiencyPackages, families, sectorStates]);
+
+  const trajectoryEfficiencyByStateId = useMemo(() => {
+    return new Map(
+      families.map((family) => [
+        family.stateId,
+        buildTrajectoryEfficiencyMetadata(
+          family,
+          familyEfficiencyByFamilyId.get(family.representative.family_id) ?? null,
+        ),
+      ]),
+    );
+  }, [families, familyEfficiencyByFamilyId]);
+
   const filteredFamilies = useMemo(() => {
-    return families.filter((family) => matchesTrajectoryFilters(family, resolvedSelectedSector, resolvedSelectedSubsector, filters));
-  }, [families, resolvedSelectedSector, resolvedSelectedSubsector, filters]);
+    return families.filter((family) =>
+      matchesTrajectoryFilters(
+        family,
+        resolvedSelectedSector,
+        resolvedSelectedSubsector,
+        filters,
+        trajectoryEfficiencyByStateId.get(family.stateId)
+          ?? buildTrajectoryEfficiencyMetadata(
+            family,
+            familyEfficiencyByFamilyId.get(family.representative.family_id) ?? null,
+          ),
+      ));
+  }, [
+    families,
+    familyEfficiencyByFamilyId,
+    filters,
+    resolvedSelectedSector,
+    resolvedSelectedSubsector,
+    trajectoryEfficiencyByStateId,
+  ]);
 
   const visibleTrajectories = useMemo(() => filteredFamilies.map((family) => buildSectorStateTrajectory(family)), [filteredFamilies]);
 
@@ -618,34 +773,12 @@ export default function LibraryPage() {
     };
   }, [coefficientChart.units, visibleTrajectories]);
 
-  const selectedFamilyId = selectedTrajectory?.representative.family_id ?? null;
-  const selectedStateId = selectedTrajectory?.stateId ?? null;
-
-  const selectedFamilyEfficiency = selectedFamilyId
-    ? buildFamilyEfficiencyOverview(
-        selectedFamilyId,
-        sectorStates,
-        autonomousEfficiencyTracks,
-        efficiencyPackages,
-      )
+  const selectedTrajectoryEfficiency = selectedTrajectory
+    ? trajectoryEfficiencyByStateId.get(selectedTrajectory.stateId) ?? null
     : null;
-
-  const selectedApplicableTrackIds = selectedStateId && selectedFamilyEfficiency
-    ? selectedFamilyEfficiency.applicableTrackIdsByStateId[selectedStateId] ?? []
-    : [];
-  const selectedApplicablePackageIds = selectedStateId && selectedFamilyEfficiency
-    ? selectedFamilyEfficiency.applicablePackageIdsByStateId[selectedStateId] ?? []
-    : [];
-  const hasFamilyEfficiencyArtifacts = Boolean(
-    selectedFamilyEfficiency
-      && (selectedFamilyEfficiency.tracks.length > 0 || selectedFamilyEfficiency.packages.length > 0),
-  );
-  const selectedStateEmbedsEfficiency = Boolean(
-    selectedTrajectory
-      && hasFamilyEfficiencyArtifacts
-      && selectedApplicableTrackIds.length === 0
-      && selectedApplicablePackageIds.length === 0,
-  );
+  const selectedFamilyEfficiency = selectedTrajectoryEfficiency?.familyEfficiency ?? null;
+  const hasSelectedFamilyEfficiencyArtifacts = selectedTrajectoryEfficiency?.hasFamilyArtifacts ?? false;
+  const selectedStateEmbedsEfficiency = selectedTrajectoryEfficiency?.embedsEfficiency ?? false;
 
   const resetFilters = () => {
     resetLibraryUi();
@@ -726,7 +859,7 @@ export default function LibraryPage() {
                 <input
                   value={filters.search}
                   onChange={(event) => setLibraryFilters({ search: event.target.value })}
-                  placeholder="State label, evidence, notes, source ID"
+                  placeholder="State label, efficiency artifact, notes, source ID"
                 />
               </label>
 
@@ -785,6 +918,36 @@ export default function LibraryPage() {
                   {filterOptions.assumptionIds.map((assumptionId) => (
                     <option key={assumptionId} value={assumptionId}>
                       {assumptionId}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="library-field">
+                <span>Efficiency applicability</span>
+                <select
+                  value={filters.efficiencyApplicability}
+                  onChange={(event) => setLibraryFilters({ efficiencyApplicability: event.target.value })}
+                >
+                  <option value="">All states</option>
+                  {EFFICIENCY_APPLICABILITY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="library-field">
+                <span>Efficiency artifact type</span>
+                <select
+                  value={filters.efficiencyArtifactType}
+                  onChange={(event) => setLibraryFilters({ efficiencyArtifactType: event.target.value })}
+                >
+                  <option value="">All types</option>
+                  {EFFICIENCY_ARTIFACT_TYPE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
                     </option>
                   ))}
                 </select>
@@ -1077,7 +1240,7 @@ export default function LibraryPage() {
                           Family-local autonomous tracks and portable efficiency packages are loaded from the canonical package inventory and then tied back to the selected trajectory by applicability.
                         </p>
 
-                        {hasFamilyEfficiencyArtifacts && selectedFamilyEfficiency ? (
+                        {hasSelectedFamilyEfficiencyArtifacts && selectedFamilyEfficiency ? (
                           <div className="library-artifact-stack">
                             {selectedStateEmbedsEfficiency ? (
                               <div className="library-artifact-callout">
