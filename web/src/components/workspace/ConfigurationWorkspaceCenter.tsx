@@ -22,6 +22,7 @@ import {
 import { buildAllContributionRows, buildSolverContributionRows } from '../../results/resultContributions.ts';
 import {
   buildFuelSwitchDecomposition,
+  buildFuelSwitchRouteBasisRows,
   type FuelSwitchActivityRow,
 } from '../../results/fuelSwitching.ts';
 import { usePackageStore } from '../../data/packageStore.ts';
@@ -277,12 +278,37 @@ export default function ConfigurationWorkspaceCenter({
     () => buildFuelSwitchActivityRows(focusSolve.result?.reporting.stateShares),
     [focusSolve.result],
   );
+  const fuelSwitchRouteBasis = useMemo(
+    () => (
+      baseHasSolvedSnapshot
+      && baseSolve.request
+      && baseSolve.result
+      && focusSolve.request
+      && focusSolve.result
+        ? buildFuelSwitchRouteBasisRows(
+          baseSolve.request,
+          baseSolve.result,
+          focusSolve.request,
+          focusSolve.result,
+        )
+        : null
+    ),
+    [
+      baseHasSolvedSnapshot,
+      baseSolve.request,
+      baseSolve.result,
+      focusSolve.request,
+      focusSolve.result,
+    ],
+  );
   const fuelSwitchDecomposition = useMemo(
     () => (
       baseHasSolvedSnapshot
         ? buildFuelSwitchDecomposition(baseContributions, focusContributions, {
           baseActivities: baseFuelSwitchActivities,
+          baseSwitchBasisRows: fuelSwitchRouteBasis?.baseSwitchBasisRows,
           focusActivities: focusFuelSwitchActivities,
+          focusSwitchBasisRows: fuelSwitchRouteBasis?.focusSwitchBasisRows,
         })
         : { switchRows: [], residualRows: [], netDeltaRows: [] }
     ),
@@ -292,6 +318,7 @@ export default function ConfigurationWorkspaceCenter({
       baseHasSolvedSnapshot,
       focusContributions,
       focusFuelSwitchActivities,
+      fuelSwitchRouteBasis,
     ],
   );
   const efficiencyAttributionRows = useMemo(

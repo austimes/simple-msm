@@ -120,7 +120,7 @@ export default function FuelSwitchingChart({
   residualRows = [],
   rows,
   onBasisChange,
-  title = 'Fuel-mix switching by fuel pair',
+  title = 'Route-change fuel switching by fuel pair',
   yDomainPersistenceKey,
 }: FuelSwitchingChartProps) {
   const chartData = useMemo(
@@ -231,7 +231,7 @@ export default function FuelSwitchingChart({
       legendItems={legendItems}
       headerAction={headerAction}
       layoutVariant="explorer-uniform"
-      emptyMessage="No fuel-mix switching for the selected basis."
+      emptyMessage="No route-change fuel switching for the selected basis."
       yDomainPersistenceKey={basisScopedPersistenceKey}
     />
   );
