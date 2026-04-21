@@ -219,8 +219,8 @@ describe('libraryInsights', () => {
       'buildings__commercial__background_standards_drift',
     ]);
     assert.deepEqual(overview.packages.map((entry) => entry.packageId), [
-      'buildings__commercial__hvac_tuning_bms',
       'buildings__commercial__lighting_retrofit',
+      'buildings__commercial__hvac_tuning_bms',
     ]);
     assert.deepEqual(overview.orderedStateIds, [
       'buildings__commercial__incumbent_mixed_fuels',

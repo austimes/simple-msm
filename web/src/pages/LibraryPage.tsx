@@ -4,6 +4,7 @@ import {
   buildStateMetricLegendLabel,
   getPresentation,
 } from '../data/chartPresentation.ts';
+import { getEmbodiedEfficiencyPathwayEntry } from '../data/efficiencyAttributionRegistry.ts';
 import {
   buildInputCommoditySeries,
   buildFamilyEfficiencyOverview,
@@ -58,7 +59,7 @@ const axisPercentFormatter = new Intl.NumberFormat('en-AU', {
 
 const EFFICIENCY_APPLICABILITY_OPTIONS = [
   { value: 'with_applicable_artifacts', label: 'Explicit artifacts apply' },
-  { value: 'embedded_in_state', label: 'Embedded in pathway state' },
+  { value: 'embedded_in_state', label: 'Embodied efficiency in pathway choice' },
   { value: 'no_family_artifacts', label: 'No authored family artifacts' },
 ] as const;
 
@@ -75,6 +76,7 @@ interface TrajectoryEfficiencyMetadata {
   hasFamilyArtifacts: boolean;
   hasApplicableArtifacts: boolean;
   embedsEfficiency: boolean;
+  embodiedEfficiencyRationale: string | null;
 }
 
 function formatUnitLabel(unit: string): string {
@@ -129,6 +131,7 @@ function buildTrajectoryEfficiencyMetadata(
     pkg.applicableStateIds.includes(trajectory.stateId)) ?? [];
   const hasFamilyArtifacts = hasFamilyEfficiencyArtifacts(familyEfficiency);
   const hasApplicableArtifacts = applicableTracks.length > 0 || applicablePackages.length > 0;
+  const embodiedEntry = getEmbodiedEfficiencyPathwayEntry(trajectory.stateId);
 
   return {
     familyEfficiency,
@@ -136,7 +139,8 @@ function buildTrajectoryEfficiencyMetadata(
     applicablePackages,
     hasFamilyArtifacts,
     hasApplicableArtifacts,
-    embedsEfficiency: hasFamilyArtifacts && !hasApplicableArtifacts,
+    embedsEfficiency: embodiedEntry != null,
+    embodiedEfficiencyRationale: embodiedEntry?.rationale ?? null,
   };
 }
 
@@ -324,8 +328,7 @@ function FamilyEfficiencyPackageCard({
     <article className="library-artifact-card">
       <div className="library-artifact-header">
         <div className="library-badge-row">
-          <span className="configuration-badge">Efficiency package</span>
-          <span className="library-tag">{formatPackageClassification(pkg.classification)}</span>
+          <span className="configuration-badge">{formatPackageClassification(pkg.classification)}</span>
           <span
             className={`library-artifact-status${appliesToSelectedTrajectory ? ' library-artifact-status--active' : ''}`}
           >
@@ -779,6 +782,7 @@ export default function LibraryPage() {
   const selectedFamilyEfficiency = selectedTrajectoryEfficiency?.familyEfficiency ?? null;
   const hasSelectedFamilyEfficiencyArtifacts = selectedTrajectoryEfficiency?.hasFamilyArtifacts ?? false;
   const selectedStateEmbedsEfficiency = selectedTrajectoryEfficiency?.embedsEfficiency ?? false;
+  const selectedEmbodiedEfficiencyRationale = selectedTrajectoryEfficiency?.embodiedEfficiencyRationale ?? null;
 
   const resetFilters = () => {
     resetLibraryUi();
@@ -1235,19 +1239,29 @@ export default function LibraryPage() {
 
                     <div className="library-detail-grid">
                       <section className="library-detail-section">
-                        <h3>Family efficiency artifacts</h3>
+                        <h3>Efficiency artifacts</h3>
                         <p className="library-inline-note">
-                          Family-local autonomous tracks and portable efficiency packages are loaded from the canonical package inventory and then tied back to the selected trajectory by applicability.
+                          Autonomous efficiency tracks plus pure and operational efficiency packages
+                          come from the canonical package inventory. Embodied efficiency in pathway
+                          choice stays attached to the pathway state itself so Library and Explorer
+                          use the same taxonomy.
                         </p>
+
+                        {selectedStateEmbedsEfficiency ? (
+                          <div className="library-artifact-callout">
+                            <div className="library-badge-row">
+                              <span className="configuration-badge">Embodied efficiency in pathway choice</span>
+                            </div>
+                            <p>
+                              The selected trajectory keeps its efficiency gain inside the pathway
+                              choice rather than exposing it as a standalone track or package.
+                              {selectedEmbodiedEfficiencyRationale ? ` ${selectedEmbodiedEfficiencyRationale}` : ''}
+                            </p>
+                          </div>
+                        ) : null}
 
                         {hasSelectedFamilyEfficiencyArtifacts && selectedFamilyEfficiency ? (
                           <div className="library-artifact-stack">
-                            {selectedStateEmbedsEfficiency ? (
-                              <div className="library-artifact-callout">
-                                Portable family packages and autonomous tracks are not authored for this pathway state. Any efficiency improvement in the selected trajectory is represented directly in the pathway-state rows and curves rather than being mislabeled as a separate package.
-                              </div>
-                            ) : null}
-
                             {selectedFamilyEfficiency.tracks.map((track) => (
                               <FamilyAutonomousTrackCard
                                 key={track.trackId}
@@ -1268,7 +1282,9 @@ export default function LibraryPage() {
                           </div>
                         ) : (
                           <p className="library-inline-note">
-                            No autonomous efficiency tracks or portable efficiency packages are authored for this family in the canonical loaded package data.
+                            No autonomous efficiency tracks, pure efficiency packages, or
+                            operational efficiency packages are authored for this family in the
+                            canonical package inventory.
                           </p>
                         )}
                       </section>
