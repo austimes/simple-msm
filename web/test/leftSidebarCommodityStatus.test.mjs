@@ -15,7 +15,7 @@ function readJson(relativePath) {
 
 describe('getCommodityPriceSelectorPresentation', () => {
   test('disables endogenous commodity price selectors when supply stays in model', () => {
-    const configuration = readJson('../src/configurations/buildings-endogenous.json');
+    const configuration = readJson('../src/configurations/demo-buildings-efficiency.json');
     const statuses = deriveOutputRunStatusesForConfiguration(pkg, configuration);
     const presentation = getCommodityPriceSelectorPresentation(
       statuses.electricity,
@@ -29,7 +29,8 @@ describe('getCommodityPriceSelectorPresentation', () => {
   });
 
   test('keeps externalized endogenous commodity price selectors active', () => {
-    const configuration = readJson('../src/configurations/buildings-externalized.json');
+    const configuration = readJson('../src/configurations/demo-buildings-efficiency.json');
+    configuration.service_controls.electricity = { mode: 'externalized' };
     const statuses = deriveOutputRunStatusesForConfiguration(pkg, configuration);
     const activeLevel = getCommodityPriceLevel(configuration, 'electricity');
     const presentation = getCommodityPriceSelectorPresentation(
@@ -44,7 +45,7 @@ describe('getCommodityPriceSelectorPresentation', () => {
   });
 
   test('leaves non-endogenous commodity selectors unchanged', () => {
-    const configuration = readJson('../src/configurations/reference.json');
+    const configuration = readJson('../src/configurations/reference-baseline.json');
     const statuses = deriveOutputRunStatusesForConfiguration(pkg, configuration);
     const activeLevel = getCommodityPriceLevel(configuration, 'natural_gas');
     const presentation = getCommodityPriceSelectorPresentation(

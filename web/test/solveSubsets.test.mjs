@@ -301,7 +301,7 @@ describe('buildings only with electricity endogenous (optimize) — scaled deman
 
 describe('buildings endogenous electricity respects normalized pathway caps when enabled', () => {
   const outputIds = ['residential_building_services', 'commercial_building_services'];
-  const configuration = readJson('../src/configurations/buildings-endogenous.json');
+  const configuration = readJson('../src/configurations/demo-buildings-efficiency.json');
   configuration.solver_options = {
     ...configuration.solver_options,
     respect_max_share: true,

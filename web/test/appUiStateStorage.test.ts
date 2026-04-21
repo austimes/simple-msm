@@ -37,7 +37,7 @@ function buildSampleState(): AppUiState {
       },
       comparison: {
         baseSelectionMode: 'manual',
-        selectedBaseConfigId: 'reference-base',
+        selectedBaseConfigId: 'reference-baseline',
         fuelSwitchBasis: 'from',
         selectedFuelSwitchYear: 2050,
       },
@@ -62,10 +62,10 @@ function buildSampleState(): AppUiState {
       evidenceConfidence: 'High',
     },
     additionality: {
-      selectedBaseConfigId: 'reference-base',
-      selectedFocusConfigId: 'reference-all',
+      selectedBaseConfigId: 'reference-baseline',
+      selectedFocusConfigId: 'reference-efficiency-open',
       commoditySelectionState: {
-        seededFromConfigId: 'reference-base',
+        seededFromConfigId: 'reference-baseline',
         selections: {
           electricity: 'high',
           natural_gas: 'low',
@@ -123,7 +123,7 @@ describe('appUiStateStorage', () => {
           },
           comparison: {
             baseSelectionMode: 'unsupported',
-            selectedBaseConfigId: 'reference-base',
+            selectedBaseConfigId: 'reference-baseline',
             fuelSwitchBasis: 'sideways',
             selectedFuelSwitchYear: '2050',
           },
@@ -147,7 +147,7 @@ describe('appUiStateStorage', () => {
           evidenceConfidence: 'Low',
         },
         additionality: {
-          selectedBaseConfigId: 'reference-base',
+          selectedBaseConfigId: 'reference-baseline',
           selectedTargetConfigId: false,
           commoditySelectionState: {
             seededFromConfigId: ['bad'],
@@ -174,7 +174,7 @@ describe('appUiStateStorage', () => {
         },
         comparison: {
           ...DEFAULT_APP_UI_STATE.workspace.comparison,
-          selectedBaseConfigId: 'reference-base',
+          selectedBaseConfigId: 'reference-baseline',
         },
       },
       library: {
@@ -195,7 +195,7 @@ describe('appUiStateStorage', () => {
         evidenceConfidence: 'Low',
       },
       additionality: {
-        selectedBaseConfigId: 'reference-base',
+        selectedBaseConfigId: 'reference-baseline',
         selectedFocusConfigId: DEFAULT_APP_UI_STATE.additionality.selectedFocusConfigId,
         commoditySelectionState: {
           seededFromConfigId: DEFAULT_APP_UI_STATE.additionality.commoditySelectionState.seededFromConfigId,
@@ -214,10 +214,10 @@ describe('appUiStateStorage', () => {
       JSON.stringify({
         ...DEFAULT_APP_UI_STATE,
         additionality: {
-          selectedBaseConfigId: 'reference-base',
-          selectedTargetConfigId: 'reference-all',
+          selectedBaseConfigId: 'reference-baseline',
+          selectedTargetConfigId: 'reference-efficiency-open',
           commoditySelectionState: {
-            seededFromConfigId: 'reference-base',
+            seededFromConfigId: 'reference-baseline',
             selections: {},
           },
         },
@@ -226,7 +226,7 @@ describe('appUiStateStorage', () => {
 
     assert.equal(
       loadPersistedAppUiState(storage).additionality.selectedFocusConfigId,
-      'reference-all',
+      'reference-efficiency-open',
     );
   });
 });

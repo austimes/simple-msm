@@ -1,6 +1,6 @@
 import Ajv2020 from 'ajv/dist/2020';
 import type { ErrorObject } from 'ajv';
-import referenceConfigurationText from '../configurations/reference.json?raw';
+import referenceConfigurationText from '../configurations/reference-baseline.json?raw';
 import configurationSchemaText from '../app_config/configuration_schema.json?raw';
 import {
   DEFAULT_RESIDUAL_OVERLAY_DISPLAY_MODE,
@@ -236,5 +236,5 @@ export function materializeEfficiencyConfiguration(
 }
 
 export function loadDefaultConfiguration(appConfig: AppConfigRegistry): ConfigurationDocument {
-  return parseConfigurationDocument(referenceConfigurationText, appConfig, 'reference_configuration.json');
+  return parseConfigurationDocument(referenceConfigurationText, appConfig, 'reference-baseline.json');
 }

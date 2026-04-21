@@ -26,6 +26,15 @@ describe('modelFormulationModel', () => {
 
   test('includes exogenous commodity prices in the worked objective example when electricity is externalized', () => {
     const fixture = loadFormulationFixtureData();
+    fixture.currentConfiguration = {
+      ...fixture.currentConfiguration,
+      service_controls: {
+        ...fixture.currentConfiguration.service_controls,
+        electricity: {
+          mode: 'externalized',
+        },
+      },
+    };
     const model = buildModelFormulationViewModel(fixture);
 
     assert.ok(model.objectiveExample, 'expected a worked objective example');
@@ -42,16 +51,6 @@ describe('modelFormulationModel', () => {
 
   test('excludes endogenous commodity prices from the worked objective example when electricity is optimized in-model', () => {
     const fixture = loadFormulationFixtureData();
-    fixture.currentConfiguration = {
-      ...fixture.currentConfiguration,
-      service_controls: {
-        ...fixture.currentConfiguration.service_controls,
-        electricity: {
-          ...fixture.currentConfiguration.service_controls.electricity,
-          mode: 'optimize',
-        },
-      },
-    };
 
     const model = buildModelFormulationViewModel(fixture);
 

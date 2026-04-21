@@ -39,8 +39,8 @@ function buildCenterProps(overrides = {}) {
     commonComparisonYears: [],
     comparisonEnabled: false,
     configurationOptions: [
-      { id: 'reference-base', label: 'Reference base' },
-      { id: 'reference-all', label: 'Reference all' },
+      { id: 'reference-baseline', label: 'Reference baseline' },
+      { id: 'reference-efficiency-open', label: 'Reference efficiency open' },
     ],
     focusConfigurationLabel: focusRequest.configuration.name,
     focusSolve: buildSolveState({
@@ -263,7 +263,7 @@ test('comparison-enabled workspace shows the fuel-switching chart with its reset
   const baseRequest = buildFuelSwitchRequest('natural_gas');
   const html = renderToStaticMarkup(
     React.createElement(ConfigurationWorkspaceCenter, buildCenterProps({
-      baseConfigId: 'reference-base',
+      baseConfigId: 'reference-baseline',
       baseSelectionMode: 'manual',
       comparisonEnabled: true,
       commonComparisonYears: [2030],
@@ -537,7 +537,7 @@ test('base comparison disabled keeps Explorer absolute charts and hides the fuel
 test('base comparison failure keeps focus charts visible and shows a comparison-only error panel', () => {
   const html = renderToStaticMarkup(
     React.createElement(ConfigurationWorkspaceCenter, buildCenterProps({
-      baseConfigId: 'reference-base',
+      baseConfigId: 'reference-baseline',
       baseSelectionMode: 'manual',
       comparisonEnabled: true,
       commonComparisonYears: [2030],
