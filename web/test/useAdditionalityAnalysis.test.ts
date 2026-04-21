@@ -10,6 +10,7 @@ import {
 import { loadPkg } from './solverTestUtils.mjs';
 
 const pkg = loadPkg();
+const STATE_OPEN_TARGET_ID = 'reference-state-open';
 
 function readJson(relativePath: string) {
   const url = new URL(relativePath, import.meta.url);
@@ -18,18 +19,22 @@ function readJson(relativePath: string) {
 
 function buildBaseCase() {
   return resolveConfigurationDocument(
-    readJson('../src/configurations/reference-base.json'),
+    readJson('../src/configurations/reference-baseline.json'),
     pkg.appConfig,
-    'reference-base',
+    'reference-baseline',
   );
 }
 
-function buildFullMonty() {
-  return resolveConfigurationDocument(
-    readJson('../src/configurations/reference-all.json'),
-    pkg.appConfig,
-    'reference-all',
-  );
+function buildStateOpenCase() {
+  const configuration = buildBaseCase();
+
+  for (const control of Object.values(configuration.service_controls)) {
+    if (control?.mode === 'optimize' && 'active_state_ids' in control) {
+      control.active_state_ids = null;
+    }
+  }
+
+  return configuration;
 }
 
 function buildCommoditySelections(): Record<string, 'high' | 'low'> {
@@ -61,8 +66,8 @@ function buildEquivalentConfigurationsWithReorderedActiveStateIds() {
   const [outputId, stateIds] = candidateEntry;
   const orderedStateIds = stateIds.slice(0, 2);
   const reversedStateIds = [...orderedStateIds].reverse();
-  const leftConfiguration = buildFullMonty();
-  const rightConfiguration = buildFullMonty();
+  const leftConfiguration = buildStateOpenCase();
+  const rightConfiguration = buildStateOpenCase();
 
   leftConfiguration.service_controls[outputId] = {
     ...(leftConfiguration.service_controls[outputId] ?? { mode: 'optimize' as const }),
@@ -88,17 +93,17 @@ describe('useAdditionalityAnalysis', () => {
 
     const leftKey = buildAdditionalityAnalysisCacheKeyFromSelections({
       baseConfiguration,
-      baseConfigId: 'reference-base',
+      baseConfigId: 'reference-baseline',
       commoditySelections: selections,
       targetConfiguration: leftConfiguration,
-      targetConfigId: 'reference-all',
+      targetConfigId: STATE_OPEN_TARGET_ID,
     });
     const rightKey = buildAdditionalityAnalysisCacheKeyFromSelections({
       baseConfiguration,
-      baseConfigId: 'reference-base',
+      baseConfigId: 'reference-baseline',
       commoditySelections: reversedSelections,
       targetConfiguration: rightConfiguration,
-      targetConfigId: 'reference-all',
+      targetConfigId: STATE_OPEN_TARGET_ID,
     });
 
     assert.equal(leftKey, rightKey);
@@ -106,15 +111,15 @@ describe('useAdditionalityAnalysis', () => {
 
   test('changes the cache key when effective configuration content or commodity selections change', () => {
     const baseConfiguration = buildBaseCase();
-    const targetConfiguration = buildFullMonty();
+    const targetConfiguration = buildStateOpenCase();
     const selections = buildCommoditySelections();
     const commodityIds = Object.keys(selections);
     const baselineKey = buildAdditionalityAnalysisCacheKeyFromSelections({
       baseConfiguration,
-      baseConfigId: 'reference-base',
+      baseConfigId: 'reference-baseline',
       commoditySelections: selections,
       targetConfiguration,
-      targetConfigId: 'reference-all',
+      targetConfigId: STATE_OPEN_TARGET_ID,
     });
 
     const changedTarget = structuredClone(targetConfiguration);
@@ -128,20 +133,20 @@ describe('useAdditionalityAnalysis', () => {
     assert.notEqual(
       buildAdditionalityAnalysisCacheKeyFromSelections({
         baseConfiguration,
-        baseConfigId: 'reference-base',
+        baseConfigId: 'reference-baseline',
         commoditySelections: selections,
         targetConfiguration: changedTarget,
-        targetConfigId: 'reference-all',
+        targetConfigId: STATE_OPEN_TARGET_ID,
       }),
       baselineKey,
     );
     assert.notEqual(
       buildAdditionalityAnalysisCacheKeyFromSelections({
         baseConfiguration,
-        baseConfigId: 'reference-base',
+        baseConfigId: 'reference-baseline',
         commoditySelections: changedCommoditySelections,
         targetConfiguration,
-        targetConfigId: 'reference-all',
+        targetConfigId: STATE_OPEN_TARGET_ID,
       }),
       baselineKey,
     );
@@ -149,15 +154,15 @@ describe('useAdditionalityAnalysis', () => {
 
   test('starts automatically only for uncached valid prepared runs and force-reruns cached results', () => {
     const baseConfiguration = buildBaseCase();
-    const targetConfiguration = buildFullMonty();
+    const targetConfiguration = buildStateOpenCase();
     const selections = buildCommoditySelections();
     const prepared = prepareAdditionalityAnalysis({
       baseConfiguration,
-      baseConfigId: 'reference-base',
+      baseConfigId: 'reference-baseline',
       commoditySelections: selections,
       pkg,
       targetConfiguration,
-      targetConfigId: 'reference-all',
+      targetConfigId: STATE_OPEN_TARGET_ID,
     });
 
     assert.equal(prepared.validationIssues.length, 0);
@@ -252,7 +257,7 @@ describe('useAdditionalityAnalysis', () => {
 
   test('never starts async runs for validation-blocked or empty preparations', () => {
     const baseConfiguration = buildBaseCase();
-    const targetConfiguration = buildFullMonty();
+    const targetConfiguration = buildStateOpenCase();
     const selections = buildCommoditySelections();
 
     const validationBlockedTarget = structuredClone(targetConfiguration);
@@ -260,19 +265,19 @@ describe('useAdditionalityAnalysis', () => {
 
     const validationPrepared = prepareAdditionalityAnalysis({
       baseConfiguration,
-      baseConfigId: 'reference-base',
+      baseConfigId: 'reference-baseline',
       commoditySelections: selections,
       pkg,
       targetConfiguration: validationBlockedTarget,
-      targetConfigId: 'reference-all',
+      targetConfigId: STATE_OPEN_TARGET_ID,
     });
     const emptyPrepared = prepareAdditionalityAnalysis({
       baseConfiguration,
-      baseConfigId: 'reference-base',
+      baseConfigId: 'reference-baseline',
       commoditySelections: selections,
       pkg,
       targetConfiguration: structuredClone(baseConfiguration),
-      targetConfigId: 'reference-base-copy',
+      targetConfigId: 'reference-baseline-copy',
     });
 
     assert.ok(validationPrepared.validationIssues.length > 0);

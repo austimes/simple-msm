@@ -10,6 +10,8 @@ import RightSidebarContent from './RightSidebarContent';
 export default function RightSidebar() {
   const sectorStates = usePackageStore((s) => s.sectorStates);
   const appConfig = usePackageStore((s) => s.appConfig);
+  const autonomousEfficiencyTracks = usePackageStore((s) => s.autonomousEfficiencyTracks);
+  const efficiencyPackages = usePackageStore((s) => s.efficiencyPackages);
   const currentConfiguration = usePackageStore((s) => s.currentConfiguration);
   const toggleStateActive = usePackageStore((s) => s.toggleStateActive);
 
@@ -47,10 +49,10 @@ export default function RightSidebar() {
 
   const outputStatuses = useMemo(
     () => deriveOutputRunStatusesForConfiguration(
-      { sectorStates, appConfig },
+      { sectorStates, appConfig, autonomousEfficiencyTracks, efficiencyPackages },
       currentConfiguration,
     ),
-    [sectorStates, appConfig, currentConfiguration],
+    [sectorStates, appConfig, autonomousEfficiencyTracks, efficiencyPackages, currentConfiguration],
   );
 
   const tree = useMemo(

@@ -13,6 +13,7 @@ import { solveWithLpAdapter } from '../src/solver/lpAdapter.ts';
 import { loadPkg } from './solverTestUtils.mjs';
 
 const pkg = loadPkg();
+const STATE_OPEN_TARGET_ID = 'reference-state-open';
 
 function readJson(relativePath) {
   const url = new URL(relativePath, import.meta.url);
@@ -53,18 +54,22 @@ function assertConsistentDelta(entry) {
 
 function buildBaseCase() {
   return resolveConfigurationDocument(
-    readJson('../src/configurations/reference-base.json'),
+    readJson('../src/configurations/reference-baseline.json'),
     pkg.appConfig,
-    'reference-base',
+    'reference-baseline',
   );
 }
 
-function buildFullMonty() {
-  return resolveConfigurationDocument(
-    readJson('../src/configurations/reference-all.json'),
-    pkg.appConfig,
-    'reference-all',
-  );
+function buildStateOpenCase() {
+  const configuration = buildBaseCase();
+
+  for (const control of Object.values(configuration.service_controls)) {
+    if (control?.mode === 'optimize' && 'active_state_ids' in control) {
+      control.active_state_ids = null;
+    }
+  }
+
+  return configuration;
 }
 
 function buildSolvedResult(request, objectiveValue) {
@@ -170,8 +175,8 @@ function findCommodityBalance(result, commodityId, year) {
 }
 
 describe('additionality analysis', () => {
-  test('derives the expected state-toggle atoms for reference-base vs reference-all', () => {
-    const atoms = deriveAdditionalityAtoms(buildBaseCase(), buildFullMonty(), pkg);
+  test('derives the expected state-toggle atoms for reference-baseline vs synthetic state-open target', () => {
+    const atoms = deriveAdditionalityAtoms(buildBaseCase(), buildStateOpenCase(), pkg);
 
     assert.equal(atoms.length, 24);
     assert.deepEqual(
@@ -299,8 +304,8 @@ describe('additionality analysis', () => {
     );
 
     assert.deepEqual(first.service_controls.residential_building_services.active_state_ids, [
-      'buildings__residential__incumbent_mixed_fuels',
       'buildings__residential__electrified_efficiency',
+      'buildings__residential__incumbent_mixed_fuels',
     ]);
 
     const second = applyAdditionalityAtom(
@@ -323,11 +328,11 @@ describe('additionality analysis', () => {
     const analysis = await runAdditionalityAnalysis(
       {
         baseConfiguration: buildBaseCase(),
-        baseConfigId: 'reference-base',
+        baseConfigId: 'reference-baseline',
         commoditySelections: {},
         pkg,
-        targetConfiguration: buildFullMonty(),
-        targetConfigId: 'reference-all',
+        targetConfiguration: buildStateOpenCase(),
+        targetConfigId: STATE_OPEN_TARGET_ID,
       },
       {
         solve: async (request) => solveWithLpAdapter(request),
@@ -357,11 +362,11 @@ describe('additionality analysis', () => {
     const analysis = await runAdditionalityAnalysis(
       {
         baseConfiguration: buildBaseCase(),
-        baseConfigId: 'reference-base',
+        baseConfigId: 'reference-baseline',
         commoditySelections: {},
         pkg,
-        targetConfiguration: buildFullMonty(),
-        targetConfigId: 'reference-all',
+        targetConfiguration: buildStateOpenCase(),
+        targetConfigId: STATE_OPEN_TARGET_ID,
       },
       {
         solve: async (request) => {
@@ -444,11 +449,11 @@ describe('additionality analysis', () => {
     const analysis = await runAdditionalityAnalysis(
       {
         baseConfiguration: buildBaseCase(),
-        baseConfigId: 'reference-base',
+        baseConfigId: 'reference-baseline',
         commoditySelections: {},
         pkg,
-        targetConfiguration: buildFullMonty(),
-        targetConfigId: 'reference-all',
+        targetConfiguration: buildStateOpenCase(),
+        targetConfigId: STATE_OPEN_TARGET_ID,
       },
       {
         solve: async (request) => solveWithLpAdapter(request),
@@ -562,11 +567,11 @@ describe('additionality analysis', () => {
     const analysis = await runAdditionalityAnalysis(
       {
         baseConfiguration: buildBaseCase(),
-        baseConfigId: 'reference-base',
+        baseConfigId: 'reference-baseline',
         commoditySelections: {},
         pkg,
-        targetConfiguration: buildFullMonty(),
-        targetConfigId: 'reference-all',
+        targetConfiguration: buildStateOpenCase(),
+        targetConfigId: STATE_OPEN_TARGET_ID,
       },
       {
         solve: async (request) => {

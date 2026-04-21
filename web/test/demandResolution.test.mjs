@@ -19,10 +19,10 @@ function loadAppConfig() {
 }
 
 const appConfig = loadAppConfig();
-const referenceConfiguration = readJson('../public/app_config/reference_configuration.json');
+const referenceConfiguration = readJson('../src/configurations/reference-baseline.json');
 
 test('reference configuration demand metadata reproduces the stored demand tables', () => {
-  const resolved = resolveConfigurationDocument(referenceConfiguration, appConfig, 'reference_configuration.json');
+  const resolved = resolveConfigurationDocument(referenceConfiguration, appConfig, 'reference-baseline.json');
 
   // Originally-stored service demand tables must round-trip exactly.
   for (const [id, table] of Object.entries(referenceConfiguration.service_demands)) {

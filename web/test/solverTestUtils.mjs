@@ -4,6 +4,7 @@
  * Provides data loading, configuration building, and assertion helpers.
  */
 import { readFileSync } from 'node:fs';
+import { loadPackage } from '../src/data/packageLoader.ts';
 import { parseCsv } from '../src/data/parseCsv.ts';
 import { resolveConfigurationDocument as resolveConfigurationDocument } from '../src/data/demandResolution.ts';
 import { buildSolveRequest } from '../src/solver/buildSolveRequest.ts';
@@ -185,10 +186,7 @@ function toEmissionsBalance2025Row(row) {
 }
 
 export function loadPkg() {
-  const csvText = readText('../../sector_trajectory_library/exports/legacy/sector_state_curves_balanced.csv');
-  const sectorStates = parseCsv(csvText).map(toSectorState);
-  const appConfig = loadAppConfig();
-  return { sectorStates, appConfig };
+  return loadPackage();
 }
 
 export function loadFormulationFixtureData() {
@@ -213,7 +211,7 @@ export function loadFormulationFixtureData() {
 }
 
 export function loadReferenceConfiguration() {
-  return readJson('../public/app_config/reference_configuration.json');
+  return readJson('../src/configurations/reference-baseline.json');
 }
 
 /**
@@ -264,7 +262,12 @@ export function solveScoped(pkg, configuration, seedOutputIds) {
   }
 
   const request = buildSolveRequest(
-    { sectorStates: pkg.sectorStates, appConfig: pkg.appConfig },
+    {
+      sectorStates: pkg.sectorStates,
+      appConfig: pkg.appConfig,
+      autonomousEfficiencyTracks: pkg.autonomousEfficiencyTracks,
+      efficiencyPackages: pkg.efficiencyPackages,
+    },
     effectiveConfiguration,
   );
   const result = solveWithLpAdapter(request);

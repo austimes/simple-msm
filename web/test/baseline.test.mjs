@@ -134,7 +134,7 @@ function buildBaselineConfiguration(
   electricityControl = { mode: 'externalized' },
   solverOptionsOverrides = {},
 ) {
-  const referenceConfiguration = readJson('../public/app_config/reference_configuration.json');
+  const referenceConfiguration = readJson('../src/configurations/reference-baseline.json');
 
   const serviceControls = {};
   for (const [outputId, stateId] of Object.entries(INCUMBENT_STATE_IDS)) {

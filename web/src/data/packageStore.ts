@@ -65,7 +65,7 @@ function cloneConfiguration(configuration: ConfigurationDocument): Configuration
 
 function getDefaultBuiltinConfiguration(): ConfigurationDocument | null {
   const builtins = loadBuiltinConfigurations();
-  return builtins.find((config) => getConfigurationId(config) === 'reference-base') ?? builtins[0] ?? null;
+  return builtins.find((config) => getConfigurationId(config) === 'reference-baseline') ?? builtins[0] ?? null;
 }
 
 function sortNestedValue(value: unknown): unknown {

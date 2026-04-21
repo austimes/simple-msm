@@ -271,11 +271,19 @@ export function deriveOutputRunStatuses(
 }
 
 export function deriveOutputRunStatusesForConfiguration(
-  pkg: Pick<PackageData, 'sectorStates' | 'appConfig'>,
+  pkg: Pick<PackageData, 'sectorStates' | 'appConfig' | 'autonomousEfficiencyTracks' | 'efficiencyPackages'>,
   configuration: ConfigurationDocument,
 ): Record<string, DerivedOutputRunStatus> {
   const rows = normalizeSolverRows(pkg);
-  const resolvedConfiguration = resolveConfigurationForSolve(configuration, pkg.appConfig, pkg.sectorStates);
+  const resolvedConfiguration = resolveConfigurationForSolve(
+    configuration,
+    pkg.appConfig,
+    pkg.sectorStates,
+    {
+      autonomousEfficiencyTracks: pkg.autonomousEfficiencyTracks,
+      efficiencyPackages: pkg.efficiencyPackages,
+    },
+  );
   return deriveOutputRunStatuses(
     rows,
     configuration,

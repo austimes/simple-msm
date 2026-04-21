@@ -102,7 +102,7 @@ test('configuration documents round-trip through browser persistence into scoped
     persistConfigurationDraft,
   } = await loadViteModule('/src/data/configurationDraftStorage.ts');
   const storage = createMemoryStorage();
-  const configuration = readJson('../src/configurations/buildings-endogenous.json');
+  const configuration = readJson('../src/configurations/demo-buildings-efficiency.json');
 
   assert.equal(persistConfigurationDraft(configuration, storage), null);
   assert.equal(storage.getItem(CONFIGURATION_DRAFT_STORAGE_KEY), JSON.stringify(configuration));
@@ -138,7 +138,7 @@ test('configuration documents round-trip through browser persistence into scoped
 test('residual overlay materialization backfills CSV-driven defaults and aggregated display mode', async () => {
   const { materializeResidualOverlayConfiguration } = await loadViteModule('/src/data/configurationDocumentLoader.ts');
   const { usePackageStore } = await loadViteModule('/src/data/packageStore.ts');
-  const configuration = readJson('../src/configurations/reference.json');
+  const configuration = readJson('../src/configurations/reference-baseline.json');
   const overlayRows = usePackageStore.getState().residualOverlays2025;
 
   delete configuration.residual_overlays;
@@ -175,7 +175,7 @@ test('residual overlay materialization backfills CSV-driven defaults and aggrega
 
 test('configuration documents accept the compact efficiency control shape', async () => {
   const { parseConfigurationDocument } = await loadViteModule('/src/data/configurationDocumentLoader.ts');
-  const configuration = structuredClone(readJson('../src/configurations/buildings-endogenous.json'));
+  const configuration = structuredClone(readJson('../src/configurations/reference-baseline.json'));
 
   configuration.efficiency_controls = {
     autonomous_mode: 'off',
@@ -200,7 +200,7 @@ test('configuration documents accept the compact efficiency control shape', asyn
 
 test('efficiency materialization backfills defaults, normalizes package ids, and rejects unknown ids', async () => {
   const { materializeEfficiencyConfiguration } = await loadViteModule('/src/data/configurationDocumentLoader.ts');
-  const configuration = structuredClone(readJson('../src/configurations/buildings-endogenous.json'));
+  const configuration = structuredClone(readJson('../src/configurations/reference-baseline.json'));
   const tracks = [
     { track_id: 'background_standards_drift' },
   ];
@@ -242,7 +242,7 @@ test('efficiency materialization backfills defaults, normalizes package ids, and
 });
 
 test('buildSolveRequest resolves efficiency controls into active track and package ids', () => {
-  const configuration = structuredClone(readJson('../src/configurations/buildings-endogenous.json'));
+  const configuration = structuredClone(readJson('../src/configurations/demo-buildings-efficiency.json'));
   configuration.efficiency_controls = {
     autonomous_mode: 'off',
     package_mode: 'deny_list',
@@ -290,7 +290,7 @@ test('configuration id helper prefers app metadata ids and falls back to legacy 
 
 test('configuration loader prefers the canonical filename when duplicate config ids exist', async () => {
   const { parseConfigurationCollection } = await loadViteModule('/src/data/configurationLoader.ts');
-  const canonicalConfig = structuredClone(readJson('../src/configurations/buildings-endogenous.json'));
+  const canonicalConfig = structuredClone(readJson('../src/configurations/demo-buildings-efficiency.json'));
   const duplicateConfig = structuredClone(canonicalConfig);
 
   canonicalConfig.app_metadata = {
@@ -365,7 +365,7 @@ test('builtin configuration loader follows the tracked index list', async () => 
 
 test('editing a loaded user configuration marks the workspace dirty for Save overwrite', async () => {
   const { usePackageStore } = await loadViteModule('/src/data/packageStore.ts');
-  const userConfiguration = structuredClone(readJson('../src/configurations/buildings-endogenous.json'));
+  const userConfiguration = structuredClone(readJson('../src/configurations/demo-buildings-efficiency.json'));
   userConfiguration.app_metadata = {
     ...(userConfiguration.app_metadata ?? {}),
     id: 'test-user-configuration',
@@ -402,7 +402,7 @@ test('user configuration API saves files using app_metadata.id', async () => {
     configFile: fileURLToPath(new URL('../vite.config.ts', import.meta.url)),
     logLevel: 'error',
   });
-  const config = structuredClone(readJson('../src/configurations/buildings-endogenous.json'));
+  const config = structuredClone(readJson('../src/configurations/demo-buildings-efficiency.json'));
   const configId = 'user-config-api-save-test';
   const canonicalPath = fileURLToPath(new URL(`../src/configurations/user/${configId}.json`, import.meta.url));
 
@@ -438,7 +438,7 @@ test('user configuration API saves files using app_metadata.id', async () => {
   }
 });
 
-test('bundled configurations and reference assets default respect_max_share to true', () => {
+test('bundled configurations default respect_max_share to true', () => {
   for (const file of configFiles) {
     const config = readJson(`../src/configurations/${file}`);
     assert.equal(
@@ -447,24 +447,11 @@ test('bundled configurations and reference assets default respect_max_share to t
       `${file} should ship with respect_max_share enabled`,
     );
   }
-
-  const referenceAssetPaths = [
-    '../public/app_config/reference_configuration.json',
-    '../public/app_config/reference_configuration_v02.json',
-  ];
-
-  for (const assetPath of referenceAssetPaths) {
-    assert.equal(
-      readJson(assetPath).solver_options?.respect_max_share,
-      true,
-      `${assetPath} should ship with respect_max_share enabled`,
-    );
-  }
 });
 
 test('respect_max_share defaults to true when omitted and can be toggled in the store', async () => {
   const { usePackageStore } = await loadViteModule('/src/data/packageStore.ts');
-  const configuration = readJson('../src/configurations/buildings-endogenous.json');
+  const configuration = readJson('../src/configurations/demo-buildings-efficiency.json');
 
   delete configuration.solver_options.respect_max_share;
   usePackageStore.getState().replaceCurrentConfiguration(configuration);
@@ -485,7 +472,7 @@ test('respect_max_share defaults to true when omitted and can be toggled in the 
 test('left sidebar uses the requested default collapsed sections and restores all commodity price controls', async () => {
   const { default: LeftSidebar } = await loadViteModule('/src/components/workspace/LeftSidebar.tsx');
   const { usePackageStore } = await loadViteModule('/src/data/packageStore.ts');
-  const configuration = readJson('../src/configurations/buildings-endogenous.json');
+  const configuration = readJson('../src/configurations/demo-buildings-efficiency.json');
 
   delete configuration.solver_options.respect_max_share;
   usePackageStore.getState().replaceCurrentConfiguration(configuration);
@@ -520,7 +507,7 @@ test('left sidebar renders the residual aggregate summary, display toggle, and s
   const { default: LeftSidebar } = await loadViteModule('/src/components/workspace/LeftSidebar.tsx');
   const { usePackageStore } = await loadViteModule('/src/data/packageStore.ts');
 
-  usePackageStore.getState().replaceCurrentConfiguration(readJson('../src/configurations/reference-base.json'));
+  usePackageStore.getState().replaceCurrentConfiguration(readJson('../src/configurations/reference-baseline.json'));
 
   const html = renderToStaticMarkup(
     React.createElement(LeftSidebar, {

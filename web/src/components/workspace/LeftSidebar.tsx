@@ -212,6 +212,8 @@ export default function LeftSidebar({ initialExpandedSections }: LeftSidebarProp
   const activeConfigurationId = usePackageStore((s) => s.activeConfigurationId);
   const activeConfigurationReadonly = usePackageStore((s) => s.activeConfigurationReadonly);
   const isConfigurationDirty = usePackageStore((s) => s.isConfigurationDirty);
+  const autonomousEfficiencyTracks = usePackageStore((s) => s.autonomousEfficiencyTracks);
+  const efficiencyPackages = usePackageStore((s) => s.efficiencyPackages);
   const persistedExpandedSections = useAppUiStore((s) => s.workspace.expandedSections);
   const setWorkspaceSectionExpanded = useAppUiStore((s) => s.setWorkspaceSectionExpanded);
   const saveActionState = getConfigurationSaveActionState({
@@ -232,10 +234,10 @@ export default function LeftSidebar({ initialExpandedSections }: LeftSidebarProp
   const respectMaxShare = currentConfiguration.solver_options?.respect_max_share ?? true;
   const outputStatuses = useMemo(
     () => deriveOutputRunStatusesForConfiguration(
-      { sectorStates, appConfig },
+      { sectorStates, appConfig, autonomousEfficiencyTracks, efficiencyPackages },
       currentConfiguration,
     ),
-    [sectorStates, appConfig, currentConfiguration],
+    [sectorStates, appConfig, autonomousEfficiencyTracks, efficiencyPackages, currentConfiguration],
   );
   const commodityControls = useMemo<CommodityControlEntry[]>(
     () => {

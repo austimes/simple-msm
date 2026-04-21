@@ -17,7 +17,7 @@ function readJson(relativePath) {
 
 describe('getRightSidebarStatusPresentation', () => {
   test('distinguishes active pathways, dependency inclusion, and excluded outputs in buildings-only runs', () => {
-    const configuration = readJson('../src/configurations/buildings-endogenous.json');
+    const configuration = readJson('../src/configurations/demo-buildings-efficiency.json');
     const statuses = deriveOutputRunStatusesForConfiguration(pkg, configuration);
 
     const residential = getRightSidebarStatusPresentation(
@@ -71,7 +71,8 @@ describe('getRightSidebarStatusPresentation', () => {
   });
 
   test('greys out pathway status for externalized supply dependencies', () => {
-    const configuration = readJson('../src/configurations/buildings-externalized.json');
+    const configuration = readJson('../src/configurations/demo-buildings-efficiency.json');
+    configuration.service_controls.electricity = { mode: 'externalized' };
     const statuses = deriveOutputRunStatusesForConfiguration(pkg, configuration);
     const electricity = getRightSidebarStatusPresentation(statuses.electricity);
 
@@ -89,13 +90,13 @@ describe('getRightSidebarStatusPresentation', () => {
     assert.match(electricity.detail, /commodity price selection is used instead/i);
   });
 
-  test('shows active pathways count under agriculture-only configuration', () => {
-    const configuration = readJson('../src/configurations/agriculture-only.json');
+  test('shows active pathways count under a retained freight demo configuration', () => {
+    const configuration = readJson('../src/configurations/demo-freight-efficiency.json');
     const statuses = deriveOutputRunStatusesForConfiguration(pkg, configuration);
-    const livestock = getRightSidebarStatusPresentation(statuses.livestock_output_bundle);
+    const freight = getRightSidebarStatusPresentation(statuses.freight_road_transport);
 
     assert.ok(
-      livestock.badges.some((badge) => /active pathway/i.test(badge.label)),
+      freight.badges.some((badge) => /active pathway/i.test(badge.label)),
     );
   });
 

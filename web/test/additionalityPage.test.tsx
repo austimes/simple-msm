@@ -13,7 +13,7 @@ function buildProps(overrides = {}) {
       error: null,
       validationIssues: [],
     },
-    baseConfigId: 'reference-base',
+    baseConfigId: 'reference-baseline',
     commodityOptions: [
       { id: 'electricity', label: 'Electricity' },
       { id: 'natural_gas', label: 'Natural gas' },
@@ -23,15 +23,15 @@ function buildProps(overrides = {}) {
       natural_gas: 'medium',
     },
     configurations: [
-      { id: 'reference-base', label: 'reference-base' },
-      { id: 'reference-all', label: 'reference-all' },
+      { id: 'reference-baseline', label: 'reference-baseline' },
+      { id: 'reference-efficiency-open', label: 'reference-efficiency-open' },
     ],
     onBaseConfigChange: () => {},
     onCommoditySelectionChange: () => {},
     onFocusConfigChange: () => {},
     onRecalculate: () => {},
     recalculateDisabled: false,
-    focusConfigId: 'reference-all',
+    focusConfigId: 'reference-efficiency-open',
     ...overrides,
   };
 }
@@ -94,8 +94,8 @@ describe('AdditionalityPage', () => {
             report: {
               orderingMethod: 'reverse_greedy_target_context',
               sequenceComplete: true,
-              baseConfigId: 'reference-base',
-              targetConfigId: 'reference-all',
+              baseConfigId: 'reference-baseline',
+              targetConfigId: 'reference-efficiency-open',
               baseMetrics: {
                 objective: 12_340_000_000,
                 cumulativeEmissions: 842_110_000,
@@ -244,8 +244,8 @@ describe('AdditionalityPage', () => {
             report: {
               orderingMethod: 'reverse_greedy_target_context',
               sequenceComplete: false,
-              baseConfigId: 'reference-base',
-              targetConfigId: 'reference-all',
+              baseConfigId: 'reference-baseline',
+              targetConfigId: 'reference-efficiency-open',
               baseMetrics: {
                 objective: 12_340_000_000,
                 cumulativeEmissions: 842_110_000,

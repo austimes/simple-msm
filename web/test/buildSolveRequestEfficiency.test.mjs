@@ -28,7 +28,7 @@ function loadAppConfig() {
 }
 
 function buildConfiguration(appConfig, overrides = {}) {
-  const referenceConfiguration = readJson('../public/app_config/reference_configuration.json');
+  const referenceConfiguration = readJson('../src/configurations/reference-baseline.json');
   return resolveConfigurationDocument(
     {
       ...referenceConfiguration,

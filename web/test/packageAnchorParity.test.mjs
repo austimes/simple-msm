@@ -199,7 +199,7 @@ test('demand resolution produces correct 2025 service demands from CSV-derived a
     ...csvAnchors,
   };
 
-  const referenceConfiguration = readJson('../public/app_config/reference_configuration.json');
+  const referenceConfiguration = readJson('../src/configurations/reference-baseline.json');
   const resolved = resolveConfigurationDocument(referenceConfiguration, appConfig, 'parity test');
 
   // 2025 service demands should match anchor values exactly

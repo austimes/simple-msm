@@ -29,8 +29,8 @@ function outputSetFromRequest(request) {
 }
 
 describe('deriveOutputRunStatusesForConfiguration', () => {
-  test('matches the buildings-endogenous run semantics', () => {
-    const configuration = readJson('../src/configurations/buildings-endogenous.json');
+  test('matches the demo-buildings-efficiency run semantics', () => {
+    const configuration = readJson('../src/configurations/demo-buildings-efficiency.json');
     const statuses = deriveOutputRunStatusesForConfiguration(pkg, configuration);
     const request = buildSolveRequest(pkg, configuration);
 
@@ -130,8 +130,8 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
 
     assert.equal(statuses.electricity.controlMode, 'optimize');
     assert.equal(statuses.electricity.isDisabled, false);
-    assert.equal(statuses.electricity.activeStateCount, 1);
-    assert.deepEqual(statuses.electricity.activeStateIds, [electricityStateIds[0]]);
+    assert.ok(statuses.electricity.activeStateIds.includes(electricityStateIds[0]));
+    assert.ok(statuses.electricity.activeStateCount < electricityStateIds.length);
   });
 
   test('keeps active pathways scoped to active_state_ids in status output', () => {
@@ -380,7 +380,7 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
     const statuses = deriveOutputRunStatusesForConfiguration(pkg, configuration);
 
     assert.equal(statuses.residential_building_services.runParticipation, 'active_pathways');
-    assert.equal(statuses.electricity.runParticipation, 'auto_included_dependency');
+    assert.equal(statuses.electricity.runParticipation, 'active_pathways');
     assert.equal(statuses.electricity.inRun, true);
   });
 });

@@ -133,7 +133,7 @@ describe('appUiStore route persistence', () => {
         },
         comparison: {
           baseSelectionMode: 'manual',
-          selectedBaseConfigId: 'reference-base',
+          selectedBaseConfigId: 'reference-baseline',
           fuelSwitchBasis: 'from',
           selectedFuelSwitchYear: 2050,
         },
@@ -158,7 +158,7 @@ describe('appUiStore route persistence', () => {
     await withStoreModule(persistedState, ({ useAppUiStore }) => {
       assert.deepEqual(useAppUiStore.getState().workspace.comparison, {
         baseSelectionMode: 'manual',
-        selectedBaseConfigId: 'reference-base',
+        selectedBaseConfigId: 'reference-baseline',
         fuelSwitchBasis: 'from',
         selectedFuelSwitchYear: 2050,
       });
@@ -267,8 +267,8 @@ describe('appUiStore route persistence', () => {
 
     assert.ok(commodityOptions.length >= 2, 'expected at least two commodity price presets');
 
-    const baseConfigId = 'reference-base';
-    const focusConfigId = 'reference-all';
+    const baseConfigId = 'reference-baseline';
+    const focusConfigId = 'reference-efficiency-open';
     const persistedState: AppUiState = {
       ...structuredClone(DEFAULT_APP_UI_STATE),
       additionality: {

@@ -5,21 +5,5 @@
   "demo-buildings-efficiency",
   "demo-freight-efficiency",
   "demo-industrial-heat-efficiency",
-  "demo-heavy-industry-efficiency",
-  "reference-base",
-  "reference-all",
-  "full-model-incumbents",
-  "agriculture-only",
-  "cement-only",
-  "steel-incumbent",
-  "steel-optimize",
-  "buildings-externalized",
-  "buildings-endogenous",
-  "road-transport-bev",
-  "industrial-heat-fossil",
-  "industrial-heat-electrified",
-  "freight-diesel",
-  "land-sequestration-only",
-  "removals-both",
-  "agriculture-removals-endogenous"
+  "demo-heavy-industry-efficiency"
 ]

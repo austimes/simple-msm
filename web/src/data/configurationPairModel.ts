@@ -84,10 +84,10 @@ export function selectInitialSavedPair(
     .map((configuration) => getConfigurationId(configuration))
     .filter((id): id is string => id != null);
 
-  if (ids.includes('reference-base') && ids.includes('reference-all')) {
+  if (ids.includes('reference-baseline') && ids.includes('reference-efficiency-open')) {
     return {
-      baseConfigId: 'reference-base',
-      focusConfigId: 'reference-all',
+      baseConfigId: 'reference-baseline',
+      focusConfigId: 'reference-efficiency-open',
     };
   }
 
