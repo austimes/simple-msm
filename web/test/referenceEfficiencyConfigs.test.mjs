@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
+import { isEfficiencyAttributionSafePair } from '../src/data/configurationPairModel.ts';
 import { resolveConfigurationDocument } from '../src/data/demandResolution.ts';
 import { loadPackage } from '../src/data/packageLoader.ts';
 import { runScenario } from '../src/results/runScenario.ts';
@@ -220,6 +221,7 @@ test('core reference efficiency configs share one scenario backbone and solve un
 
   for (const entry of configurations) {
     assert.deepEqual(stripScenarioIdentity(entry.configuration), baselineScenario);
+    assert.equal(isEfficiencyAttributionSafePair(configurations[0].configuration, entry.configuration), true);
 
     const request = buildSolveRequest(pkg, entry.configuration);
     assert.equal(request.configuration.efficiency?.autonomousMode, entry.autonomousMode);
@@ -236,6 +238,19 @@ test('core reference efficiency configs share one scenario backbone and solve un
     const snapshot = runScenario(pkg, entry.configuration);
     assert.equal(snapshot.result.status, 'solved', `${entry.id} should solve`);
   }
+});
+
+test('efficiency attribution safety fails when the non-efficiency scenario backbone changes', () => {
+  const pkg = loadPackage();
+  const baseline = loadConfiguration(pkg, 'reference-baseline');
+  const changedBackbone = structuredClone(baseline);
+
+  changedBackbone.service_demands.electricity = {
+    ...changedBackbone.service_demands.electricity,
+    2030: (changedBackbone.service_demands.electricity?.[2030] ?? 0) + 1,
+  };
+
+  assert.equal(isEfficiencyAttributionSafePair(baseline, changedBackbone), false);
 });
 
 test('focused efficiency demos keep a tight sector scope and solve with only their authored packages', () => {

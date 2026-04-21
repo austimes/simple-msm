@@ -38,6 +38,7 @@ function buildCenterProps(overrides = {}) {
     }),
     commonComparisonYears: [],
     comparisonEnabled: false,
+    efficiencyAttributionSafe: false,
     configurationOptions: [
       { id: 'reference-baseline', label: 'Reference baseline' },
       { id: 'reference-efficiency-open', label: 'Reference efficiency open' },
@@ -240,6 +241,125 @@ function buildFuelSwitchRequest(commodityId) {
   };
 }
 
+function buildEfficiencyAttributionRequest({
+  requestId,
+  rowId,
+  stateId,
+  stateLabel,
+  inputCoefficient,
+  emissionsPerUnit,
+  provenance,
+}) {
+  return {
+    contractVersion: SOLVER_CONTRACT_VERSION,
+    requestId,
+    rows: [
+      {
+        rowId,
+        outputId: 'heat',
+        outputRole: 'required_service',
+        outputLabel: 'Heat',
+        year: 2030,
+        stateId,
+        stateLabel,
+        sector: 'industry',
+        subsector: 'low_temperature_heat',
+        region: 'national',
+        outputUnit: 'PJ',
+        conversionCostPerUnit: 1,
+        inputs: [{ commodityId: 'natural_gas', coefficient: inputCoefficient, unit: 'PJ' }],
+        directEmissions: [{ pollutant: 'co2', value: emissionsPerUnit, source: 'energy' }],
+        provenance,
+        bounds: {
+          minShare: null,
+          maxShare: null,
+          maxActivity: null,
+        },
+      },
+    ],
+    configuration: {
+      name: requestId,
+      description: null,
+      years: [2030],
+      controlsByOutput: {
+        heat: {
+          2030: {
+            mode: 'optimize',
+            fixedShares: null,
+            disabledStateIds: [],
+            targetValue: null,
+          },
+        },
+      },
+      serviceDemandByOutput: {
+        heat: { 2030: 10 },
+      },
+      externalCommodityDemandByCommodity: {},
+      commodityPriceByCommodity: {
+        natural_gas: {
+          unit: 'AUD/PJ',
+          valuesByYear: { 2030: 10 },
+        },
+      },
+      carbonPriceByYear: { 2030: 20 },
+      options: {
+        respectMaxShare: true,
+        respectMaxActivity: true,
+        softConstraints: false,
+        shareSmoothing: {
+          enabled: false,
+          maxDeltaPp: null,
+        },
+      },
+    },
+  };
+}
+
+function buildEfficiencyAttributionResult(request) {
+  const [row] = request.rows;
+  return {
+    contractVersion: SOLVER_CONTRACT_VERSION,
+    requestId: request.requestId,
+    status: 'solved',
+    engine: { name: 'yalps', worker: true },
+    summary: {
+      rowCount: 1,
+      yearCount: 1,
+      outputCount: 1,
+      serviceDemandOutputCount: 1,
+      externalCommodityCount: 0,
+    },
+    reporting: {
+      commodityBalances: [],
+      stateShares: [
+        {
+          outputId: row.outputId,
+          outputLabel: row.outputLabel,
+          year: row.year,
+          rowId: row.rowId,
+          stateId: row.stateId,
+          stateLabel: row.stateLabel,
+          pathwayStateId: row.provenance?.baseStateId ?? row.stateId,
+          pathwayStateLabel: row.provenance?.baseStateLabel ?? row.stateLabel,
+          provenance: row.provenance,
+          activity: 10,
+          share: 1,
+          rawMaxShare: null,
+          effectiveMaxShare: null,
+        },
+      ],
+      bindingConstraints: [],
+      softConstraintViolations: [],
+    },
+    raw: null,
+    diagnostics: [],
+    timingsMs: {
+      total: 0,
+      solve: 0,
+    },
+  };
+}
+
 test('solved workspace renders Cost by Component with diverging chart net metadata', () => {
   const html = renderToStaticMarkup(
     React.createElement(ConfigurationWorkspaceCenter, buildCenterProps()),
@@ -286,6 +406,89 @@ test('comparison-enabled workspace shows the fuel-switching chart with its reset
   assert.match(html, /1 fuel-switch pairs/);
   assert.match(html, /aria-label="Reset y-axis range for Fuel switching by fuel pair"/);
   assert.equal(resetMatches.length, 5);
+});
+
+test('attribution-safe comparison renders the efficiency attribution section', () => {
+  const baseRequest = buildEfficiencyAttributionRequest({
+    requestId: 'efficiency-attribution-base',
+    rowId: 'heat::2030',
+    stateId: 'generic_industrial_heat__low_temperature_heat__fossil',
+    stateLabel: 'Fossil heat',
+    inputCoefficient: 1,
+    emissionsPerUnit: 0.2,
+    provenance: {
+      kind: 'base_state',
+      familyId: 'low_temperature_heat',
+      baseStateId: 'generic_industrial_heat__low_temperature_heat__fossil',
+      baseStateLabel: 'Fossil heat',
+      baseRowId: 'heat::2030',
+      autonomousTrackIds: [],
+    },
+  });
+  const focusRequest = buildEfficiencyAttributionRequest({
+    requestId: 'efficiency-attribution-focus',
+    rowId: 'effpkg:heat::retrofit::2030',
+    stateId: 'effpkg:generic_industrial_heat__low_temperature_heat__fossil::retrofit',
+    stateLabel: 'Fossil heat + retrofit',
+    inputCoefficient: 0.8,
+    emissionsPerUnit: 0.1,
+    provenance: {
+      kind: 'efficiency_package',
+      familyId: 'low_temperature_heat',
+      baseStateId: 'generic_industrial_heat__low_temperature_heat__fossil',
+      baseStateLabel: 'Fossil heat',
+      baseRowId: 'heat::2030',
+      autonomousTrackIds: [],
+      packageId: 'retrofit',
+      packageClassification: 'pure_efficiency_overlay',
+    },
+  });
+  const html = renderToStaticMarkup(
+    React.createElement(ConfigurationWorkspaceCenter, buildCenterProps({
+      baseConfigId: 'reference-baseline',
+      baseSelectionMode: 'manual',
+      comparisonEnabled: true,
+      efficiencyAttributionSafe: true,
+      commonComparisonYears: [2030],
+      focusSolve: buildSolveState({
+        request: focusRequest,
+        result: buildEfficiencyAttributionResult(focusRequest),
+        solvedConfiguration: focusRequest.configuration,
+      }),
+      baseSolve: buildSolveState({
+        request: baseRequest,
+        result: buildEfficiencyAttributionResult(baseRequest),
+        solvedConfiguration: baseRequest.configuration,
+      }),
+    })),
+  );
+
+  assert.match(html, /Efficiency attribution/);
+  assert.match(html, /Fuel delta by efficiency attribution/);
+  assert.match(html, /Emissions delta by efficiency attribution/);
+  assert.match(html, /Cost delta by efficiency attribution/);
+  assert.match(html, /Pure efficiency package/);
+});
+
+test('comparison with a mismatched scenario backbone shows the attribution-safe status message instead of charts', () => {
+  const html = renderToStaticMarkup(
+    React.createElement(ConfigurationWorkspaceCenter, buildCenterProps({
+      baseConfigId: 'reference-baseline',
+      baseSelectionMode: 'manual',
+      comparisonEnabled: true,
+      efficiencyAttributionSafe: false,
+      commonComparisonYears: [2030],
+      baseSolve: buildSolveState({
+        request: buildRequest(),
+        result: buildResult(),
+        solvedConfiguration: buildRequest().configuration,
+      }),
+    })),
+  );
+
+  assert.match(html, /Efficiency attribution unavailable/);
+  assert.match(html, /scenario backbone differs/);
+  assert.doesNotMatch(html, /Fuel delta by efficiency attribution/);
 });
 
 test('refreshing workspace keeps the previous chart grid mounted without a visible status overlay', () => {

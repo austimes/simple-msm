@@ -218,6 +218,7 @@ describe('configuration solve failures', () => {
         })}
         commonComparisonYears={[]}
         comparisonEnabled={false}
+        efficiencyAttributionSafe={false}
         configurationOptions={[]}
         focusConfigurationLabel={request.configuration.name}
         focusSolve={buildSolveState({

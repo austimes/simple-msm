@@ -16,6 +16,7 @@ export interface ResolvedConfigurationPair {
   focus: ResolvedConfigurationEndpoint;
   commonYears: number[];
   comparisonEnabled: boolean;
+  efficiencyAttributionSafe: boolean;
 }
 
 export interface SavedConfigurationPairSelection {
@@ -47,6 +48,49 @@ export interface ResolvedAdditionalityPair extends ResolvedConfigurationPair {
 export interface ResolvedWorkspacePair extends ResolvedConfigurationPair {
   baseConfigId: string | null;
   baseSelectionMode: WorkspaceComparisonBaseSelectionMode;
+}
+
+function sortJsonValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((entry) => sortJsonValue(entry));
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.keys(value as Record<string, unknown>)
+      .sort((left, right) => left.localeCompare(right))
+      .reduce<Record<string, unknown>>((sorted, key) => {
+        const entry = (value as Record<string, unknown>)[key];
+        if (entry !== undefined) {
+          sorted[key] = sortJsonValue(entry);
+        }
+        return sorted;
+      }, {});
+  }
+
+  return value;
+}
+
+export function normalizeConfigurationForEfficiencyAttributionComparison(
+  configuration: ConfigurationDocument,
+): unknown {
+  const comparisonBackbone: Partial<ConfigurationDocument> = structuredClone(configuration);
+  delete comparisonBackbone.name;
+  delete comparisonBackbone.description;
+  delete comparisonBackbone.efficiency_controls;
+  delete comparisonBackbone.app_metadata;
+  return sortJsonValue(comparisonBackbone);
+}
+
+export function isEfficiencyAttributionSafePair(
+  baseConfiguration: ConfigurationDocument | null,
+  focusConfiguration: ConfigurationDocument | null,
+): boolean {
+  if (!baseConfiguration || !focusConfiguration) {
+    return false;
+  }
+
+  return JSON.stringify(normalizeConfigurationForEfficiencyAttributionComparison(baseConfiguration))
+    === JSON.stringify(normalizeConfigurationForEfficiencyAttributionComparison(focusConfiguration));
 }
 
 function buildCommonYears(
@@ -124,6 +168,7 @@ export function resolveAdditionalityPair(
     focusConfigId,
     commonYears: buildCommonYears(baseConfiguration, focusConfiguration),
     comparisonEnabled: Boolean(baseConfiguration && focusConfiguration),
+    efficiencyAttributionSafe: isEfficiencyAttributionSafePair(baseConfiguration, focusConfiguration),
   };
 }
 
@@ -159,5 +204,6 @@ export function resolveWorkspacePair(
     baseSelectionMode: options.baseSelectionMode,
     commonYears: buildCommonYears(baseConfiguration, options.focusConfiguration),
     comparisonEnabled: Boolean(baseConfiguration),
+    efficiencyAttributionSafe: isEfficiencyAttributionSafePair(baseConfiguration, options.focusConfiguration),
   };
 }

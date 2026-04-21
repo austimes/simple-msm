@@ -42,6 +42,7 @@ export default function ConfigurationWorkspacePage() {
           baseSolve={baseSolve}
           commonComparisonYears={workspacePair.commonYears}
           comparisonEnabled={workspacePair.comparisonEnabled}
+          efficiencyAttributionSafe={workspacePair.efficiencyAttributionSafe}
           configurationOptions={configurations.map((configuration) => ({
             id: configuration.app_metadata?.id ?? configuration.name,
             label: configuration.name,

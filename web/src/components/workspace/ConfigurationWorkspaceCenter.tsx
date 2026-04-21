@@ -14,6 +14,11 @@ import {
   type PathwayChartCardData,
   type RemovalsChartCardData,
 } from '../../results/chartData';
+import {
+  buildEfficiencyAttributionChartData,
+  buildEfficiencyAttributionRows,
+  formatEfficiencyAttributionValue,
+} from '../../results/efficiencyAttribution.ts';
 import { buildAllContributionRows, buildSolverContributionRows } from '../../results/resultContributions.ts';
 import { buildFuelSwitchAttributionRows } from '../../results/fuelSwitching.ts';
 import { usePackageStore } from '../../data/packageStore.ts';
@@ -104,6 +109,7 @@ export interface ConfigurationWorkspaceCenterProps {
   baseSolve: SolveState;
   commonComparisonYears: number[];
   comparisonEnabled: boolean;
+  efficiencyAttributionSafe: boolean;
   configurationOptions: Array<{ id: string; label: string }>;
   focusConfigurationLabel: string;
   focusSolve: SolveState;
@@ -150,6 +156,7 @@ export default function ConfigurationWorkspaceCenter({
   baseSolve,
   commonComparisonYears,
   comparisonEnabled,
+  efficiencyAttributionSafe,
   configurationOptions,
   focusConfigurationLabel,
   focusSolve,
@@ -239,6 +246,26 @@ export default function ConfigurationWorkspaceCenter({
   const fuelSwitchRows = useMemo(
     () => (baseHasSolvedSnapshot ? buildFuelSwitchAttributionRows(baseContributions, focusContributions) : []),
     [baseContributions, baseHasSolvedSnapshot, focusContributions],
+  );
+  const efficiencyAttributionRows = useMemo(
+    () => (
+      baseHasSolvedSnapshot && efficiencyAttributionSafe
+        ? buildEfficiencyAttributionRows(baseContributions, focusContributions)
+        : []
+    ),
+    [baseContributions, baseHasSolvedSnapshot, efficiencyAttributionSafe, focusContributions],
+  );
+  const efficiencyFuelChart = useMemo(
+    () => buildEfficiencyAttributionChartData(efficiencyAttributionRows, 'fuel', commonComparisonYears),
+    [commonComparisonYears, efficiencyAttributionRows],
+  );
+  const efficiencyEmissionsChart = useMemo(
+    () => buildEfficiencyAttributionChartData(efficiencyAttributionRows, 'emissions', commonComparisonYears),
+    [commonComparisonYears, efficiencyAttributionRows],
+  );
+  const efficiencyCostChart = useMemo(
+    () => buildEfficiencyAttributionChartData(efficiencyAttributionRows, 'cost', commonComparisonYears),
+    [commonComparisonYears, efficiencyAttributionRows],
   );
   const comparisonStatus = buildComparisonStatus(
     baseSelectionMode,
@@ -387,6 +414,63 @@ export default function ConfigurationWorkspaceCenter({
           ))}
         </div>
       )}
+      {showCharts && baseHasSolvedSnapshot && !efficiencyAttributionSafe ? (
+        <section className="configuration-panel">
+          <h2>Efficiency attribution unavailable</h2>
+          <p>
+            This Base/Focus pair supports descriptive differencing only because the
+            scenario backbone differs.
+          </p>
+        </section>
+      ) : null}
+      {showCharts && baseHasSolvedSnapshot && efficiencyAttributionSafe ? (
+        <section className="configuration-panel">
+          <div className="workspace-chart-card-header">
+            <div>
+              <h2>Efficiency attribution</h2>
+              <p className="workspace-comparison-note">
+                These charts attribute Focus minus Base deltas across the canonical
+                efficiency categories while leaving the absolute Explorer charts intact.
+              </p>
+            </div>
+          </div>
+          {efficiencyAttributionRows.length === 0 ? (
+            <p className="configuration-status configuration-status--info">
+              No efficiency-attributed deltas appear in the current Base/Focus pair.
+            </p>
+          ) : (
+            <div className="workspace-chart-grid">
+              <div className="workspace-chart-section">
+                <StackedBarChart
+                  data={efficiencyFuelChart}
+                  layoutVariant="explorer-uniform"
+                  valueFormatter={(value) => formatEfficiencyAttributionValue('fuel', value)}
+                  yDomainPersistenceKey="run:efficiency-attribution:fuel"
+                  showNetLine={true}
+                />
+              </div>
+              <div className="workspace-chart-section">
+                <StackedBarChart
+                  data={efficiencyEmissionsChart}
+                  layoutVariant="explorer-uniform"
+                  valueFormatter={(value) => formatEfficiencyAttributionValue('emissions', value)}
+                  yDomainPersistenceKey="run:efficiency-attribution:emissions"
+                  showNetLine={true}
+                />
+              </div>
+              <div className="workspace-chart-section">
+                <StackedBarChart
+                  data={efficiencyCostChart}
+                  layoutVariant="explorer-uniform"
+                  valueFormatter={(value) => formatEfficiencyAttributionValue('cost', value)}
+                  yDomainPersistenceKey="run:efficiency-attribution:cost"
+                  showNetLine={true}
+                />
+              </div>
+            </div>
+          )}
+        </section>
+      ) : null}
     </section>
   );
 }
