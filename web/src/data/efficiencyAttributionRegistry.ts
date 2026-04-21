@@ -128,6 +128,16 @@ export const embodiedEfficiencyPathwayStateIds = new Set(
   embodiedEfficiencyPathwayEntries.flatMap((entry) => entry.stateIds),
 );
 
+export function getEmbodiedEfficiencyPathwayEntry(
+  stateId: string | null | undefined,
+): EmbodiedEfficiencyPathwayEntry | null {
+  if (stateId == null) {
+    return null;
+  }
+
+  return embodiedEfficiencyPathwayEntries.find((entry) => entry.stateIds.includes(stateId)) ?? null;
+}
+
 export function isEmbodiedEfficiencyPathwayState(stateId: string | null | undefined): boolean {
-  return stateId != null && embodiedEfficiencyPathwayStateIds.has(stateId);
+  return getEmbodiedEfficiencyPathwayEntry(stateId) != null;
 }

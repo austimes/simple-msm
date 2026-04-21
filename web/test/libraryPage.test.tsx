@@ -134,4 +134,23 @@ describe('LibraryPage efficiency search and filters', () => {
     }
     assert.doesNotMatch(html, new RegExp(escapeForRegex(nonApplicableStateId)));
   });
+
+  test('shows canonical embodied-efficiency copy for pathway states that use the shared registry', async () => {
+    const persistedState: AppUiState = {
+      ...structuredClone(DEFAULT_APP_UI_STATE),
+      library: {
+        ...structuredClone(DEFAULT_APP_UI_STATE.library),
+        selectedSector: 'buildings',
+        selectedSubsector: 'commercial',
+        selectedTrajectoryId: 'buildings__commercial__deep_electric',
+      },
+    };
+
+    const html = await renderLibraryPage(persistedState);
+
+    assert.match(html, /Efficiency artifacts/);
+    assert.match(html, /Embodied efficiency in pathway choice/);
+    assert.match(html, /Major HVAC and hot-water electrification is a route change, not an add-on efficiency overlay\./);
+    assert.doesNotMatch(html, /Embedded in pathway state/);
+  });
 });

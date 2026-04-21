@@ -109,6 +109,11 @@ const referencePatterns = [
   { pattern: /existing/i, score: 15 },
 ];
 
+const efficiencyPackageClassificationRank: Record<EfficiencyPackage['classification'], number> = {
+  pure_efficiency_overlay: 0,
+  operational_efficiency_overlay: 1,
+};
+
 function compareStateSortKey(left: string, right: string): number {
   if (!left || !right) {
     return 0;
@@ -146,6 +151,18 @@ function orderStateIds(stateIds: string[], orderedStateIds: string[]): string[] 
   const ids = new Set(stateIds);
 
   return orderedStateIds.filter((stateId) => ids.has(stateId));
+}
+
+function compareEfficiencyPackageSummaries(
+  left: Pick<FamilyEfficiencyPackageSummary, 'classification' | 'label' | 'packageId'>,
+  right: Pick<FamilyEfficiencyPackageSummary, 'classification' | 'label' | 'packageId'>,
+): number {
+  return (
+    efficiencyPackageClassificationRank[left.classification]
+    - efficiencyPackageClassificationRank[right.classification]
+    || left.label.localeCompare(right.label)
+    || left.packageId.localeCompare(right.packageId)
+  );
 }
 
 export function sumEmissionEntries(entries: EmissionEntry[]): number {
@@ -406,7 +423,7 @@ export function buildFamilyEfficiencyOverview(
         rows: sortedRows,
       };
     })
-    .sort((left, right) => left.label.localeCompare(right.label) || left.packageId.localeCompare(right.packageId));
+    .sort(compareEfficiencyPackageSummaries);
 
   return {
     familyId,
