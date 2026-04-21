@@ -7,7 +7,9 @@ import {
   buildFuelSwitchAttributionRows,
   buildFuelSwitchChartData,
   buildFuelSwitchDecomposition,
+  buildFuelSwitchRouteBasisRows,
 } from '../src/results/fuelSwitching.ts';
+import { SOLVER_CONTRACT_VERSION } from '../src/solver/contract.ts';
 
 function assertApprox(actual, expected, tolerance = 1e-9) {
   assert.ok(
@@ -41,6 +43,167 @@ function buildFuelContribution({
     costComponent: null,
     overlayId: sourceKind === 'overlay' ? outputId : null,
     overlayDomain: sourceKind === 'overlay' ? 'energy_residual' : null,
+  };
+}
+
+function buildFuelTotalRow({
+  year = 2030,
+  outputId = 'industrial_heat',
+  outputLabel = 'Industrial heat',
+  fuelId,
+  fuelLabel,
+  valuePj,
+}) {
+  return {
+    outputId,
+    outputLabel,
+    year,
+    fuelId,
+    fuelLabel: fuelLabel ?? {
+      coal: 'Coal',
+      electricity: 'Electricity',
+      hydrogen: 'Hydrogen',
+      natural_gas: 'Natural gas',
+      refined_liquid_fuels: 'Refined liquid fuels',
+    }[fuelId],
+    valuePj,
+  };
+}
+
+function baseProvenance(stateId, stateLabel = stateId) {
+  return {
+    kind: 'base_state',
+    familyId: 'commercial_building_services',
+    baseStateId: stateId,
+    baseStateLabel: stateLabel,
+    baseRowId: `${stateId}::2030`,
+    autonomousTrackIds: [],
+  };
+}
+
+function packageProvenance(baseStateId, packageId, baseStateLabel = baseStateId) {
+  return {
+    kind: 'efficiency_package',
+    familyId: 'commercial_building_services',
+    baseStateId,
+    baseStateLabel,
+    baseRowId: `${baseStateId}::2030`,
+    autonomousTrackIds: [],
+    packageId,
+    packageClassification: 'pure_efficiency_overlay',
+  };
+}
+
+function buildSolveRow({
+  stateId,
+  stateLabel = stateId,
+  inputs,
+  provenance = baseProvenance(stateId, stateLabel),
+}) {
+  return {
+    rowId: `${stateId}::2030`,
+    outputId: 'commercial_services',
+    outputRole: 'required_service',
+    outputLabel: 'Commercial services',
+    year: 2030,
+    stateId,
+    stateLabel,
+    sector: 'commercial',
+    subsector: 'commercial_buildings',
+    region: 'national',
+    outputUnit: 'activity',
+    conversionCostPerUnit: 0,
+    inputs: inputs.map(([commodityId, coefficient]) => ({
+      commodityId,
+      coefficient,
+      unit: 'PJ',
+    })),
+    directEmissions: [],
+    provenance,
+    bounds: {
+      minShare: null,
+      maxShare: null,
+      maxActivity: null,
+    },
+  };
+}
+
+function buildSolveRequest(requestId, rows) {
+  return {
+    contractVersion: SOLVER_CONTRACT_VERSION,
+    requestId,
+    rows,
+    configuration: {
+      name: requestId,
+      description: null,
+      years: [2030],
+      controlsByOutput: {
+        commercial_services: {
+          2030: {
+            mode: 'optimize',
+            activeStateIds: null,
+            targetValue: null,
+          },
+        },
+      },
+      serviceDemandByOutput: {
+        commercial_services: { 2030: 100 },
+      },
+      externalCommodityDemandByCommodity: {},
+      commodityPriceByCommodity: {},
+      carbonPriceByYear: { 2030: 0 },
+      options: {
+        respectMaxShare: true,
+        respectMaxActivity: true,
+        softConstraints: false,
+        shareSmoothing: {
+          enabled: false,
+          maxDeltaPp: null,
+        },
+      },
+    },
+  };
+}
+
+function buildSolveResult(request, activeRows) {
+  return {
+    contractVersion: SOLVER_CONTRACT_VERSION,
+    requestId: request.requestId,
+    status: 'solved',
+    engine: { name: 'yalps', worker: true },
+    summary: {
+      rowCount: request.rows.length,
+      yearCount: 1,
+      outputCount: 1,
+      serviceDemandOutputCount: 1,
+      externalCommodityCount: 0,
+    },
+    reporting: {
+      commodityBalances: [],
+      stateShares: activeRows.map(({ row, activity }) => ({
+        outputId: row.outputId,
+        outputLabel: row.outputLabel,
+        year: row.year,
+        rowId: row.rowId,
+        stateId: row.stateId,
+        stateLabel: row.stateLabel,
+        pathwayStateId: row.provenance?.baseStateId ?? row.stateId,
+        pathwayStateLabel: row.provenance?.baseStateLabel ?? row.stateLabel,
+        provenance: row.provenance,
+        activity,
+        share: activity / 100,
+        rawMaxShare: null,
+        effectiveMaxShare: null,
+      })),
+      bindingConstraints: [],
+      softConstraintViolations: [],
+    },
+    raw: null,
+    diagnostics: [],
+    timingsMs: {
+      total: 0,
+      solve: 0,
+    },
   };
 }
 
@@ -176,6 +339,270 @@ test('all-fuel decrease can still switch gas and liquid shares to electricity', 
   );
 });
 
+test('route basis matching actual fuel totals preserves proportional attribution', () => {
+  const result = buildFuelSwitchDecomposition(
+    [
+      buildFuelContribution({ commodityId: 'natural_gas', value: 12 }),
+      buildFuelContribution({ commodityId: 'coal', value: 8 }),
+    ],
+    [
+      buildFuelContribution({ commodityId: 'electricity', value: 10 }),
+      buildFuelContribution({ commodityId: 'hydrogen', value: 4 }),
+    ],
+    {
+      baseSwitchBasisRows: [
+        buildFuelTotalRow({ fuelId: 'natural_gas', valuePj: 12 }),
+        buildFuelTotalRow({ fuelId: 'coal', valuePj: 8 }),
+      ],
+      focusSwitchBasisRows: [
+        buildFuelTotalRow({ fuelId: 'electricity', valuePj: 10 }),
+        buildFuelTotalRow({ fuelId: 'hydrogen', valuePj: 4 }),
+      ],
+    },
+  );
+
+  assert.equal(result.switchRows.length, 4);
+  assertApprox(
+    result.switchRows.reduce((sum, row) => sum + row.toBasisPj, 0),
+    14,
+  );
+  assert.deepEqual(
+    result.switchRows.find((row) => row.fromFuelId === 'natural_gas' && row.toFuelId === 'electricity'),
+    {
+      key: '2030::industrial_heat::natural_gas::electricity',
+      outputId: 'industrial_heat',
+      outputLabel: 'Industrial heat',
+      year: 2030,
+      fromFuelId: 'natural_gas',
+      fromFuelLabel: 'Natural gas',
+      toFuelId: 'electricity',
+      toFuelLabel: 'Electricity',
+      toBasisPj: 6,
+      fromBasisPj: 6,
+      attributionBasis: 'route_change_fuel_mix_focus_total',
+    },
+  );
+});
+
+test('same-route electricity efficiency does not create fuel switch pairs', () => {
+  const baseRoute = buildSolveRow({
+    stateId: 'commercial_o0',
+    stateLabel: 'Commercial O0',
+    inputs: [
+      ['electricity', 1],
+      ['natural_gas', 2],
+      ['refined_liquid_fuels', 1],
+    ],
+  });
+  const focusPackage = buildSolveRow({
+    stateId: 'effpkg:commercial_o0::lighting',
+    stateLabel: 'Commercial O0 + lighting efficiency',
+    inputs: [
+      ['electricity', 0.8],
+      ['natural_gas', 2],
+      ['refined_liquid_fuels', 1],
+    ],
+    provenance: packageProvenance('commercial_o0', 'lighting', 'Commercial O0'),
+  });
+  const baseRequest = buildSolveRequest('commercial-base', [baseRoute]);
+  const focusRequest = buildSolveRequest('commercial-efficiency', [baseRoute, focusPackage]);
+  const routeBasis = buildFuelSwitchRouteBasisRows(
+    baseRequest,
+    buildSolveResult(baseRequest, [{ row: baseRoute, activity: 100 }]),
+    focusRequest,
+    buildSolveResult(focusRequest, [{ row: focusPackage, activity: 100 }]),
+  );
+  const result = buildFuelSwitchDecomposition(
+    [
+      buildFuelContribution({
+        outputId: 'commercial_services',
+        outputLabel: 'Commercial services',
+        commodityId: 'electricity',
+        value: 100,
+      }),
+      buildFuelContribution({
+        outputId: 'commercial_services',
+        outputLabel: 'Commercial services',
+        commodityId: 'natural_gas',
+        value: 200,
+      }),
+      buildFuelContribution({
+        outputId: 'commercial_services',
+        outputLabel: 'Commercial services',
+        commodityId: 'refined_liquid_fuels',
+        value: 100,
+      }),
+    ],
+    [
+      buildFuelContribution({
+        outputId: 'commercial_services',
+        outputLabel: 'Commercial services',
+        commodityId: 'electricity',
+        value: 80,
+      }),
+      buildFuelContribution({
+        outputId: 'commercial_services',
+        outputLabel: 'Commercial services',
+        commodityId: 'natural_gas',
+        value: 200,
+      }),
+      buildFuelContribution({
+        outputId: 'commercial_services',
+        outputLabel: 'Commercial services',
+        commodityId: 'refined_liquid_fuels',
+        value: 100,
+      }),
+    ],
+    {
+      baseActivities: [{
+        outputId: 'commercial_services',
+        outputLabel: 'Commercial services',
+        year: 2030,
+        activity: 100,
+      }],
+      focusActivities: [{
+        outputId: 'commercial_services',
+        outputLabel: 'Commercial services',
+        year: 2030,
+        activity: 100,
+      }],
+      ...routeBasis,
+    },
+  );
+
+  assert.deepEqual(
+    routeBasis.focusSwitchBasisRows.map((row) => [row.fuelId, row.valuePj]),
+    [
+      ['electricity', 100],
+      ['natural_gas', 200],
+      ['refined_liquid_fuels', 100],
+    ],
+  );
+  assert.equal(result.switchRows.length, 0);
+  assert.deepEqual(
+    result.residualRows.map((row) => [row.fuelId, row.effect, row.valuePj]),
+    [['electricity', 'intensity', -20]],
+  );
+  assert.equal(
+    result.switchRows.some((row) =>
+      row.fromFuelId === 'electricity'
+      && (row.toFuelId === 'natural_gas' || row.toFuelId === 'refined_liquid_fuels')),
+    false,
+  );
+});
+
+test('route change with electricity efficiency only pairs gas and liquids to electricity', () => {
+  const baseRoute = buildSolveRow({
+    stateId: 'commercial_o0',
+    stateLabel: 'Commercial O0',
+    inputs: [
+      ['electricity', 1],
+      ['natural_gas', 2],
+      ['refined_liquid_fuels', 1],
+    ],
+  });
+  const focusRoute = buildSolveRow({
+    stateId: 'commercial_o1',
+    stateLabel: 'Commercial O1',
+    inputs: [
+      ['electricity', 3],
+      ['natural_gas', 0.7],
+      ['refined_liquid_fuels', 0.3],
+    ],
+  });
+  const focusPackage = buildSolveRow({
+    stateId: 'effpkg:commercial_o1::electrified_efficiency',
+    stateLabel: 'Commercial O1 + electrified efficiency',
+    inputs: [
+      ['electricity', 2.5],
+      ['natural_gas', 0.7],
+      ['refined_liquid_fuels', 0.3],
+    ],
+    provenance: packageProvenance('commercial_o1', 'electrified_efficiency', 'Commercial O1'),
+  });
+  const baseRequest = buildSolveRequest('commercial-base', [baseRoute]);
+  const focusRequest = buildSolveRequest('commercial-o1-efficiency', [focusRoute, focusPackage]);
+  const routeBasis = buildFuelSwitchRouteBasisRows(
+    baseRequest,
+    buildSolveResult(baseRequest, [{ row: baseRoute, activity: 100 }]),
+    focusRequest,
+    buildSolveResult(focusRequest, [{ row: focusPackage, activity: 100 }]),
+  );
+  const result = buildFuelSwitchDecomposition(
+    [
+      buildFuelContribution({
+        outputId: 'commercial_services',
+        outputLabel: 'Commercial services',
+        commodityId: 'electricity',
+        value: 100,
+      }),
+      buildFuelContribution({
+        outputId: 'commercial_services',
+        outputLabel: 'Commercial services',
+        commodityId: 'natural_gas',
+        value: 200,
+      }),
+      buildFuelContribution({
+        outputId: 'commercial_services',
+        outputLabel: 'Commercial services',
+        commodityId: 'refined_liquid_fuels',
+        value: 100,
+      }),
+    ],
+    [
+      buildFuelContribution({
+        outputId: 'commercial_services',
+        outputLabel: 'Commercial services',
+        commodityId: 'electricity',
+        value: 250,
+      }),
+      buildFuelContribution({
+        outputId: 'commercial_services',
+        outputLabel: 'Commercial services',
+        commodityId: 'natural_gas',
+        value: 70,
+      }),
+      buildFuelContribution({
+        outputId: 'commercial_services',
+        outputLabel: 'Commercial services',
+        commodityId: 'refined_liquid_fuels',
+        value: 30,
+      }),
+    ],
+    {
+      baseActivities: [{
+        outputId: 'commercial_services',
+        outputLabel: 'Commercial services',
+        year: 2030,
+        activity: 100,
+      }],
+      focusActivities: [{
+        outputId: 'commercial_services',
+        outputLabel: 'Commercial services',
+        year: 2030,
+        activity: 100,
+      }],
+      ...routeBasis,
+    },
+  );
+
+  assert.deepEqual(
+    result.switchRows.map((row) => [row.fromFuelId, row.toFuelId]),
+    [
+      ['natural_gas', 'electricity'],
+      ['refined_liquid_fuels', 'electricity'],
+    ],
+  );
+  assert.equal(
+    result.switchRows.some((row) => row.fromFuelId === 'electricity'),
+    false,
+  );
+  assert.deepEqual(
+    result.residualRows.map((row) => [row.fuelId, row.effect, row.valuePj]),
+    [['electricity', 'intensity', -50]],
+  );
+});
+
 test('fuel switch decomposition conserves net deltas by fuel', () => {
   const result = buildFuelSwitchDecomposition(
     [
@@ -184,8 +611,8 @@ test('fuel switch decomposition conserves net deltas by fuel', () => {
       buildFuelContribution({ commodityId: 'refined_liquid_fuels', value: 100 }),
     ],
     [
-      buildFuelContribution({ commodityId: 'electricity', value: 90 }),
-      buildFuelContribution({ commodityId: 'natural_gas', value: 60 }),
+      buildFuelContribution({ commodityId: 'electricity', value: 250 }),
+      buildFuelContribution({ commodityId: 'natural_gas', value: 70 }),
       buildFuelContribution({ commodityId: 'refined_liquid_fuels', value: 30 }),
     ],
     {
@@ -201,6 +628,16 @@ test('fuel switch decomposition conserves net deltas by fuel', () => {
         year: 2030,
         activity: 100,
       }],
+      baseSwitchBasisRows: [
+        buildFuelTotalRow({ fuelId: 'electricity', valuePj: 100 }),
+        buildFuelTotalRow({ fuelId: 'natural_gas', valuePj: 200 }),
+        buildFuelTotalRow({ fuelId: 'refined_liquid_fuels', valuePj: 100 }),
+      ],
+      focusSwitchBasisRows: [
+        buildFuelTotalRow({ fuelId: 'electricity', valuePj: 300 }),
+        buildFuelTotalRow({ fuelId: 'natural_gas', valuePj: 70 }),
+        buildFuelTotalRow({ fuelId: 'refined_liquid_fuels', valuePj: 30 }),
+      ],
     },
   );
   const mixByFuel = new Map();
@@ -386,11 +823,11 @@ test('fuel switching chart renders stacked years on the x-axis with pair-specifi
     /class="stacked-chart-control-pill stacked-chart-control-pill--active" aria-pressed="true">To fuel</,
   );
   assert.match(html, /role="group" aria-label="Fuel switch basis"/);
-  assert.match(html, /Fuel-mix switching by fuel pair/);
+  assert.match(html, /Route-change fuel switching by fuel pair/);
   assert.match(html, /Years: 2030-2035/);
   assert.match(html, /2 fuel-switch pairs/);
   assert.match(html, /Intensity effect: -65\.7 PJ/);
-  assert.match(html, /aria-label="Reset y-axis range for Fuel-mix switching by fuel pair"/);
+  assert.match(html, /aria-label="Reset y-axis range for Route-change fuel switching by fuel pair"/);
   assert.match(html, />Gas -&gt; Elec</);
   assert.match(html, />Coal -&gt; Elec</);
   assert.match(html, /title="Natural gas -&gt; Electricity"/);
@@ -450,7 +887,7 @@ test('fuel switching chart hides tiny pairs from the legend while keeping total 
   assert.doesNotMatch(html, />Coal -&gt; H2</);
 });
 
-test('fuel switching chart uses fuel-mix empty state wording', () => {
+test('fuel switching chart uses route-change empty state wording', () => {
   const html = renderToStaticMarkup(
     React.createElement(FuelSwitchingChart, {
       availableYears: [2035],
@@ -462,5 +899,5 @@ test('fuel switching chart uses fuel-mix empty state wording', () => {
     }),
   );
 
-  assert.match(html, /No fuel-mix switching for the selected basis\./);
+  assert.match(html, /No route-change fuel switching for the selected basis\./);
 });

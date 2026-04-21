@@ -223,7 +223,7 @@ function buildResult() {
   };
 }
 
-function buildFuelSwitchRequest(commodityId, coefficient = 1) {
+function buildFuelSwitchRequest(commodityId, coefficient = 1, stateId = 'industry_heat_path') {
   const request = buildRequest();
 
   return {
@@ -235,25 +235,66 @@ function buildFuelSwitchRequest(commodityId, coefficient = 1) {
 
       return {
         ...row,
+        rowId: `${stateId}::2030`,
+        stateId,
+        stateLabel: `${stateId} label`,
         inputs: [{ commodityId, coefficient, unit: 'PJ' }],
       };
     }),
   };
 }
 
-function buildCommercialFuelMixRequest(requestId, inputs) {
+function buildResultFromRequest(request) {
+  const baseResult = buildResult();
+
+  return {
+    ...baseResult,
+    requestId: request.requestId,
+    summary: {
+      rowCount: request.rows.length,
+      yearCount: request.configuration.years.length,
+      outputCount: Object.keys(request.configuration.serviceDemandByOutput).length,
+      serviceDemandOutputCount: Object.keys(request.configuration.serviceDemandByOutput).length,
+      externalCommodityCount: 0,
+    },
+    reporting: {
+      ...baseResult.reporting,
+      stateShares: request.rows.map((row) => {
+        const activity = request.configuration.serviceDemandByOutput[row.outputId]?.[row.year] ?? 0;
+
+        return {
+          outputId: row.outputId,
+          outputLabel: row.outputLabel,
+          year: row.year,
+          rowId: row.rowId,
+          stateId: row.stateId,
+          stateLabel: row.stateLabel,
+          pathwayStateId: row.provenance?.baseStateId ?? row.stateId,
+          pathwayStateLabel: row.provenance?.baseStateLabel ?? row.stateLabel,
+          provenance: row.provenance,
+          activity,
+          share: 1,
+          rawMaxShare: null,
+          effectiveMaxShare: null,
+        };
+      }),
+    },
+  };
+}
+
+function buildCommercialFuelMixRequest(requestId, inputs, stateId = 'commercial_services_path') {
   return {
     contractVersion: SOLVER_CONTRACT_VERSION,
     requestId,
     rows: [
       {
-        rowId: 'commercial_services::2030',
+        rowId: `${stateId}::2030`,
         outputId: 'commercial_services',
         outputRole: 'required_service',
         outputLabel: 'Commercial services',
         year: 2030,
-        stateId: 'commercial_services_path',
-        stateLabel: 'Commercial services path',
+        stateId,
+        stateLabel: `${stateId} label`,
         sector: 'commercial',
         subsector: 'commercial_buildings',
         region: 'national',
@@ -499,8 +540,8 @@ test('solved workspace renders Cost by Component with diverging chart net metada
 });
 
 test('comparison-enabled workspace shows the fuel-switching chart with its reset control', () => {
-  const focusRequest = buildFuelSwitchRequest('electricity', 0.8);
-  const baseRequest = buildFuelSwitchRequest('natural_gas');
+  const focusRequest = buildFuelSwitchRequest('electricity', 0.8, 'industry_heat_electric');
+  const baseRequest = buildFuelSwitchRequest('natural_gas', 1, 'industry_heat_gas');
   const html = renderToStaticMarkup(
     React.createElement(ConfigurationWorkspaceCenter, buildCenterProps({
       baseConfigId: 'reference-baseline',
@@ -509,12 +550,12 @@ test('comparison-enabled workspace shows the fuel-switching chart with its reset
       commonComparisonYears: [2030],
       focusSolve: buildSolveState({
         request: focusRequest,
-        result: buildResult(),
+        result: buildResultFromRequest(focusRequest),
         solvedConfiguration: focusRequest.configuration,
       }),
       baseSolve: buildSolveState({
         request: baseRequest,
-        result: buildResult(),
+        result: buildResultFromRequest(baseRequest),
         solvedConfiguration: baseRequest.configuration,
       }),
     })),
@@ -522,10 +563,10 @@ test('comparison-enabled workspace shows the fuel-switching chart with its reset
 
   const resetMatches = html.match(/stacked-chart-reset-button/g) ?? [];
 
-  assert.match(html, /Fuel-mix switching by fuel pair/);
+  assert.match(html, /Route-change fuel switching by fuel pair/);
   assert.match(html, /1 fuel-switch pairs/);
   assert.match(html, /Intensity effect: -2\.0 PJ/);
-  assert.match(html, /aria-label="Reset y-axis range for Fuel-mix switching by fuel pair"/);
+  assert.match(html, /aria-label="Reset y-axis range for Route-change fuel switching by fuel pair"/);
   assert.equal(resetMatches.length, 5);
 });
 
@@ -534,12 +575,12 @@ test('commercial base versus O1-style fuel mix renders gas and liquid switching 
     ['electricity', 1],
     ['natural_gas', 2],
     ['refined_liquid_fuels', 1],
-  ]);
+  ], 'commercial_o0');
   const focusRequest = buildCommercialFuelMixRequest('commercial-o1', [
     ['electricity', 0.9],
     ['natural_gas', 0.6],
     ['refined_liquid_fuels', 0.3],
-  ]);
+  ], 'commercial_o1');
   const html = renderToStaticMarkup(
     React.createElement(ConfigurationWorkspaceCenter, buildCenterProps({
       baseConfigId: 'reference-baseline',
@@ -559,11 +600,48 @@ test('commercial base versus O1-style fuel mix renders gas and liquid switching 
     })),
   );
 
-  assert.match(html, /Fuel-mix switching by fuel pair/);
+  assert.match(html, /Route-change fuel switching by fuel pair/);
   assert.match(html, /2 fuel-switch pairs/);
   assert.match(html, />Gas -&gt; Elec</);
   assert.match(html, />Liq fuels -&gt; Elec</);
   assert.match(html, /Intensity effect: -220\.0 PJ/);
+});
+
+test('commercial same-route efficiency renders residual intensity without fossil switch pairs', () => {
+  const baseRequest = buildCommercialFuelMixRequest('commercial-base', [
+    ['electricity', 1],
+    ['natural_gas', 2],
+    ['refined_liquid_fuels', 1],
+  ], 'commercial_o0');
+  const focusRequest = buildCommercialFuelMixRequest('commercial-efficiency', [
+    ['electricity', 0.8],
+    ['natural_gas', 2],
+    ['refined_liquid_fuels', 1],
+  ], 'commercial_o0');
+  const html = renderToStaticMarkup(
+    React.createElement(ConfigurationWorkspaceCenter, buildCenterProps({
+      baseConfigId: 'reference-baseline',
+      baseSelectionMode: 'manual',
+      comparisonEnabled: true,
+      commonComparisonYears: [2030],
+      focusSolve: buildSolveState({
+        request: focusRequest,
+        result: buildCommercialFuelMixResult(focusRequest),
+        solvedConfiguration: focusRequest.configuration,
+      }),
+      baseSolve: buildSolveState({
+        request: baseRequest,
+        result: buildCommercialFuelMixResult(baseRequest),
+        solvedConfiguration: baseRequest.configuration,
+      }),
+    })),
+  );
+
+  assert.match(html, /Route-change fuel switching by fuel pair/);
+  assert.match(html, /No route-change fuel switching for the selected basis\./);
+  assert.match(html, /Intensity effect: -20\.0 PJ/);
+  assert.doesNotMatch(html, />Elec -&gt; Gas</);
+  assert.doesNotMatch(html, />Elec -&gt; Liq fuels</);
 });
 
 test('attribution-safe comparison renders the efficiency attribution section', () => {
@@ -892,7 +970,7 @@ test('base comparison disabled keeps Explorer absolute charts and hides the fuel
 
   assert.match(html, /Base comparison is disabled/);
   assert.match(html, /Fuel Consumption/);
-  assert.doesNotMatch(html, /Fuel-mix switching by fuel pair/);
+  assert.doesNotMatch(html, /Route-change fuel switching by fuel pair/);
 });
 
 test('base comparison failure keeps focus charts visible and shows a comparison-only error panel', () => {

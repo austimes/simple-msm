@@ -1,7 +1,17 @@
-import { getCommodityMetadata } from '../data/commodityMetadata.ts';
+import {
+  convertUnitQuantity,
+  getCommodityMetadata,
+  parseUnitRatio,
+} from '../data/commodityMetadata.ts';
 import { buildFuelSwitchLegendLabel } from '../data/chartPresentation.ts';
 import type { FuelSwitchBasis } from '../data/types.ts';
 import type { ResultContributionRow } from './resultContributions.ts';
+import type {
+  NormalizedSolverRow,
+  SolveRequest,
+  SolveResult,
+  SolveStateShareSummary,
+} from '../solver/contract.ts';
 
 const FUEL_SWITCH_EPSILON_PJ = 1e-6;
 
@@ -16,7 +26,7 @@ export interface FuelSwitchAttributionRow {
   toFuelLabel: string;
   toBasisPj: number;
   fromBasisPj: number;
-  attributionBasis: 'fuel_mix_focus_total';
+  attributionBasis: 'fuel_mix_focus_total' | 'route_change_fuel_mix_focus_total';
 }
 
 export interface FuelSwitchActivityRow {
@@ -45,6 +55,20 @@ export interface FuelSwitchNetDeltaRow {
   fuelId: string;
   fuelLabel: string;
   valuePj: number;
+}
+
+export interface FuelSwitchFuelTotalRow {
+  outputId: string;
+  outputLabel: string;
+  year: number;
+  fuelId: string;
+  fuelLabel: string;
+  valuePj: number;
+}
+
+export interface FuelSwitchRouteBasisResult {
+  baseSwitchBasisRows: FuelSwitchFuelTotalRow[];
+  focusSwitchBasisRows: FuelSwitchFuelTotalRow[];
 }
 
 export interface FuelSwitchDecompositionResult {
@@ -88,6 +112,18 @@ interface FuelTotalGroup {
   fuels: Map<string, FuelTotalEntry>;
 }
 
+interface RouteFuelVector {
+  fuels: Map<string, number>;
+}
+
+interface RouteActivityEntry {
+  outputId: string;
+  outputLabel: string;
+  year: number;
+  pathwayStateId: string;
+  activity: number;
+}
+
 interface FuelDecompositionEntry {
   fuelId: string;
   fuelLabel: string;
@@ -100,6 +136,29 @@ function buildOutputYearKey(year: number, outputId: string): string {
   return `${year}::${outputId}`;
 }
 
+function buildRouteKey(outputId: string, year: number, pathwayStateId: string): string {
+  return `${outputId}::${year}::${pathwayStateId}`;
+}
+
+function convertFuelConsumptionToPj(value: number, unit: string): number {
+  const { numerator } = parseUnitRatio(unit);
+  return convertUnitQuantity(value, numerator as 'GJ' | 'MWh' | 'PJ', 'PJ');
+}
+
+function resolvePathwayStateId(
+  row: Pick<NormalizedSolverRow, 'stateId' | 'provenance'>,
+): string {
+  return row.provenance?.baseStateId ?? row.stateId;
+}
+
+function resolveStateSharePathwayStateId(stateShare: SolveStateShareSummary): string {
+  return stateShare.pathwayStateId ?? stateShare.provenance?.baseStateId ?? stateShare.stateId;
+}
+
+function shouldIncludeRouteReferenceRow(row: NormalizedSolverRow): boolean {
+  return row.provenance?.kind !== 'efficiency_package';
+}
+
 function shouldIncludeFuelContribution(row: ResultContributionRow): boolean {
   return (
     row.metric === 'fuel'
@@ -107,6 +166,24 @@ function shouldIncludeFuelContribution(row: ResultContributionRow): boolean {
     && row.commodityId != null
     && row.outputId != null
   );
+}
+
+function getOrCreateFuelTotalGroup(
+  groups: Map<string, FuelTotalGroup>,
+  year: number,
+  outputId: string,
+  outputLabel: string,
+): FuelTotalGroup {
+  const key = buildOutputYearKey(year, outputId);
+  const group = groups.get(key) ?? {
+    outputId,
+    outputLabel,
+    year,
+    fuels: new Map<string, FuelTotalEntry>(),
+  };
+
+  groups.set(key, group);
+  return group;
 }
 
 function addFuelTotals(
@@ -123,13 +200,12 @@ function addFuelTotals(
       continue;
     }
 
-    const key = buildOutputYearKey(row.year, row.outputId);
-    const group = groups.get(key) ?? {
-      outputId: row.outputId,
-      outputLabel: row.outputLabel ?? row.outputId,
-      year: row.year,
-      fuels: new Map<string, FuelTotalEntry>(),
-    };
+    const group = getOrCreateFuelTotalGroup(
+      groups,
+      row.year,
+      row.outputId,
+      row.outputLabel ?? row.outputId,
+    );
     const entry = group.fuels.get(row.commodityId) ?? {
       baseValue: 0,
       focusValue: 0,
@@ -142,7 +218,29 @@ function addFuelTotals(
       group.outputLabel = row.outputLabel;
     }
 
-    groups.set(key, group);
+  }
+}
+
+function addFuelTotalRows(
+  groups: Map<string, FuelTotalGroup>,
+  rows: FuelSwitchFuelTotalRow[] | undefined,
+  side: keyof FuelTotalEntry,
+): void {
+  for (const row of rows ?? []) {
+    const group = getOrCreateFuelTotalGroup(
+      groups,
+      row.year,
+      row.outputId,
+      row.outputLabel,
+    );
+    const entry = group.fuels.get(row.fuelId) ?? {
+      baseValue: 0,
+      focusValue: 0,
+    };
+
+    entry[side] += row.valuePj;
+    group.fuels.set(row.fuelId, entry);
+    group.outputLabel = row.outputLabel;
   }
 }
 
@@ -235,41 +333,51 @@ function addResidual(
 }
 
 function buildFuelDecompositionEntries(
-  group: FuelTotalGroup,
+  actualFuels: Map<string, FuelTotalEntry>,
+  switchBasisFuels: Map<string, FuelTotalEntry>,
   baseActivity: FuelSwitchActivityRow | undefined,
   focusActivity: FuelSwitchActivityRow | undefined,
 ): FuelDecompositionEntry[] {
-  const baseTotal = Array.from(group.fuels.values()).reduce((sum, fuel) => sum + fuel.baseValue, 0);
-  const focusTotal = Array.from(group.fuels.values()).reduce((sum, fuel) => sum + fuel.focusValue, 0);
-  const hasBaseTotal = baseTotal > FUEL_SWITCH_EPSILON_PJ;
-  const hasFocusTotal = focusTotal > FUEL_SWITCH_EPSILON_PJ;
-  const canUseMix = hasBaseTotal && hasFocusTotal;
+  const baseSwitchTotal = Array.from(switchBasisFuels.values()).reduce((sum, fuel) => sum + fuel.baseValue, 0);
+  const focusSwitchTotal = Array.from(switchBasisFuels.values()).reduce((sum, fuel) => sum + fuel.focusValue, 0);
+  const hasBaseSwitchTotal = baseSwitchTotal > FUEL_SWITCH_EPSILON_PJ;
+  const hasFocusSwitchTotal = focusSwitchTotal > FUEL_SWITCH_EPSILON_PJ;
+  const canUseMix = hasBaseSwitchTotal && hasFocusSwitchTotal;
   const canUseActivity =
-    hasBaseTotal
+    hasBaseSwitchTotal
     && (baseActivity?.activity ?? 0) > FUEL_SWITCH_EPSILON_PJ
     && (focusActivity?.activity ?? 0) > FUEL_SWITCH_EPSILON_PJ;
-  const baseIntensity = canUseActivity ? baseTotal / baseActivity!.activity : 0;
-  const focusIntensity = canUseActivity ? focusTotal / focusActivity!.activity : 0;
+  const baseRouteIntensity = canUseActivity ? baseSwitchTotal / baseActivity!.activity : 0;
+  const fuelIds = new Set([
+    ...actualFuels.keys(),
+    ...switchBasisFuels.keys(),
+  ]);
   const entries: FuelDecompositionEntry[] = [];
 
-  for (const [fuelId, total] of group.fuels) {
+  for (const fuelId of fuelIds) {
+    const actualTotal = actualFuels.get(fuelId) ?? {
+      baseValue: 0,
+      focusValue: 0,
+    };
+    const switchBasisTotal = switchBasisFuels.get(fuelId) ?? {
+      baseValue: 0,
+      focusValue: 0,
+    };
     const fuelLabel = getCommodityMetadata(fuelId).label;
-    const baseShare = hasBaseTotal ? total.baseValue / baseTotal : 0;
-    const focusShare = hasFocusTotal ? total.focusValue / focusTotal : 0;
-    const netDelta = total.focusValue - total.baseValue;
-    const mixDelta = canUseMix ? focusTotal * (focusShare - baseShare) : 0;
+    const baseShare = hasBaseSwitchTotal ? switchBasisTotal.baseValue / baseSwitchTotal : 0;
+    const focusShare = hasFocusSwitchTotal ? switchBasisTotal.focusValue / focusSwitchTotal : 0;
+    const netDelta = actualTotal.focusValue - actualTotal.baseValue;
+    const mixDelta = canUseMix ? focusSwitchTotal * (focusShare - baseShare) : 0;
     const residuals = new Map<FuelSwitchResidualRow['effect'], number>();
 
     if (canUseActivity) {
-      const intensityDelta = focusActivity!.activity * (focusIntensity - baseIntensity) * baseShare;
-      const activityDelta = (focusActivity!.activity - baseActivity!.activity) * baseIntensity * baseShare;
+      const activityDelta = (focusActivity!.activity - baseActivity!.activity) * baseRouteIntensity * baseShare;
+      const intensityDelta = netDelta - mixDelta - activityDelta;
 
       addResidual(residuals, 'intensity', intensityDelta);
       addResidual(residuals, 'activity', activityDelta);
-    } else if (canUseMix) {
-      addResidual(residuals, 'scale', netDelta - mixDelta);
     } else {
-      addResidual(residuals, 'scale', netDelta);
+      addResidual(residuals, 'scale', netDelta - mixDelta);
     }
 
     entries.push({
@@ -307,28 +415,183 @@ function sortNetDeltaRows(rows: FuelSwitchNetDeltaRow[]): FuelSwitchNetDeltaRow[
     || left.fuelLabel.localeCompare(right.fuelLabel));
 }
 
+function sortFuelTotalRows(rows: FuelSwitchFuelTotalRow[]): FuelSwitchFuelTotalRow[] {
+  return rows.sort((left, right) =>
+    left.year - right.year
+    || left.outputLabel.localeCompare(right.outputLabel)
+    || left.fuelLabel.localeCompare(right.fuelLabel));
+}
+
+function buildRouteFuelVectors(request: SolveRequest): Map<string, RouteFuelVector> {
+  const vectors = new Map<string, RouteFuelVector>();
+
+  for (const row of request.rows) {
+    if (!shouldIncludeRouteReferenceRow(row)) {
+      continue;
+    }
+
+    const pathwayStateId = resolvePathwayStateId(row);
+    const key = buildRouteKey(row.outputId, row.year, pathwayStateId);
+    const vector = vectors.get(key) ?? {
+      fuels: new Map<string, number>(),
+    };
+
+    for (const input of row.inputs) {
+      const metadata = getCommodityMetadata(input.commodityId);
+      if (metadata.kind !== 'fuel') {
+        continue;
+      }
+
+      const valuePerActivityPj = convertFuelConsumptionToPj(input.coefficient, input.unit);
+      if (Math.abs(valuePerActivityPj) <= FUEL_SWITCH_EPSILON_PJ) {
+        continue;
+      }
+
+      vector.fuels.set(
+        input.commodityId,
+        (vector.fuels.get(input.commodityId) ?? 0) + valuePerActivityPj,
+      );
+    }
+
+    vectors.set(key, vector);
+  }
+
+  return vectors;
+}
+
+function buildReferenceRouteFuelVectors(
+  baseRequest: SolveRequest,
+  focusRequest: SolveRequest,
+): Map<string, RouteFuelVector> {
+  const referenceVectors = new Map(buildRouteFuelVectors(focusRequest));
+
+  for (const [key, vector] of buildRouteFuelVectors(baseRequest)) {
+    referenceVectors.set(key, vector);
+  }
+
+  return referenceVectors;
+}
+
+function buildRouteActivityEntries(stateShares: SolveStateShareSummary[]): Map<string, RouteActivityEntry> {
+  const activities = new Map<string, RouteActivityEntry>();
+
+  for (const stateShare of stateShares) {
+    if (Math.abs(stateShare.activity) <= FUEL_SWITCH_EPSILON_PJ) {
+      continue;
+    }
+
+    const pathwayStateId = resolveStateSharePathwayStateId(stateShare);
+    const key = buildRouteKey(stateShare.outputId, stateShare.year, pathwayStateId);
+    const entry = activities.get(key) ?? {
+      outputId: stateShare.outputId,
+      outputLabel: stateShare.outputLabel,
+      year: stateShare.year,
+      pathwayStateId,
+      activity: 0,
+    };
+
+    entry.activity += stateShare.activity;
+    entry.outputLabel = stateShare.outputLabel;
+    activities.set(key, entry);
+  }
+
+  return activities;
+}
+
+function buildSwitchBasisRowsForResult(
+  result: SolveResult,
+  referenceVectors: Map<string, RouteFuelVector>,
+): FuelSwitchFuelTotalRow[] {
+  const rowsByKey = new Map<string, FuelSwitchFuelTotalRow>();
+
+  for (const activity of buildRouteActivityEntries(result.reporting.stateShares).values()) {
+    const vector = referenceVectors.get(buildRouteKey(
+      activity.outputId,
+      activity.year,
+      activity.pathwayStateId,
+    ));
+
+    if (vector == null) {
+      continue;
+    }
+
+    for (const [fuelId, valuePerActivityPj] of vector.fuels) {
+      const valuePj = activity.activity * valuePerActivityPj;
+      if (Math.abs(valuePj) <= FUEL_SWITCH_EPSILON_PJ) {
+        continue;
+      }
+
+      const key = `${activity.year}::${activity.outputId}::${fuelId}`;
+      const existing = rowsByKey.get(key);
+
+      if (existing == null) {
+        rowsByKey.set(key, {
+          outputId: activity.outputId,
+          outputLabel: activity.outputLabel,
+          year: activity.year,
+          fuelId,
+          fuelLabel: getCommodityMetadata(fuelId).label,
+          valuePj,
+        });
+        continue;
+      }
+
+      existing.valuePj += valuePj;
+      existing.outputLabel = activity.outputLabel;
+    }
+  }
+
+  return sortFuelTotalRows(Array.from(rowsByKey.values()));
+}
+
 export function buildFuelSwitchDecomposition(
   baseContributions: ResultContributionRow[],
   focusContributions: ResultContributionRow[],
   options: {
     baseActivities?: FuelSwitchActivityRow[];
     focusActivities?: FuelSwitchActivityRow[];
+    baseSwitchBasisRows?: FuelSwitchFuelTotalRow[];
+    focusSwitchBasisRows?: FuelSwitchFuelTotalRow[];
   } = {},
 ): FuelSwitchDecompositionResult {
   const switchRows: FuelSwitchAttributionRow[] = [];
   const residualRows: FuelSwitchResidualRow[] = [];
   const netDeltaRows: FuelSwitchNetDeltaRow[] = [];
-  const groups = new Map<string, FuelTotalGroup>();
+  const actualGroups = new Map<string, FuelTotalGroup>();
+  const switchBasisGroups = new Map<string, FuelTotalGroup>();
   const baseActivityLookup = buildActivityLookup(options.baseActivities);
   const focusActivityLookup = buildActivityLookup(options.focusActivities);
+  const usesRouteSwitchBasis =
+    options.baseSwitchBasisRows != null || options.focusSwitchBasisRows != null;
+  const attributionBasis: FuelSwitchAttributionRow['attributionBasis'] = usesRouteSwitchBasis
+    ? 'route_change_fuel_mix_focus_total'
+    : 'fuel_mix_focus_total';
 
-  addFuelTotals(groups, baseContributions, 'baseValue');
-  addFuelTotals(groups, focusContributions, 'focusValue');
+  addFuelTotals(actualGroups, baseContributions, 'baseValue');
+  addFuelTotals(actualGroups, focusContributions, 'focusValue');
 
-  for (const entry of groups.values()) {
-    const outputYearKey = buildOutputYearKey(entry.year, entry.outputId);
+  if (usesRouteSwitchBasis) {
+    addFuelTotalRows(switchBasisGroups, options.baseSwitchBasisRows, 'baseValue');
+    addFuelTotalRows(switchBasisGroups, options.focusSwitchBasisRows, 'focusValue');
+  } else {
+    addFuelTotals(switchBasisGroups, baseContributions, 'baseValue');
+    addFuelTotals(switchBasisGroups, focusContributions, 'focusValue');
+  }
+
+  const outputYearKeys = new Set([
+    ...actualGroups.keys(),
+    ...switchBasisGroups.keys(),
+  ]);
+
+  for (const outputYearKey of outputYearKeys) {
+    const actualGroup = actualGroups.get(outputYearKey);
+    const switchBasisGroup = switchBasisGroups.get(outputYearKey);
+    const outputId = actualGroup?.outputId ?? switchBasisGroup!.outputId;
+    const outputLabel = actualGroup?.outputLabel ?? switchBasisGroup!.outputLabel;
+    const year = actualGroup?.year ?? switchBasisGroup!.year;
     const decompositionEntries = buildFuelDecompositionEntries(
-      entry,
+      actualGroup?.fuels ?? new Map<string, FuelTotalEntry>(),
+      switchBasisGroup?.fuels ?? new Map<string, FuelTotalEntry>(),
       baseActivityLookup.get(outputYearKey),
       focusActivityLookup.get(outputYearKey),
     );
@@ -338,10 +601,10 @@ export function buildFuelSwitchDecomposition(
     for (const fuelEntry of decompositionEntries) {
       if (Math.abs(fuelEntry.netDelta) > FUEL_SWITCH_EPSILON_PJ) {
         netDeltaRows.push({
-          key: `${entry.year}::${entry.outputId}::${fuelEntry.fuelId}`,
-          outputId: entry.outputId,
-          outputLabel: entry.outputLabel,
-          year: entry.year,
+          key: `${year}::${outputId}::${fuelEntry.fuelId}`,
+          outputId,
+          outputLabel,
+          year,
           fuelId: fuelEntry.fuelId,
           fuelLabel: fuelEntry.fuelLabel,
           valuePj: fuelEntry.netDelta,
@@ -350,10 +613,10 @@ export function buildFuelSwitchDecomposition(
 
       for (const [effect, valuePj] of fuelEntry.residuals) {
         residualRows.push({
-          key: `${entry.year}::${entry.outputId}::${fuelEntry.fuelId}::${effect}`,
-          outputId: entry.outputId,
-          outputLabel: entry.outputLabel,
-          year: entry.year,
+          key: `${year}::${outputId}::${fuelEntry.fuelId}::${effect}`,
+          outputId,
+          outputLabel,
+          year,
           fuelId: fuelEntry.fuelId,
           fuelLabel: fuelEntry.fuelLabel,
           effect,
@@ -389,17 +652,17 @@ export function buildFuelSwitchDecomposition(
 
     for (const matrixEntry of buildFuelSwitchMatrix(gains, losses, totalGain, totalLoss)) {
       switchRows.push({
-        key: `${entry.year}::${entry.outputId}::${matrixEntry.fromFuel.fuelId}::${matrixEntry.toFuel.fuelId}`,
-        outputId: entry.outputId,
-        outputLabel: entry.outputLabel,
-        year: entry.year,
+        key: `${year}::${outputId}::${matrixEntry.fromFuel.fuelId}::${matrixEntry.toFuel.fuelId}`,
+        outputId,
+        outputLabel,
+        year,
         fromFuelId: matrixEntry.fromFuel.fuelId,
         fromFuelLabel: matrixEntry.fromFuel.fuelLabel,
         toFuelId: matrixEntry.toFuel.fuelId,
         toFuelLabel: matrixEntry.toFuel.fuelLabel,
         toBasisPj: matrixEntry.toBasisPj,
         fromBasisPj: matrixEntry.fromBasisPj,
-        attributionBasis: 'fuel_mix_focus_total',
+        attributionBasis,
       });
     }
   }
@@ -408,6 +671,20 @@ export function buildFuelSwitchDecomposition(
     switchRows: sortFuelSwitchRows(switchRows),
     residualRows: sortResidualRows(residualRows),
     netDeltaRows: sortNetDeltaRows(netDeltaRows),
+  };
+}
+
+export function buildFuelSwitchRouteBasisRows(
+  baseRequest: SolveRequest,
+  baseResult: SolveResult,
+  focusRequest: SolveRequest,
+  focusResult: SolveResult,
+): FuelSwitchRouteBasisResult {
+  const referenceVectors = buildReferenceRouteFuelVectors(baseRequest, focusRequest);
+
+  return {
+    baseSwitchBasisRows: buildSwitchBasisRowsForResult(baseResult, referenceVectors),
+    focusSwitchBasisRows: buildSwitchBasisRowsForResult(focusResult, referenceVectors),
   };
 }
 
