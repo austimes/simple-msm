@@ -560,7 +560,7 @@ export function AdditionalityPageView({
         <p className="additionality-price-summary">Price scenario: {priceSummary}</p>
         <p className="additionality-status-line">
           {method === 'shapley_permutation_sample'
-            ? 'Sampled Shapley averages deterministic prefix marginals across seeded permutations.'
+            ? 'Sampled Shapley averages deterministic prefix marginals, then orders atoms by objective impact.'
             : 'Reverse greedy removes the least-impact remaining atom from Focus, then presents the path Base to Focus.'}
         </p>
       </section>

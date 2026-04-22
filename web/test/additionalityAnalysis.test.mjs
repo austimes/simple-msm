@@ -814,6 +814,27 @@ describe('additionality analysis', () => {
       first.report.sequence.map((entry) => [entry.atom.key, entry.metricsDeltaFromCurrent.cost]),
       second.report.sequence.map((entry) => [entry.atom.key, entry.metricsDeltaFromCurrent.cost]),
     );
+    assert.deepEqual(
+      first.report.sequence.map((entry) => entry.atom.stateId),
+      [
+        'buildings__residential__electrified_efficiency',
+        'buildings__residential__deep_electric',
+      ],
+    );
+    assert.deepEqual(
+      first.report.sequence.map((entry) => entry.absCostDelta),
+      [10, 5],
+    );
+    assertClose(
+      first.report.sequence[0].metricsBefore.cost,
+      first.report.baseMetrics.cost,
+      'Shapley sequence starts from base cost',
+    );
+    assertClose(
+      first.report.sequence.at(-1).metricsAfter.cost,
+      first.report.targetMetrics.cost,
+      'Shapley sequence reaches target cost',
+    );
 
     const costByState = Object.fromEntries(
       first.report.sequence.map((entry) => [entry.atom.stateId, entry.metricsDeltaFromCurrent.cost]),

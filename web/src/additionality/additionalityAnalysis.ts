@@ -187,6 +187,12 @@ interface AdditionalityCandidate {
   absCostDelta: number;
 }
 
+interface AdditionalityMarginalAttribution {
+  atom: AdditionalityAtom;
+  marginal: AdditionalityMetricVector;
+  absCostDelta: number;
+}
+
 type EvaluationResult = AdditionalityMetricVector | { error: string };
 
 const EMPTY_PROGRESS: AdditionalityProgress = {
@@ -423,6 +429,14 @@ function compareAtoms(left: AdditionalityAtom, right: AdditionalityAtom): number
 
 function compareReverseGreedyCandidates(left: AdditionalityCandidate, right: AdditionalityCandidate): number {
   return left.absCostDelta - right.absCostDelta
+    || compareAtoms(left.atom, right.atom);
+}
+
+function compareObjectiveImpactAttributions(
+  left: AdditionalityMarginalAttribution,
+  right: AdditionalityMarginalAttribution,
+): number {
+  return right.absCostDelta - left.absCostDelta
     || compareAtoms(left.atom, right.atom);
 }
 
@@ -1516,24 +1530,33 @@ async function runShapleyAnalysis(
     };
   }
 
-  let cumulativeMetrics = cloneMetricVector(baseEvaluation);
-  const sequence = [...prepared.atoms].sort(compareAtoms).map((atom, index) => {
+  const attributions = prepared.atoms.map((atom) => {
     const averageMarginal = divideMetricVector(
       accumulators.get(atom.key) ?? createEmptyMetricVector(),
       completedPermutations,
     );
+
+    return {
+      atom,
+      marginal: averageMarginal,
+      absCostDelta: Math.abs(averageMarginal.cost),
+    };
+  }).sort(compareObjectiveImpactAttributions);
+
+  let cumulativeMetrics = cloneMetricVector(baseEvaluation);
+  const sequence = attributions.map((attribution, index) => {
     const metricsBefore = cloneMetricVector(cumulativeMetrics);
     const metricsAfter = cloneMetricVector(cumulativeMetrics);
-    addMetricVectorInPlace(metricsAfter, averageMarginal);
+    addMetricVectorInPlace(metricsAfter, attribution.marginal);
     cumulativeMetrics = metricsAfter;
 
     return {
       step: index + 1,
-      atom,
+      atom: attribution.atom,
       metricsBefore,
       metricsAfter,
-      metricsDeltaFromCurrent: averageMarginal,
-      absCostDelta: Math.abs(averageMarginal.cost),
+      metricsDeltaFromCurrent: attribution.marginal,
+      absCostDelta: attribution.absCostDelta,
       skippedCandidateCount: 0,
     };
   });

@@ -2,17 +2,23 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { AdditionalityPageView } from '../src/pages/AdditionalityPage.tsx';
+import type { AdditionalityAnalysisState } from '../src/additionality/additionalityAnalysis.ts';
+import { AdditionalityPageView, type AdditionalityPageViewProps } from '../src/pages/AdditionalityPage.tsx';
 
-function buildProps(overrides: Record<string, any> = {}) {
-  const analysisState = overrides.analysisState ?? {
+type AdditionalityPageTestOverrides = Partial<AdditionalityPageViewProps> & {
+  analysisState?: AdditionalityAnalysisState;
+};
+
+function buildProps(overrides: AdditionalityPageTestOverrides = {}): AdditionalityPageViewProps {
+  const { analysisState: overrideAnalysisState, ...propOverrides } = overrides;
+  const analysisState = overrideAnalysisState ?? {
     phase: 'idle',
     report: null,
     progress: { completed: 0, totalExpected: 0 },
     error: null,
     validationIssues: [],
   };
-  const defaults = {
+  const defaults: AdditionalityPageViewProps = {
     baseConfigId: 'reference-baseline',
     commodityOptions: [
       { id: 'electricity', label: 'Electricity' },
@@ -48,8 +54,8 @@ function buildProps(overrides: Record<string, any> = {}) {
 
   return {
     ...defaults,
-    ...overrides,
-    scenarios: overrides.scenarios ?? defaults.scenarios,
+    ...propOverrides,
+    scenarios: propOverrides.scenarios ?? defaults.scenarios,
   };
 }
 

@@ -19,9 +19,10 @@ Two methods are available:
 - Reverse greedy starts at Focus, reverts the least cost-impact remaining atom
   in the target context, then reverses that path for Base-to-Focus
   presentation. It is fast and path dependent.
-- Shapley sample uses deterministic seeded permutations and averages prefix
-  marginals. It is less order dependent, costs more solves, and supports 16,
-  32, or 64 samples. The default is 32.
+- Shapley sample uses deterministic seeded permutations, averages prefix
+  marginals, and presents atoms in descending absolute objective-impact order.
+  It is less order dependent, costs more solves, and supports 16, 32, or 64
+  samples. The default is 32.
 
 Validation only permits differences in active pathway state sets, active
 efficiency package sets, and autonomous efficiency modes. It rejects changes
