@@ -384,6 +384,118 @@ test('route basis matching actual fuel totals preserves proportional attribution
   );
 });
 
+test('route basis keeps sub-PJ-per-activity fuel coefficients and emits switching rows', () => {
+  const baseRoute = {
+    rowId: 'commercial_o0::2030',
+    outputId: 'commercial_services',
+    outputRole: 'required_service',
+    outputLabel: 'Commercial services',
+    year: 2030,
+    stateId: 'commercial_o0',
+    stateLabel: 'Commercial O0',
+    sector: 'commercial',
+    subsector: 'commercial_buildings',
+    region: 'national',
+    outputUnit: 'GJ_service_eq',
+    conversionCostPerUnit: 0,
+    inputs: [
+      { commodityId: 'electricity', coefficient: 0.1, unit: 'MWh/GJ_service_eq' },
+      { commodityId: 'natural_gas', coefficient: 0.64, unit: 'GJ/GJ_service_eq' },
+    ],
+    directEmissions: [],
+    provenance: baseProvenance('commercial_o0', 'Commercial O0'),
+    bounds: {
+      minShare: null,
+      maxShare: null,
+      maxActivity: null,
+    },
+  };
+  const focusRoute = {
+    ...baseRoute,
+    rowId: 'commercial_o1::2030',
+    stateId: 'commercial_o1',
+    stateLabel: 'Commercial O1',
+    inputs: [
+      { commodityId: 'electricity', coefficient: 0.25, unit: 'MWh/GJ_service_eq' },
+      { commodityId: 'natural_gas', coefficient: 0.1, unit: 'GJ/GJ_service_eq' },
+    ],
+    provenance: baseProvenance('commercial_o1', 'Commercial O1'),
+  };
+  const baseRequest = buildSolveRequest('commercial-base-small-coefficients', [baseRoute]);
+  const focusRequest = buildSolveRequest('commercial-focus-small-coefficients', [focusRoute]);
+  const baseResult = buildSolveResult(baseRequest, [{ row: baseRoute, activity: 1_000_000 }]);
+  const focusResult = buildSolveResult(focusRequest, [{ row: focusRoute, activity: 1_000_000 }]);
+  const routeBasis = buildFuelSwitchRouteBasisRows(
+    baseRequest,
+    baseResult,
+    focusRequest,
+    focusResult,
+  );
+  const result = buildFuelSwitchDecomposition(
+    [
+      buildFuelContribution({
+        outputId: 'commercial_services',
+        outputLabel: 'Commercial services',
+        commodityId: 'electricity',
+        value: 0.36,
+      }),
+      buildFuelContribution({
+        outputId: 'commercial_services',
+        outputLabel: 'Commercial services',
+        commodityId: 'natural_gas',
+        value: 0.64,
+      }),
+    ],
+    [
+      buildFuelContribution({
+        outputId: 'commercial_services',
+        outputLabel: 'Commercial services',
+        commodityId: 'electricity',
+        value: 0.9,
+      }),
+      buildFuelContribution({
+        outputId: 'commercial_services',
+        outputLabel: 'Commercial services',
+        commodityId: 'natural_gas',
+        value: 0.1,
+      }),
+    ],
+    {
+      baseActivities: [{
+        outputId: 'commercial_services',
+        outputLabel: 'Commercial services',
+        year: 2030,
+        activity: 1_000_000,
+      }],
+      focusActivities: [{
+        outputId: 'commercial_services',
+        outputLabel: 'Commercial services',
+        year: 2030,
+        activity: 1_000_000,
+      }],
+      ...routeBasis,
+    },
+  );
+
+  assert.deepEqual(
+    routeBasis.baseSwitchBasisRows.map((row) => row.fuelId),
+    ['electricity', 'natural_gas'],
+  );
+  assertApprox(routeBasis.baseSwitchBasisRows[0].valuePj, 0.36);
+  assertApprox(routeBasis.baseSwitchBasisRows[1].valuePj, 0.64);
+  assert.deepEqual(
+    routeBasis.focusSwitchBasisRows.map((row) => row.fuelId),
+    ['electricity', 'natural_gas'],
+  );
+  assertApprox(routeBasis.focusSwitchBasisRows[0].valuePj, 0.9);
+  assertApprox(routeBasis.focusSwitchBasisRows[1].valuePj, 0.1);
+  assert.equal(result.switchRows.length, 1);
+  assert.equal(result.switchRows[0].fromFuelId, 'natural_gas');
+  assert.equal(result.switchRows[0].toFuelId, 'electricity');
+  assertApprox(result.switchRows[0].toBasisPj, 0.54);
+  assertApprox(result.switchRows[0].fromBasisPj, 0.54);
+});
+
 test('same-route electricity efficiency does not create fuel switch pairs', () => {
   const baseRoute = buildSolveRow({
     stateId: 'commercial_o0',

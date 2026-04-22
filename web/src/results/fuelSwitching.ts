@@ -443,10 +443,6 @@ function buildRouteFuelVectors(request: SolveRequest): Map<string, RouteFuelVect
       }
 
       const valuePerActivityPj = convertFuelConsumptionToPj(input.coefficient, input.unit);
-      if (Math.abs(valuePerActivityPj) <= FUEL_SWITCH_EPSILON_PJ) {
-        continue;
-      }
-
       vector.fuels.set(
         input.commodityId,
         (vector.fuels.get(input.commodityId) ?? 0) + valuePerActivityPj,
