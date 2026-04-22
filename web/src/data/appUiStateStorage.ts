@@ -1,3 +1,9 @@
+import {
+  ADDITIONALITY_SHAPLEY_SAMPLE_COUNTS,
+  DEFAULT_ADDITIONALITY_METHOD,
+  DEFAULT_ADDITIONALITY_SHAPLEY_SAMPLE_COUNT,
+  type AdditionalityOrderingMethod,
+} from '../additionality/additionalityAnalysis.ts';
 import type { StorageLike } from './configurationDraftStorage.ts';
 import {
   DEFAULT_APP_UI_STATE,
@@ -54,6 +60,14 @@ function readNullableString(value: unknown, fallback: string | null): string | n
   return typeof value === 'string' ? value : fallback;
 }
 
+function readStringArray(value: unknown, fallback: string[]): string[] {
+  if (!Array.isArray(value)) {
+    return [...fallback];
+  }
+
+  return value.filter((entry): entry is string => typeof entry === 'string');
+}
+
 function readBoolean(value: unknown, fallback: boolean): boolean {
   return typeof value === 'boolean' ? value : fallback;
 }
@@ -64,6 +78,19 @@ function readNullableNumber(value: unknown, fallback: number | null): number | n
   }
 
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
+function readAdditionalityOrderingMethod(value: unknown): AdditionalityOrderingMethod {
+  return value === 'shapley_permutation_sample'
+    ? 'shapley_permutation_sample'
+    : DEFAULT_ADDITIONALITY_METHOD;
+}
+
+function readAdditionalityShapleySampleCount(value: unknown): number {
+  return typeof value === 'number'
+    && ADDITIONALITY_SHAPLEY_SAMPLE_COUNTS.includes(value as (typeof ADDITIONALITY_SHAPLEY_SAMPLE_COUNTS)[number])
+    ? value
+    : DEFAULT_ADDITIONALITY_SHAPLEY_SAMPLE_COUNT;
 }
 
 function isMethodsTab(value: unknown): value is MethodsTab {
@@ -231,6 +258,20 @@ function sanitizeParsedAppUiState(value: unknown): AppUiState {
         additionality.selectedFocusConfigId ?? additionality.selectedTargetConfigId,
         fallback.additionality.selectedFocusConfigId,
       ),
+      selectedFocusConfigIds: readStringArray(
+        additionality.selectedFocusConfigIds,
+        readNullableString(
+          additionality.selectedFocusConfigId ?? additionality.selectedTargetConfigId,
+          fallback.additionality.selectedFocusConfigId,
+        )
+          ? [readNullableString(
+            additionality.selectedFocusConfigId ?? additionality.selectedTargetConfigId,
+            fallback.additionality.selectedFocusConfigId,
+          ) as string]
+          : fallback.additionality.selectedFocusConfigIds,
+      ).slice(0, 3),
+      orderingMethod: readAdditionalityOrderingMethod(additionality.orderingMethod),
+      shapleySampleCount: readAdditionalityShapleySampleCount(additionality.shapleySampleCount),
       commoditySelectionState: sanitizeAdditionalityCommoditySelectionState(
         additionality.commoditySelectionState,
       ),

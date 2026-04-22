@@ -3,6 +3,7 @@ import { describe, test } from 'node:test';
 import type { AdditionalityReport } from '../src/additionality/additionalityAnalysis.ts';
 import {
   buildAdditionalityReferenceRows,
+  buildAdditionalitySavingsStackRows,
   buildAdditionalityWaterfallRows,
   getAdditionalityMetricPresentation,
 } from '../src/pages/additionalityPageModel.ts';
@@ -11,49 +12,55 @@ function buildSequence(
   deltas: Array<{
     key: string;
     label: string;
-    objective: number;
-    cumulativeEmissions: number;
-    electricityDemand2050: number;
+    cost: number;
+    emissions: number;
+    fuelEnergy: number;
   }>,
 ): AdditionalityReport['sequence'] {
-  let objective = 100;
-  let cumulativeEmissions = 400;
-  let electricityDemand2050 = 120;
+  let cost = 100;
+  let emissions = 400;
+  let fuelEnergy = 120;
 
   return deltas.map((entry, index) => {
     const metricsBefore = {
-      objective,
-      cumulativeEmissions,
-      electricityDemand2050,
+      cost,
+      emissions,
+      fuelEnergy,
+      byYear: {},
     };
     const metricsAfter = {
-      objective: objective + entry.objective,
-      cumulativeEmissions: cumulativeEmissions + entry.cumulativeEmissions,
-      electricityDemand2050: electricityDemand2050 + entry.electricityDemand2050,
+      cost: cost + entry.cost,
+      emissions: emissions + entry.emissions,
+      fuelEnergy: fuelEnergy + entry.fuelEnergy,
+      byYear: {},
     };
 
-    objective = metricsAfter.objective;
-    cumulativeEmissions = metricsAfter.cumulativeEmissions;
-    electricityDemand2050 = metricsAfter.electricityDemand2050;
+    cost = metricsAfter.cost;
+    emissions = metricsAfter.emissions;
+    fuelEnergy = metricsAfter.fuelEnergy;
 
     return {
       step: index + 1,
       atom: {
         key: entry.key,
+        kind: 'state' as const,
+        category: 'other_state_change' as const,
         outputId: 'test_output',
         outputLabel: 'Test output',
         stateId: `${entry.key}_state`,
         stateLabel: entry.label,
+        label: entry.label,
         action: 'enable' as const,
       },
       metricsBefore,
       metricsAfter,
       metricsDeltaFromCurrent: {
-        objective: entry.objective,
-        cumulativeEmissions: entry.cumulativeEmissions,
-        electricityDemand2050: entry.electricityDemand2050,
+        cost: entry.cost,
+        emissions: entry.emissions,
+        fuelEnergy: entry.fuelEnergy,
+        byYear: {},
       },
-      absObjectiveDelta: Math.abs(entry.objective),
+      absCostDelta: Math.abs(entry.cost),
       skippedCandidateCount: 0,
     };
   });
@@ -61,7 +68,7 @@ function buildSequence(
 
 describe('additionalityPageModel', () => {
   test('formats cost presentation values in billions of AUD', () => {
-    const metric = getAdditionalityMetricPresentation('objective');
+    const metric = getAdditionalityMetricPresentation('cost');
 
     assert.equal(metric.unitLabel, '$B');
     assert.equal(metric.convertRawToDisplay(12_345_000_000), 12.345);
@@ -71,7 +78,7 @@ describe('additionalityPageModel', () => {
   });
 
   test('formats emissions presentation values in megatonnes of CO2e', () => {
-    const metric = getAdditionalityMetricPresentation('cumulativeEmissions');
+    const metric = getAdditionalityMetricPresentation('emissions');
 
     assert.equal(metric.unitLabel, 'MtCO2e');
     assert.equal(metric.convertRawToDisplay(842_110_000), 842.11);
@@ -79,14 +86,14 @@ describe('additionalityPageModel', () => {
     assert.equal(metric.formatSignedValue(-42_880_000), '-42.88 MtCO2e');
   });
 
-  test('formats 2050 electricity demand from raw MWh into TWh', () => {
-    const metric = getAdditionalityMetricPresentation('electricityDemand2050');
+  test('formats fuel and energy values in PJ', () => {
+    const metric = getAdditionalityMetricPresentation('fuelEnergy');
 
-    assert.equal(metric.unitLabel, 'TWh');
-    assert.equal(metric.convertRawToDisplay(292_523_236.87), 292.52323687);
-    assert.equal(metric.formatAbsoluteValue(292_523_236.87), '292.52 TWh');
-    assert.equal(metric.formatSignedValue(85_530_212.12), '+85.53 TWh');
-    assert.equal(metric.formatSignedValue(-85_530_212.12), '-85.53 TWh');
+    assert.equal(metric.unitLabel, 'PJ');
+    assert.equal(metric.convertRawToDisplay(292.523), 292.523);
+    assert.equal(metric.formatAbsoluteValue(292.523), '292.52 PJ');
+    assert.equal(metric.formatSignedValue(85.530), '+85.53 PJ');
+    assert.equal(metric.formatSignedValue(-85.530), '-85.53 PJ');
   });
 
   test('builds positive waterfall running totals that end at the total delta', () => {
@@ -94,24 +101,24 @@ describe('additionalityPageModel', () => {
       {
         key: 'passenger',
         label: 'Passenger road transport',
-        objective: 10,
-        cumulativeEmissions: -4,
-        electricityDemand2050: 6,
+        cost: 10,
+        emissions: -4,
+        fuelEnergy: 6,
       },
       {
         key: 'heat',
         label: 'Low-temperature heat',
-        objective: 8,
-        cumulativeEmissions: -7,
-        electricityDemand2050: 5,
+        cost: 8,
+        emissions: -7,
+        fuelEnergy: 5,
       },
     ]);
 
-    const rows = buildAdditionalityWaterfallRows(sequence, 'objective', ['Step 1', 'Step 2']);
+    const rows = buildAdditionalityWaterfallRows(sequence, 'cost', ['Step 1', 'Step 2']);
 
     assert.deepEqual(rows, [
       {
-        key: 'passenger:objective',
+        key: 'passenger:cost',
         interactionKey: 'passenger',
         label: 'Step 1',
         delta: 10,
@@ -119,7 +126,7 @@ describe('additionalityPageModel', () => {
         cumulativeAfter: 10,
       },
       {
-        key: 'heat:objective',
+        key: 'heat:cost',
         interactionKey: 'heat',
         label: 'Step 2',
         delta: 8,
@@ -135,24 +142,24 @@ describe('additionalityPageModel', () => {
       {
         key: 'buildings',
         label: 'Buildings',
-        objective: 3,
-        cumulativeEmissions: -5,
-        electricityDemand2050: 1,
+        cost: 3,
+        emissions: -5,
+        fuelEnergy: 1,
       },
       {
         key: 'cement',
         label: 'Cement',
-        objective: 2,
-        cumulativeEmissions: -7,
-        electricityDemand2050: 2,
+        cost: 2,
+        emissions: -7,
+        fuelEnergy: 2,
       },
     ]);
 
-    const rows = buildAdditionalityWaterfallRows(sequence, 'cumulativeEmissions', ['Step 1', 'Step 2']);
+    const rows = buildAdditionalityWaterfallRows(sequence, 'emissions', ['Step 1', 'Step 2']);
 
     assert.deepEqual(rows, [
       {
-        key: 'buildings:cumulativeEmissions',
+        key: 'buildings:emissions',
         interactionKey: 'buildings',
         label: 'Step 1',
         delta: -5,
@@ -160,7 +167,7 @@ describe('additionalityPageModel', () => {
         cumulativeAfter: -5,
       },
       {
-        key: 'cement:cumulativeEmissions',
+        key: 'cement:emissions',
         interactionKey: 'cement',
         label: 'Step 2',
         delta: -7,
@@ -176,27 +183,27 @@ describe('additionalityPageModel', () => {
       {
         key: 'freight',
         label: 'Freight',
-        objective: 12,
-        cumulativeEmissions: -2,
-        electricityDemand2050: 9,
+        cost: 12,
+        emissions: -2,
+        fuelEnergy: 9,
       },
       {
         key: 'industry',
         label: 'Industry',
-        objective: -20,
-        cumulativeEmissions: 3,
-        electricityDemand2050: -12,
+        cost: -20,
+        emissions: 3,
+        fuelEnergy: -12,
       },
       {
         key: 'steady',
         label: 'Steady',
-        objective: 0,
-        cumulativeEmissions: 0,
-        electricityDemand2050: 0,
+        cost: 0,
+        emissions: 0,
+        fuelEnergy: 0,
       },
     ]);
 
-    const rows = buildAdditionalityWaterfallRows(sequence, 'objective', ['Step 1', 'Step 2', 'Step 3']);
+    const rows = buildAdditionalityWaterfallRows(sequence, 'cost', ['Step 1', 'Step 2', 'Step 3']);
 
     assert.deepEqual(
       rows.map((row) => ({
@@ -230,7 +237,7 @@ describe('additionalityPageModel', () => {
         },
       ],
     );
-    assert.equal(rows.at(-1)?.cumulativeAfter, sequence.at(-1)?.metricsAfter.objective - sequence[0]?.metricsBefore.objective);
+    assert.equal(rows.at(-1)?.cumulativeAfter, sequence.at(-1)?.metricsAfter.cost - sequence[0]?.metricsBefore.cost);
   });
 
   test('builds zero-valued reference rows with canonical interaction keys', () => {
@@ -238,16 +245,16 @@ describe('additionalityPageModel', () => {
       {
         key: 'passenger',
         label: 'Passenger road transport',
-        objective: 10,
-        cumulativeEmissions: -4,
-        electricityDemand2050: 6,
+        cost: 10,
+        emissions: -4,
+        fuelEnergy: 6,
       },
       {
         key: 'heat',
         label: 'Low-temperature heat',
-        objective: 8,
-        cumulativeEmissions: -7,
-        electricityDemand2050: 5,
+        cost: 8,
+        emissions: -7,
+        fuelEnergy: 5,
       },
     ]);
 
@@ -269,6 +276,55 @@ describe('additionalityPageModel', () => {
         delta: 0,
         cumulativeBefore: 0,
         cumulativeAfter: 0,
+      },
+    ]);
+  });
+
+  test('builds savings stack rows from Focus back to Base', () => {
+    const sequence = buildSequence([
+      {
+        key: 'package',
+        label: 'Package',
+        cost: -10,
+        emissions: -4,
+        fuelEnergy: -3,
+      },
+      {
+        key: 'state',
+        label: 'State',
+        cost: 2,
+        emissions: 1,
+        fuelEnergy: 0,
+      },
+    ]);
+    const report = {
+      baseMetrics: { cost: 100, emissions: 50, fuelEnergy: 20, byYear: {} },
+      targetMetrics: { cost: 92, emissions: 47, fuelEnergy: 17, byYear: {} },
+      sequence,
+    } as AdditionalityReport;
+
+    const rows = buildAdditionalitySavingsStackRows(report, 'cost', ['Package', 'State']);
+
+    assert.deepEqual(rows.map((row) => ({
+      interactionKey: row.interactionKey,
+      label: row.label,
+      delta: row.delta,
+      cumulativeBefore: row.cumulativeBefore,
+      cumulativeAfter: row.cumulativeAfter,
+    })), [
+      {
+        interactionKey: 'package',
+        label: 'Package',
+        delta: 10,
+        cumulativeBefore: 0,
+        cumulativeAfter: 10,
+      },
+      {
+        interactionKey: 'state',
+        label: 'State',
+        delta: -2,
+        cumulativeBefore: 10,
+        cumulativeAfter: 8,
       },
     ]);
   });

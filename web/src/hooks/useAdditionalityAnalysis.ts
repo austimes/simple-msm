@@ -1,8 +1,13 @@
 import { useCallback, useEffect, useMemo } from 'react';
 import {
   type AdditionalityAnalysisState,
+  type AdditionalityOrderingMethod,
+  type AdditionalityPackageData,
   type AdditionalityPreparation,
   applyAdditionalityCommoditySelections,
+  canonicalizeAdditionalityConfiguration,
+  DEFAULT_ADDITIONALITY_METHOD,
+  DEFAULT_ADDITIONALITY_SHAPLEY_SAMPLE_COUNT,
   isAdditionalityCancelledError,
   prepareAdditionalityAnalysis,
   runAdditionalityAnalysis,
@@ -11,7 +16,7 @@ import {
   type AdditionalityRuntimeEntry,
   useAppUiStore,
 } from '../data/appUiStore.ts';
-import type { ConfigurationDocument, PackageData, PriceLevel } from '../data/types.ts';
+import type { ConfigurationDocument, PriceLevel } from '../data/types.ts';
 import { runSolveInWorker } from '../solver/solverClient.ts';
 
 const IDLE_STATE: AdditionalityAnalysisState = {
@@ -26,7 +31,9 @@ interface UseAdditionalityAnalysisOptions {
   baseConfiguration: ConfigurationDocument | null;
   baseConfigId: string | null;
   commoditySelections: Record<string, PriceLevel>;
-  pkg: Pick<PackageData, 'appConfig' | 'sectorStates'>;
+  method?: AdditionalityOrderingMethod;
+  pkg: AdditionalityPackageData;
+  shapleySampleCount?: number;
   targetConfiguration: ConfigurationDocument | null;
   targetConfigId: string | null;
 }
@@ -35,7 +42,9 @@ interface AdditionalityAnalysisCacheKeyOptions {
   appliedBaseConfiguration: ConfigurationDocument;
   baseConfigId: string;
   commoditySelections: Record<string, PriceLevel>;
+  method: AdditionalityOrderingMethod;
   appliedTargetConfiguration: ConfigurationDocument;
+  shapleySampleCount: number;
   targetConfigId: string;
 }
 
@@ -88,6 +97,8 @@ export function buildAdditionalityAnalysisCacheKey(
       appliedTargetConfiguration: options.appliedTargetConfiguration,
       baseConfigId: options.baseConfigId,
       commoditySelections: options.commoditySelections,
+      method: options.method,
+      shapleySampleCount: options.shapleySampleCount,
       targetConfigId: options.targetConfigId,
     }),
   );
@@ -162,6 +173,8 @@ export function shouldStartAdditionalityRun({
 export function useAdditionalityAnalysis(
   options: UseAdditionalityAnalysisOptions,
 ): UseAdditionalityAnalysisResult {
+  const method = options.method ?? DEFAULT_ADDITIONALITY_METHOD;
+  const shapleySampleCount = options.shapleySampleCount ?? DEFAULT_ADDITIONALITY_SHAPLEY_SAMPLE_COUNT;
   const prepared = useMemo(() => {
     if (
       !options.baseConfiguration
@@ -176,7 +189,9 @@ export function useAdditionalityAnalysis(
       baseConfiguration: options.baseConfiguration,
       baseConfigId: options.baseConfigId,
       commoditySelections: options.commoditySelections,
+      method,
       pkg: options.pkg,
+      shapleySampleCount,
       targetConfiguration: options.targetConfiguration,
       targetConfigId: options.targetConfigId,
     });
@@ -184,7 +199,9 @@ export function useAdditionalityAnalysis(
     options.baseConfigId,
     options.baseConfiguration,
     options.commoditySelections,
+    method,
     options.pkg,
+    shapleySampleCount,
     options.targetConfigId,
     options.targetConfiguration,
   ]);
@@ -201,12 +218,16 @@ export function useAdditionalityAnalysis(
       appliedBaseConfiguration: prepared.baseConfiguration,
       baseConfigId,
       commoditySelections: options.commoditySelections,
+      method,
       appliedTargetConfiguration: prepared.targetConfiguration,
+      shapleySampleCount,
       targetConfigId,
     });
   }, [
     options.baseConfigId,
     options.commoditySelections,
+    method,
+    shapleySampleCount,
     options.targetConfigId,
     prepared,
   ]);
@@ -226,6 +247,10 @@ export function useAdditionalityAnalysis(
     const baseConfigId = options.baseConfigId;
     const targetConfigId = options.targetConfigId;
 
+    const currentRuntimeEntry = preparedKey
+      ? useAppUiStore.getState().additionalityRuntime.entriesByKey[preparedKey] ?? null
+      : null;
+
     if (
       !prepared
       || !preparedKey
@@ -235,13 +260,13 @@ export function useAdditionalityAnalysis(
         force,
         prepared,
         preparedKey,
-        runtimeEntry,
+        runtimeEntry: currentRuntimeEntry,
       })
     ) {
       return;
     }
 
-    const loadingState = buildLoadingAdditionalityState(prepared, runtimeEntry);
+    const loadingState = buildLoadingAdditionalityState(prepared, currentRuntimeEntry);
     const runToken = beginAdditionalityRun(preparedKey, loadingState);
 
     const getCurrentRuntimeEntry = (): AdditionalityRuntimeEntry | null => {
@@ -253,7 +278,9 @@ export function useAdditionalityAnalysis(
         baseConfiguration: prepared.baseConfiguration,
         baseConfigId,
         commoditySelections: options.commoditySelections,
+        method,
         pkg: options.pkg,
+        shapleySampleCount,
         targetConfiguration: prepared.targetConfiguration,
         targetConfigId,
       },
@@ -290,11 +317,12 @@ export function useAdditionalityAnalysis(
     finishAdditionalityRun,
     options.baseConfigId,
     options.commoditySelections,
+    method,
     options.pkg,
+    shapleySampleCount,
     options.targetConfigId,
     prepared,
     preparedKey,
-    runtimeEntry,
     updateAdditionalityRunProgress,
   ]);
 
@@ -327,22 +355,39 @@ export function useAdditionalityAnalysis(
 }
 
 export function buildAdditionalityAnalysisCacheKeyFromSelections(
-  options: Omit<AdditionalityAnalysisCacheKeyOptions, 'appliedBaseConfiguration' | 'appliedTargetConfiguration'> & {
+  options: Omit<
+    AdditionalityAnalysisCacheKeyOptions,
+    'appliedBaseConfiguration' | 'appliedTargetConfiguration' | 'method' | 'shapleySampleCount'
+  > & {
     baseConfiguration: ConfigurationDocument;
+    method?: AdditionalityOrderingMethod;
+    pkg: AdditionalityPackageData;
+    shapleySampleCount?: number;
     targetConfiguration: ConfigurationDocument;
   },
 ): string {
+  const method = options.method ?? DEFAULT_ADDITIONALITY_METHOD;
+  const shapleySampleCount = options.shapleySampleCount ?? DEFAULT_ADDITIONALITY_SHAPLEY_SAMPLE_COUNT;
+
   return buildAdditionalityAnalysisCacheKey({
-    appliedBaseConfiguration: applyAdditionalityCommoditySelections(
-      options.baseConfiguration,
-      options.commoditySelections,
+    appliedBaseConfiguration: canonicalizeAdditionalityConfiguration(
+      applyAdditionalityCommoditySelections(
+        options.baseConfiguration,
+        options.commoditySelections,
+      ),
+      options.pkg,
     ),
     baseConfigId: options.baseConfigId,
     commoditySelections: options.commoditySelections,
-    appliedTargetConfiguration: applyAdditionalityCommoditySelections(
-      options.targetConfiguration,
-      options.commoditySelections,
+    method,
+    appliedTargetConfiguration: canonicalizeAdditionalityConfiguration(
+      applyAdditionalityCommoditySelections(
+        options.targetConfiguration,
+        options.commoditySelections,
+      ),
+      options.pkg,
     ),
+    shapleySampleCount,
     targetConfigId: options.targetConfigId,
   });
 }

@@ -66,6 +66,12 @@ function buildSampleState(): AppUiState {
     additionality: {
       selectedBaseConfigId: 'reference-baseline',
       selectedFocusConfigId: 'reference-efficiency-open',
+      selectedFocusConfigIds: [
+        'reference-efficiency-open',
+        'demo-buildings-efficiency',
+      ],
+      orderingMethod: 'shapley_permutation_sample',
+      shapleySampleCount: 64,
       commoditySelectionState: {
         seededFromConfigId: 'reference-baseline',
         selections: {
@@ -152,6 +158,9 @@ describe('appUiStateStorage', () => {
         additionality: {
           selectedBaseConfigId: 'reference-baseline',
           selectedTargetConfigId: false,
+          selectedFocusConfigIds: ['focus-a', 42, 'focus-b', 'focus-c', 'focus-d'],
+          orderingMethod: 'unknown',
+          shapleySampleCount: 99,
           commoditySelectionState: {
             seededFromConfigId: ['bad'],
             selections: {
@@ -200,6 +209,9 @@ describe('appUiStateStorage', () => {
       additionality: {
         selectedBaseConfigId: 'reference-baseline',
         selectedFocusConfigId: DEFAULT_APP_UI_STATE.additionality.selectedFocusConfigId,
+        selectedFocusConfigIds: ['focus-a', 'focus-b', 'focus-c'],
+        orderingMethod: DEFAULT_APP_UI_STATE.additionality.orderingMethod,
+        shapleySampleCount: DEFAULT_APP_UI_STATE.additionality.shapleySampleCount,
         commoditySelectionState: {
           seededFromConfigId: DEFAULT_APP_UI_STATE.additionality.commoditySelectionState.seededFromConfigId,
           selections: {
@@ -230,6 +242,10 @@ describe('appUiStateStorage', () => {
     assert.equal(
       loadPersistedAppUiState(storage).additionality.selectedFocusConfigId,
       'reference-efficiency-open',
+    );
+    assert.deepEqual(
+      loadPersistedAppUiState(storage).additionality.selectedFocusConfigIds,
+      ['reference-efficiency-open'],
     );
   });
 });

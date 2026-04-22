@@ -95,6 +95,7 @@ describe('useAdditionalityAnalysis', () => {
       baseConfiguration,
       baseConfigId: 'reference-baseline',
       commoditySelections: selections,
+      pkg,
       targetConfiguration: leftConfiguration,
       targetConfigId: STATE_OPEN_TARGET_ID,
     });
@@ -102,6 +103,7 @@ describe('useAdditionalityAnalysis', () => {
       baseConfiguration,
       baseConfigId: 'reference-baseline',
       commoditySelections: reversedSelections,
+      pkg,
       targetConfiguration: rightConfiguration,
       targetConfigId: STATE_OPEN_TARGET_ID,
     });
@@ -118,6 +120,7 @@ describe('useAdditionalityAnalysis', () => {
       baseConfiguration,
       baseConfigId: 'reference-baseline',
       commoditySelections: selections,
+      pkg,
       targetConfiguration,
       targetConfigId: STATE_OPEN_TARGET_ID,
     });
@@ -135,6 +138,7 @@ describe('useAdditionalityAnalysis', () => {
         baseConfiguration,
         baseConfigId: 'reference-baseline',
         commoditySelections: selections,
+        pkg,
         targetConfiguration: changedTarget,
         targetConfigId: STATE_OPEN_TARGET_ID,
       }),
@@ -145,10 +149,46 @@ describe('useAdditionalityAnalysis', () => {
         baseConfiguration,
         baseConfigId: 'reference-baseline',
         commoditySelections: changedCommoditySelections,
+        pkg,
         targetConfiguration,
         targetConfigId: STATE_OPEN_TARGET_ID,
       }),
       baselineKey,
+    );
+    assert.notEqual(
+      buildAdditionalityAnalysisCacheKeyFromSelections({
+        baseConfiguration,
+        baseConfigId: 'reference-baseline',
+        commoditySelections: selections,
+        method: 'shapley_permutation_sample',
+        pkg,
+        shapleySampleCount: 32,
+        targetConfiguration,
+        targetConfigId: STATE_OPEN_TARGET_ID,
+      }),
+      baselineKey,
+    );
+    assert.notEqual(
+      buildAdditionalityAnalysisCacheKeyFromSelections({
+        baseConfiguration,
+        baseConfigId: 'reference-baseline',
+        commoditySelections: selections,
+        method: 'shapley_permutation_sample',
+        pkg,
+        shapleySampleCount: 64,
+        targetConfiguration,
+        targetConfigId: STATE_OPEN_TARGET_ID,
+      }),
+      buildAdditionalityAnalysisCacheKeyFromSelections({
+        baseConfiguration,
+        baseConfigId: 'reference-baseline',
+        commoditySelections: selections,
+        method: 'shapley_permutation_sample',
+        pkg,
+        shapleySampleCount: 32,
+        targetConfiguration,
+        targetConfigId: STATE_OPEN_TARGET_ID,
+      }),
     );
   });
 

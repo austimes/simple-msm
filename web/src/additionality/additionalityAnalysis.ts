@@ -1,16 +1,33 @@
+import {
+  resolveActiveEfficiencyPackageIds,
+  resolveAutonomousModeForOutput,
+} from '../data/efficiencyControlModel.ts';
+import { embodiedEfficiencyPathwayEntries } from '../data/efficiencyAttributionRegistry.ts';
 import { derivePathwayStateIdsForOutput } from '../data/pathwaySemantics.ts';
 import type {
+  ConfigurationAutonomousEfficiencyMode,
   ConfigurationDocument,
+  EfficiencyPackage,
   PackageData,
   PriceLevel,
   SectorState,
 } from '../data/types.ts';
+import { buildAllContributionRows, type ResultContributionRow } from '../results/resultContributions.ts';
 import { buildSolveRequest } from '../solver/buildSolveRequest.ts';
 import { buildConfigurationBuildFailure, buildConfigurationSolveFailure } from '../solver/configurationSolveFailure.ts';
 import type { SolveRequest, SolveResult } from '../solver/contract.ts';
 
-export type AdditionalityOrderingMethod = 'reverse_greedy_target_context';
+export type AdditionalityOrderingMethod =
+  | 'reverse_greedy_target_context'
+  | 'shapley_permutation_sample';
+export const ADDITIONALITY_SHAPLEY_SAMPLE_COUNTS = [16, 32, 64] as const;
+export const DEFAULT_ADDITIONALITY_METHOD: AdditionalityOrderingMethod = 'reverse_greedy_target_context';
+export const DEFAULT_ADDITIONALITY_SHAPLEY_SAMPLE_COUNT = 32;
+export type AdditionalityShapleySampleCount = (typeof ADDITIONALITY_SHAPLEY_SAMPLE_COUNTS)[number];
 export type AdditionalityAtomAction = 'enable' | 'disable';
+export type AdditionalityAtomKind = 'state' | 'efficiency_package' | 'autonomous_efficiency';
+export type AdditionalityAtomCategory = 'efficiency' | 'fuel_switching' | 'other_state_change';
+export type AdditionalityMetricKey = 'cost' | 'emissions' | 'fuelEnergy';
 export type AdditionalityAnalysisPhase =
   | 'idle'
   | 'loading'
@@ -22,11 +39,18 @@ export type AdditionalityAnalysisPhase =
 
 export interface AdditionalityAtom {
   key: string;
-  outputId: string;
-  outputLabel: string;
-  stateId: string;
-  stateLabel: string;
+  kind: AdditionalityAtomKind;
+  category: AdditionalityAtomCategory;
   action: AdditionalityAtomAction;
+  label: string;
+  outputId: string | null;
+  outputLabel: string | null;
+  stateId?: string;
+  stateLabel?: string;
+  packageId?: string;
+  packageLabel?: string;
+  autonomousModeBefore?: ConfigurationAutonomousEfficiencyMode;
+  autonomousModeAfter?: ConfigurationAutonomousEfficiencyMode;
 }
 
 export interface AdditionalityValidationIssue {
@@ -41,22 +65,34 @@ export interface AdditionalitySkippedCandidate {
   message: string;
 }
 
-export interface AdditionalityMetricSnapshot {
-  objective: number;
-  cumulativeEmissions: number;
-  // Intentionally raw MWh so page-level formatting can convert to TWh while
-  // preserving parity with solver reporting totalDemand for electricity in 2050.
-  electricityDemand2050: number;
+export interface AdditionalityMetricTotals {
+  cost: number;
+  emissions: number;
+  fuelEnergy: number;
+}
+
+export interface AdditionalityMetricVector extends AdditionalityMetricTotals {
+  byYear: Record<string, AdditionalityMetricTotals>;
 }
 
 export interface AdditionalitySequenceEntry {
   step: number;
   atom: AdditionalityAtom;
-  metricsBefore: AdditionalityMetricSnapshot;
-  metricsAfter: AdditionalityMetricSnapshot;
-  metricsDeltaFromCurrent: AdditionalityMetricSnapshot;
-  absObjectiveDelta: number;
+  metricsBefore: AdditionalityMetricVector;
+  metricsAfter: AdditionalityMetricVector;
+  metricsDeltaFromCurrent: AdditionalityMetricVector;
+  absCostDelta: number;
   skippedCandidateCount: number;
+}
+
+export interface AdditionalityMethodMetadata {
+  method: AdditionalityOrderingMethod;
+  sampleCount?: AdditionalityShapleySampleCount;
+  requestedPermutations?: number;
+  completedPermutations?: number;
+  skippedPermutations?: number;
+  skippedPermutationErrors?: string[];
+  solveCount: number;
 }
 
 export interface AdditionalityReport {
@@ -64,11 +100,13 @@ export interface AdditionalityReport {
   sequenceComplete: boolean;
   baseConfigId: string;
   targetConfigId: string;
-  baseMetrics: AdditionalityMetricSnapshot;
-  targetMetrics: AdditionalityMetricSnapshot;
+  baseMetrics: AdditionalityMetricVector;
+  targetMetrics: AdditionalityMetricVector;
+  totalDelta: AdditionalityMetricVector;
   totalObjectiveDelta: number;
   atomCount: number;
   solveCount: number;
+  methodMetadata: AdditionalityMethodMetadata;
   sequence: AdditionalitySequenceEntry[];
   skippedCandidates: AdditionalitySkippedCandidate[];
   validationIssues: AdditionalityValidationIssue[];
@@ -87,6 +125,9 @@ export interface AdditionalityAnalysisState {
   validationIssues: AdditionalityValidationIssue[];
 }
 
+export type AdditionalityPackageData = Pick<PackageData, 'appConfig' | 'sectorStates'>
+  & Partial<Pick<PackageData, 'autonomousEfficiencyTracks' | 'efficiencyPackages' | 'residualOverlays2025'>>;
+
 export interface AdditionalityPreparation {
   atoms: AdditionalityAtom[];
   baseConfiguration: ConfigurationDocument;
@@ -99,14 +140,16 @@ export interface AdditionalityRunOptions {
   baseConfiguration: ConfigurationDocument;
   baseConfigId: string;
   commoditySelections: Record<string, PriceLevel>;
-  pkg: Pick<PackageData, 'appConfig' | 'sectorStates'>;
+  method?: AdditionalityOrderingMethod;
+  pkg: AdditionalityPackageData;
+  shapleySampleCount?: number;
   targetConfiguration: ConfigurationDocument;
   targetConfigId: string;
 }
 
 export interface AdditionalityRunDependencies {
   buildRequest?: (
-    pkg: Pick<PackageData, 'appConfig' | 'sectorStates'>,
+    pkg: AdditionalityPackageData,
     configuration: ConfigurationDocument,
   ) => SolveRequest;
   isCancelled?: () => boolean;
@@ -123,20 +166,47 @@ interface AdditionalityOutputStateCatalogEntry {
   }>;
 }
 
+interface AdditionalityEfficiencyPackageCatalogEntry {
+  packageId: string;
+  packageLabel: string;
+  outputId: string;
+  outputLabel: string;
+  classification: EfficiencyPackage['classification'];
+}
+
+interface AdditionalityAutonomousCatalogEntry {
+  outputId: string;
+  outputLabel: string;
+}
+
 interface AdditionalityCandidate {
   atom: AdditionalityAtom;
   config: ConfigurationDocument;
-  metricsAfter: AdditionalityMetricSnapshot;
-  metricsDeltaFromCurrent: AdditionalityMetricSnapshot;
-  absObjectiveDelta: number;
+  metricsAfter: AdditionalityMetricVector;
+  metricsDeltaFromCurrent: AdditionalityMetricVector;
+  absCostDelta: number;
 }
+
+type EvaluationResult = AdditionalityMetricVector | { error: string };
 
 const EMPTY_PROGRESS: AdditionalityProgress = {
   completed: 0,
   totalExpected: 0,
 };
-const ELECTRICITY_COMMODITY = 'electricity';
-const ELECTRICITY_DEMAND_YEAR = 2050;
+const ZERO_TOTALS: AdditionalityMetricTotals = {
+  cost: 0,
+  emissions: 0,
+  fuelEnergy: 0,
+};
+const METRIC_KEYS: AdditionalityMetricKey[] = ['cost', 'emissions', 'fuelEnergy'];
+const ATOM_KIND_ORDER: Record<AdditionalityAtomKind, number> = {
+  state: 0,
+  efficiency_package: 1,
+  autonomous_efficiency: 2,
+};
+const embodiedEfficiencyStateIds = new Set(
+  embodiedEfficiencyPathwayEntries.flatMap((entry) => entry.stateIds),
+);
 
 class AdditionalityCancelledError extends Error {
   constructor() {
@@ -165,6 +235,99 @@ function stableStringify(value: unknown): string {
   return JSON.stringify(stableValue(value));
 }
 
+function cloneMetricTotals(value: AdditionalityMetricTotals = ZERO_TOTALS): AdditionalityMetricTotals {
+  return {
+    cost: value.cost,
+    emissions: value.emissions,
+    fuelEnergy: value.fuelEnergy,
+  };
+}
+
+function createEmptyMetricVector(): AdditionalityMetricVector {
+  return {
+    cost: 0,
+    emissions: 0,
+    fuelEnergy: 0,
+    byYear: {},
+  };
+}
+
+function cloneMetricVector(vector: AdditionalityMetricVector): AdditionalityMetricVector {
+  return {
+    cost: vector.cost,
+    emissions: vector.emissions,
+    fuelEnergy: vector.fuelEnergy,
+    byYear: Object.fromEntries(
+      Object.entries(vector.byYear).map(([year, totals]) => [year, cloneMetricTotals(totals)]),
+    ),
+  };
+}
+
+function addMetricVectorInPlace(
+  target: AdditionalityMetricVector,
+  source: AdditionalityMetricVector,
+): void {
+  for (const metric of METRIC_KEYS) {
+    target[metric] += source[metric];
+  }
+
+  for (const [year, totals] of Object.entries(source.byYear)) {
+    const targetTotals = target.byYear[year] ?? cloneMetricTotals();
+    for (const metric of METRIC_KEYS) {
+      targetTotals[metric] += totals[metric];
+    }
+    target.byYear[year] = targetTotals;
+  }
+}
+
+function divideMetricVector(
+  vector: AdditionalityMetricVector,
+  divisor: number,
+): AdditionalityMetricVector {
+  const divided = createEmptyMetricVector();
+
+  for (const metric of METRIC_KEYS) {
+    divided[metric] = vector[metric] / divisor;
+  }
+
+  for (const [year, totals] of Object.entries(vector.byYear)) {
+    divided.byYear[year] = {
+      cost: totals.cost / divisor,
+      emissions: totals.emissions / divisor,
+      fuelEnergy: totals.fuelEnergy / divisor,
+    };
+  }
+
+  return divided;
+}
+
+function subtractMetricVectors(
+  after: AdditionalityMetricVector,
+  before: AdditionalityMetricVector,
+): AdditionalityMetricVector {
+  const delta = createEmptyMetricVector();
+
+  for (const metric of METRIC_KEYS) {
+    delta[metric] = after[metric] - before[metric];
+  }
+
+  const years = new Set([
+    ...Object.keys(after.byYear),
+    ...Object.keys(before.byYear),
+  ]);
+  for (const year of years) {
+    const afterTotals = after.byYear[year] ?? ZERO_TOTALS;
+    const beforeTotals = before.byYear[year] ?? ZERO_TOTALS;
+    delta.byYear[year] = {
+      cost: afterTotals.cost - beforeTotals.cost,
+      emissions: afterTotals.emissions - beforeTotals.emissions,
+      fuelEnergy: afterTotals.fuelEnergy - beforeTotals.fuelEnergy,
+    };
+  }
+
+  return delta;
+}
+
 function buildOutputStateCatalog(
   sectorStates: readonly SectorState[],
   outputLabelById: Record<string, string>,
@@ -190,6 +353,13 @@ function buildOutputStateCatalog(
     }
   }
 
+  for (const entry of catalog.values()) {
+    entry.states.sort((left, right) => (
+      left.stateLabel.localeCompare(right.stateLabel)
+      || left.stateId.localeCompare(right.stateId)
+    ));
+  }
+
   return Object.fromEntries(
     Array.from(catalog.entries())
       .sort(([, left], [, right]) => left.outputLabel.localeCompare(right.outputLabel))
@@ -197,41 +367,81 @@ function buildOutputStateCatalog(
   );
 }
 
+function buildPackageCatalog(
+  pkg: AdditionalityPackageData,
+): Record<string, AdditionalityEfficiencyPackageCatalogEntry> {
+  const catalog = new Map<string, AdditionalityEfficiencyPackageCatalogEntry>();
+
+  for (const row of pkg.efficiencyPackages ?? []) {
+    if (catalog.has(row.package_id)) {
+      continue;
+    }
+
+    catalog.set(row.package_id, {
+      packageId: row.package_id,
+      packageLabel: row.package_label || row.package_id,
+      outputId: row.family_id,
+      outputLabel: getOutputLabel(pkg, row.family_id),
+      classification: row.classification,
+    });
+  }
+
+  return Object.fromEntries(
+    Array.from(catalog.entries())
+      .sort(([, left], [, right]) => (
+        left.outputLabel.localeCompare(right.outputLabel)
+        || left.packageLabel.localeCompare(right.packageLabel)
+        || left.packageId.localeCompare(right.packageId)
+      )),
+  );
+}
+
+function buildAutonomousCatalog(
+  pkg: AdditionalityPackageData,
+): AdditionalityAutonomousCatalogEntry[] {
+  return Array.from(
+    new Set((pkg.autonomousEfficiencyTracks ?? []).map((track) => track.family_id)),
+  )
+    .sort((left, right) => getOutputLabel(pkg, left).localeCompare(getOutputLabel(pkg, right)))
+    .map((outputId) => ({
+      outputId,
+      outputLabel: getOutputLabel(pkg, outputId),
+    }));
+}
+
 function getAllStateIds(entry: AdditionalityOutputStateCatalogEntry | undefined): string[] {
   return entry?.states.map((state) => state.stateId) ?? [];
 }
 
 function compareAtoms(left: AdditionalityAtom, right: AdditionalityAtom): number {
-  return left.outputLabel.localeCompare(right.outputLabel)
-    || left.stateLabel.localeCompare(right.stateLabel)
-    || left.action.localeCompare(right.action);
+  return ATOM_KIND_ORDER[left.kind] - ATOM_KIND_ORDER[right.kind]
+    || (left.outputLabel ?? '').localeCompare(right.outputLabel ?? '')
+    || left.label.localeCompare(right.label)
+    || left.action.localeCompare(right.action)
+    || left.key.localeCompare(right.key);
 }
 
 function compareReverseGreedyCandidates(left: AdditionalityCandidate, right: AdditionalityCandidate): number {
-  return left.absObjectiveDelta - right.absObjectiveDelta
+  return left.absCostDelta - right.absCostDelta
     || compareAtoms(left.atom, right.atom);
 }
 
-export function invertAdditionalityAtomAction(action: AdditionalityAtomAction): AdditionalityAtomAction {
-  return action === 'enable' ? 'disable' : 'enable';
+function checkCancelled(isCancelled: AdditionalityRunDependencies['isCancelled']): void {
+  if (isCancelled?.()) {
+    throw new AdditionalityCancelledError();
+  }
 }
 
-export function buildPresentationSequence(
-  removalSequence: AdditionalitySequenceEntry[],
-): AdditionalitySequenceEntry[] {
-  const reversed = [...removalSequence].reverse();
-  return reversed.map((entry, index) => ({
-    step: index + 1,
-    atom: {
-      ...entry.atom,
-      action: invertAdditionalityAtomAction(entry.atom.action),
-    },
-    metricsBefore: entry.metricsAfter,
-    metricsAfter: entry.metricsBefore,
-    metricsDeltaFromCurrent: subtractMetricSnapshots(entry.metricsBefore, entry.metricsAfter),
-    absObjectiveDelta: entry.absObjectiveDelta,
-    skippedCandidateCount: entry.skippedCandidateCount,
-  }));
+function formatSolveFailure(prefix: string, result: SolveResult): string {
+  const failure = buildConfigurationSolveFailure(result);
+  const status = result.raw?.solutionStatus ?? result.status;
+  return `${prefix} failed (${status}): ${failure.headline}`;
+}
+
+function formatBuildFailure(prefix: string, error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  const failure = buildConfigurationBuildFailure(message);
+  return `${prefix} build failed: ${failure.headline}`;
 }
 
 function normalizeControlComparison(control: ConfigurationDocument['service_controls'][string] | undefined) {
@@ -255,7 +465,7 @@ function buildTopLevelMismatchIssue(
 ): AdditionalityValidationIssue {
   return {
     code,
-    message: `Base and target must match on ${field}.`,
+    message: `Base and focus must match on ${field}.`,
   };
 }
 
@@ -268,107 +478,161 @@ function buildControlMismatchIssue(
   return {
     code,
     outputId,
-    message: `${outputLabel} differs on ${field}, which v1 additionality does not support.`,
+    message: `${outputLabel} differs on ${field}, which saved-scenario attribution does not support.`,
   };
 }
 
-function checkCancelled(isCancelled: AdditionalityRunDependencies['isCancelled']): void {
-  if (isCancelled?.()) {
-    throw new AdditionalityCancelledError();
+function isEvaluationError(value: EvaluationResult): value is { error: string } {
+  return 'error' in value;
+}
+
+function getAtomKey(atom: Pick<AdditionalityAtom, 'kind' | 'outputId' | 'stateId' | 'packageId' | 'action'>): string {
+  switch (atom.kind) {
+    case 'state':
+      return `state::${atom.outputId ?? ''}::${atom.stateId ?? ''}::${atom.action}`;
+    case 'efficiency_package':
+      return `efficiency_package::${atom.packageId ?? ''}::${atom.action}`;
+    case 'autonomous_efficiency':
+      return `autonomous_efficiency::${atom.outputId ?? ''}::${atom.action}`;
+    default:
+      return `${atom.outputId ?? ''}::${atom.action}`;
   }
 }
 
-function formatSolveFailure(prefix: string, result: SolveResult): string {
-  const failure = buildConfigurationSolveFailure(result);
-  const status = result.raw?.solutionStatus ?? result.status;
-  return `${prefix} failed (${status}): ${failure.headline}`;
+function getActionVerb(action: AdditionalityAtomAction): string {
+  return action === 'enable' ? 'Enable' : 'Disable';
 }
 
-function formatBuildFailure(prefix: string, error: unknown): string {
-  const message = error instanceof Error ? error.message : String(error);
-  const failure = buildConfigurationBuildFailure(message);
-  return `${prefix} build failed: ${failure.headline}`;
+function categorizeStateAtom(stateId: string, stateLabel: string): AdditionalityAtomCategory {
+  if (embodiedEfficiencyStateIds.has(stateId)) {
+    return 'efficiency';
+  }
+
+  if (/(electric|hydrogen|fuel|diesel|ccs|eaf|low-carbon|bev|fcev)/i.test(`${stateId} ${stateLabel}`)) {
+    return 'fuel_switching';
+  }
+
+  return 'other_state_change';
 }
 
-function sumDirectEmissions(row: SolveRequest['rows'][number]): number {
-  return row.directEmissions.reduce((total, entry) => total + entry.value, 0);
-}
-
-function sumSpecificInputCoefficient(
-  inputs: SolveRequest['rows'][number]['inputs'],
-  commodityId: string,
-): number {
-  return inputs.reduce((total, input) => {
-    return input.commodityId === commodityId ? total + input.coefficient : total;
-  }, 0);
-}
-
-function subtractMetricSnapshots(
-  after: AdditionalityMetricSnapshot,
-  before: AdditionalityMetricSnapshot,
-): AdditionalityMetricSnapshot {
+function buildStateAtom(
+  entry: AdditionalityOutputStateCatalogEntry,
+  state: AdditionalityOutputStateCatalogEntry['states'][number],
+  action: AdditionalityAtomAction,
+): AdditionalityAtom {
+  const label = `${getActionVerb(action)} ${state.stateLabel}`;
   return {
-    objective: after.objective - before.objective,
-    cumulativeEmissions: after.cumulativeEmissions - before.cumulativeEmissions,
-    electricityDemand2050: after.electricityDemand2050 - before.electricityDemand2050,
+    key: getAtomKey({
+      kind: 'state',
+      outputId: entry.outputId,
+      stateId: state.stateId,
+      action,
+    }),
+    kind: 'state',
+    category: categorizeStateAtom(state.stateId, state.stateLabel),
+    action,
+    label,
+    outputId: entry.outputId,
+    outputLabel: entry.outputLabel,
+    stateId: state.stateId,
+    stateLabel: state.stateLabel,
   };
 }
 
-function buildMetricSnapshot(
-  label: string,
-  request: SolveRequest,
-  result: SolveResult,
-): AdditionalityMetricSnapshot {
-  if (result.status === 'error') {
-    throw new Error(formatSolveFailure(label, result));
-  }
-
-  if (!result.raw) {
-    throw new Error(`${label} evaluation failed: solve result is missing raw artifact data.`);
-  }
-
-  const objective = result.raw.objectiveValue;
-  if (objective == null || !Number.isFinite(objective)) {
-    throw new Error(formatSolveFailure(label, result));
-  }
-
-  if (!Array.isArray(result.raw.variables)) {
-    throw new Error(`${label} evaluation failed: solve result is missing raw variable data.`);
-  }
-
-  const variableValues = new Map(
-    result.raw.variables.map((entry) => [entry.id, entry.value]),
-  );
-  let cumulativeEmissions = 0;
-  // Keep electricity demand in raw MWh: exogenous demand plus modeled electricity
-  // inputs should align with solver reporting commodityBalances[].totalDemand.
-  let electricityDemand2050 = request.configuration.externalCommodityDemandByCommodity[
-    ELECTRICITY_COMMODITY
-  ]?.[String(ELECTRICITY_DEMAND_YEAR)] ?? 0;
-
-  for (const row of request.rows) {
-    const activityVariableId = `activity:${row.rowId}`;
-    const activity = variableValues.get(activityVariableId);
-    if (typeof activity !== 'number' || !Number.isFinite(activity)) {
-      throw new Error(
-        `${label} evaluation failed: missing or invalid activity variable "${activityVariableId}".`,
-      );
-    }
-
-    cumulativeEmissions += activity * sumDirectEmissions(row);
-    if (row.year === ELECTRICITY_DEMAND_YEAR) {
-      electricityDemand2050 += activity * sumSpecificInputCoefficient(
-        row.inputs,
-        ELECTRICITY_COMMODITY,
-      );
-    }
-  }
-
+function buildPackageAtom(
+  entry: AdditionalityEfficiencyPackageCatalogEntry,
+  action: AdditionalityAtomAction,
+): AdditionalityAtom {
+  const label = `${getActionVerb(action)} ${entry.packageLabel}`;
   return {
-    objective,
-    cumulativeEmissions,
-    electricityDemand2050,
+    key: getAtomKey({
+      kind: 'efficiency_package',
+      outputId: entry.outputId,
+      packageId: entry.packageId,
+      action,
+    }),
+    kind: 'efficiency_package',
+    category: 'efficiency',
+    action,
+    label,
+    outputId: entry.outputId,
+    outputLabel: entry.outputLabel,
+    packageId: entry.packageId,
+    packageLabel: entry.packageLabel,
   };
+}
+
+function buildAutonomousAtom(
+  entry: AdditionalityAutonomousCatalogEntry,
+  baseMode: ConfigurationAutonomousEfficiencyMode,
+  targetMode: ConfigurationAutonomousEfficiencyMode,
+): AdditionalityAtom {
+  const action: AdditionalityAtomAction = targetMode === 'baseline' ? 'enable' : 'disable';
+  const label = `${getActionVerb(action)} autonomous efficiency`;
+  return {
+    key: getAtomKey({
+      kind: 'autonomous_efficiency',
+      outputId: entry.outputId,
+      action,
+    }),
+    kind: 'autonomous_efficiency',
+    category: 'efficiency',
+    action,
+    label,
+    outputId: entry.outputId,
+    outputLabel: entry.outputLabel,
+    autonomousModeBefore: baseMode,
+    autonomousModeAfter: targetMode,
+  };
+}
+
+function normalizePackageIds(ids: string[]): string[] {
+  return Array.from(new Set(ids)).sort((left, right) => left.localeCompare(right));
+}
+
+function ensureEfficiencyControls(
+  configuration: ConfigurationDocument,
+): NonNullable<ConfigurationDocument['efficiency_controls']> {
+  configuration.efficiency_controls = {
+    autonomous_mode: 'baseline',
+    autonomous_modes_by_output: {},
+    package_mode: 'allow_list',
+    package_ids: [],
+    ...(configuration.efficiency_controls ?? {}),
+  };
+  return configuration.efficiency_controls;
+}
+
+function setAutonomousModeForOutput(
+  configuration: ConfigurationDocument,
+  outputId: string,
+  mode: ConfigurationAutonomousEfficiencyMode,
+): void {
+  const controls = ensureEfficiencyControls(configuration);
+  controls.autonomous_mode = 'baseline';
+  controls.autonomous_modes_by_output = {
+    ...(controls.autonomous_modes_by_output ?? {}),
+    [outputId]: mode,
+  };
+}
+
+function setActivePackageIds(
+  configuration: ConfigurationDocument,
+  packageIds: string[],
+): void {
+  const controls = ensureEfficiencyControls(configuration);
+  controls.package_mode = 'allow_list';
+  controls.package_ids = normalizePackageIds(packageIds);
+}
+
+function resolveAdditionalityMethod(method: AdditionalityOrderingMethod | undefined): AdditionalityOrderingMethod {
+  return method ?? DEFAULT_ADDITIONALITY_METHOD;
+}
+
+function resolveShapleySampleCount(sampleCount: number | undefined): AdditionalityShapleySampleCount {
+  return ADDITIONALITY_SHAPLEY_SAMPLE_COUNTS.includes(sampleCount as AdditionalityShapleySampleCount)
+    ? sampleCount as AdditionalityShapleySampleCount
+    : DEFAULT_ADDITIONALITY_SHAPLEY_SAMPLE_COUNT;
 }
 
 function toProgress(
@@ -378,11 +642,161 @@ function toProgress(
   return { completed, totalExpected };
 }
 
-function applyAdditionalityAtomWithCatalog(
+function fnv1a32(input: string): number {
+  let hash = 0x811c9dc5;
+
+  for (let index = 0; index < input.length; index += 1) {
+    hash ^= input.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+
+  return hash >>> 0;
+}
+
+function mulberry32(seed: number): () => number {
+  let value = seed >>> 0;
+  return () => {
+    value += 0x6d2b79f5;
+    let next = value;
+    next = Math.imul(next ^ (next >>> 15), next | 1);
+    next ^= next + Math.imul(next ^ (next >>> 7), next | 61);
+    return ((next ^ (next >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function buildDeterministicPermutation(
+  atoms: AdditionalityAtom[],
+  seedInput: string,
+): AdditionalityAtom[] {
+  const random = mulberry32(fnv1a32(seedInput));
+  const shuffled = [...atoms];
+
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(random() * (index + 1));
+    [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+  }
+
+  return shuffled;
+}
+
+export function invertAdditionalityAtomAction(action: AdditionalityAtomAction): AdditionalityAtomAction {
+  return action === 'enable' ? 'disable' : 'enable';
+}
+
+function invertAdditionalityAtom(atom: AdditionalityAtom): AdditionalityAtom {
+  return {
+    ...atom,
+    action: invertAdditionalityAtomAction(atom.action),
+    autonomousModeBefore: atom.autonomousModeAfter,
+    autonomousModeAfter: atom.autonomousModeBefore,
+  };
+}
+
+export function buildPresentationSequence(
+  removalSequence: AdditionalitySequenceEntry[],
+): AdditionalitySequenceEntry[] {
+  const reversed = [...removalSequence].reverse();
+  return reversed.map((entry, index) => ({
+    step: index + 1,
+    atom: invertAdditionalityAtom(entry.atom),
+    metricsBefore: entry.metricsAfter,
+    metricsAfter: entry.metricsBefore,
+    metricsDeltaFromCurrent: subtractMetricVectors(entry.metricsBefore, entry.metricsAfter),
+    absCostDelta: entry.absCostDelta,
+    skippedCandidateCount: entry.skippedCandidateCount,
+  }));
+}
+
+export function buildAdditionalityMetricVectorFromContributions(
+  contributions: ResultContributionRow[],
+): AdditionalityMetricVector {
+  const vector = createEmptyMetricVector();
+
+  for (const row of contributions) {
+    const yearKey = String(row.year);
+    const yearTotals = vector.byYear[yearKey] ?? cloneMetricTotals();
+    const metric: AdditionalityMetricKey = row.metric === 'fuel' ? 'fuelEnergy' : row.metric;
+
+    vector[metric] += row.value;
+    yearTotals[metric] += row.value;
+    vector.byYear[yearKey] = yearTotals;
+  }
+
+  return vector;
+}
+
+function buildMetricVector(
+  label: string,
+  request: SolveRequest,
+  result: SolveResult,
+  configuration: ConfigurationDocument,
+  pkg: AdditionalityPackageData,
+): AdditionalityMetricVector {
+  if (result.status === 'error') {
+    throw new Error(formatSolveFailure(label, result));
+  }
+
+  const contributions = buildAllContributionRows(
+    request,
+    result,
+    pkg.residualOverlays2025 ?? [],
+    configuration,
+  );
+  return buildAdditionalityMetricVectorFromContributions(contributions);
+}
+
+function buildReportBase(
+  options: AdditionalityRunOptions,
+  method: AdditionalityOrderingMethod,
+  baseMetrics: AdditionalityMetricVector,
+  targetMetrics: AdditionalityMetricVector,
+  atomCount: number,
+  solveCount: number,
+  methodMetadata: Omit<AdditionalityMethodMetadata, 'method' | 'solveCount'>,
+): Pick<
+  AdditionalityReport,
+  | 'orderingMethod'
+  | 'baseConfigId'
+  | 'targetConfigId'
+  | 'baseMetrics'
+  | 'targetMetrics'
+  | 'totalDelta'
+  | 'totalObjectiveDelta'
+  | 'atomCount'
+  | 'solveCount'
+  | 'methodMetadata'
+  | 'validationIssues'
+> {
+  const totalDelta = subtractMetricVectors(targetMetrics, baseMetrics);
+
+  return {
+    orderingMethod: method,
+    baseConfigId: options.baseConfigId,
+    targetConfigId: options.targetConfigId,
+    baseMetrics,
+    targetMetrics,
+    totalDelta,
+    totalObjectiveDelta: totalDelta.cost,
+    atomCount,
+    solveCount,
+    methodMetadata: {
+      method,
+      solveCount,
+      ...methodMetadata,
+    },
+    validationIssues: [],
+  };
+}
+
+function applyStateAtomWithCatalog(
   configuration: ConfigurationDocument,
   atom: AdditionalityAtom,
   catalog: Record<string, AdditionalityOutputStateCatalogEntry>,
 ): ConfigurationDocument {
+  if (!atom.outputId || !atom.stateId) {
+    return structuredClone(configuration);
+  }
+
   const outputCatalog = catalog[atom.outputId];
   const allStateIds = getAllStateIds(outputCatalog);
   const currentActiveIds = new Set(
@@ -407,8 +821,45 @@ function applyAdditionalityAtomWithCatalog(
   return nextConfiguration;
 }
 
-function getAtomKey(atom: Pick<AdditionalityAtom, 'outputId' | 'stateId' | 'action'>): string {
-  return `${atom.outputId}::${atom.stateId}::${atom.action}`;
+function applyAdditionalityAtomWithCatalog(
+  configuration: ConfigurationDocument,
+  atom: AdditionalityAtom,
+  catalog: Record<string, AdditionalityOutputStateCatalogEntry>,
+  pkg: AdditionalityPackageData,
+): ConfigurationDocument {
+  if (atom.kind === 'state') {
+    return applyStateAtomWithCatalog(configuration, atom, catalog);
+  }
+
+  const nextConfiguration = structuredClone(configuration);
+
+  if (atom.kind === 'efficiency_package' && atom.packageId) {
+    const activePackageIds = new Set(
+      resolveActiveEfficiencyPackageIds(
+        nextConfiguration.efficiency_controls,
+        pkg.efficiencyPackages ?? [],
+      ),
+    );
+
+    if (atom.action === 'enable') {
+      activePackageIds.add(atom.packageId);
+    } else {
+      activePackageIds.delete(atom.packageId);
+    }
+
+    setActivePackageIds(nextConfiguration, Array.from(activePackageIds));
+    return nextConfiguration;
+  }
+
+  if (atom.kind === 'autonomous_efficiency' && atom.outputId) {
+    setAutonomousModeForOutput(
+      nextConfiguration,
+      atom.outputId,
+      atom.action === 'enable' ? 'baseline' : 'off',
+    );
+  }
+
+  return nextConfiguration;
 }
 
 export function seedAdditionalityCommoditySelections(
@@ -449,6 +900,33 @@ export function applyAdditionalityCommoditySelections(
   return nextConfiguration;
 }
 
+export function canonicalizeAdditionalityConfiguration(
+  configuration: ConfigurationDocument,
+  pkg: AdditionalityPackageData,
+): ConfigurationDocument {
+  const nextConfiguration = structuredClone(configuration);
+  const activePackageIds = resolveActiveEfficiencyPackageIds(
+    nextConfiguration.efficiency_controls,
+    pkg.efficiencyPackages ?? [],
+  );
+  const autonomousModesByOutput = Object.fromEntries(
+    buildAutonomousCatalog(pkg).map((entry) => [
+      entry.outputId,
+      resolveAutonomousModeForOutput(nextConfiguration.efficiency_controls, entry.outputId),
+    ]),
+  );
+
+  nextConfiguration.efficiency_controls = {
+    ...(nextConfiguration.efficiency_controls ?? {}),
+    autonomous_mode: 'baseline',
+    autonomous_modes_by_output: autonomousModesByOutput,
+    package_mode: 'allow_list',
+    package_ids: activePackageIds,
+  };
+
+  return nextConfiguration;
+}
+
 export function validateAdditionalityPair(
   baseConfiguration: ConfigurationDocument,
   targetConfiguration: ConfigurationDocument,
@@ -481,6 +959,13 @@ export function validateAdditionalityPair(
     !== stableStringify(targetConfiguration.demand_generation)
   ) {
     issues.push(buildTopLevelMismatchIssue('demand_generation_mismatch', 'demand_generation'));
+  }
+
+  if (
+    stableStringify(baseConfiguration.commodity_pricing)
+    !== stableStringify(targetConfiguration.commodity_pricing)
+  ) {
+    issues.push(buildTopLevelMismatchIssue('commodity_pricing_mismatch', 'commodity_pricing'));
   }
 
   if (stableStringify(baseConfiguration.carbon_price) !== stableStringify(targetConfiguration.carbon_price)) {
@@ -554,12 +1039,13 @@ export function validateAdditionalityPair(
 export function deriveAdditionalityAtoms(
   baseConfiguration: ConfigurationDocument,
   targetConfiguration: ConfigurationDocument,
-  pkg: Pick<PackageData, 'appConfig' | 'sectorStates'>,
+  pkg: AdditionalityPackageData,
 ): AdditionalityAtom[] {
   const outputLabelById = Object.fromEntries(
     Object.entries(pkg.appConfig.output_roles).map(([outputId, metadata]) => [outputId, metadata.display_label]),
   );
   const catalog = buildOutputStateCatalog(pkg.sectorStates, outputLabelById);
+  const packageCatalog = buildPackageCatalog(pkg);
   const atoms: AdditionalityAtom[] = [];
 
   for (const entry of Object.values(catalog)) {
@@ -579,20 +1065,57 @@ export function deriveAdditionalityAtoms(
         continue;
       }
 
-      const action: AdditionalityAtomAction = activeInTarget ? 'enable' : 'disable';
-      atoms.push({
-        key: getAtomKey({
-          outputId: entry.outputId,
-          stateId: state.stateId,
-          action,
-        }),
-        outputId: entry.outputId,
-        outputLabel: entry.outputLabel,
-        stateId: state.stateId,
-        stateLabel: state.stateLabel,
-        action,
-      });
+      atoms.push(buildStateAtom(entry, state, activeInTarget ? 'enable' : 'disable'));
     }
+  }
+
+  const basePackageIds = new Set(
+    resolveActiveEfficiencyPackageIds(baseConfiguration.efficiency_controls, pkg.efficiencyPackages ?? []),
+  );
+  const targetPackageIds = new Set(
+    resolveActiveEfficiencyPackageIds(targetConfiguration.efficiency_controls, pkg.efficiencyPackages ?? []),
+  );
+  const allPackageIds = Array.from(new Set([
+    ...Object.keys(packageCatalog),
+    ...basePackageIds,
+    ...targetPackageIds,
+  ])).sort((left, right) => {
+    const leftEntry = packageCatalog[left];
+    const rightEntry = packageCatalog[right];
+    return (leftEntry?.outputLabel ?? '').localeCompare(rightEntry?.outputLabel ?? '')
+      || (leftEntry?.packageLabel ?? left).localeCompare(rightEntry?.packageLabel ?? right)
+      || left.localeCompare(right);
+  });
+
+  for (const packageId of allPackageIds) {
+    const activeInBase = basePackageIds.has(packageId);
+    const activeInTarget = targetPackageIds.has(packageId);
+
+    if (activeInBase === activeInTarget) {
+      continue;
+    }
+
+    atoms.push(buildPackageAtom(
+      packageCatalog[packageId] ?? {
+        packageId,
+        packageLabel: packageId,
+        outputId: packageId,
+        outputLabel: packageId,
+        classification: 'pure_efficiency_overlay',
+      },
+      activeInTarget ? 'enable' : 'disable',
+    ));
+  }
+
+  for (const entry of buildAutonomousCatalog(pkg)) {
+    const baseMode = resolveAutonomousModeForOutput(baseConfiguration.efficiency_controls, entry.outputId);
+    const targetMode = resolveAutonomousModeForOutput(targetConfiguration.efficiency_controls, entry.outputId);
+
+    if (baseMode === targetMode) {
+      continue;
+    }
+
+    atoms.push(buildAutonomousAtom(entry, baseMode, targetMode));
   }
 
   return atoms.sort(compareAtoms);
@@ -601,25 +1124,49 @@ export function deriveAdditionalityAtoms(
 export function applyAdditionalityAtom(
   configuration: ConfigurationDocument,
   atom: AdditionalityAtom,
-  pkg: Pick<PackageData, 'appConfig' | 'sectorStates'>,
+  pkg: AdditionalityPackageData,
 ): ConfigurationDocument {
   const outputLabelById = Object.fromEntries(
     Object.entries(pkg.appConfig.output_roles).map(([outputId, metadata]) => [outputId, metadata.display_label]),
   );
   const catalog = buildOutputStateCatalog(pkg.sectorStates, outputLabelById);
-  return applyAdditionalityAtomWithCatalog(configuration, atom, catalog);
+  return applyAdditionalityAtomWithCatalog(configuration, atom, catalog, pkg);
+}
+
+function calculateTotalExpected(
+  atomCount: number,
+  method: AdditionalityOrderingMethod,
+  shapleySampleCount: AdditionalityShapleySampleCount,
+): number {
+  if (atomCount === 0) {
+    return 0;
+  }
+
+  if (method === 'shapley_permutation_sample') {
+    return 2 + shapleySampleCount * atomCount;
+  }
+
+  return 2 + Math.floor((atomCount * (atomCount + 1)) / 2);
 }
 
 export function prepareAdditionalityAnalysis(
   options: AdditionalityRunOptions,
 ): AdditionalityPreparation {
-  const baseConfiguration = applyAdditionalityCommoditySelections(
-    options.baseConfiguration,
-    options.commoditySelections,
+  const method = resolveAdditionalityMethod(options.method);
+  const shapleySampleCount = resolveShapleySampleCount(options.shapleySampleCount);
+  const baseConfiguration = canonicalizeAdditionalityConfiguration(
+    applyAdditionalityCommoditySelections(
+      options.baseConfiguration,
+      options.commoditySelections,
+    ),
+    options.pkg,
   );
-  const targetConfiguration = applyAdditionalityCommoditySelections(
-    options.targetConfiguration,
-    options.commoditySelections,
+  const targetConfiguration = canonicalizeAdditionalityConfiguration(
+    applyAdditionalityCommoditySelections(
+      options.targetConfiguration,
+      options.commoditySelections,
+    ),
+    options.pkg,
   );
   const validationIssues = validateAdditionalityPair(baseConfiguration, targetConfiguration, options.pkg);
   const atoms = validationIssues.length === 0
@@ -630,8 +1177,394 @@ export function prepareAdditionalityAnalysis(
     atoms,
     baseConfiguration,
     targetConfiguration,
-    totalExpected: atoms.length === 0 ? 0 : 2 + Math.floor((atoms.length * (atoms.length + 1)) / 2),
+    totalExpected: calculateTotalExpected(atoms.length, method, shapleySampleCount),
     validationIssues,
+  };
+}
+
+async function evaluateMetricsWithProgress(
+  options: AdditionalityRunOptions,
+  dependencies: Required<Pick<AdditionalityRunDependencies, 'buildRequest' | 'solve'>> & Pick<AdditionalityRunDependencies, 'isCancelled' | 'onProgress'>,
+  configuration: ConfigurationDocument,
+  label: string,
+  completedRef: { completed: number },
+  totalExpected: number,
+): Promise<EvaluationResult> {
+  checkCancelled(dependencies.isCancelled);
+  let request: SolveRequest;
+
+  const advanceProgress = (): void => {
+    completedRef.completed += 1;
+    dependencies.onProgress?.(toProgress(completedRef.completed, totalExpected));
+  };
+
+  try {
+    request = dependencies.buildRequest(options.pkg, configuration);
+  } catch (error) {
+    advanceProgress();
+    return {
+      error: formatBuildFailure(label, error),
+    };
+  }
+
+  try {
+    const result = await dependencies.solve(request);
+    return buildMetricVector(label, request, result, configuration, options.pkg);
+  } catch (error) {
+    if (error instanceof AdditionalityCancelledError) {
+      throw error;
+    }
+
+    return {
+      error: error instanceof Error ? error.message : String(error),
+    };
+  } finally {
+    advanceProgress();
+  }
+}
+
+async function runReverseGreedyAnalysis(
+  options: AdditionalityRunOptions,
+  dependencies: Required<Pick<AdditionalityRunDependencies, 'buildRequest' | 'solve'>> & Pick<AdditionalityRunDependencies, 'isCancelled' | 'onProgress'>,
+  prepared: AdditionalityPreparation,
+): Promise<AdditionalityAnalysisState> {
+  const method: AdditionalityOrderingMethod = 'reverse_greedy_target_context';
+  const outputLabelById = Object.fromEntries(
+    Object.entries(options.pkg.appConfig.output_roles).map(([outputId, metadata]) => [outputId, metadata.display_label]),
+  );
+  const catalog = buildOutputStateCatalog(options.pkg.sectorStates, outputLabelById);
+  const skippedCandidates: AdditionalitySkippedCandidate[] = [];
+  const totalExpected = prepared.totalExpected;
+  const completedRef = { completed: 0 };
+
+  const baseEvaluation = await evaluateMetricsWithProgress(
+    options,
+    dependencies,
+    prepared.baseConfiguration,
+    'Base configuration',
+    completedRef,
+    totalExpected,
+  );
+  if (isEvaluationError(baseEvaluation)) {
+    return {
+      phase: 'error',
+      report: null,
+      progress: toProgress(completedRef.completed, totalExpected),
+      error: baseEvaluation.error,
+      validationIssues: [],
+    };
+  }
+
+  const targetEvaluation = await evaluateMetricsWithProgress(
+    options,
+    dependencies,
+    prepared.targetConfiguration,
+    'Focus configuration',
+    completedRef,
+    totalExpected,
+  );
+  if (isEvaluationError(targetEvaluation)) {
+    return {
+      phase: 'error',
+      report: null,
+      progress: toProgress(completedRef.completed, totalExpected),
+      error: targetEvaluation.error,
+      validationIssues: [],
+    };
+  }
+
+  let currentConfiguration = structuredClone(prepared.targetConfiguration);
+  let currentMetrics = targetEvaluation;
+  let remainingAtoms = [...prepared.atoms];
+  const removalSequence: AdditionalitySequenceEntry[] = [];
+
+  for (let step = 1; remainingAtoms.length > 0; step += 1) {
+    checkCancelled(dependencies.isCancelled);
+
+    let bestCandidate: AdditionalityCandidate | null = null;
+    let skippedCandidateCount = 0;
+
+    for (const atom of remainingAtoms) {
+      checkCancelled(dependencies.isCancelled);
+
+      const invertedAtom = invertAdditionalityAtom(atom);
+      const candidateConfiguration = applyAdditionalityAtomWithCatalog(
+        currentConfiguration,
+        invertedAtom,
+        catalog,
+        options.pkg,
+      );
+      const evaluation = await evaluateMetricsWithProgress(
+        options,
+        dependencies,
+        candidateConfiguration,
+        `Candidate ${step}: ${atom.outputLabel ?? 'Global'} / ${atom.label}`,
+        completedRef,
+        totalExpected,
+      );
+
+      if (isEvaluationError(evaluation)) {
+        skippedCandidateCount += 1;
+        skippedCandidates.push({
+          step,
+          atom,
+          message: evaluation.error,
+        });
+        continue;
+      }
+
+      const metricsDeltaFromCurrent = subtractMetricVectors(evaluation, currentMetrics);
+      const candidate: AdditionalityCandidate = {
+        atom: invertedAtom,
+        config: candidateConfiguration,
+        metricsAfter: evaluation,
+        metricsDeltaFromCurrent,
+        absCostDelta: Math.abs(metricsDeltaFromCurrent.cost),
+      };
+
+      if (!bestCandidate || compareReverseGreedyCandidates(candidate, bestCandidate) < 0) {
+        bestCandidate = candidate;
+      }
+    }
+
+    if (!bestCandidate) {
+      const report: AdditionalityReport = {
+        ...buildReportBase(
+          options,
+          method,
+          baseEvaluation,
+          targetEvaluation,
+          prepared.atoms.length,
+          completedRef.completed,
+          {},
+        ),
+        sequenceComplete: false,
+        sequence: [],
+        skippedCandidates,
+      };
+
+      return {
+        phase: 'partial',
+        report,
+        progress: toProgress(completedRef.completed, totalExpected),
+        error: `Stopped at step ${step} because every remaining candidate solve failed.`,
+        validationIssues: [],
+      };
+    }
+
+    removalSequence.push({
+      step,
+      atom: bestCandidate.atom,
+      metricsBefore: currentMetrics,
+      metricsAfter: bestCandidate.metricsAfter,
+      metricsDeltaFromCurrent: bestCandidate.metricsDeltaFromCurrent,
+      absCostDelta: bestCandidate.absCostDelta,
+      skippedCandidateCount,
+    });
+
+    currentConfiguration = bestCandidate.config;
+    currentMetrics = bestCandidate.metricsAfter;
+    remainingAtoms = remainingAtoms.filter((atom) => atom.key !== bestCandidate.atom.key);
+  }
+
+  const presentationSequence = buildPresentationSequence(removalSequence);
+
+  const report: AdditionalityReport = {
+    ...buildReportBase(
+      options,
+      method,
+      baseEvaluation,
+      targetEvaluation,
+      prepared.atoms.length,
+      completedRef.completed,
+      {},
+    ),
+    sequenceComplete: true,
+    sequence: presentationSequence,
+    skippedCandidates,
+  };
+
+  return {
+    phase: 'success',
+    report,
+    progress: toProgress(completedRef.completed, totalExpected),
+    error: null,
+    validationIssues: [],
+  };
+}
+
+async function runShapleyAnalysis(
+  options: AdditionalityRunOptions,
+  dependencies: Required<Pick<AdditionalityRunDependencies, 'buildRequest' | 'solve'>> & Pick<AdditionalityRunDependencies, 'isCancelled' | 'onProgress'>,
+  prepared: AdditionalityPreparation,
+  sampleCount: AdditionalityShapleySampleCount,
+): Promise<AdditionalityAnalysisState> {
+  const method: AdditionalityOrderingMethod = 'shapley_permutation_sample';
+  const totalExpected = prepared.totalExpected;
+  const completedRef = { completed: 0 };
+  const evaluationCache = new Map<string, EvaluationResult>();
+
+  async function evaluateCached(
+    configuration: ConfigurationDocument,
+    label: string,
+  ): Promise<EvaluationResult> {
+    const key = stableStringify(configuration);
+    const cached = evaluationCache.get(key);
+    if (cached) {
+      return cached;
+    }
+
+    const evaluation = await evaluateMetricsWithProgress(
+      options,
+      dependencies,
+      configuration,
+      label,
+      completedRef,
+      totalExpected,
+    );
+    evaluationCache.set(key, evaluation);
+    return evaluation;
+  }
+
+  const baseEvaluation = await evaluateCached(prepared.baseConfiguration, 'Base configuration');
+  if (isEvaluationError(baseEvaluation)) {
+    return {
+      phase: 'error',
+      report: null,
+      progress: toProgress(completedRef.completed, totalExpected),
+      error: baseEvaluation.error,
+      validationIssues: [],
+    };
+  }
+
+  const targetEvaluation = await evaluateCached(prepared.targetConfiguration, 'Focus configuration');
+  if (isEvaluationError(targetEvaluation)) {
+    return {
+      phase: 'error',
+      report: null,
+      progress: toProgress(completedRef.completed, totalExpected),
+      error: targetEvaluation.error,
+      validationIssues: [],
+    };
+  }
+
+  const accumulators = new Map(
+    prepared.atoms.map((atom) => [atom.key, createEmptyMetricVector()]),
+  );
+  const skippedPermutationErrors: string[] = [];
+  let completedPermutations = 0;
+
+  for (let permutationIndex = 0; permutationIndex < sampleCount; permutationIndex += 1) {
+    checkCancelled(dependencies.isCancelled);
+
+    const permutation = buildDeterministicPermutation(
+      prepared.atoms,
+      stableStringify({
+        baseConfigId: options.baseConfigId,
+        targetConfigId: options.targetConfigId,
+        atomKeys: prepared.atoms.map((atom) => atom.key),
+        sampleCount,
+        permutationIndex,
+      }),
+    );
+    let currentConfiguration = structuredClone(prepared.baseConfiguration);
+    let currentMetrics = baseEvaluation;
+    const permutationMarginals = new Map<string, AdditionalityMetricVector>();
+    let permutationError: string | null = null;
+
+    for (const atom of permutation) {
+      currentConfiguration = applyAdditionalityAtom(
+        currentConfiguration,
+        atom,
+        options.pkg,
+      );
+      const evaluation = await evaluateCached(
+        currentConfiguration,
+        `Permutation ${permutationIndex + 1}: ${atom.outputLabel ?? 'Global'} / ${atom.label}`,
+      );
+
+      if (isEvaluationError(evaluation)) {
+        permutationError = evaluation.error;
+        break;
+      }
+
+      permutationMarginals.set(atom.key, subtractMetricVectors(evaluation, currentMetrics));
+      currentMetrics = evaluation;
+    }
+
+    if (permutationError) {
+      skippedPermutationErrors.push(permutationError);
+      continue;
+    }
+
+    completedPermutations += 1;
+    for (const [atomKey, marginal] of permutationMarginals.entries()) {
+      const accumulator = accumulators.get(atomKey);
+      if (accumulator) {
+        addMetricVectorInPlace(accumulator, marginal);
+      }
+    }
+  }
+
+  if (completedPermutations === 0) {
+    return {
+      phase: 'error',
+      report: null,
+      progress: toProgress(completedRef.completed, totalExpected),
+      error: 'Sampled Shapley attribution failed because zero permutations completed.',
+      validationIssues: [],
+    };
+  }
+
+  let cumulativeMetrics = cloneMetricVector(baseEvaluation);
+  const sequence = [...prepared.atoms].sort(compareAtoms).map((atom, index) => {
+    const averageMarginal = divideMetricVector(
+      accumulators.get(atom.key) ?? createEmptyMetricVector(),
+      completedPermutations,
+    );
+    const metricsBefore = cloneMetricVector(cumulativeMetrics);
+    const metricsAfter = cloneMetricVector(cumulativeMetrics);
+    addMetricVectorInPlace(metricsAfter, averageMarginal);
+    cumulativeMetrics = metricsAfter;
+
+    return {
+      step: index + 1,
+      atom,
+      metricsBefore,
+      metricsAfter,
+      metricsDeltaFromCurrent: averageMarginal,
+      absCostDelta: Math.abs(averageMarginal.cost),
+      skippedCandidateCount: 0,
+    };
+  });
+
+  const report: AdditionalityReport = {
+    ...buildReportBase(
+      options,
+      method,
+      baseEvaluation,
+      targetEvaluation,
+      prepared.atoms.length,
+      completedRef.completed,
+      {
+        sampleCount,
+        requestedPermutations: sampleCount,
+        completedPermutations,
+        skippedPermutations: sampleCount - completedPermutations,
+        skippedPermutationErrors,
+      },
+    ),
+    sequenceComplete: true,
+    sequence,
+    skippedCandidates: [],
+  };
+
+  return {
+    phase: 'success',
+    report,
+    progress: toProgress(completedRef.completed, totalExpected),
+    error: null,
+    validationIssues: [],
   };
 }
 
@@ -639,13 +1572,15 @@ export async function runAdditionalityAnalysis(
   options: AdditionalityRunOptions,
   dependencies: AdditionalityRunDependencies = {},
 ): Promise<AdditionalityAnalysisState> {
-  const {
-    buildRequest = buildSolveRequest,
-    isCancelled,
-    onProgress,
-    solve,
-  } = dependencies;
-  const prepared = prepareAdditionalityAnalysis(options);
+  const method = resolveAdditionalityMethod(options.method);
+  const shapleySampleCount = resolveShapleySampleCount(options.shapleySampleCount);
+  const buildRequest = dependencies.buildRequest ?? buildSolveRequest;
+  const solve = dependencies.solve;
+  const prepared = prepareAdditionalityAnalysis({
+    ...options,
+    method,
+    shapleySampleCount,
+  });
 
   if (prepared.validationIssues.length > 0) {
     return {
@@ -670,191 +1605,19 @@ export async function runAdditionalityAnalysis(
   if (!solve) {
     throw new Error('runAdditionalityAnalysis requires a solve function.');
   }
-  const solveRequest = solve;
 
-  const outputLabelById = Object.fromEntries(
-    Object.entries(options.pkg.appConfig.output_roles).map(([outputId, metadata]) => [outputId, metadata.display_label]),
-  );
-  const catalog = buildOutputStateCatalog(options.pkg.sectorStates, outputLabelById);
-  const skippedCandidates: AdditionalitySkippedCandidate[] = [];
-  const totalExpected = prepared.totalExpected;
-  let completed = 0;
-
-  function advanceProgress(): void {
-    completed += 1;
-    onProgress?.(toProgress(completed, totalExpected));
-  }
-
-  async function evaluateMetrics(
-    configuration: ConfigurationDocument,
-    label: string,
-  ): Promise<AdditionalityMetricSnapshot | { error: string }> {
-    checkCancelled(isCancelled);
-    let request: SolveRequest;
-
-    try {
-      request = buildRequest(options.pkg, configuration);
-    } catch (error) {
-      advanceProgress();
-      return {
-        error: formatBuildFailure(label, error),
-      };
-    }
-
-    try {
-      const result = await solveRequest(request);
-      return buildMetricSnapshot(label, request, result);
-    } catch (error) {
-      if (error instanceof AdditionalityCancelledError) {
-        throw error;
-      }
-
-      return {
-        error: error instanceof Error ? error.message : String(error),
-      };
-    } finally {
-      advanceProgress();
-    }
-  }
-
-  const baseEvaluation = await evaluateMetrics(prepared.baseConfiguration, 'Base configuration');
-  if ('error' in baseEvaluation) {
-    return {
-      phase: 'error',
-      report: null,
-      progress: toProgress(completed, totalExpected),
-      error: baseEvaluation.error,
-      validationIssues: [],
-    };
-  }
-
-  const targetEvaluation = await evaluateMetrics(prepared.targetConfiguration, 'Target configuration');
-  if ('error' in targetEvaluation) {
-    return {
-      phase: 'error',
-      report: null,
-      progress: toProgress(completed, totalExpected),
-      error: targetEvaluation.error,
-      validationIssues: [],
-    };
-  }
-
-  let currentConfiguration = structuredClone(prepared.targetConfiguration);
-  let currentMetrics = targetEvaluation;
-  let remainingAtoms = [...prepared.atoms];
-  const removalSequence: AdditionalitySequenceEntry[] = [];
-
-  for (let step = 1; remainingAtoms.length > 0; step += 1) {
-    checkCancelled(isCancelled);
-
-    let bestCandidate: AdditionalityCandidate | null = null;
-    let skippedCandidateCount = 0;
-
-    for (const atom of remainingAtoms) {
-      checkCancelled(isCancelled);
-
-      const invertedAtom: AdditionalityAtom = {
-        ...atom,
-        action: invertAdditionalityAtomAction(atom.action),
-      };
-      const candidateConfiguration = applyAdditionalityAtomWithCatalog(
-        currentConfiguration,
-        invertedAtom,
-        catalog,
-      );
-      const evaluation = await evaluateMetrics(
-        candidateConfiguration,
-        `Candidate ${step}: ${atom.outputLabel} / ${atom.stateLabel}`,
-      );
-
-      if ('error' in evaluation) {
-        skippedCandidateCount += 1;
-        skippedCandidates.push({
-          step,
-          atom,
-          message: evaluation.error,
-        });
-        continue;
-      }
-
-      const metricsDeltaFromCurrent = subtractMetricSnapshots(evaluation, currentMetrics);
-      const candidate: AdditionalityCandidate = {
-        atom: invertedAtom,
-        config: candidateConfiguration,
-        metricsAfter: evaluation,
-        metricsDeltaFromCurrent,
-        absObjectiveDelta: Math.abs(metricsDeltaFromCurrent.objective),
-      };
-
-      if (!bestCandidate || compareReverseGreedyCandidates(candidate, bestCandidate) < 0) {
-        bestCandidate = candidate;
-      }
-    }
-
-    if (!bestCandidate) {
-      const report: AdditionalityReport = {
-        orderingMethod: 'reverse_greedy_target_context',
-        sequenceComplete: false,
-        baseConfigId: options.baseConfigId,
-        targetConfigId: options.targetConfigId,
-        baseMetrics: baseEvaluation,
-        targetMetrics: targetEvaluation,
-        totalObjectiveDelta: targetEvaluation.objective - baseEvaluation.objective,
-        atomCount: prepared.atoms.length,
-        solveCount: completed,
-        sequence: [],
-        skippedCandidates,
-        validationIssues: [],
-      };
-
-      return {
-        phase: 'partial',
-        report,
-        progress: toProgress(completed, totalExpected),
-        error: `Stopped at step ${step} because every remaining candidate solve failed.`,
-        validationIssues: [],
-      };
-    }
-
-    removalSequence.push({
-      step,
-      atom: bestCandidate.atom,
-      metricsBefore: currentMetrics,
-      metricsAfter: bestCandidate.metricsAfter,
-      metricsDeltaFromCurrent: bestCandidate.metricsDeltaFromCurrent,
-      absObjectiveDelta: bestCandidate.absObjectiveDelta,
-      skippedCandidateCount,
-    });
-
-    currentConfiguration = bestCandidate.config;
-    currentMetrics = bestCandidate.metricsAfter;
-    remainingAtoms = remainingAtoms.filter((atom) => atom.key !== bestCandidate.atom.key);
-  }
-
-  const presentationSequence = buildPresentationSequence(removalSequence);
-
-  const report: AdditionalityReport = {
-    orderingMethod: 'reverse_greedy_target_context',
-    sequenceComplete: true,
-    baseConfigId: options.baseConfigId,
-    targetConfigId: options.targetConfigId,
-    baseMetrics: baseEvaluation,
-    targetMetrics: targetEvaluation,
-    totalObjectiveDelta: targetEvaluation.objective - baseEvaluation.objective,
-    atomCount: prepared.atoms.length,
-    solveCount: completed,
-    sequence: presentationSequence,
-    skippedCandidates,
-    validationIssues: [],
+  const requiredDependencies = {
+    buildRequest,
+    isCancelled: dependencies.isCancelled,
+    onProgress: dependencies.onProgress,
+    solve,
   };
 
-  return {
-    phase: 'success',
-    report,
-    progress: toProgress(completed, totalExpected),
-    error: null,
-    validationIssues: [],
-  };
+  if (method === 'shapley_permutation_sample') {
+    return runShapleyAnalysis(options, requiredDependencies, prepared, shapleySampleCount);
+  }
+
+  return runReverseGreedyAnalysis(options, requiredDependencies, prepared);
 }
 
 export function isAdditionalityCancelledError(error: unknown): boolean {

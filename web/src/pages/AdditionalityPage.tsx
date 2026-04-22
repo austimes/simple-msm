@@ -3,25 +3,33 @@ import HorizontalWaterfallChart from '../components/charts/HorizontalWaterfallCh
 import { useAppUiStore } from '../data/appUiStore.ts';
 import { usePackageStore } from '../data/packageStore.ts';
 import { getConfigurationId } from '../data/configurationLoader.ts';
-import { resolveAdditionalityPair } from '../data/configurationPairModel.ts';
-import { PRICE_LEVELS, type PriceLevel } from '../data/types.ts';
+import { selectInitialSavedPair } from '../data/configurationPairModel.ts';
+import { PRICE_LEVELS, type ConfigurationDocument, type PriceLevel } from '../data/types.ts';
 import {
+  ADDITIONALITY_SHAPLEY_SAMPLE_COUNTS,
+  DEFAULT_ADDITIONALITY_METHOD,
+  DEFAULT_ADDITIONALITY_SHAPLEY_SAMPLE_COUNT,
   seedAdditionalityCommoditySelections,
   type AdditionalityAnalysisState,
+  type AdditionalityAtomAction,
+  type AdditionalityAtomCategory,
+  type AdditionalityAtomKind,
+  type AdditionalityOrderingMethod,
 } from '../additionality/additionalityAnalysis.ts';
 import { useAdditionalityAnalysis } from '../hooks/useAdditionalityAnalysis.ts';
 import { useAvailableConfigurations } from '../hooks/useAvailableConfigurations.ts';
 import {
   buildAdditionalityReferenceRows,
-  buildAdditionalityWaterfallRows,
+  buildAdditionalitySavingsStackRows,
   getAdditionalityMetricPresentation,
 } from './additionalityPageModel.ts';
 
 void React;
 
-const objectiveMetricPresentation = getAdditionalityMetricPresentation('objective');
-const emissionsMetricPresentation = getAdditionalityMetricPresentation('cumulativeEmissions');
-const electricityMetricPresentation = getAdditionalityMetricPresentation('electricityDemand2050');
+const costMetricPresentation = getAdditionalityMetricPresentation('cost');
+const emissionsMetricPresentation = getAdditionalityMetricPresentation('emissions');
+const fuelEnergyMetricPresentation = getAdditionalityMetricPresentation('fuelEnergy');
+const MAX_FOCUS_SCENARIOS = 3;
 
 interface AdditionalityConfigurationOption {
   description?: string;
@@ -29,44 +37,80 @@ interface AdditionalityConfigurationOption {
   label: string;
 }
 
-export interface AdditionalityPageViewProps {
+export interface AdditionalityScenarioViewState {
   analysisState: AdditionalityAnalysisState;
+  focusConfigId: string | null;
+  focusLabel: string;
+  slotIndex: number;
+}
+
+export interface AdditionalityPageViewProps {
   baseConfigId: string | null;
   commodityOptions: Array<{ id: string; label: string }>;
   commoditySelections: Record<string, PriceLevel>;
   configurations: AdditionalityConfigurationOption[];
+  method: AdditionalityOrderingMethod;
   onBaseConfigChange: (configId: string) => void;
   onCommoditySelectionChange: (commodityId: string, level: PriceLevel) => void;
-  onFocusConfigChange: (configId: string) => void;
+  onFocusConfigChange: (slotIndex: number, configId: string | null) => void;
+  onMethodChange: (method: AdditionalityOrderingMethod) => void;
   onRecalculate: () => void;
+  onShapleySampleCountChange: (sampleCount: number) => void;
   recalculateDisabled: boolean;
-  focusConfigId: string | null;
+  scenarios: AdditionalityScenarioViewState[];
+  selectedFocusConfigIds: string[];
+  shapleySampleCount: number;
 }
 
-function formatAction(action: 'enable' | 'disable'): string {
+function formatAction(action: AdditionalityAtomAction): string {
   return action === 'enable' ? 'Enable' : 'Disable';
+}
+
+function formatAtomKind(kind: AdditionalityAtomKind): string {
+  switch (kind) {
+    case 'state':
+      return 'State';
+    case 'efficiency_package':
+      return 'Efficiency package';
+    case 'autonomous_efficiency':
+      return 'Autonomous efficiency';
+    default:
+      return kind;
+  }
+}
+
+function formatAtomCategory(category: AdditionalityAtomCategory): string {
+  switch (category) {
+    case 'efficiency':
+      return 'Efficiency';
+    case 'fuel_switching':
+      return 'Fuel switching';
+    case 'other_state_change':
+      return 'Other state change';
+    default:
+      return category;
+  }
 }
 
 function buildOrderedStepLabel(
   atom: {
-    outputLabel: string;
-    action: 'enable' | 'disable';
-    stateLabel: string;
+    outputLabel: string | null;
+    label: string;
   },
 ): string {
-  return `${atom.outputLabel}: ${formatAction(atom.action)} ${atom.stateLabel}`;
+  return atom.outputLabel ? `${atom.outputLabel}: ${atom.label}` : atom.label;
 }
 
 function buildStatusLine(analysisState: AdditionalityAnalysisState): string {
   switch (analysisState.phase) {
     case 'idle':
-      return 'Choose two saved configurations to run the additionality sequence.';
+      return 'Choose saved configurations to run scenario savings attribution.';
     case 'loading':
-      return `Running additionality analysis: ${analysisState.progress.completed}/${analysisState.progress.totalExpected} evaluations completed.`;
+      return `Running attribution: ${analysisState.progress.completed}/${analysisState.progress.totalExpected} evaluations completed.`;
     case 'validation':
       return `${analysisState.validationIssues.length} unsupported differences block this pair.`;
     case 'empty':
-      return 'No pathway state toggles differ between the selected configurations.';
+      return 'No attributable state, efficiency package, or autonomous efficiency differences were found.';
     case 'partial':
       return analysisState.error
         ?? 'Analysis stopped early because the remaining candidate solves failed.';
@@ -74,7 +118,7 @@ function buildStatusLine(analysisState: AdditionalityAnalysisState): string {
       return analysisState.error ?? 'Additionality analysis failed.';
     case 'success':
       return analysisState.report
-        ? `Analysis complete: ${analysisState.report.solveCount}/${analysisState.progress.totalExpected} evaluations completed.`
+        ? `Analysis complete: ${analysisState.report.solveCount} solves completed.`
         : 'Analysis complete.';
     default:
       return '';
@@ -90,36 +134,53 @@ function buildPriceSummary(
     .join(' | ');
 }
 
-export function AdditionalityPageView({
-  analysisState,
-  baseConfigId,
-  commodityOptions,
-  commoditySelections,
-  configurations,
-  onBaseConfigChange,
-  onCommoditySelectionChange,
-  onFocusConfigChange,
-  onRecalculate,
-  recalculateDisabled,
-  focusConfigId,
-}: AdditionalityPageViewProps) {
-  const report = analysisState.report;
-  const statusLine = buildStatusLine(analysisState);
-  const priceSummary = buildPriceSummary(commodityOptions, commoditySelections);
+function buildMethodSummary(analysisState: AdditionalityAnalysisState): string {
+  const metadata = analysisState.report?.methodMetadata;
+  if (!metadata) {
+    return '';
+  }
+
+  if (metadata.method === 'shapley_permutation_sample') {
+    return `Shapley permutations: ${metadata.completedPermutations ?? 0}/${metadata.requestedPermutations ?? 0} completed; ${metadata.skippedPermutations ?? 0} skipped; ${metadata.solveCount} solves.`;
+  }
+
+  return `Reverse-greedy target-context ordering; ${metadata.solveCount} solves.`;
+}
+
+function AdditionalityScenarioPanel({
+  scenario,
+}: {
+  scenario: AdditionalityScenarioViewState;
+}) {
+  const report = scenario.analysisState.report;
+  const statusLine = buildStatusLine(scenario.analysisState);
   const orderedLabels = report?.sequence.map((entry) => buildOrderedStepLabel(entry.atom)) ?? [];
-  const referenceLabels = report?.sequence.map((entry) => entry.atom.stateLabel) ?? [];
+  const referenceWaterfallData = report
+    ? buildAdditionalityReferenceRows(report.sequence, orderedLabels)
+    : [];
+  const costStackData = report
+    ? buildAdditionalitySavingsStackRows(report, costMetricPresentation.metric, orderedLabels)
+    : [];
+  const emissionsStackData = report
+    ? buildAdditionalitySavingsStackRows(report, emissionsMetricPresentation.metric, orderedLabels)
+    : [];
+  const fuelEnergyStackData = report
+    ? buildAdditionalitySavingsStackRows(report, fuelEnergyMetricPresentation.metric, orderedLabels)
+    : [];
   const reportInteractionScope = report
     ? [
         report.baseConfigId,
         report.targetConfigId,
+        report.orderingMethod,
+        report.methodMetadata.sampleCount ?? '',
         report.solveCount,
-        report.totalObjectiveDelta,
+        report.totalDelta.cost,
         report.sequence
           .map((entry) => [
             entry.atom.key,
-            entry.metricsDeltaFromCurrent.objective,
-            entry.metricsDeltaFromCurrent.cumulativeEmissions,
-            entry.metricsDeltaFromCurrent.electricityDemand2050,
+            entry.metricsDeltaFromCurrent.cost,
+            entry.metricsDeltaFromCurrent.emissions,
+            entry.metricsDeltaFromCurrent.fuelEnergy,
           ].join(':'))
           .join('|'),
       ].join('::')
@@ -134,34 +195,265 @@ export function AdditionalityPageView({
   const activeInteractionKey = interactionState.scope === reportInteractionScope
     ? interactionState.interactionKey
     : null;
-
   const sharedChartHeight = report
     ? Math.max(180, report.sequence.length * 12 + 48)
     : 180;
-  const referenceWaterfallData = report
-    ? buildAdditionalityReferenceRows(report.sequence, referenceLabels)
-    : [];
-  const objectiveWaterfallData = report
-    ? buildAdditionalityWaterfallRows(report.sequence, objectiveMetricPresentation.metric, orderedLabels)
-    : [];
-  const emissionsWaterfallData = report
-    ? buildAdditionalityWaterfallRows(report.sequence, emissionsMetricPresentation.metric, orderedLabels)
-    : [];
-  const electricityWaterfallData = report
-    ? buildAdditionalityWaterfallRows(report.sequence, electricityMetricPresentation.metric, orderedLabels)
-    : [];
+  const methodSummary = buildMethodSummary(scenario.analysisState);
+
+  return (
+    <section className="additionality-scenario-card configuration-panel">
+      <div className="additionality-scenario-heading">
+        <div>
+          <span className="configuration-badge">Focus {scenario.slotIndex + 1}</span>
+          <h2>{scenario.focusLabel}</h2>
+        </div>
+        <p className="additionality-status-line">{statusLine}</p>
+      </div>
+
+      {scenario.analysisState.phase === 'validation' ? (
+        <div className="additionality-inline-panel">
+          <h3>Unsupported pair</h3>
+          <ul className="additionality-issue-list">
+            {scenario.analysisState.validationIssues.map((issue) => (
+              <li key={`${issue.code}:${issue.outputId ?? 'global'}`}>{issue.message}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {scenario.analysisState.phase === 'error' ? (
+        <div className="additionality-inline-panel">
+          <h3>Analysis blocked</h3>
+          <p>{scenario.analysisState.error}</p>
+        </div>
+      ) : null}
+
+      {scenario.analysisState.phase === 'empty' ? (
+        <div className="additionality-inline-panel">
+          <h3>No attributable differences</h3>
+          <p>
+            The selected pair passes validation, but no supported state,
+            efficiency-package, or autonomous-efficiency atoms differ.
+          </p>
+        </div>
+      ) : null}
+
+      {report ? (
+        <>
+          <div className="additionality-summary-grid additionality-summary-grid--scenario">
+            <article className="additionality-summary-card">
+              <h3>Base total</h3>
+              <strong>{costMetricPresentation.formatAbsoluteValue(report.baseMetrics.cost)}</strong>
+            </article>
+            <article className="additionality-summary-card">
+              <h3>Focus total</h3>
+              <strong>{costMetricPresentation.formatAbsoluteValue(report.targetMetrics.cost)}</strong>
+            </article>
+            <article className="additionality-summary-card">
+              <h3>Cost savings</h3>
+              <strong>{costMetricPresentation.formatSignedValue(report.baseMetrics.cost - report.targetMetrics.cost)}</strong>
+            </article>
+            <article className="additionality-summary-card">
+              <h3>Atoms</h3>
+              <strong>{report.atomCount}</strong>
+            </article>
+            <article className="additionality-summary-card">
+              <h3>Solves</h3>
+              <strong>{report.solveCount}</strong>
+            </article>
+          </div>
+
+          {methodSummary ? (
+            <p className="additionality-status-line">{methodSummary}</p>
+          ) : null}
+
+          {scenario.analysisState.phase === 'partial' ? (
+            <div className="additionality-inline-panel">
+              <h3>Partial analysis</h3>
+              <p>Analysis could not reconstruct a full base-to-focus ordering because some intermediate solves failed.</p>
+            </div>
+          ) : null}
+
+          {report.sequenceComplete ? (
+            <>
+              <p className="additionality-status-line">
+                Wedges are shown as Base minus Focus savings from the Focus actual layer back to Base.
+                Negative wedges are retained as cost, emissions, or fuel/energy increases.
+              </p>
+              <div className="additionality-chart-grid">
+                <article className="additionality-chart-panel">
+                  <HorizontalWaterfallChart
+                    title="Attribution atoms reference"
+                    data={referenceWaterfallData}
+                    height={sharedChartHeight}
+                    baseValue={0}
+                    targetValue={0}
+                    totalDelta={0}
+                    activeInteractionKey={activeInteractionKey}
+                    onInteractionHover={(interactionKey) => {
+                      setInteractionState({
+                        interactionKey,
+                        scope: reportInteractionScope,
+                      });
+                    }}
+                    pinZeroToLeft={true}
+                    showActiveValueLabel={false}
+                    showCategoryAxis={true}
+                    showHeaderSummary={false}
+                    showLegend={false}
+                    showXAxisTicks={false}
+                  />
+                </article>
+                <article className="additionality-chart-panel">
+                  <HorizontalWaterfallChart
+                    title="Cost savings attribution"
+                    valueFormatter={costMetricPresentation.formatSignedValue}
+                    absoluteValueFormatter={costMetricPresentation.formatAbsoluteValue}
+                    data={costStackData}
+                    height={sharedChartHeight}
+                    baseValue={report.targetMetrics.cost}
+                    baseLabel="Focus"
+                    targetValue={report.baseMetrics.cost}
+                    targetLabel="Base"
+                    totalDelta={report.baseMetrics.cost - report.targetMetrics.cost}
+                    activeInteractionKey={activeInteractionKey}
+                    onInteractionHover={(interactionKey) => {
+                      setInteractionState({
+                        interactionKey,
+                        scope: reportInteractionScope,
+                      });
+                    }}
+                    positiveLegendLabel="Savings"
+                    negativeLegendLabel="Increase"
+                    showCategoryAxis={false}
+                  />
+                </article>
+                <article className="additionality-chart-panel">
+                  <HorizontalWaterfallChart
+                    title="Emissions savings attribution"
+                    valueFormatter={emissionsMetricPresentation.formatSignedValue}
+                    absoluteValueFormatter={emissionsMetricPresentation.formatAbsoluteValue}
+                    data={emissionsStackData}
+                    height={sharedChartHeight}
+                    baseValue={report.targetMetrics.emissions}
+                    baseLabel="Focus"
+                    targetValue={report.baseMetrics.emissions}
+                    targetLabel="Base"
+                    totalDelta={report.baseMetrics.emissions - report.targetMetrics.emissions}
+                    activeInteractionKey={activeInteractionKey}
+                    onInteractionHover={(interactionKey) => {
+                      setInteractionState({
+                        interactionKey,
+                        scope: reportInteractionScope,
+                      });
+                    }}
+                    positiveLegendLabel="Savings"
+                    negativeLegendLabel="Increase"
+                    showCategoryAxis={false}
+                  />
+                </article>
+                <article className="additionality-chart-panel">
+                  <HorizontalWaterfallChart
+                    title="Fuel/energy savings attribution"
+                    valueFormatter={fuelEnergyMetricPresentation.formatSignedValue}
+                    absoluteValueFormatter={fuelEnergyMetricPresentation.formatAbsoluteValue}
+                    data={fuelEnergyStackData}
+                    height={sharedChartHeight}
+                    baseValue={report.targetMetrics.fuelEnergy}
+                    baseLabel="Focus"
+                    targetValue={report.baseMetrics.fuelEnergy}
+                    targetLabel="Base"
+                    totalDelta={report.baseMetrics.fuelEnergy - report.targetMetrics.fuelEnergy}
+                    activeInteractionKey={activeInteractionKey}
+                    onInteractionHover={(interactionKey) => {
+                      setInteractionState({
+                        interactionKey,
+                        scope: reportInteractionScope,
+                      });
+                    }}
+                    positiveLegendLabel="Savings"
+                    negativeLegendLabel="Increase"
+                    showCategoryAxis={false}
+                  />
+                </article>
+              </div>
+
+              <div className="additionality-table-shell">
+                <table className="additionality-table additionality-table--atoms">
+                  <thead>
+                    <tr>
+                      <th scope="col">Atom kind</th>
+                      <th scope="col">Category</th>
+                      <th scope="col">Action</th>
+                      <th scope="col">Output</th>
+                      <th scope="col">Label</th>
+                      <th scope="col">Cost savings ($B)</th>
+                      <th scope="col">Emissions savings (MtCO2e)</th>
+                      <th scope="col">Fuel/energy savings (PJ)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {report.sequence.map((entry) => (
+                      <tr key={entry.atom.key}>
+                        <td>{formatAtomKind(entry.atom.kind)}</td>
+                        <td>{formatAtomCategory(entry.atom.category)}</td>
+                        <td>{formatAction(entry.atom.action)}</td>
+                        <td>{entry.atom.outputLabel ?? 'All outputs'}</td>
+                        <td>{entry.atom.label}</td>
+                        <td>{costMetricPresentation.formatSignedValue(-entry.metricsDeltaFromCurrent.cost)}</td>
+                        <td>{emissionsMetricPresentation.formatSignedValue(-entry.metricsDeltaFromCurrent.emissions)}</td>
+                        <td>{fuelEnergyMetricPresentation.formatSignedValue(-entry.metricsDeltaFromCurrent.fuelEnergy)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {report.skippedCandidates.length > 0 ? (
+                <p className="additionality-skipped-note">
+                  Skipped candidates: {report.skippedCandidates.length}
+                </p>
+              ) : null}
+            </>
+          ) : null}
+        </>
+      ) : null}
+    </section>
+  );
+}
+
+export function AdditionalityPageView({
+  baseConfigId,
+  commodityOptions,
+  commoditySelections,
+  configurations,
+  method,
+  onBaseConfigChange,
+  onCommoditySelectionChange,
+  onFocusConfigChange,
+  onMethodChange,
+  onRecalculate,
+  onShapleySampleCountChange,
+  recalculateDisabled,
+  scenarios,
+  selectedFocusConfigIds,
+  shapleySampleCount,
+}: AdditionalityPageViewProps) {
+  const priceSummary = buildPriceSummary(commodityOptions, commoditySelections);
+  const focusSlotCount = Math.max(1, Math.min(MAX_FOCUS_SCENARIOS, selectedFocusConfigIds.length + 1));
+  const focusSlots = Array.from({ length: focusSlotCount }, (_, index) => index);
 
   return (
     <div className="page page--additionality">
       <h1>Additionality</h1>
       <p>
-        Compare two saved configurations, hold commodity prices constant as a page-local
-        sensitivity, and trace how the reverse-greedy transition sequence builds the difference
-        between the base and focus configurations.
+        Compare a saved Base configuration with up to three saved Focus scenarios, hold
+        commodity prices constant as a page-local sensitivity, and attribute cost,
+        emissions, and fuel/energy savings to supported UI-level changes.
       </p>
 
       <section className="configuration-panel configuration-panel--hero">
-        <span className="configuration-badge">State-toggle delta decomposition</span>
+        <span className="configuration-badge">Scenario savings attribution</span>
         <div className="configuration-form-grid">
           <label className="configuration-field">
             <span>Base configuration</span>
@@ -178,20 +470,57 @@ export function AdditionalityPageView({
             </select>
           </label>
 
-          <label className="configuration-field">
-            <span>Focus configuration</span>
-            <select
-              className="configuration-input"
-              value={focusConfigId ?? ''}
-              onChange={(event) => onFocusConfigChange(event.target.value)}
+          {focusSlots.map((slotIndex) => (
+            <label key={slotIndex} className="configuration-field">
+              <span>Focus scenario {slotIndex + 1}</span>
+              <select
+                className="configuration-input"
+                value={selectedFocusConfigIds[slotIndex] ?? ''}
+                onChange={(event) => onFocusConfigChange(slotIndex, event.target.value || null)}
+              >
+                {slotIndex > 0 ? <option value="">No focus scenario</option> : null}
+                {configurations.map((configuration) => (
+                  <option key={configuration.id} value={configuration.id}>
+                    {configuration.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ))}
+        </div>
+
+        <div className="additionality-method-row">
+          <div className="additionality-method-group" role="group" aria-label="Attribution method">
+            <button
+              type="button"
+              className={`additionality-price-pill${method === 'reverse_greedy_target_context' ? ' additionality-price-pill--active' : ''}`}
+              onClick={() => onMethodChange('reverse_greedy_target_context')}
             >
-              {configurations.map((configuration) => (
-                <option key={configuration.id} value={configuration.id}>
-                  {configuration.label}
-                </option>
-              ))}
-            </select>
-          </label>
+              Reverse greedy
+            </button>
+            <button
+              type="button"
+              className={`additionality-price-pill${method === 'shapley_permutation_sample' ? ' additionality-price-pill--active' : ''}`}
+              onClick={() => onMethodChange('shapley_permutation_sample')}
+            >
+              Shapley sample
+            </button>
+          </div>
+
+          {method === 'shapley_permutation_sample' ? (
+            <label className="configuration-field additionality-sample-field">
+              <span>Samples</span>
+              <select
+                className="configuration-input"
+                value={shapleySampleCount}
+                onChange={(event) => onShapleySampleCountChange(Number(event.target.value))}
+              >
+                {ADDITIONALITY_SHAPLEY_SAMPLE_COUNTS.map((count) => (
+                  <option key={count} value={count}>{count}</option>
+                ))}
+              </select>
+            </label>
+          ) : null}
         </div>
 
         <div className="additionality-price-grid">
@@ -229,258 +558,111 @@ export function AdditionalityPageView({
         </div>
 
         <p className="additionality-price-summary">Price scenario: {priceSummary}</p>
-        <p className="additionality-status-line">{statusLine}</p>
+        <p className="additionality-status-line">
+          {method === 'shapley_permutation_sample'
+            ? 'Sampled Shapley averages deterministic prefix marginals across seeded permutations.'
+            : 'Reverse greedy removes the least-impact remaining atom from Focus, then presents the path Base to Focus.'}
+        </p>
       </section>
 
-      {analysisState.phase === 'validation' ? (
-        <section className="configuration-panel">
-          <h2>Unsupported pair</h2>
-          <ul className="additionality-issue-list">
-            {analysisState.validationIssues.map((issue) => (
-              <li key={`${issue.code}:${issue.outputId ?? 'global'}`}>{issue.message}</li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
-      {analysisState.phase === 'error' ? (
-        <section className="configuration-panel">
-          <h2>Analysis blocked</h2>
-          <p>{analysisState.error}</p>
-        </section>
-      ) : null}
-
-      {analysisState.phase === 'empty' ? (
-        <section className="configuration-panel">
-          <h2>No state deltas</h2>
-          <p>
-            The selected configurations pass validation, but they do not differ on any active
-            pathway states under the v1 contract.
-          </p>
-        </section>
-      ) : null}
-
-      {report ? (
-        <>
-          <section className="additionality-summary-grid">
-            <article className="configuration-panel additionality-summary-card">
-              <h2>Base objective</h2>
-              <strong>{objectiveMetricPresentation.formatAbsoluteValue(report.baseMetrics.objective)}</strong>
-            </article>
-            <article className="configuration-panel additionality-summary-card">
-              <h2>Focus objective</h2>
-              <strong>{objectiveMetricPresentation.formatAbsoluteValue(report.targetMetrics.objective)}</strong>
-            </article>
-            <article className="configuration-panel additionality-summary-card">
-              <h2>Total delta</h2>
-              <strong>{objectiveMetricPresentation.formatSignedValue(report.totalObjectiveDelta)}</strong>
-            </article>
-            <article className="configuration-panel additionality-summary-card">
-              <h2>Atoms</h2>
-              <strong>{report.atomCount}</strong>
-            </article>
-            <article className="configuration-panel additionality-summary-card">
-              <h2>Completed solves</h2>
-              <strong>{report.solveCount}</strong>
-            </article>
-          </section>
-
-          {analysisState.phase === 'partial' ? (
-            <section className="configuration-panel">
-              <h2>Partial analysis</h2>
-              <p>Analysis could not reconstruct a full base→focus ordering because some intermediate solves failed.</p>
-            </section>
-          ) : null}
-
-          {report.sequenceComplete ? (
-            <>
-              <section>
-                <p className="additionality-status-line">
-                  Atoms are ordered by reverse-greedy elimination from the focus configuration:
-                  items whose removal changes the focus least are placed later, and the resulting
-                  order is then shown as a forward base→focus sequence. These waterfalls remain
-                  sequence-based and path-dependent; they are not a unique attribution of total delta.
-                </p>
-                <div className="additionality-chart-grid">
-                  <article className="configuration-panel">
-                    <HorizontalWaterfallChart
-                      title="Ordered steps reference"
-                      data={referenceWaterfallData}
-                      height={sharedChartHeight}
-                      baseValue={0}
-                      targetValue={0}
-                      totalDelta={0}
-                      activeInteractionKey={activeInteractionKey}
-                      onInteractionHover={(interactionKey) => {
-                        setInteractionState({
-                          interactionKey,
-                          scope: reportInteractionScope,
-                        });
-                      }}
-                      pinZeroToLeft={true}
-                      showActiveValueLabel={false}
-                      showCategoryAxis={true}
-                      showHeaderSummary={false}
-                      showLegend={false}
-                      showXAxisTicks={false}
-                    />
-                  </article>
-                  <article className="configuration-panel">
-                    <HorizontalWaterfallChart
-                      title="Objective delta waterfall"
-                      valueFormatter={objectiveMetricPresentation.formatSignedValue}
-                      absoluteValueFormatter={objectiveMetricPresentation.formatAbsoluteValue}
-                      data={objectiveWaterfallData}
-                      height={sharedChartHeight}
-                      baseValue={report.baseMetrics.objective}
-                      baseLabel="Base"
-                      targetValue={report.targetMetrics.objective}
-                      targetLabel="Focus"
-                      totalDelta={report.targetMetrics.objective - report.baseMetrics.objective}
-                      activeInteractionKey={activeInteractionKey}
-                      onInteractionHover={(interactionKey) => {
-                        setInteractionState({
-                          interactionKey,
-                          scope: reportInteractionScope,
-                        });
-                      }}
-                      positiveLegendLabel="Increase objective"
-                      negativeLegendLabel="Decrease objective"
-                      showCategoryAxis={false}
-                    />
-                  </article>
-                  <article className="configuration-panel">
-                    <HorizontalWaterfallChart
-                      title="Cumulative emissions delta waterfall"
-                      valueFormatter={emissionsMetricPresentation.formatSignedValue}
-                      absoluteValueFormatter={emissionsMetricPresentation.formatAbsoluteValue}
-                      data={emissionsWaterfallData}
-                      height={sharedChartHeight}
-                      baseValue={report.baseMetrics.cumulativeEmissions}
-                      baseLabel="Base"
-                      targetValue={report.targetMetrics.cumulativeEmissions}
-                      targetLabel="Focus"
-                      totalDelta={report.targetMetrics.cumulativeEmissions - report.baseMetrics.cumulativeEmissions}
-                      activeInteractionKey={activeInteractionKey}
-                      onInteractionHover={(interactionKey) => {
-                        setInteractionState({
-                          interactionKey,
-                          scope: reportInteractionScope,
-                        });
-                      }}
-                      positiveLegendLabel="Increase emissions"
-                      negativeLegendLabel="Decrease emissions"
-                      showCategoryAxis={false}
-                    />
-                  </article>
-                  <article className="configuration-panel">
-                    <HorizontalWaterfallChart
-                      title="2050 electricity demand delta waterfall"
-                      valueFormatter={electricityMetricPresentation.formatSignedValue}
-                      absoluteValueFormatter={electricityMetricPresentation.formatAbsoluteValue}
-                      data={electricityWaterfallData}
-                      height={sharedChartHeight}
-                      baseValue={report.baseMetrics.electricityDemand2050}
-                      baseLabel="Base"
-                      targetValue={report.targetMetrics.electricityDemand2050}
-                      targetLabel="Focus"
-                      totalDelta={report.targetMetrics.electricityDemand2050 - report.baseMetrics.electricityDemand2050}
-                      activeInteractionKey={activeInteractionKey}
-                      onInteractionHover={(interactionKey) => {
-                        setInteractionState({
-                          interactionKey,
-                          scope: reportInteractionScope,
-                        });
-                      }}
-                      positiveLegendLabel="Increase electricity demand"
-                      negativeLegendLabel="Decrease electricity demand"
-                      showCategoryAxis={false}
-                    />
-                  </article>
-                </div>
-              </section>
-
-              <section className="configuration-panel">
-                <h2>Ordered steps</h2>
-                <div className="additionality-table-shell">
-                  <table className="additionality-table">
-                    <thead>
-                      <tr>
-                        <th scope="col">Step</th>
-                        <th scope="col">Output</th>
-                        <th scope="col">State</th>
-                        <th scope="col">Action</th>
-                        <th scope="col">{objectiveMetricPresentation.tableHeaders.delta}</th>
-                        <th scope="col">{objectiveMetricPresentation.tableHeaders.before}</th>
-                        <th scope="col">{objectiveMetricPresentation.tableHeaders.after}</th>
-                        <th scope="col">{emissionsMetricPresentation.tableHeaders.delta}</th>
-                        <th scope="col">{emissionsMetricPresentation.tableHeaders.before}</th>
-                        <th scope="col">{emissionsMetricPresentation.tableHeaders.after}</th>
-                        <th scope="col">{electricityMetricPresentation.tableHeaders.delta}</th>
-                        <th scope="col">{electricityMetricPresentation.tableHeaders.before}</th>
-                        <th scope="col">{electricityMetricPresentation.tableHeaders.after}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {report.sequence.map((entry) => (
-                        <tr key={entry.atom.key}>
-                          <td>{entry.step}</td>
-                          <td>{entry.atom.outputLabel}</td>
-                          <td>{entry.atom.stateLabel}</td>
-                          <td>{formatAction(entry.atom.action)}</td>
-                          <td>{objectiveMetricPresentation.formatSignedValue(entry.metricsDeltaFromCurrent.objective)}</td>
-                          <td>{objectiveMetricPresentation.formatAbsoluteValue(entry.metricsBefore.objective)}</td>
-                          <td>{objectiveMetricPresentation.formatAbsoluteValue(entry.metricsAfter.objective)}</td>
-                          <td>{emissionsMetricPresentation.formatSignedValue(entry.metricsDeltaFromCurrent.cumulativeEmissions)}</td>
-                          <td>{emissionsMetricPresentation.formatAbsoluteValue(entry.metricsBefore.cumulativeEmissions)}</td>
-                          <td>{emissionsMetricPresentation.formatAbsoluteValue(entry.metricsAfter.cumulativeEmissions)}</td>
-                          <td>{electricityMetricPresentation.formatSignedValue(entry.metricsDeltaFromCurrent.electricityDemand2050)}</td>
-                          <td>{electricityMetricPresentation.formatAbsoluteValue(entry.metricsBefore.electricityDemand2050)}</td>
-                          <td>{electricityMetricPresentation.formatAbsoluteValue(entry.metricsAfter.electricityDemand2050)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {report.skippedCandidates.length > 0 ? (
-                  <p className="additionality-skipped-note">
-                    Skipped candidates: {report.skippedCandidates.length}
-                  </p>
-                ) : null}
-              </section>
-            </>
-          ) : null}
-        </>
-      ) : null}
+      <div className="additionality-scenario-grid">
+        {scenarios.map((scenario) => (
+          <AdditionalityScenarioPanel
+            key={`${scenario.slotIndex}:${scenario.focusConfigId ?? 'empty'}`}
+            scenario={scenario}
+          />
+        ))}
+      </div>
     </div>
   );
+}
+
+function resolveBaseConfigId(
+  configurations: ConfigurationDocument[],
+  configurationsById: Record<string, ConfigurationDocument>,
+  selectedBaseConfigId: string | null,
+): string | null {
+  const initialPair = selectInitialSavedPair(configurations);
+  return selectedBaseConfigId && configurationsById[selectedBaseConfigId]
+    ? selectedBaseConfigId
+    : initialPair.baseConfigId;
+}
+
+function resolveFocusConfigIds(
+  configurations: ConfigurationDocument[],
+  configurationsById: Record<string, ConfigurationDocument>,
+  selectedFocusConfigIds: string[],
+  selectedFocusConfigId: string | null,
+): string[] {
+  const initialPair = selectInitialSavedPair(configurations);
+  const selectedIds = selectedFocusConfigIds.length > 0
+    ? selectedFocusConfigIds
+    : selectedFocusConfigId
+      ? [selectedFocusConfigId]
+      : [];
+  const validIds = selectedIds
+    .filter((id) => configurationsById[id])
+    .slice(0, MAX_FOCUS_SCENARIOS);
+
+  if (validIds.length > 0) {
+    return validIds;
+  }
+
+  return initialPair.focusConfigId ? [initialPair.focusConfigId] : [];
+}
+
+function updateFocusSelection(
+  currentIds: string[],
+  slotIndex: number,
+  configId: string | null,
+): string[] {
+  const nextIds = [...currentIds];
+
+  if (configId) {
+    nextIds[slotIndex] = configId;
+  } else {
+    nextIds.splice(slotIndex, 1);
+  }
+
+  return nextIds
+    .filter((id): id is string => Boolean(id))
+    .slice(0, MAX_FOCUS_SCENARIOS);
 }
 
 export default function AdditionalityPage() {
   const appConfig = usePackageStore((state) => state.appConfig);
   const sectorStates = usePackageStore((state) => state.sectorStates);
+  const autonomousEfficiencyTracks = usePackageStore((state) => state.autonomousEfficiencyTracks);
+  const efficiencyPackages = usePackageStore((state) => state.efficiencyPackages);
+  const residualOverlays2025 = usePackageStore((state) => state.residualOverlays2025);
   const {
     selectedBaseConfigId,
     selectedFocusConfigId,
+    selectedFocusConfigIds,
     commoditySelectionState,
+    orderingMethod,
+    shapleySampleCount,
   } = useAppUiStore((state) => state.additionality);
   const updateAdditionalityUi = useAppUiStore((state) => state.updateAdditionalityUi);
   const setAdditionalityCommodityLevel = useAppUiStore((state) => state.setAdditionalityCommodityLevel);
   const { configurations: availableConfigurations, configurationsById } = useAvailableConfigurations();
-  const resolvedPair = useMemo(
-    () => resolveAdditionalityPair({
-      configurations: availableConfigurations,
-      configurationsById,
-      selectedBaseConfigId,
-      selectedFocusConfigId,
-    }),
-    [availableConfigurations, configurationsById, selectedBaseConfigId, selectedFocusConfigId],
+  const baseConfigId = useMemo(
+    () => resolveBaseConfigId(availableConfigurations, configurationsById, selectedBaseConfigId),
+    [availableConfigurations, configurationsById, selectedBaseConfigId],
   );
-  const baseConfigId = resolvedPair.baseConfigId;
-  const focusConfigId = resolvedPair.focusConfigId;
-  const baseConfiguration = resolvedPair.base?.configuration ?? null;
-  const focusConfiguration = resolvedPair.focus.configuration ?? null;
+  const focusConfigIds = useMemo(
+    () => resolveFocusConfigIds(
+      availableConfigurations,
+      configurationsById,
+      selectedFocusConfigIds,
+      selectedFocusConfigId,
+    ),
+    [availableConfigurations, configurationsById, selectedFocusConfigId, selectedFocusConfigIds],
+  );
+  const baseConfiguration = baseConfigId ? configurationsById[baseConfigId] ?? null : null;
+  const focusConfiguration0 = focusConfigIds[0] ? configurationsById[focusConfigIds[0]] ?? null : null;
+  const focusConfiguration1 = focusConfigIds[1] ? configurationsById[focusConfigIds[1]] ?? null : null;
+  const focusConfiguration2 = focusConfigIds[2] ? configurationsById[focusConfigIds[2]] ?? null : null;
   const commodityOptions = useMemo(
     () => Object.entries(appConfig.commodity_price_presets)
       .map(([id, driver]) => ({ id, label: driver.label }))
@@ -499,23 +681,59 @@ export default function AdditionalityPage() {
   const commoditySelections = commoditySelectionState.seededFromConfigId === baseConfigId
     ? commoditySelectionState.selections
     : seededCommoditySelections;
+  const method = orderingMethod ?? DEFAULT_ADDITIONALITY_METHOD;
+  const selectedShapleySampleCount = shapleySampleCount ?? DEFAULT_ADDITIONALITY_SHAPLEY_SAMPLE_COUNT;
 
   const pkg = useMemo(
-    () => ({ appConfig, sectorStates }),
-    [appConfig, sectorStates],
+    () => ({
+      appConfig,
+      autonomousEfficiencyTracks,
+      efficiencyPackages,
+      residualOverlays2025,
+      sectorStates,
+    }),
+    [appConfig, autonomousEfficiencyTracks, efficiencyPackages, residualOverlays2025, sectorStates],
   );
-  const { analysisState, recalculate } = useAdditionalityAnalysis({
+  const analysis0 = useAdditionalityAnalysis({
     baseConfiguration,
     baseConfigId,
     commoditySelections,
+    method,
     pkg,
-    targetConfiguration: focusConfiguration,
-    targetConfigId: focusConfigId,
+    shapleySampleCount: selectedShapleySampleCount,
+    targetConfiguration: focusConfiguration0,
+    targetConfigId: focusConfigIds[0] ?? null,
   });
+  const analysis1 = useAdditionalityAnalysis({
+    baseConfiguration,
+    baseConfigId,
+    commoditySelections,
+    method,
+    pkg,
+    shapleySampleCount: selectedShapleySampleCount,
+    targetConfiguration: focusConfiguration1,
+    targetConfigId: focusConfigIds[1] ?? null,
+  });
+  const analysis2 = useAdditionalityAnalysis({
+    baseConfiguration,
+    baseConfigId,
+    commoditySelections,
+    method,
+    pkg,
+    shapleySampleCount: selectedShapleySampleCount,
+    targetConfiguration: focusConfiguration2,
+    targetConfigId: focusConfigIds[2] ?? null,
+  });
+  const analysisBySlot = [analysis0, analysis1, analysis2];
+  const scenarios = focusConfigIds.map((focusConfigId, slotIndex) => ({
+    analysisState: analysisBySlot[slotIndex].analysisState,
+    focusConfigId,
+    focusLabel: configurationsById[focusConfigId]?.name ?? focusConfigId,
+    slotIndex,
+  }));
 
   return (
     <AdditionalityPageView
-      analysisState={analysisState}
       baseConfigId={baseConfigId}
       commodityOptions={commodityOptions}
       commoditySelections={commoditySelections}
@@ -524,14 +742,29 @@ export default function AdditionalityPage() {
         label: configuration.name,
         description: configuration.description,
       }))}
+      method={method}
       onBaseConfigChange={(configId) => updateAdditionalityUi({ selectedBaseConfigId: configId })}
       onCommoditySelectionChange={(commodityId, level) => {
         setAdditionalityCommodityLevel(commodityId, level, baseConfigId);
       }}
-      onFocusConfigChange={(configId) => updateAdditionalityUi({ selectedFocusConfigId: configId })}
-      onRecalculate={recalculate}
-      recalculateDisabled={analysisState.phase === 'loading'}
-      focusConfigId={focusConfigId}
+      onFocusConfigChange={(slotIndex, configId) => {
+        const nextIds = updateFocusSelection(focusConfigIds, slotIndex, configId);
+        updateAdditionalityUi({
+          selectedFocusConfigId: nextIds[0] ?? null,
+          selectedFocusConfigIds: nextIds,
+        });
+      }}
+      onMethodChange={(nextMethod) => updateAdditionalityUi({ orderingMethod: nextMethod })}
+      onRecalculate={() => {
+        analysisBySlot.slice(0, focusConfigIds.length).forEach((analysis) => analysis.recalculate());
+      }}
+      onShapleySampleCountChange={(nextSampleCount) => updateAdditionalityUi({ shapleySampleCount: nextSampleCount })}
+      recalculateDisabled={analysisBySlot
+        .slice(0, focusConfigIds.length)
+        .some((analysis) => analysis.analysisState.phase === 'loading')}
+      scenarios={scenarios}
+      selectedFocusConfigIds={focusConfigIds}
+      shapleySampleCount={selectedShapleySampleCount}
     />
   );
 }

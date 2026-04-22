@@ -1,3 +1,4 @@
+import type { AdditionalityOrderingMethod } from '../additionality/additionalityAnalysis.ts';
 import type { FuelSwitchBasis, PriceLevel } from './types.ts';
 
 export const METHODS_TABS = ['about', 'conventions', 'confidence', 'phase2', 'evidence'] as const;
@@ -63,6 +64,9 @@ export interface MethodsUiState {
 export interface AdditionalityUiState {
   selectedBaseConfigId: string | null;
   selectedFocusConfigId: string | null;
+  selectedFocusConfigIds: string[];
+  orderingMethod: AdditionalityOrderingMethod;
+  shapleySampleCount: number;
   commoditySelectionState: AdditionalityCommoditySelectionState;
 }
 
@@ -116,6 +120,9 @@ export const DEFAULT_APP_UI_STATE: AppUiState = {
   additionality: {
     selectedBaseConfigId: null,
     selectedFocusConfigId: null,
+    selectedFocusConfigIds: [],
+    orderingMethod: 'reverse_greedy_target_context',
+    shapleySampleCount: 32,
     commoditySelectionState: {
       seededFromConfigId: null,
       selections: {},
