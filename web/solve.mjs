@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 /**
- * CLI solver — runs the model outside the browser using the same code paths
- * as the web app: parseCsv -> resolveConfigurationDocument -> buildSolveRequest -> solveWithLpAdapter
+ * CLI solver — runs the model outside the browser using the same package,
+ * configuration, and solve paths as the web app.
  *
  * Usage:
  *   bun run msm <config>                       # solve one config
@@ -22,12 +22,15 @@
  *   1 = any runtime/solve errors
  *   2 = CLI usage error
  */
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { basename, isAbsolute, relative as relativePath, resolve as resolvePath } from 'node:path';
-import { parseCsv } from './src/data/parseCsv.ts';
-import { deriveBaselineAnchorsFromPackage } from './src/data/packageAnchorMapping.ts';
-import { resolveConfigurationDocument } from './src/data/demandResolution.ts';
-import { normalizeSolverRows } from './src/solver/buildSolveRequest.ts';
+import { relative as relativePath } from 'node:path';
+import {
+  listCliConfigurations,
+  materializeConfigurationForRuntime,
+  resolveCliConfigurationReference,
+} from './src/cli/configurationRefs.mjs';
+import { validateAdditionalityPair } from './src/additionality/additionalityAnalysis.ts';
+import { resolveWorkspacePair } from './src/data/configurationPairModel.ts';
+import { loadPackage } from './src/data/packageLoader.ts';
 import { runScenario } from './src/results/runScenario.ts';
 
 const EXIT_OK = 0;
@@ -44,16 +47,23 @@ Usage:
   bun run msm <config>                 Solve one config
   bun run msm <config> <config> ...    Batch solve multiple configs
   bun run msm compare <config> <config> Compare two config runs
-  bun run msm list                     List built-in configs
+  bun run msm prime <config>           Emit AI-oriented run context as JSON
+  bun run msm list                     List built-in and user configs
   bun run msm --all                    Batch solve all built-ins
 
-A <config> is a file path or a built-in id (resolves to src/configurations/<id>.json).
-Scope is derived dynamically from active pathways.
+A <config> can be:
+  - a built-in id (for example reference-baseline)
+  - a user config id via user:<id>
+  - a JSON file path
+
+Built-ins resolve from src/configurations/*.json. User configs resolve from
+src/configurations/user/*.json. Scope is derived dynamically from active pathways.
 
 Options:
   --json          Machine-readable JSON output
   --quiet         Summary-only output
   --all           Solve every built-in config
+  --base <config> Optional comparison base for prime
   --solver-only   Exclude residual overlay contributions (raw LP output only)
   -h, --help      Show this help
 
@@ -65,38 +75,14 @@ Exit codes: 0 = success, 1 = solve/runtime error, 2 = usage error
 // ---------------------------------------------------------------------------
 
 function toErrorMessage(e) { return e instanceof Error ? e.message : String(e); }
-function isPlainObject(v) { return v != null && typeof v === 'object' && !Array.isArray(v); }
 
 function uniqueSorted(values) {
   return Array.from(new Set(values)).sort((a, b) => String(a).localeCompare(String(b)));
 }
 
-function resolveCliPath(input) {
-  return isAbsolute(input) ? input : resolvePath(process.cwd(), input);
-}
-
 function displayPath(absPath) {
   const rel = relativePath(process.cwd(), absPath);
   return rel && !rel.startsWith('..') ? rel : absPath;
-}
-
-function readJsonRelative(p) {
-  return JSON.parse(readFileSync(new URL(p, import.meta.url), 'utf8'));
-}
-
-function readTextRelative(p) {
-  return readFileSync(new URL(p, import.meta.url), 'utf8');
-}
-
-function readJsonFile(absPath, label) {
-  try { return JSON.parse(readFileSync(absPath, 'utf8')); }
-  catch (e) { throw new Error(`Failed to parse ${label} ${displayPath(absPath)}: ${toErrorMessage(e)}`); }
-}
-
-function formatIdList(values, limit = 6) {
-  if (!values || values.length === 0) return '—';
-  if (values.length <= limit) return values.join(', ');
-  return `${values.slice(0, limit).join(', ')}, … (+${values.length - limit})`;
 }
 
 function numericDelta(l, r, { defaultZero = false } = {}) {
@@ -170,196 +156,16 @@ function printTableSection(title, columns, rows, { limit = rows.length, noneMess
 function statusIcon(s) { return s === 'solved' ? '✓' : s === 'partial' ? '~' : s === 'error' ? '✗' : '•'; }
 
 // ---------------------------------------------------------------------------
-// Data loading
-// ---------------------------------------------------------------------------
-
-function parseJsonArray(raw) { if (!raw) return []; try { return JSON.parse(raw); } catch { return []; } }
-function parseNum(raw) { if (!raw) return null; const n = Number(raw); return Number.isFinite(n) ? n : null; }
-function parseBool(raw) { return String(raw ?? '').trim().toLowerCase() === 'true'; }
-
-function toSectorState(row) {
-  return {
-    sector: row['sector'], subsector: row['subsector'],
-    service_or_output_name: row['service_or_output_name'],
-    region: row['region'], year: Number(row['year']),
-    state_id: row['state_id'], state_label: row['state_label'],
-    state_description: row['state_description'],
-    output_unit: row['output_unit'], output_quantity_basis: row['output_quantity_basis'],
-    output_cost_per_unit: parseNum(row['output_cost_per_unit']),
-    cost_basis_year: parseNum(row['cost_basis_year']),
-    currency: row['currency'], cost_components_summary: row['cost_components_summary'],
-    input_commodities: parseJsonArray(row['input_commodities']),
-    input_coefficients: parseJsonArray(row['input_coefficients']),
-    input_units: parseJsonArray(row['input_units']),
-    input_basis_notes: row['input_basis_notes'],
-    energy_emissions_by_pollutant: parseJsonArray(row['energy_emissions_by_pollutant']),
-    process_emissions_by_pollutant: parseJsonArray(row['process_emissions_by_pollutant']),
-    emissions_units: row['emissions_units'],
-    emissions_boundary_notes: row['emissions_boundary_notes'],
-    max_share: parseNum(row['max_share']), max_activity: parseNum(row['max_activity']),
-    min_share: parseNum(row['min_share']),
-    rollout_limit_notes: row['rollout_limit_notes'],
-    availability_conditions: row['availability_conditions'],
-    source_ids: parseJsonArray(row['source_ids']),
-    evidence_summary: row['evidence_summary'],
-    derivation_method: row['derivation_method'],
-    assumption_ids: parseJsonArray(row['assumption_ids']),
-    confidence_rating: row['confidence_rating'],
-    review_notes: row['review_notes'],
-    candidate_expansion_pathway: row['candidate_expansion_pathway'],
-    times_or_vedalang_mapping_notes: row['times_or_vedalang_mapping_notes'],
-    would_expand_to_explicit_capacity: parseBool(row['would_expand_to_explicit_capacity?']),
-    would_expand_to_process_chain: parseBool(row['would_expand_to_process_chain?']),
-  };
-}
-
-function toServiceDemandAnchorRow(row) {
-  return {
-    anchor_type: row['anchor_type'],
-    service_or_output_name: row['service_or_output_name'],
-    quantity_2025: parseNum(row['quantity_2025']),
-    unit: row['unit'],
-    source_family: row['source_family'],
-    coverage_note: row['coverage_note'],
-  };
-}
-
-function parseEmptyNull(raw) {
-  if (raw == null) return null;
-  const trimmed = String(raw).trim();
-  return trimmed === '' ? null : trimmed;
-}
-
-function toResidualOverlayRow(row) {
-  return {
-    overlay_id: row['overlay_id'],
-    overlay_label: row['overlay_label'],
-    overlay_domain: row['overlay_domain'],
-    official_accounting_bucket: row['official_accounting_bucket'],
-    year: Number(row['year']),
-    commodity: parseEmptyNull(row['commodity']),
-    final_energy_pj_2025: parseNum(row['final_energy_pj_2025']),
-    native_unit: row['native_unit'] ?? '',
-    native_quantity_2025: parseNum(row['native_quantity_2025']),
-    direct_energy_emissions_mtco2e_2025: parseNum(row['direct_energy_emissions_mtco2e_2025']),
-    other_emissions_mtco2e_2025: parseNum(row['other_emissions_mtco2e_2025']),
-    carbon_billable_emissions_mtco2e_2025: parseNum(row['carbon_billable_emissions_mtco2e_2025']),
-    default_price_basis: row['default_price_basis'] ?? '',
-    default_price_per_native_unit_aud_2024: parseNum(row['default_price_per_native_unit_aud_2024']),
-    default_commodity_cost_audm_2024: parseNum(row['default_commodity_cost_audm_2024']),
-    default_fixed_noncommodity_cost_audm_2024: parseNum(row['default_fixed_noncommodity_cost_audm_2024']),
-    default_total_cost_ex_carbon_audm_2024: parseNum(row['default_total_cost_ex_carbon_audm_2024']),
-    default_include: parseBool(row['default_include']),
-    allocation_method: row['allocation_method'] ?? '',
-    cost_basis_note: row['cost_basis_note'] ?? '',
-    notes: row['notes'] ?? '',
-  };
-}
-
-function ensureResidualOverlays(configuration, overlayRows) {
-  const knownIds = Array.from(new Set(overlayRows.map((row) => row.overlay_id)));
-  const existing = configuration.residual_overlays?.controls_by_overlay_id ?? {};
-  const merged = {};
-  for (const id of knownIds) {
-    merged[id] = { included: existing[id]?.included ?? true };
-  }
-  return { ...configuration, residual_overlays: { controls_by_overlay_id: merged } };
-}
-
-function loadAppConfig() {
-  return {
-    output_roles: readJsonRelative('public/app_config/output_roles.json'),
-    baseline_activity_anchors: readJsonRelative('public/app_config/baseline_activity_anchors.json'),
-    demand_growth_presets: readJsonRelative('public/app_config/demand_growth_presets.json'),
-    commodity_price_presets: readJsonRelative('public/app_config/commodity_price_presets.json'),
-    carbon_price_presets: readJsonRelative('public/app_config/carbon_price_presets.json'),
-    explanation_tag_rules: readJsonRelative('public/app_config/explanation_tag_rules.json'),
-  };
-}
-
-function loadPackage() {
-  const csvText = readTextRelative('../sector_trajectory_library/exports/legacy/sector_state_curves_balanced.csv');
-  const sectorStates = parseCsv(csvText).map(toSectorState);
-  const appConfig = loadAppConfig();
-
-  // Parse anchor CSV and merge into appConfig (same logic as browser path)
-  const anchorCsvText = readTextRelative('../sector_trajectory_library/exports/legacy/service_demand_anchors_2025.csv');
-  const anchorRows = parseCsv(anchorCsvText).map(toServiceDemandAnchorRow);
-  const csvAnchors = deriveBaselineAnchorsFromPackage(anchorRows, appConfig.output_roles);
-  appConfig.baseline_activity_anchors = {
-    ...appConfig.baseline_activity_anchors,
-    ...csvAnchors,
-  };
-
-  const residualOverlays2025 = parseCsv(
-    readTextRelative('../sector_trajectory_library/overlays/residual_overlays.csv'),
-  ).map(toResidualOverlayRow);
-
-  const normalizedRows = normalizeSolverRows({ sectorStates, appConfig });
-  return {
-    sectorStates, appConfig, residualOverlays2025, normalizedRows,
-    allOutputIds: uniqueSorted(Object.keys(appConfig.output_roles)),
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Config loading
-// ---------------------------------------------------------------------------
-
-function resolveConfigReference(raw) {
-  // If it looks like a file path, resolve it directly
-  if (raw.endsWith('.json') || raw.includes('/') || raw.includes('\\') || raw.startsWith('.')) {
-    const absPath = resolveCliPath(raw);
-    if (!existsSync(absPath)) throw new UsageError(`Config file not found: ${raw}`);
-    return absPath;
-  }
-  // Otherwise treat as a built-in id
-  const builtinPath = new URL(`src/configurations/${raw}.json`, import.meta.url);
-  try {
-    const absPath = resolveCliPath(builtinPath.pathname);
-    if (!existsSync(absPath)) throw new Error();
-    return absPath;
-  } catch {
-    throw new UsageError(`Unknown built-in config "${raw}". Run "bun run msm list" to see available configs.`);
-  }
-}
-
-function getConfigId(config, fallback = null) {
-  const id = config?.app_metadata?.id;
-  return typeof id === 'string' && id.trim() ? id.trim() : fallback;
-}
-
-function validateConfig(config, label) {
-  if (!isPlainObject(config)) throw new Error(`Invalid ${label}: expected a JSON object.`);
-  if (typeof config.name !== 'string' || !config.name.trim()) throw new Error(`Invalid ${label}: missing string "name".`);
-  if (!Array.isArray(config.years) || config.years.length === 0) throw new Error(`Invalid ${label}: missing array "years".`);
-  if (!isPlainObject(config.service_controls)) throw new Error(`Invalid ${label}: missing object "service_controls".`);
-  if (!isPlainObject(config.service_demands)) throw new Error(`Invalid ${label}: missing object "service_demands".`);
-  if (!isPlainObject(config.demand_generation)) throw new Error(`Invalid ${label}: missing object "demand_generation".`);
-  if (!isPlainObject(config.commodity_pricing)) throw new Error(`Invalid ${label}: missing object "commodity_pricing".`);
-  if (!isPlainObject(config.carbon_price)) throw new Error(`Invalid ${label}: missing object "carbon_price".`);
-  return config;
-}
-
-function loadConfig(absPath) {
-  return validateConfig(readJsonFile(absPath, 'config'), `config ${displayPath(absPath)}`);
-}
-
-function listBuiltinConfigPaths() {
-  const dir = new URL('src/configurations/', import.meta.url);
-  return readdirSync(dir)
-    .filter((file) => file.endsWith('.json') && !file.startsWith('_'))
-    .sort()
-    .map((file) => resolveCliPath(new URL(`src/configurations/${file}`, import.meta.url).pathname));
-}
-
-function listBuiltinConfigs() {
-  return listBuiltinConfigPaths().map((configPath) => loadConfig(configPath));
-}
-
-// ---------------------------------------------------------------------------
 // Solve execution
 // ---------------------------------------------------------------------------
+
+function displaySource(selection) {
+  return selection.sourcePath ? displayPath(selection.sourcePath) : selection.canonicalRef;
+}
+
+function listAvailableConfigurations() {
+  return listCliConfigurations();
+}
 
 function countDistinctOutputs(rows) { return new Set(rows.map((r) => r.outputId)).size; }
 
@@ -386,19 +192,21 @@ function summarizeRun(run) {
   };
 }
 
-function executeConfig(pkg, configPath, { solverOnly = false } = {}) {
-  const config = loadConfig(configPath);
-  const configId = getConfigId(config, basename(configPath, '.json'));
-  let configuration = resolveConfigurationDocument(config, pkg.appConfig, config.name);
-  configuration = ensureResidualOverlays(configuration, pkg.residualOverlays2025);
+function executeConfig(pkg, selection, { solverOnly = false } = {}) {
+  const config = structuredClone(selection.configuration);
+  const configId = selection.configId ?? selection.canonicalRef;
+  const configuration = materializeConfigurationForRuntime(config, pkg);
 
   const snapshot = runScenario(pkg, configuration, { includeOverlays: !solverOnly });
 
   const run = {
     ok: true, label: configId, configId,
-    source: displayPath(configPath),
+    ref: selection.canonicalRef,
+    sourceKind: selection.sourceKind,
+    source: displaySource(selection),
     configurationName: config.name,
     configurationDescription: config.description ?? null,
+    configuration,
     request: snapshot.request, result: snapshot.result,
     contributions: snapshot.contributions,
     solverOnly,
@@ -408,13 +216,20 @@ function executeConfig(pkg, configPath, { solverOnly = false } = {}) {
 }
 
 
-function executeSafe(pkg, configPath, { solverOnly = false } = {}) {
+function executeSafe(pkg, selection, { solverOnly = false } = {}) {
   try {
-    return executeConfig(pkg, configPath, { solverOnly });
+    return executeConfig(pkg, selection, { solverOnly });
   } catch (e) {
     if (e instanceof UsageError) throw e;
-    const label = displayPath(configPath);
-    return { ok: false, label, source: label, error: { message: toErrorMessage(e) } };
+    const label = selection?.configId ?? selection?.canonicalRef ?? selection?.requestedRef ?? 'config';
+    return {
+      ok: false,
+      label,
+      ref: selection?.canonicalRef ?? selection?.requestedRef ?? label,
+      sourceKind: selection?.sourceKind ?? 'file',
+      source: selection ? displaySource(selection) : label,
+      error: { message: toErrorMessage(e) },
+    };
   }
 }
 
@@ -486,6 +301,159 @@ function buildComparison(leftRun, rightRun) {
     commodityBalanceDiffs: buildCommodityBalanceDiffs(leftRun, rightRun),
     stateShareDiffs: buildStateShareDiffs(leftRun, rightRun),
   };
+}
+
+function quoteCliArg(value) {
+  return JSON.stringify(String(value));
+}
+
+function buildPrimeNextActions(run) {
+  if (!run.ok) {
+    return [];
+  }
+
+  const severityRank = { error: 0, warning: 1, info: 2 };
+  const deduped = new Map();
+
+  for (const diagnostic of run.result.diagnostics) {
+    if (!diagnostic.suggestion) {
+      continue;
+    }
+
+    const key = [
+      diagnostic.suggestion,
+      diagnostic.outputId ?? '',
+      diagnostic.year ?? '',
+      diagnostic.stateId ?? '',
+      (diagnostic.relatedConstraintIds ?? []).join(','),
+    ].join('::');
+
+    if (deduped.has(key)) {
+      continue;
+    }
+
+    deduped.set(key, {
+      priority: severityRank[diagnostic.severity] ?? 3,
+      severity: diagnostic.severity,
+      code: diagnostic.code,
+      reason: diagnostic.message,
+      suggestion: diagnostic.suggestion,
+      location: {
+        ...(diagnostic.outputId ? { outputId: diagnostic.outputId } : {}),
+        ...(diagnostic.year != null ? { year: diagnostic.year } : {}),
+        ...(diagnostic.stateId ? { stateId: diagnostic.stateId } : {}),
+      },
+      supportingConstraintIds: diagnostic.relatedConstraintIds ?? [],
+    });
+  }
+
+  return [...deduped.values()]
+    .sort((left, right) => left.priority - right.priority || left.reason.localeCompare(right.reason));
+}
+
+function buildPrimeSolveSummary(run) {
+  if (!run.ok) {
+    return {
+      status: 'failed',
+      error: run.error.message,
+    };
+  }
+
+  const commodityFindings = [...run.result.reporting.commodityBalances]
+    .sort((left, right) => Math.abs(right.balanceGap ?? 0) - Math.abs(left.balanceGap ?? 0))
+    .slice(0, 10);
+  const stateShares = [...run.result.reporting.stateShares]
+    .filter((entry) => entry.activity > 1e-6)
+    .sort((left, right) => right.activity - left.activity)
+    .slice(0, 10);
+
+  return {
+    status: run.result.status,
+    lpStatus: run.metrics.lpStatus,
+    objectiveValue: run.metrics.objectiveValue,
+    timingsMs: run.metrics.timingsMs,
+    summary: {
+      rowCount: run.metrics.rowCount,
+      outputCount: run.metrics.outputCount,
+      variableCount: run.metrics.variableCount,
+      constraintCount: run.metrics.constraintCount,
+      diagnostics: run.metrics.diagnostics,
+      bindingConstraintCount: run.metrics.bindingConstraintCount,
+      softConstraintViolationCount: run.metrics.softConstraintViolationCount,
+    },
+    topDiagnostics: run.result.diagnostics.filter((diagnostic) => diagnostic.severity !== 'info').slice(0, 12),
+    topBindingConstraints: run.result.reporting.bindingConstraints.slice(0, 12),
+    topSoftConstraintViolations: run.result.reporting.softConstraintViolations.slice(0, 12),
+    topCommodityBalanceFindings: commodityFindings,
+    topStateShares: stateShares,
+  };
+}
+
+function buildPrimePayload(pkg, focusSelection, focusRun, { baseSelection = null, baseRun = null, comparison = null } = {}) {
+  const payload = {
+    kind: 'msm.prime',
+    version: 1,
+    generatedAt: new Date().toISOString(),
+    package: {
+      solverContractVersion: focusRun.ok ? focusRun.request.contractVersion : null,
+      relevantDocs: [
+        'README.md',
+        'web/README.md',
+        'web/solve.mjs',
+        'web/src/data/packageLoader.ts',
+        'web/src/data/configurationDocumentLoader.ts',
+        'web/src/results/runScenario.ts',
+      ],
+      workflowNotes: [
+        'Built-in configs live in web/src/configurations/*.json.',
+        'Repo-backed user configs live in web/src/configurations/user/*.json and can be addressed as user:<id>.',
+        'Browser-local drafts are not visible to the CLI; save a user config or export the JSON document first.',
+      ],
+    },
+    focus: {
+      ref: focusSelection.canonicalRef,
+      sourceKind: focusSelection.sourceKind,
+      configId: focusSelection.configId,
+      readonly: focusSelection.readonly,
+      source: displaySource(focusSelection),
+      configuration: focusRun.ok ? focusRun.configuration : structuredClone(focusSelection.configuration),
+    },
+    solve: buildPrimeSolveSummary(focusRun),
+    nextActions: buildPrimeNextActions(focusRun),
+    reproduce: {
+      workdir: 'web',
+      solveCommand: `bun run msm ${quoteCliArg(focusSelection.canonicalRef)} --json`,
+    },
+  };
+
+  if (baseSelection && baseRun && baseRun.ok && focusRun.ok) {
+    const workspacePair = resolveWorkspacePair({
+      activeConfigurationId: baseSelection.configId,
+      baseSelectionMode: 'manual',
+      configurationsById: baseSelection.configId
+        ? { [baseSelection.configId]: baseRun.configuration }
+        : {},
+      focusConfiguration: focusRun.configuration,
+      focusConfigId: focusSelection.configId,
+      selectedBaseConfigId: baseSelection.configId,
+    });
+
+    payload.base = {
+      ref: baseSelection.canonicalRef,
+      sourceKind: baseSelection.sourceKind,
+      configId: baseSelection.configId,
+      readonly: baseSelection.readonly,
+      source: displaySource(baseSelection),
+      configuration: baseRun.configuration,
+      commonYears: workspacePair.commonYears,
+      efficiencyAttributionSafe: workspacePair.efficiencyAttributionSafe,
+      validationIssues: validateAdditionalityPair(baseRun.configuration, focusRun.configuration, pkg),
+    };
+    payload.comparison = comparison;
+    payload.reproduce.compareCommand = `bun run msm compare ${quoteCliArg(baseSelection.canonicalRef)} ${quoteCliArg(focusSelection.canonicalRef)} --json`;
+  }
+
+  return payload;
 }
 
 // ---------------------------------------------------------------------------
@@ -703,15 +671,25 @@ function printComparison(leftRun, rightRun, comparison, { quiet = false } = {}) 
 // CLI parsing
 // ---------------------------------------------------------------------------
 
+function resolveSelectionOrUsageError(rawRef) {
+  try {
+    return resolveCliConfigurationReference(rawRef);
+  } catch (e) {
+    throw new UsageError(toErrorMessage(e));
+  }
+}
+
 function parseCli(argv) {
   let command = 'solve';
   const positionals = [];
   let json = false, quiet = false, all = false, solverOnly = false;
+  let base = null;
 
   let i = 0;
   // Check for subcommand
   if (argv[0] === 'compare') { command = 'compare'; i = 1; }
   else if (argv[0] === 'list') { command = 'list'; i = 1; }
+  else if (argv[0] === 'prime') { command = 'prime'; i = 1; }
 
   for (; i < argv.length; i++) {
     const arg = argv[i];
@@ -721,6 +699,15 @@ function parseCli(argv) {
     if (arg === '--all') { all = true; continue; }
     if (arg === '--solver-only') { solverOnly = true; continue; }
     if (arg === '--list-configs') { command = 'list'; continue; }
+    if (arg === '--base') {
+      const next = argv[i + 1];
+      if (!next || next.startsWith('-')) {
+        throw new UsageError('--base requires a config argument.');
+      }
+      base = next;
+      i += 1;
+      continue;
+    }
     if (arg.startsWith('-')) throw new UsageError(`Unknown option: ${arg}`);
     positionals.push(arg);
   }
@@ -729,32 +716,48 @@ function parseCli(argv) {
 
   if (command === 'help') return { command };
   if (command === 'list') {
+    if (all) throw new UsageError('--all cannot be used with list.');
+    if (base) throw new UsageError('--base can only be used with prime.');
     if (positionals.length) throw new UsageError('list does not accept positional arguments.');
     return { command, json, quiet };
   }
 
   if (command === 'compare') {
     if (all) throw new UsageError('--all cannot be used with compare.');
+    if (base) throw new UsageError('--base can only be used with prime.');
     if (positionals.length !== 2) throw new UsageError('compare requires exactly two config arguments.');
     return {
       command, json, quiet, solverOnly,
-      left: resolveConfigReference(positionals[0]),
-      right: resolveConfigReference(positionals[1]),
+      left: resolveSelectionOrUsageError(positionals[0]),
+      right: resolveSelectionOrUsageError(positionals[1]),
+    };
+  }
+
+  if (command === 'prime') {
+    if (all) throw new UsageError('--all cannot be used with prime.');
+    if (positionals.length !== 1) throw new UsageError('prime requires exactly one focus config argument.');
+    return {
+      command,
+      focus: resolveSelectionOrUsageError(positionals[0]),
+      base: base ? resolveSelectionOrUsageError(base) : null,
+      solverOnly,
     };
   }
 
   // solve
   if (all) {
+    if (base) throw new UsageError('--base can only be used with prime.');
     if (positionals.length) throw new UsageError('--all cannot be combined with positional config arguments.');
     return { command: 'batch', json, quiet, solverOnly };
   }
 
-  if (positionals.length === 0) throw new UsageError('A config argument is required. Run "bun run msm list" to see built-in configs.');
-  if (positionals.length === 1) return { command: 'solve', json, quiet, solverOnly, config: resolveConfigReference(positionals[0]) };
+  if (base) throw new UsageError('--base can only be used with prime.');
+  if (positionals.length === 0) throw new UsageError('A config argument is required. Run "bun run msm list" to see available configs.');
+  if (positionals.length === 1) return { command: 'solve', json, quiet, solverOnly, config: resolveSelectionOrUsageError(positionals[0]) };
 
   return {
     command: 'batch', json, quiet, solverOnly,
-    configs: positionals.map((p) => resolveConfigReference(p)),
+    configs: positionals.map((p) => resolveSelectionOrUsageError(p)),
   };
 }
 
@@ -773,22 +776,27 @@ function main(argv) {
   const pkg = loadPackage();
 
   if (cli.command === 'list') {
-    const configs = listBuiltinConfigs();
-    const configPaths = listBuiltinConfigPaths();
+    const configs = listAvailableConfigurations();
     if (cli.json) {
-      console.log(JSON.stringify(configs.map((config, index) => ({
-        id: getConfigId(config, basename(configPaths[index], '.json')),
-        name: config.name,
-        description: config.description ?? null,
+      console.log(JSON.stringify(configs.map((entry) => ({
+        ref: entry.canonicalRef,
+        id: entry.configId,
+        sourceKind: entry.sourceKind,
+        readonly: entry.readonly,
+        source: entry.sourcePath ? displayPath(entry.sourcePath) : entry.canonicalRef,
+        name: entry.configuration.name,
+        description: entry.configuration.description ?? null,
       })), null, 2));
     } else {
-      console.log(`\nBuilt-in configurations`);
+      console.log(`\nAvailable configurations`);
       console.log(renderTable([
-        { header: 'id', key: 'id', maxWidth: 28 },
+        { header: 'ref', key: 'ref', maxWidth: 30 },
+        { header: 'source', key: 'sourceKind', maxWidth: 8 },
         { header: 'name', key: 'name', maxWidth: 48 },
-      ], configs.map((config, index) => ({
-        id: getConfigId(config, basename(configPaths[index], '.json')),
-        name: config.name,
+      ], configs.map((entry) => ({
+        ref: entry.canonicalRef,
+        sourceKind: entry.sourceKind,
+        name: entry.configuration.name,
       }))));
       console.log();
     }
@@ -805,8 +813,8 @@ function main(argv) {
   }
 
   if (cli.command === 'batch') {
-    const configPaths = cli.configs ?? listBuiltinConfigPaths();
-    const runs = configPaths.map((p) => executeSafe(pkg, p, solveOpts));
+    const selections = cli.configs ?? listAvailableConfigurations().filter((entry) => entry.sourceKind === 'builtin');
+    const runs = selections.map((selection) => executeSafe(pkg, selection, solveOpts));
     if (cli.json) { console.log(JSON.stringify({ runs }, null, 2)); }
     else { printBatch(runs, { quiet: cli.quiet }); }
     return runs.some(runHasError) ? EXIT_ERROR : EXIT_OK;
@@ -819,6 +827,19 @@ function main(argv) {
     if (cli.json) { console.log(JSON.stringify({ left: leftRun, right: rightRun, comparison }, null, 2)); }
     else { printComparison(leftRun, rightRun, comparison, { quiet: cli.quiet }); }
     return (runHasError(leftRun) || runHasError(rightRun)) ? EXIT_ERROR : EXIT_OK;
+  }
+
+  if (cli.command === 'prime') {
+    const focusRun = executeSafe(pkg, cli.focus, solveOpts);
+    const baseRun = cli.base ? executeSafe(pkg, cli.base, solveOpts) : null;
+    const comparison = baseRun?.ok && focusRun.ok ? buildComparison(baseRun, focusRun) : null;
+    const payload = buildPrimePayload(pkg, cli.focus, focusRun, {
+      baseSelection: cli.base,
+      baseRun,
+      comparison,
+    });
+    console.log(JSON.stringify(payload, null, 2));
+    return runHasError(focusRun) || (baseRun ? runHasError(baseRun) : false) ? EXIT_ERROR : EXIT_OK;
   }
 
   return EXIT_OK;

@@ -24,6 +24,25 @@ bun run dev
 
 Open the local URL printed by Vite.
 
+## CLI Reproduction
+
+The same package and configuration documents can be run outside the browser via `msm`.
+
+```bash
+bun run msm list
+bun run msm reference-baseline
+bun run msm user:full-system-base
+bun run msm compare reference-baseline user:full-system-base --json
+bun run msm prime user:full-system-base --base reference-baseline
+```
+
+Notes:
+
+- Run the CLI from `web/`.
+- `user:<id>` resolves repo-backed user configs from `src/configurations/user/*.json`.
+- Unsaved browser-local drafts are not visible to the CLI; save them as a user config or export the JSON document first.
+- `prime` emits a machine-readable, AI-oriented workflow bundle that packages the active configuration, solve summary, top diagnostics, and suggested next actions.
+
 ## Quality Checks
 
 ```bash

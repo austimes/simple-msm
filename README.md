@@ -10,6 +10,14 @@ bun install
 bun run dev
 ```
 
+For non-browser reproduction from the repo, the first-class CLI also lives in `web/`:
+
+```bash
+cd web
+bun run msm list
+bun run msm prime reference-baseline
+```
+
 ## Why This Exists
 
 The repository is where we work out what a useful family of sector trajectories should look like for Australia, how those trajectories should be structured, and how they should be justified.
