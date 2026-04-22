@@ -1,5 +1,5 @@
 import type {
-  AdditionalityMetricSnapshot,
+  AdditionalityMetricKey,
   AdditionalityReport,
 } from '../additionality/additionalityAnalysis.ts';
 import { selectInitialSavedPair } from '../data/configurationPairModel.ts';
@@ -14,7 +14,7 @@ export interface AdditionalityWaterfallDatum {
   cumulativeAfter: number;
 }
 
-export type AdditionalityWaterfallMetric = keyof AdditionalityMetricSnapshot;
+export type AdditionalityWaterfallMetric = AdditionalityMetricKey;
 
 export interface AdditionalityMetricPresentation {
   metric: AdditionalityWaterfallMetric;
@@ -109,8 +109,8 @@ const additionalityMetricPresentations: Record<
   AdditionalityWaterfallMetric,
   AdditionalityMetricPresentation
 > = {
-  objective: createCurrencyPresentation(
-    'objective',
+  cost: createCurrencyPresentation(
+    'cost',
     BILLION,
     {
       delta: 'Cost Δ ($B)',
@@ -118,8 +118,8 @@ const additionalityMetricPresentations: Record<
       after: 'Cost after ($B)',
     },
   ),
-  cumulativeEmissions: createSuffixedPresentation(
-    'cumulativeEmissions',
+  emissions: createSuffixedPresentation(
+    'emissions',
     'MtCO2e',
     MILLION,
     {
@@ -128,14 +128,14 @@ const additionalityMetricPresentations: Record<
       after: 'Emissions after (MtCO2e)',
     },
   ),
-  electricityDemand2050: createSuffixedPresentation(
-    'electricityDemand2050',
-    'TWh',
-    MILLION,
+  fuelEnergy: createSuffixedPresentation(
+    'fuelEnergy',
+    'PJ',
+    1,
     {
-      delta: 'Electricity Δ (TWh)',
-      before: 'Electricity 2050 before (TWh)',
-      after: 'Electricity 2050 after (TWh)',
+      delta: 'Fuel/energy Δ (PJ)',
+      before: 'Fuel/energy before (PJ)',
+      after: 'Fuel/energy after (PJ)',
     },
   ),
 };
@@ -171,7 +171,7 @@ export function buildAdditionalityWaterfallRows(
     return {
       key: `${entry.atom.key}:${metric}`,
       interactionKey: entry.atom.key,
-      label: labels[index] ?? entry.atom.stateLabel,
+      label: labels[index] ?? entry.atom.label,
       delta,
       cumulativeBefore,
       cumulativeAfter: cumulative,
@@ -186,9 +186,46 @@ export function buildAdditionalityReferenceRows(
   return sequence.map((entry, index) => ({
     key: `${entry.atom.key}:reference`,
     interactionKey: entry.atom.key,
-    label: labels[index] ?? entry.atom.stateLabel,
+    label: labels[index] ?? entry.atom.label,
     delta: 0,
     cumulativeBefore: 0,
     cumulativeAfter: 0,
   }));
+}
+
+export function buildAdditionalitySavingsStackRows(
+  report: AdditionalityReport,
+  metric: AdditionalityWaterfallMetric,
+  labels: readonly string[] = [],
+): AdditionalityWaterfallDatum[] {
+  let cumulative = 0;
+  const rows = report.sequence.map((entry, index) => {
+    const delta = -entry.metricsDeltaFromCurrent[metric];
+    const cumulativeBefore = cumulative;
+    cumulative += delta;
+
+    return {
+      key: `${entry.atom.key}:${metric}:savings`,
+      interactionKey: entry.atom.key,
+      label: labels[index] ?? entry.atom.label,
+      delta,
+      cumulativeBefore,
+      cumulativeAfter: cumulative,
+    };
+  });
+
+  const expected = report.baseMetrics[metric] - report.targetMetrics[metric];
+  const residual = expected - cumulative;
+  if (Math.abs(residual) > 1e-6) {
+    rows.push({
+      key: `residual:${metric}:savings`,
+      interactionKey: `residual:${metric}`,
+      label: 'Residual',
+      delta: residual,
+      cumulativeBefore: cumulative,
+      cumulativeAfter: cumulative + residual,
+    });
+  }
+
+  return rows;
 }

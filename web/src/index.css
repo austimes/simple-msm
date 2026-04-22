@@ -426,6 +426,24 @@ body {
   margin-top: 20px;
 }
 
+.additionality-method-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: end;
+  margin-top: 20px;
+}
+
+.additionality-method-group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.additionality-sample-field {
+  min-width: 140px;
+}
+
 .additionality-price-row {
   display: grid;
   grid-template-columns: minmax(0, 220px) minmax(0, 1fr);
@@ -497,8 +515,42 @@ body {
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
+.additionality-scenario-grid {
+  display: grid;
+  gap: 24px;
+}
+
+.additionality-scenario-card {
+  margin-top: 24px;
+}
+
+.additionality-scenario-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.additionality-scenario-heading h2 {
+  margin: 10px 0 0;
+}
+
+.additionality-inline-panel {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
+}
+
 .additionality-summary-card {
   margin-top: 24px;
+}
+
+.additionality-summary-grid--scenario {
+  margin-top: 20px;
+}
+
+.additionality-summary-grid--scenario .additionality-summary-card {
+  margin-top: 0;
 }
 
 .additionality-summary-card strong {
@@ -517,6 +569,10 @@ body {
 
 .additionality-chart-grid .configuration-panel {
   margin-top: 0;
+}
+
+.additionality-chart-panel {
+  min-width: 0;
 }
 
 .additionality-table-shell {

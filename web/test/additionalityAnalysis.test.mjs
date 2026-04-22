@@ -8,6 +8,8 @@ import {
   validateAdditionalityPair,
 } from '../src/additionality/additionalityAnalysis.ts';
 import { resolveConfigurationDocument } from '../src/data/demandResolution.ts';
+import { buildAllContributionRows } from '../src/results/resultContributions.ts';
+import { buildSolveRequest } from '../src/solver/buildSolveRequest.ts';
 import { SOLVER_CONTRACT_VERSION } from '../src/solver/contract.ts';
 import { solveWithLpAdapter } from '../src/solver/lpAdapter.ts';
 import { loadPkg } from './solverTestUtils.mjs';
@@ -29,27 +31,46 @@ function assertClose(actual, expected, message) {
 }
 
 function assertFiniteMetrics(snapshot) {
-  assert.equal(Number.isFinite(snapshot.objective), true);
-  assert.equal(Number.isFinite(snapshot.cumulativeEmissions), true);
-  assert.equal(Number.isFinite(snapshot.electricityDemand2050), true);
+  assert.equal(Number.isFinite(snapshot.cost), true);
+  assert.equal(Number.isFinite(snapshot.emissions), true);
+  assert.equal(Number.isFinite(snapshot.fuelEnergy), true);
+  assert.ok(snapshot.byYear);
 }
 
 function assertConsistentDelta(entry) {
   assertClose(
-    entry.metricsDeltaFromCurrent.objective,
-    entry.metricsAfter.objective - entry.metricsBefore.objective,
-    'objective delta stays internally consistent',
+    entry.metricsDeltaFromCurrent.cost,
+    entry.metricsAfter.cost - entry.metricsBefore.cost,
+    'cost delta stays internally consistent',
   );
   assertClose(
-    entry.metricsDeltaFromCurrent.cumulativeEmissions,
-    entry.metricsAfter.cumulativeEmissions - entry.metricsBefore.cumulativeEmissions,
+    entry.metricsDeltaFromCurrent.emissions,
+    entry.metricsAfter.emissions - entry.metricsBefore.emissions,
     'emissions delta stays internally consistent',
   );
   assertClose(
-    entry.metricsDeltaFromCurrent.electricityDemand2050,
-    entry.metricsAfter.electricityDemand2050 - entry.metricsBefore.electricityDemand2050,
-    '2050 electricity demand delta stays internally consistent',
+    entry.metricsDeltaFromCurrent.fuelEnergy,
+    entry.metricsAfter.fuelEnergy - entry.metricsBefore.fuelEnergy,
+    'fuel/energy delta stays internally consistent',
   );
+}
+
+function assertMetricVectorMatchesContributions(vector, contributions, label) {
+  const totals = {
+    cost: 0,
+    emissions: 0,
+    fuelEnergy: 0,
+  };
+
+  for (const row of contributions) {
+    if (row.metric === 'cost') totals.cost += row.value;
+    if (row.metric === 'emissions') totals.emissions += row.value;
+    if (row.metric === 'fuel') totals.fuelEnergy += row.value;
+  }
+
+  assertClose(vector.cost, totals.cost, `${label} cost matches contribution rows`);
+  assertClose(vector.emissions, totals.emissions, `${label} emissions matches contribution rows`);
+  assertClose(vector.fuelEnergy, totals.fuelEnergy, `${label} fuel/energy matches contribution rows`);
 }
 
 function buildBaseCase() {
@@ -72,6 +93,46 @@ function buildStateOpenCase() {
   return configuration;
 }
 
+function rowUnitCost(request, row) {
+  const conversion = row.conversionCostPerUnit ?? 0;
+  const commodity = row.inputs.reduce((total, input) => {
+    const price = request.configuration.commodityPriceByCommodity[input.commodityId]
+      ?.valuesByYear[String(row.year)] ?? 0;
+    return total + input.coefficient * price;
+  }, 0);
+  const emissions = row.directEmissions.reduce((total, entry) => total + entry.value, 0);
+  const carbonPrice = request.configuration.carbonPriceByYear[String(row.year)] ?? 0;
+  return conversion + commodity + emissions * carbonPrice;
+}
+
+function buildMockStateSharesForObjective(request, objectiveValue) {
+  if (objectiveValue === 0) {
+    return [];
+  }
+
+  const row = request.rows.find((candidate) => Math.abs(rowUnitCost(request, candidate)) > 1e-9)
+    ?? request.rows[0];
+  const unitCost = rowUnitCost(request, row) || 1;
+
+  return [
+    {
+      outputId: row.outputId,
+      outputLabel: row.outputLabel,
+      year: row.year,
+      rowId: row.rowId,
+      stateId: row.stateId,
+      stateLabel: row.stateLabel,
+      pathwayStateId: row.provenance?.baseStateId ?? row.stateId,
+      pathwayStateLabel: row.provenance?.baseStateLabel ?? row.stateLabel,
+      provenance: row.provenance,
+      activity: objectiveValue / unitCost,
+      share: null,
+      rawMaxShare: null,
+      effectiveMaxShare: null,
+    },
+  ];
+}
+
 function buildSolvedResult(request, objectiveValue) {
   return {
     contractVersion: SOLVER_CONTRACT_VERSION,
@@ -90,7 +151,7 @@ function buildSolvedResult(request, objectiveValue) {
     },
     reporting: {
       commodityBalances: [],
-      stateShares: [],
+      stateShares: buildMockStateSharesForObjective(request, objectiveValue),
       bindingConstraints: [],
       softConstraintViolations: [],
     },
@@ -168,12 +229,6 @@ function hasActiveState(request, outputId, stateId) {
   return Object.values(controlsByYear).some((control) => (control.activeStateIds ?? []).includes(stateId));
 }
 
-function findCommodityBalance(result, commodityId, year) {
-  return result.reporting.commodityBalances.find((entry) => (
-    entry.commodityId === commodityId && entry.year === year
-  )) ?? null;
-}
-
 describe('additionality analysis', () => {
   test('derives the expected state-toggle atoms for reference-baseline vs synthetic state-open target', () => {
     const atoms = deriveAdditionalityAtoms(buildBaseCase(), buildStateOpenCase(), pkg);
@@ -207,6 +262,66 @@ describe('additionality analysis', () => {
         'Residential building services|Deep-electric residential services|enable',
         'Residential building services|Electrified efficient residential services|enable',
       ],
+    );
+  });
+
+  test('derives package and autonomous atoms from canonical efficiency controls', () => {
+    const packageIds = Array.from(new Set(pkg.efficiencyPackages.map((entry) => entry.package_id))).sort();
+    assert.ok(packageIds.length > 2, 'expected package fixtures');
+
+    const base = buildBaseCase();
+    base.efficiency_controls = {
+      autonomous_mode: 'off',
+      package_mode: 'off',
+      package_ids: [],
+    };
+
+    const allowTarget = clone(base);
+    allowTarget.efficiency_controls = {
+      autonomous_mode: 'baseline',
+      package_mode: 'allow_list',
+      package_ids: [packageIds[0]],
+    };
+
+    const allowAtoms = deriveAdditionalityAtoms(base, allowTarget, pkg);
+    assert.equal(
+      allowAtoms.some((atom) => atom.kind === 'efficiency_package' && atom.packageId === packageIds[0] && atom.action === 'enable'),
+      true,
+    );
+    assert.equal(
+      allowAtoms.some((atom) => atom.kind === 'autonomous_efficiency' && atom.action === 'enable'),
+      true,
+    );
+
+    const allTarget = clone(base);
+    allTarget.efficiency_controls = {
+      autonomous_mode: 'off',
+      package_mode: 'all',
+      package_ids: [],
+    };
+    const allPackageAtoms = deriveAdditionalityAtoms(base, allTarget, pkg)
+      .filter((atom) => atom.kind === 'efficiency_package');
+    assert.equal(allPackageAtoms.length, packageIds.length);
+
+    const denyTarget = clone(base);
+    denyTarget.efficiency_controls = {
+      autonomous_mode: 'off',
+      package_mode: 'deny_list',
+      package_ids: [packageIds[0]],
+    };
+    const denyPackageAtoms = deriveAdditionalityAtoms(base, denyTarget, pkg)
+      .filter((atom) => atom.kind === 'efficiency_package');
+    assert.equal(denyPackageAtoms.length, packageIds.length - 1);
+    assert.equal(
+      denyPackageAtoms.some((atom) => atom.packageId === packageIds[0]),
+      false,
+    );
+    assert.deepEqual(
+      denyPackageAtoms.map((atom) => atom.key),
+      deriveAdditionalityAtoms(base, denyTarget, pkg)
+        .filter((atom) => atom.kind === 'efficiency_package')
+        .map((atom) => atom.key),
+      'package atom ordering stays deterministic',
     );
   });
 
@@ -294,10 +409,13 @@ describe('additionality analysis', () => {
       base,
       {
         key: 'residential-1',
+        kind: 'state',
+        category: 'efficiency',
         outputId: 'residential_building_services',
         outputLabel: 'Residential building services',
         stateId: 'buildings__residential__electrified_efficiency',
         stateLabel: 'Electrified efficient residential services',
+        label: 'Enable Electrified efficient residential services',
         action: 'enable',
       },
       pkg,
@@ -312,10 +430,13 @@ describe('additionality analysis', () => {
       first,
       {
         key: 'residential-2',
+        kind: 'state',
+        category: 'efficiency',
         outputId: 'residential_building_services',
         outputLabel: 'Residential building services',
         stateId: 'buildings__residential__deep_electric',
         stateLabel: 'Deep-electric residential services',
+        label: 'Enable Deep-electric residential services',
         action: 'enable',
       },
       pkg,
@@ -324,7 +445,55 @@ describe('additionality analysis', () => {
     assert.equal(second.service_controls.residential_building_services.active_state_ids, null);
   });
 
-  test('greedy analysis reaches the target objective after all selected atoms are applied', async () => {
+  test('applying package and autonomous atoms materializes explicit efficiency controls', () => {
+    const packageId = Array.from(new Set(pkg.efficiencyPackages.map((entry) => entry.package_id))).sort()[0];
+    const base = buildBaseCase();
+    base.efficiency_controls = {
+      autonomous_mode: 'baseline',
+      package_mode: 'off',
+      package_ids: [],
+    };
+
+    const withPackage = applyAdditionalityAtom(
+      base,
+      {
+        key: `efficiency_package::${packageId}::enable`,
+        kind: 'efficiency_package',
+        category: 'efficiency',
+        action: 'enable',
+        label: `Enable ${packageId}`,
+        outputId: null,
+        outputLabel: null,
+        packageId,
+        packageLabel: packageId,
+      },
+      pkg,
+    );
+
+    assert.equal(withPackage.efficiency_controls.package_mode, 'allow_list');
+    assert.deepEqual(withPackage.efficiency_controls.package_ids, [packageId]);
+
+    const withAutonomousOff = applyAdditionalityAtom(
+      withPackage,
+      {
+        key: 'autonomous_efficiency::residential_building_services::disable',
+        kind: 'autonomous_efficiency',
+        category: 'efficiency',
+        action: 'disable',
+        label: 'Disable autonomous efficiency',
+        outputId: 'residential_building_services',
+        outputLabel: 'Residential building services',
+      },
+      pkg,
+    );
+
+    assert.equal(
+      withAutonomousOff.efficiency_controls.autonomous_modes_by_output.residential_building_services,
+      'off',
+    );
+  });
+
+  test('greedy analysis reaches the target cost after all selected atoms are applied', async () => {
     const analysis = await runAdditionalityAnalysis(
       {
         baseConfiguration: buildBaseCase(),
@@ -351,13 +520,13 @@ describe('additionality analysis', () => {
       assertConsistentDelta(entry);
     }
     assertClose(
-      analysis.report.sequence[analysis.report.sequence.length - 1].metricsAfter.objective,
-      analysis.report.targetMetrics.objective,
-      'final greedy objective reaches the target objective',
+      analysis.report.sequence[analysis.report.sequence.length - 1].metricsAfter.cost,
+      analysis.report.targetMetrics.cost,
+      'final greedy cost reaches the target cost',
     );
   });
 
-  test('keeps 2050 electricity demand in raw MWh aligned with solver reporting totalDemand', async () => {
+  test('metric totals reconcile with solve contribution rows', async () => {
     const solveCalls = [];
     const analysis = await runAdditionalityAnalysis(
       {
@@ -369,9 +538,17 @@ describe('additionality analysis', () => {
         targetConfigId: STATE_OPEN_TARGET_ID,
       },
       {
+        buildRequest: (pkgArg, configuration) => {
+          const request = buildSolveRequest(pkgArg, configuration);
+          solveCalls.push({ configuration, request, result: null });
+          return request;
+        },
         solve: async (request) => {
           const result = await solveWithLpAdapter(request);
-          solveCalls.push({ request, result });
+          const call = solveCalls.find((entry) => entry.request.requestId === request.requestId);
+          if (call) {
+            call.result = result;
+          }
           return result;
         },
       },
@@ -381,20 +558,25 @@ describe('additionality analysis', () => {
     assert.ok(analysis.report);
     assert.ok(solveCalls.length >= 2);
 
-    const baseElectricity2050 = findCommodityBalance(solveCalls[0].result, 'electricity', 2050);
-    const targetElectricity2050 = findCommodityBalance(solveCalls[1].result, 'electricity', 2050);
-
-    assert.ok(baseElectricity2050);
-    assert.ok(targetElectricity2050);
-    assertClose(
-      analysis.report.baseMetrics.electricityDemand2050,
-      baseElectricity2050.totalDemand,
-      'base 2050 electricity demand stays in raw MWh and matches solver reporting',
+    assertMetricVectorMatchesContributions(
+      analysis.report.baseMetrics,
+      buildAllContributionRows(
+        solveCalls[0].request,
+        solveCalls[0].result,
+        pkg.residualOverlays2025,
+        solveCalls[0].configuration,
+      ),
+      'base',
     );
-    assertClose(
-      analysis.report.targetMetrics.electricityDemand2050,
-      targetElectricity2050.totalDemand,
-      'target 2050 electricity demand stays in raw MWh and matches solver reporting',
+    assertMetricVectorMatchesContributions(
+      analysis.report.targetMetrics,
+      buildAllContributionRows(
+        solveCalls[1].request,
+        solveCalls[1].result,
+        pkg.residualOverlays2025,
+        solveCalls[1].configuration,
+      ),
+      'focus',
     );
   });
 
@@ -462,14 +644,14 @@ describe('additionality analysis', () => {
 
     assert.equal(analysis.phase, 'success');
     assertClose(
-      analysis.report.sequence[0].metricsBefore.objective,
-      analysis.report.baseMetrics.objective,
-      'first sequence entry starts from the base objective',
+      analysis.report.sequence[0].metricsBefore.cost,
+      analysis.report.baseMetrics.cost,
+      'first sequence entry starts from the base cost',
     );
     assertClose(
-      analysis.report.sequence.at(-1).metricsAfter.objective,
-      analysis.report.targetMetrics.objective,
-      'last sequence entry reaches the target objective',
+      analysis.report.sequence.at(-1).metricsAfter.cost,
+      analysis.report.targetMetrics.cost,
+      'last sequence entry reaches the target cost',
     );
   });
 
@@ -514,7 +696,7 @@ describe('additionality analysis', () => {
     }
   });
 
-  test('deterministic tie-breaking when atoms have identical objective deltas', async () => {
+  test('deterministic tie-breaking when atoms have identical cost deltas', async () => {
     function mockSolverForTieBreak(request) {
       const hasA = hasActiveState(request, 'residential_building_services', 'buildings__residential__electrified_efficiency');
       const hasB = hasActiveState(request, 'residential_building_services', 'buildings__residential__deep_electric');
@@ -543,7 +725,7 @@ describe('additionality analysis', () => {
 
     assert.equal(analysis.phase, 'success');
     assert.equal(analysis.report.sequence.length, 2);
-    // Both have same absObjectiveDelta, tie-break is alphabetical by stateLabel.
+    // Both have same absCostDelta, tie-break is alphabetical by stateLabel.
     // During removal: "Deep-electric" < "Electrified efficient" alphabetically,
     // so Deep-electric is removed first. After presentation reversal:
     // Electrified efficient appears first, Deep-electric second.
@@ -557,9 +739,94 @@ describe('additionality analysis', () => {
     );
     // Verify determinism by checking the deltas are actually tied
     assertClose(
-      analysis.report.sequence[0].absObjectiveDelta,
-      analysis.report.sequence[1].absObjectiveDelta,
-      'both atoms should have identical absObjectiveDelta',
+      analysis.report.sequence[0].absCostDelta,
+      analysis.report.sequence[1].absCostDelta,
+      'both atoms should have identical absCostDelta',
+    );
+  });
+
+  test('sampled Shapley is deterministic and matches an additive mock model', async () => {
+    function mockSolverForAdditiveShapley(request) {
+      const activeResidentialStateIds = new Set(request.__activeResidentialStateIds ?? []);
+      const hasEfficiency = activeResidentialStateIds.has('buildings__residential__electrified_efficiency');
+      const hasDeepElectric = activeResidentialStateIds.has('buildings__residential__deep_electric');
+
+      return buildSolvedResult(
+        request,
+        (hasEfficiency ? 10 : 0) + (hasDeepElectric ? 5 : 0),
+      );
+    }
+
+    const base = buildBaseCase();
+    const target = clone(base);
+    target.service_controls.residential_building_services.active_state_ids = null;
+
+    const options = {
+      baseConfiguration: base,
+      baseConfigId: 'shapley-base',
+      commoditySelections: {},
+      method: 'shapley_permutation_sample',
+      pkg,
+      shapleySampleCount: 16,
+      targetConfiguration: target,
+      targetConfigId: 'shapley-target',
+    };
+    const residentialStateIds = Array.from(new Set(
+      pkg.sectorStates
+        .filter((row) => row.service_or_output_name === 'residential_building_services')
+        .map((row) => row.state_id),
+    ));
+    const buildAdditiveMockRequest = (pkgArg, configuration) => {
+      const request = buildSolveRequest(pkgArg, configuration);
+      const row = request.rows[0];
+      const activeResidentialStateIds = configuration
+        .service_controls
+        .residential_building_services
+        .active_state_ids ?? residentialStateIds;
+      return {
+        ...request,
+        __activeResidentialStateIds: activeResidentialStateIds,
+        rows: [
+          {
+            ...row,
+            rowId: 'mock-row',
+            inputs: [],
+            directEmissions: [],
+            conversionCostPerUnit: 1,
+          },
+        ],
+      };
+    };
+    const first = await runAdditionalityAnalysis(options, {
+      buildRequest: buildAdditiveMockRequest,
+      solve: async (request) => mockSolverForAdditiveShapley(request),
+    });
+    const second = await runAdditionalityAnalysis(options, {
+      buildRequest: buildAdditiveMockRequest,
+      solve: async (request) => mockSolverForAdditiveShapley(request),
+    });
+
+    assert.equal(first.phase, 'success');
+    assert.equal(first.report.orderingMethod, 'shapley_permutation_sample');
+    assert.equal(first.report.methodMetadata.requestedPermutations, 16);
+    assert.equal(first.report.methodMetadata.completedPermutations, 16);
+    assert.deepEqual(
+      first.report.sequence.map((entry) => [entry.atom.key, entry.metricsDeltaFromCurrent.cost]),
+      second.report.sequence.map((entry) => [entry.atom.key, entry.metricsDeltaFromCurrent.cost]),
+    );
+
+    const costByState = Object.fromEntries(
+      first.report.sequence.map((entry) => [entry.atom.stateId, entry.metricsDeltaFromCurrent.cost]),
+    );
+    assertClose(
+      costByState.buildings__residential__electrified_efficiency,
+      10,
+      'efficiency state Shapley cost equals additive marginal',
+    );
+    assertClose(
+      costByState.buildings__residential__deep_electric,
+      5,
+      'deep-electric state Shapley cost equals additive marginal',
     );
   });
 
