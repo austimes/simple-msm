@@ -117,6 +117,12 @@ interface ConfigurationCollectionEntry {
   configuration: ConfigurationDocument;
 }
 
+interface BrowserStorageLike {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+  removeItem(key: string): void;
+}
+
 function normalizeConfigurationMetadata(configuration: ConfigurationDocument): ConfigurationDocument {
   const configurationWithoutMetadata = { ...configuration };
   delete configurationWithoutMetadata.app_metadata;
@@ -187,6 +193,19 @@ function dedupeConfigurationEntries(
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
+function mergeConfigurationCollections(
+  ...collections: ConfigurationDocument[][]
+): ConfigurationDocument[] {
+  return dedupeConfigurationEntries(
+    collections.flatMap((configs, collectionIndex) =>
+      configs.map((configuration, configIndex) => ({
+        source: `merged:${collectionIndex}:${configIndex}`,
+        configuration,
+      })),
+    ),
+  );
+}
+
 export function parseConfigurationCollection(
   modules: Record<string, string>,
   readonly: boolean,
@@ -250,6 +269,8 @@ export function loadBuiltinConfigurations(): ConfigurationDocument[] {
 
 // --- User configuration persistence (repo-backed via dev server API) ---
 
+export const BROWSER_USER_CONFIG_STORAGE_KEY = 'simple-msm.user-configurations.v1';
+
 // Bundled user configs loaded at build time (for production / static builds)
 const userConfigModules =
   (() => {
@@ -264,8 +285,108 @@ const userConfigModules =
     }
   })();
 
+function getBrowserStorage(): BrowserStorageLike | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+function getConfigurationStorageKey(configuration: ConfigurationDocument): string {
+  return getConfigurationId(configuration) ?? configuration.name;
+}
+
+function loadBrowserUserConfigurations(): ConfigurationDocument[] {
+  const storage = getBrowserStorage();
+  if (!storage) {
+    return [];
+  }
+
+  try {
+    const raw = storage.getItem(BROWSER_USER_CONFIG_STORAGE_KEY);
+    if (!raw) {
+      return [];
+    }
+
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return dedupeConfigurationEntries(
+      parsed.flatMap((configuration, index) => {
+        if (!configuration || typeof configuration !== 'object') {
+          return [];
+        }
+
+        return [{
+          source: `browser:${index}`,
+          configuration: withConfigurationMetadata(configuration as ConfigurationDocument, { readonly: false }),
+        }];
+      }),
+    );
+  } catch {
+    return [];
+  }
+}
+
+function persistBrowserUserConfigurations(configurations: ConfigurationDocument[]): string | null {
+  const storage = getBrowserStorage();
+  if (!storage) {
+    return 'Browser-local saved configurations are unavailable here.';
+  }
+
+  try {
+    storage.setItem(
+      BROWSER_USER_CONFIG_STORAGE_KEY,
+      JSON.stringify(
+        configurations.map((configuration) =>
+          withConfigurationMetadata(configuration, { readonly: false }),
+        ),
+      ),
+    );
+    return null;
+  } catch (error) {
+    return error instanceof Error
+      ? `Could not update browser-local saved configurations: ${error.message}`
+      : 'Could not update browser-local saved configurations.';
+  }
+}
+
+function saveBrowserUserConfiguration(configuration: ConfigurationDocument): string | null {
+  const key = getConfigurationStorageKey(configuration);
+  const nextConfigurations = [
+    ...loadBrowserUserConfigurations().filter(
+      (existingConfiguration) => getConfigurationStorageKey(existingConfiguration) !== key,
+    ),
+    withConfigurationMetadata(configuration, { readonly: false }),
+  ];
+
+  return persistBrowserUserConfigurations(nextConfigurations);
+}
+
+function removeBrowserUserConfiguration(configId: string): string | null {
+  const nextConfigurations = loadBrowserUserConfigurations().filter(
+    (configuration) => getConfigurationStorageKey(configuration) !== configId,
+  );
+
+  return persistBrowserUserConfigurations(nextConfigurations);
+}
+
+function shouldUseBrowserUserConfigurationFallback(status: number): boolean {
+  return status === 404 || status === 405;
+}
+
 export function loadUserConfigurations(): ConfigurationDocument[] {
-  return parseConfigurationCollection(userConfigModules, false);
+  return mergeConfigurationCollections(
+    parseConfigurationCollection(userConfigModules, false),
+    loadBrowserUserConfigurations(),
+  );
 }
 
 export async function fetchUserConfigurations(): Promise<ConfigurationDocument[]> {
@@ -273,11 +394,14 @@ export async function fetchUserConfigurations(): Promise<ConfigurationDocument[]
     const res = await fetch('/api/user-configurations');
     if (!res.ok) return loadUserConfigurations();
     const configs = (await res.json()) as ConfigurationDocument[];
-    return dedupeConfigurationEntries(
-      configs.map((config, index) => ({
-        source: `remote:${index}`,
-        configuration: withConfigurationMetadata(config, { readonly: false }),
-      })),
+    return mergeConfigurationCollections(
+      dedupeConfigurationEntries(
+        configs.map((config, index) => ({
+          source: `remote:${index}`,
+          configuration: withConfigurationMetadata(config, { readonly: false }),
+        })),
+      ),
+      loadBrowserUserConfigurations(),
     );
   } catch {
     return loadUserConfigurations();
@@ -293,12 +417,18 @@ export async function saveUserConfiguration(config: ConfigurationDocument): Prom
       body: JSON.stringify(toSave),
     });
     if (!res.ok) {
+      if (shouldUseBrowserUserConfigurationFallback(res.status)) {
+        return saveBrowserUserConfiguration(toSave);
+      }
+
       const data = await res.json().catch(() => ({}));
       return (data as { error?: string }).error ?? 'Failed to save configuration.';
     }
+
+    saveBrowserUserConfiguration(toSave);
     return null;
-  } catch (error) {
-    return error instanceof Error ? error.message : 'Failed to save configuration.';
+  } catch {
+    return saveBrowserUserConfiguration(toSave);
   }
 }
 
@@ -308,12 +438,18 @@ export async function deleteUserConfiguration(configId: string): Promise<string 
       method: 'DELETE',
     });
     if (!res.ok) {
+      if (shouldUseBrowserUserConfigurationFallback(res.status)) {
+        return removeBrowserUserConfiguration(configId);
+      }
+
       const data = await res.json().catch(() => ({}));
       return (data as { error?: string }).error ?? 'Failed to delete configuration.';
     }
+
+    removeBrowserUserConfiguration(configId);
     return null;
-  } catch (error) {
-    return error instanceof Error ? error.message : 'Failed to delete configuration.';
+  } catch {
+    return removeBrowserUserConfiguration(configId);
   }
 }
 
