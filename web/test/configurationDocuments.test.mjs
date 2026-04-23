@@ -463,6 +463,85 @@ test('user configuration API saves files using app_metadata.id', async () => {
   }
 });
 
+test('user configuration persistence falls back to browser storage when the API is unavailable', async () => {
+  const {
+    BROWSER_USER_CONFIG_STORAGE_KEY,
+    deleteUserConfiguration,
+    fetchUserConfigurations,
+    loadUserConfigurations,
+    saveUserConfiguration,
+  } = await loadViteModule('/src/data/configurationLoader.ts');
+  const storage = createMemoryStorage();
+  const configuration = structuredClone(readJson('../src/configurations/demo-buildings-efficiency.json'));
+  const configId = 'preview-save-test';
+  const previousWindow = globalThis.window;
+  const previousFetch = globalThis.fetch;
+
+  configuration.name = 'Preview save test';
+  configuration.app_metadata = {
+    ...(configuration.app_metadata ?? {}),
+    id: configId,
+    readonly: false,
+  };
+
+  globalThis.window = {
+    localStorage: storage,
+  };
+  globalThis.fetch = async (_input, init) => {
+    switch (init?.method ?? 'GET') {
+      case 'GET':
+        return {
+          ok: true,
+          json: async () => {
+            throw new SyntaxError('Unexpected token < in JSON at position 0');
+          },
+        };
+      case 'PUT':
+      case 'DELETE':
+        return {
+          ok: false,
+          status: 404,
+          json: async () => ({}),
+        };
+      default:
+        throw new Error(`Unexpected method: ${init?.method ?? 'GET'}`);
+    }
+  };
+
+  try {
+    assert.equal(await saveUserConfiguration(configuration), null);
+    assert.match(storage.getItem(BROWSER_USER_CONFIG_STORAGE_KEY) ?? '', /preview-save-test/);
+
+    const loadedConfigs = loadUserConfigurations();
+    const fetchedConfigs = await fetchUserConfigurations();
+    const loadedConfig = loadedConfigs.find((config) => config.app_metadata?.id === configId);
+    const fetchedConfig = fetchedConfigs.find((config) => config.app_metadata?.id === configId);
+
+    assert.equal(loadedConfig?.name, 'Preview save test');
+    assert.notEqual(loadedConfig?.app_metadata?.readonly, true);
+    assert.equal(fetchedConfig?.name, 'Preview save test');
+    assert.notEqual(fetchedConfig?.app_metadata?.readonly, true);
+
+    assert.equal(await deleteUserConfiguration(configId), null);
+    assert.equal(
+      loadUserConfigurations().some((config) => config.app_metadata?.id === configId),
+      false,
+    );
+  } finally {
+    if (previousWindow === undefined) {
+      delete globalThis.window;
+    } else {
+      globalThis.window = previousWindow;
+    }
+
+    if (previousFetch === undefined) {
+      delete globalThis.fetch;
+    } else {
+      globalThis.fetch = previousFetch;
+    }
+  }
+});
+
 test('bundled configurations default respect_max_share to true', () => {
   for (const file of configFiles) {
     const config = readJson(`../src/configurations/${file}`);
