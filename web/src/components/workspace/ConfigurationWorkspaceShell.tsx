@@ -98,12 +98,12 @@ export default function ConfigurationWorkspaceShell({
     >
       <WorkspaceSidebarFrame
         side="left"
-        title="Controls"
+        title="Levers / Configs / Settings"
         bodyId="workspace-left-sidebar-body"
         collapsed={leftCollapsed}
         onToggle={onToggleLeft}
-        collapseLabel="Collapse controls sidebar"
-        expandLabel="Expand controls sidebar"
+        collapseLabel="Collapse levers/configs/settings sidebar"
+        expandLabel="Expand levers/configs/settings sidebar"
       >
         {leftSidebar}
       </WorkspaceSidebarFrame>
@@ -112,12 +112,12 @@ export default function ConfigurationWorkspaceShell({
 
       <WorkspaceSidebarFrame
         side="right"
-        title="State Selector"
+        title="System Structure"
         bodyId="workspace-right-sidebar-body"
         collapsed={rightCollapsed}
         onToggle={onToggleRight}
-        collapseLabel="Collapse state selector sidebar"
-        expandLabel="Expand state selector sidebar"
+        collapseLabel="Collapse system structure sidebar"
+        expandLabel="Expand system structure sidebar"
       >
         {rightSidebar}
       </WorkspaceSidebarFrame>

@@ -274,6 +274,14 @@ export const BROWSER_USER_CONFIG_STORAGE_KEY = 'simple-msm.user-configurations.v
 // Bundled user configs loaded at build time (for production / static builds)
 const userConfigModules =
   (() => {
+    const fileSystemModules = loadConfigurationModulesFromFileSystem(
+      '../configurations/user',
+      '/src/configurations/user',
+    );
+    if (getNodeBuiltin<NodeFsLike>('node:fs')) {
+      return fileSystemModules;
+    }
+
     try {
       return import.meta.glob<string>('/src/configurations/user/*.json', {
         eager: true,
@@ -281,7 +289,7 @@ const userConfigModules =
         query: '?raw',
       });
     } catch {
-      return loadConfigurationModulesFromFileSystem('../configurations/user', '/src/configurations/user');
+      return fileSystemModules;
     }
   })();
 

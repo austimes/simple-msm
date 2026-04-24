@@ -573,7 +573,7 @@ test('respect_max_share defaults to true when omitted and can be toggled in the 
   assert.equal(usePackageStore.getState().currentConfiguration.solver_options?.respect_max_share, true);
 });
 
-test('left sidebar uses the requested default collapsed sections and restores all commodity price controls', async () => {
+test('left sidebar renders tabbed levers and restores all commodity price controls', async () => {
   const { default: LeftSidebar } = await loadViteModule('/src/components/workspace/LeftSidebar.tsx');
   const { usePackageStore } = await loadViteModule('/src/data/packageStore.ts');
   const configuration = readJson('../src/configurations/demo-buildings-efficiency.json');
@@ -583,57 +583,65 @@ test('left sidebar uses the requested default collapsed sections and restores al
 
   const html = renderToStaticMarkup(React.createElement(LeftSidebar));
 
-  assert.match(html, /aria-expanded="false" aria-controls="left-sidebar-section-options"/);
+  assert.match(html, /role="tab" aria-selected="true" class="workspace-left-tab workspace-left-tab--active">Levers/);
+  assert.match(html, /role="tab" aria-selected="false" class="workspace-left-tab">Configs/);
+  assert.match(html, /role="tab" aria-selected="false" class="workspace-left-tab">Settings/);
   assert.match(html, /aria-expanded="false" aria-controls="left-sidebar-section-demandGrowth"/);
   assert.match(html, /aria-expanded="false" aria-controls="left-sidebar-section-commodityControls"/);
   assert.match(html, /aria-expanded="true" aria-controls="left-sidebar-section-emissionsPrice"/);
-  assert.match(html, /aria-expanded="false" aria-controls="left-sidebar-section-overlays"/);
-  assert.match(html, /aria-expanded="true" aria-controls="left-sidebar-section-configurations"/);
 
-  assert.ok(html.includes('Options'));
-  assert.ok(html.includes('Demand Growth'));
-  assert.ok(html.includes('Commodity Controls'));
-  assert.ok(html.includes('Emissions Price'));
-  assert.ok(html.includes('Overlays'));
-  assert.ok(html.includes('Configurations'));
+  assert.ok(html.includes('Demand growth'));
+  assert.ok(html.includes('Commodity price levels'));
+  assert.ok(html.includes('Emissions / carbon price'));
 
   assert.ok(!html.includes('Respect max-share caps'));
   assert.ok(!html.includes('Simple sector growth - central'));
   assert.ok(!html.includes('Electricity supply'));
   assert.ok(!html.includes('Exogenous purchase price path for this commodity.'));
-  assert.ok(!html.includes('All on'));
-  assert.ok(!html.includes('Energy residuals'));
+  assert.ok(!html.includes('Residual commercial other'));
   assert.doesNotMatch(html, /workspace-mode-badge--modeled/);
   assert.doesNotMatch(html, />in model<\/span>/i);
 });
 
-test('left sidebar renders the residual aggregate summary, display toggle, and separate net sinks block', async () => {
+test('left sidebar configs and settings render comparison, save, and residual display controls', async () => {
   const { default: LeftSidebar } = await loadViteModule('/src/components/workspace/LeftSidebar.tsx');
   const { usePackageStore } = await loadViteModule('/src/data/packageStore.ts');
 
   usePackageStore.getState().replaceCurrentConfiguration(readJson('../src/configurations/reference-baseline.json'));
 
-  const html = renderToStaticMarkup(
+  const configsHtml = renderToStaticMarkup(
     React.createElement(LeftSidebar, {
+      initialActiveTab: 'configs',
       initialExpandedSections: {
-        overlays: true,
-        emissionsPrice: false,
-        configurations: false,
+        configurations: true,
       },
     }),
   );
 
-  assert.match(html, /Unmodelled residuals/);
-  assert.match(html, /Aggregated/);
-  assert.match(html, /Individual/);
-  assert.match(html, /components enabled/);
-  assert.match(html, /Net sinks/);
-  assert.match(html, /Residual LULUCF sink/);
-  assert.match(html, /workspace-overlay-control-stack/);
-  assert.match(html, /workspace-chip-group--mode-toggle/);
-  assert.match(html, /workspace-chip-group--supporting-actions/);
-  assert.match(html, /aria-pressed="true"/);
-  assert.match(html, /aria-pressed="false"/);
-  assert.match(html, /workspace-chip--toggle-off/);
-  assert.match(html, /workspace-chip--utility-action/);
+  assert.match(configsHtml, /Base comparison mode/);
+  assert.match(configsHtml, /Generated incumbent/);
+  assert.match(configsHtml, /Saved base/);
+  assert.match(configsHtml, /Save \/ load configs/);
+  assert.match(configsHtml, /Built-in configs/);
+
+  const settingsHtml = renderToStaticMarkup(
+    React.createElement(LeftSidebar, {
+      initialActiveTab: 'settings',
+      initialExpandedSections: {
+        overlays: true,
+        options: true,
+      },
+    }),
+  );
+
+  assert.match(settingsHtml, /Solver caps/);
+  assert.match(settingsHtml, /Respect max-share caps/);
+  assert.match(settingsHtml, /Respect max-activity caps/);
+  assert.match(settingsHtml, /Residual display mode/);
+  assert.match(settingsHtml, /Aggregated/);
+  assert.match(settingsHtml, /Individual/);
+  assert.match(settingsHtml, /workspace-chip-group--mode-toggle/);
+  assert.match(settingsHtml, /aria-pressed="true"/);
+  assert.match(settingsHtml, /aria-pressed="false"/);
+  assert.doesNotMatch(settingsHtml, /Residual LULUCF sink/);
 });

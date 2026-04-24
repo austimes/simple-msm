@@ -30,7 +30,7 @@ export interface AdditionalityCommoditySelectionState {
   selections: Record<string, PriceLevel>;
 }
 
-export type WorkspaceComparisonBaseSelectionMode = 'auto' | 'manual' | 'none';
+export type WorkspaceComparisonBaseSelectionMode = 'generated' | 'saved' | 'none';
 
 export interface WorkspaceComparisonUiState {
   baseSelectionMode: WorkspaceComparisonBaseSelectionMode;
@@ -90,7 +90,7 @@ export const DEFAULT_APP_UI_STATE: AppUiState = {
       configurations: true,
     },
     comparison: {
-      baseSelectionMode: 'auto',
+      baseSelectionMode: 'generated',
       selectedBaseConfigId: null,
       fuelSwitchBasis: 'to',
       selectedFuelSwitchYear: null,

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useConfigurationSolve } from '../hooks/useConfigurationSolve';
 import { useAvailableConfigurations } from '../hooks/useAvailableConfigurations.ts';
 import LeftSidebar from '../components/workspace/LeftSidebar';
@@ -14,18 +14,44 @@ void React;
 export default function ConfigurationWorkspacePage() {
   const currentConfiguration = usePackageStore((state) => state.currentConfiguration);
   const activeConfigurationId = usePackageStore((state) => state.activeConfigurationId);
+  const appConfig = usePackageStore((state) => state.appConfig);
+  const sectorStates = usePackageStore((state) => state.sectorStates);
+  const autonomousEfficiencyTracks = usePackageStore((state) => state.autonomousEfficiencyTracks);
+  const efficiencyPackages = usePackageStore((state) => state.efficiencyPackages);
+  const residualOverlays2025 = usePackageStore((state) => state.residualOverlays2025);
   const focusSolve = useConfigurationSolve(currentConfiguration);
   const { configurations, configurationsById } = useAvailableConfigurations();
   const { leftCollapsed, rightCollapsed, comparison } = useAppUiStore((state) => state.workspace);
   const updateWorkspaceUi = useAppUiStore((state) => state.updateWorkspaceUi);
-  const workspacePair = resolveWorkspacePair({
-    activeConfigurationId,
-    baseSelectionMode: comparison.baseSelectionMode,
-    configurationsById,
-    focusConfiguration: currentConfiguration,
-    focusConfigId: activeConfigurationId,
-    selectedBaseConfigId: comparison.selectedBaseConfigId,
-  });
+  const workspacePair = useMemo(
+    () => resolveWorkspacePair({
+      activeConfigurationId,
+      baseSelectionMode: comparison.baseSelectionMode,
+      configurationsById,
+      focusConfiguration: currentConfiguration,
+      focusConfigId: activeConfigurationId,
+      packageData: {
+        appConfig,
+        sectorStates,
+        autonomousEfficiencyTracks,
+        efficiencyPackages,
+        residualOverlays2025,
+      },
+      selectedBaseConfigId: comparison.selectedBaseConfigId,
+    }),
+    [
+      activeConfigurationId,
+      appConfig,
+      autonomousEfficiencyTracks,
+      comparison.baseSelectionMode,
+      comparison.selectedBaseConfigId,
+      configurationsById,
+      currentConfiguration,
+      efficiencyPackages,
+      residualOverlays2025,
+      sectorStates,
+    ],
+  );
   const baseSolve = useConfigurationSolve(workspacePair.base?.configuration ?? null);
 
   return (

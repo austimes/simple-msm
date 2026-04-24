@@ -1,6 +1,6 @@
 {
   "name": "Reference baseline",
-  "description": "Full-model reference case with endogenous electricity, residual overlays excluded, incumbent/default pathway scope, baseline autonomous efficiency, and packages off.",
+  "description": "Full-model reference case with endogenous electricity, non-sink residuals included, incumbent/default route scope, baseline autonomous efficiency, and packages off.",
   "years": [
     2025,
     2030,

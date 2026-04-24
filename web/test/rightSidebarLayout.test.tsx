@@ -56,17 +56,19 @@ describe('RightSidebarContent', () => {
         onSetAutonomousEfficiencyForOutput={() => {}}
         onSetEfficiencyPackageEnabled={() => {}}
         onSetAllEfficiencyPackagesForOutput={() => {}}
+        onSetResidualOverlayIncluded={() => {}}
+        onSetResidualOverlayGroupIncluded={() => {}}
       />,
     );
 
     assert.ok(
-      html.indexOf(firstOutputLabel) < html.indexOf('aria-label="State selector status legend"'),
-      'expected legend to render after the first real state selector card',
+      html.indexOf(firstOutputLabel) < html.indexOf('aria-label="System structure status legend"'),
+      'expected legend to render after the first real system structure card',
     );
-    assert.doesNotMatch(html, /<h2>State Selector<\/h2>/);
+    assert.doesNotMatch(html, /<h2>System Structure<\/h2>/);
   });
 
-  test('renders pathway pills without visible active or inactive suffixes', () => {
+  test('renders route pills without visible active or inactive suffixes', () => {
     const tree: RightSidebarSectorNode[] = [
       {
         sector: 'electricity_supply',
@@ -116,6 +118,8 @@ describe('RightSidebarContent', () => {
         onSetAutonomousEfficiencyForOutput={() => {}}
         onSetEfficiencyPackageEnabled={() => {}}
         onSetAllEfficiencyPackagesForOutput={() => {}}
+        onSetResidualOverlayIncluded={() => {}}
+        onSetResidualOverlayGroupIncluded={() => {}}
       />,
     );
 
@@ -228,6 +232,8 @@ describe('RightSidebarContent', () => {
         packageToggle = { packageId, enabled };
       },
       onSetAllEfficiencyPackagesForOutput: () => {},
+      onSetResidualOverlayIncluded: () => {},
+      onSetResidualOverlayGroupIncluded: () => {},
     };
     const element = <RightSidebarContent {...props} />;
     const html = renderToStaticMarkup(element);
@@ -235,9 +241,9 @@ describe('RightSidebarContent', () => {
     assert.equal(html.match(/workspace-efficiency-controls/g)?.length, 1);
     assert.match(html, /Autonomous/);
     assert.match(html, /Shell retrofit/);
-    assert.match(html, /Pure/);
+    assert.match(html, /Pure efficiency package/);
     assert.match(html, /Embodied/);
-    assert.match(html, /Controlled by pathway state/);
+    assert.match(html, /Controlled by route/);
 
     const packageButton = findElement(RightSidebarContent(props), (candidate) => {
       return candidate.type === 'button'
@@ -250,6 +256,120 @@ describe('RightSidebarContent', () => {
     assert.deepEqual(packageToggle, {
       packageId: 'shell_retrofit',
       enabled: false,
+    });
+  });
+
+  test('renders residual groups separately from route chips and wires toggles', () => {
+    const tree: RightSidebarSectorNode[] = [
+      {
+        sector: 'buildings',
+        label: 'Buildings',
+        subsectors: [
+          {
+            subsector: 'residential',
+            outputId: 'residential_building_services',
+            outputLabel: 'Residential buildings',
+            states: [
+              {
+                stateId: 'buildings__residential__incumbent_mixed_fuels',
+                stateLabel: 'Incumbent mixed fuels',
+              },
+            ],
+            status: undefined,
+            presentation: {
+              detail: 'Has active routes and participates in this solve.',
+              badges: [],
+              isDimmed: false,
+              isDisabled: false,
+              arePathwaysInactive: false,
+            },
+            badges: [],
+            activeStateIds: ['buildings__residential__incumbent_mixed_fuels'],
+            allDisabled: false,
+            pathwaysInactive: false,
+            outOfScope: false,
+            canCollapse: false,
+            isCollapsed: false,
+          },
+        ],
+        residualOverlayIds: ['residential_other'],
+        residualGroup: {
+          groupId: 'buildings',
+          label: 'Residuals',
+          includedCount: 1,
+          totalCount: 1,
+          allIncluded: true,
+          allExcluded: false,
+          residuals: [
+            {
+              overlayId: 'residential_other',
+              overlayLabel: 'Residual residential other',
+              overlayDomain: 'energy_residual',
+              officialAccountingBucket: 'Residential',
+              commodityCount: 2,
+              totalEnergyPJ: 12,
+              totalEmissionsMt: 0.8,
+              totalCostM: 4,
+              defaultInclude: true,
+              proxyOutputIds: ['residential_building_services'],
+              proxyOutputLabels: ['Residential buildings'],
+              included: true,
+            },
+          ],
+        },
+        isExcluded: false,
+        isCollapsed: false,
+      },
+    ];
+    let residualToggle;
+    let groupToggle;
+    const props = {
+      tree,
+      onToggleExpandedSector: () => {},
+      onToggleExpandedSubsector: () => {},
+      onToggleStateActive: () => {},
+      onSetAutonomousEfficiencyForOutput: () => {},
+      onSetEfficiencyPackageEnabled: () => {},
+      onSetAllEfficiencyPackagesForOutput: () => {},
+      onSetResidualOverlayIncluded: (overlayId: string, included: boolean) => {
+        residualToggle = { overlayId, included };
+      },
+      onSetResidualOverlayGroupIncluded: (overlayIds: string[], included: boolean) => {
+        groupToggle = { overlayIds, included };
+      },
+    };
+    const html = renderToStaticMarkup(<RightSidebarContent {...props} />);
+
+    assert.match(html, /Residuals/);
+    assert.match(html, /Residual residential other/);
+    assert.match(html, /Energy residual/);
+    assert.match(html, /Proxy-linked outputs: Residential buildings/);
+    assert.equal(html.match(/class="workspace-state-chip /g)?.length, 1);
+
+    const residualOffButton = findElement(RightSidebarContent(props), (candidate) =>
+      candidate.type === 'button'
+      && candidate.props.onClick
+      && typeof candidate.props.className === 'string'
+      && candidate.props.className.includes('workspace-chip')
+      && renderToStaticMarkup(candidate).includes('Off'),
+    );
+    assert.ok(residualOffButton);
+    residualOffButton.props.onClick();
+    assert.deepEqual(residualToggle, {
+      overlayId: 'residential_other',
+      included: false,
+    });
+
+    const allOffButton = findElement(RightSidebarContent(props), (candidate) =>
+      candidate.type === 'button'
+      && candidate.props.onClick
+      && renderToStaticMarkup(candidate).includes('All Off'),
+    );
+    assert.ok(allOffButton);
+    allOffButton.props.onClick();
+    assert.deepEqual(groupToggle, {
+      overlayIds: ['residential_other'],
+      included: false,
     });
   });
 });

@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
-import { deriveRightSidebarTree } from '../src/components/workspace/rightSidebarTree.ts';
+import {
+  buildSystemStructureCatalog,
+  deriveRightSidebarTree,
+} from '../src/components/workspace/rightSidebarTree.ts';
 
 function buildStatus(outputId, overrides = {}) {
   const activeStateIds = overrides.activeStateIds ?? ['pathway-a'];
@@ -156,5 +159,108 @@ describe('deriveRightSidebarTree', () => {
 
     assert.equal(sector.subsectors[0].efficiencyControls?.outputId, 'residential_building_services');
     assert.equal(sector.subsectors[1].efficiencyControls, undefined);
+  });
+
+  test('builds explicit system structure groups with residual-only groups', () => {
+    const catalog = [
+      {
+        sector: 'buildings',
+        subsectors: [
+          buildSubsector('residential_building_services', 'Residential buildings'),
+          buildSubsector('commercial_building_services', 'Commercial buildings'),
+        ],
+      },
+      {
+        sector: 'road_transport',
+        subsectors: [
+          buildSubsector('passenger_road_transport', 'Passenger road'),
+        ],
+      },
+    ];
+    const residualRows = [
+      { overlay_id: 'residential_other' },
+      { overlay_id: 'construction_other' },
+    ];
+
+    const systemCatalog = buildSystemStructureCatalog(catalog, residualRows);
+
+    assert.equal(systemCatalog[0].sector, 'buildings');
+    assert.equal(systemCatalog[0].label, 'Buildings');
+    assert.deepEqual(
+      systemCatalog[0].subsectors.map((subsector) => subsector.outputId),
+      ['residential_building_services', 'commercial_building_services'],
+    );
+    assert.deepEqual(systemCatalog[0].residualOverlayIds, ['residential_other']);
+    assert.equal(
+      systemCatalog.find((entry) => entry.sector === 'construction')?.label,
+      'Construction',
+    );
+  });
+
+  test('attaches residual groups without turning them into route nodes', () => {
+    const catalog = buildSystemStructureCatalog(
+      [
+        {
+          sector: 'buildings',
+          subsectors: [buildSubsector('residential_building_services', 'Residential buildings')],
+        },
+      ],
+      [
+        {
+          overlay_id: 'residential_other',
+          overlay_label: 'Residual residential other',
+          overlay_domain: 'energy_residual',
+          official_accounting_bucket: 'Residential',
+          final_energy_pj_2025: 2,
+          direct_energy_emissions_mtco2e_2025: 0.4,
+          other_emissions_mtco2e_2025: 0,
+          default_total_cost_ex_carbon_audm_2024: 3,
+          default_include: true,
+        },
+      ],
+    );
+    const [buildings] = deriveRightSidebarTree(
+      catalog,
+      {
+        residential_building_services: buildStatus('residential_building_services'),
+      },
+      new Set(),
+      new Set(),
+      [],
+      [
+        {
+          overlay_id: 'residential_other',
+          overlay_label: 'Residual residential other',
+          overlay_domain: 'energy_residual',
+          official_accounting_bucket: 'Residential',
+          year: 2025,
+          commodity: 'electricity',
+          final_energy_pj_2025: 2,
+          native_unit: 'MWh',
+          native_quantity_2025: 10,
+          direct_energy_emissions_mtco2e_2025: 0.4,
+          other_emissions_mtco2e_2025: 0,
+          carbon_billable_emissions_mtco2e_2025: 0.4,
+          default_price_basis: 'reference',
+          default_price_per_native_unit_aud_2024: null,
+          default_commodity_cost_audm_2024: 1,
+          default_fixed_noncommodity_cost_audm_2024: 2,
+          default_total_cost_ex_carbon_audm_2024: 3,
+          default_include: true,
+          allocation_method: '',
+          cost_basis_note: '',
+          notes: '',
+        },
+      ],
+      {
+        residential_other: { included: false },
+      },
+    );
+
+    assert.equal(buildings.subsectors.length, 1);
+    assert.equal(buildings.residualGroup?.residuals.length, 1);
+    assert.equal(buildings.residualGroup?.residuals[0].overlayId, 'residential_other');
+    assert.equal(buildings.residualGroup?.residuals[0].included, false);
+    assert.deepEqual(buildings.subsectors.map((subsector) => subsector.outputId), ['residential_building_services']);
   });
 });

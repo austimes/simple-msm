@@ -1,6 +1,11 @@
 import { getConfigurationId } from './configurationLoader.ts';
+import {
+  buildGeneratedIncumbentBaseConfiguration,
+  GENERATED_INCUMBENT_BASE_LABEL,
+} from './systemStructureModel.ts';
 import type {
   ConfigurationDocument,
+  PackageData,
 } from './types.ts';
 import type { WorkspaceComparisonBaseSelectionMode } from './appUiState.ts';
 
@@ -8,7 +13,7 @@ export interface ResolvedConfigurationEndpoint {
   configId: string | null;
   configuration: ConfigurationDocument | null;
   label: string;
-  source: 'saved' | 'working';
+  source: 'saved' | 'working' | 'generated';
 }
 
 export interface ResolvedConfigurationPair {
@@ -37,6 +42,10 @@ interface ResolveWorkspacePairOptions {
   configurationsById: Record<string, ConfigurationDocument>;
   focusConfiguration: ConfigurationDocument;
   focusConfigId: string | null;
+  packageData: Pick<
+    PackageData,
+    'appConfig' | 'sectorStates' | 'autonomousEfficiencyTracks' | 'efficiencyPackages' | 'residualOverlays2025'
+  >;
   selectedBaseConfigId: string | null;
 }
 
@@ -183,22 +192,31 @@ export function resolveWorkspacePair(
   };
 
   let baseConfigId: string | null = null;
-  if (options.baseSelectionMode === 'manual') {
+  let baseConfiguration: ConfigurationDocument | null = null;
+  let baseEndpoint: ResolvedConfigurationEndpoint | null = null;
+
+  if (options.baseSelectionMode === 'generated') {
+    baseConfiguration = buildGeneratedIncumbentBaseConfiguration(
+      options.focusConfiguration,
+      options.packageData,
+    );
+    baseEndpoint = {
+      configId: null,
+      configuration: baseConfiguration,
+      label: GENERATED_INCUMBENT_BASE_LABEL,
+      source: 'generated',
+    };
+  } else if (options.baseSelectionMode === 'saved') {
     baseConfigId =
       options.selectedBaseConfigId && options.configurationsById[options.selectedBaseConfigId]
         ? options.selectedBaseConfigId
         : null;
-  } else if (options.baseSelectionMode === 'auto') {
-    baseConfigId =
-      options.activeConfigurationId && options.configurationsById[options.activeConfigurationId]
-        ? options.activeConfigurationId
-        : null;
+    baseConfiguration = baseConfigId ? options.configurationsById[baseConfigId] ?? null : null;
+    baseEndpoint = buildSavedEndpoint(baseConfiguration, baseConfigId);
   }
 
-  const baseConfiguration = baseConfigId ? options.configurationsById[baseConfigId] ?? null : null;
-
   return {
-    base: buildSavedEndpoint(baseConfiguration, baseConfigId),
+    base: baseEndpoint,
     focus,
     baseConfigId,
     baseSelectionMode: options.baseSelectionMode,

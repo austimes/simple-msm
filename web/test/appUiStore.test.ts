@@ -136,7 +136,7 @@ describe('appUiStore route persistence', () => {
           configurations: false,
         },
         comparison: {
-          baseSelectionMode: 'manual',
+          baseSelectionMode: 'saved',
           selectedBaseConfigId: 'reference-baseline',
           fuelSwitchBasis: 'from',
           selectedFuelSwitchYear: 2050,
@@ -161,7 +161,7 @@ describe('appUiStore route persistence', () => {
 
     await withStoreModule(persistedState, ({ useAppUiStore }) => {
       assert.deepEqual(useAppUiStore.getState().workspace.comparison, {
-        baseSelectionMode: 'manual',
+        baseSelectionMode: 'saved',
         selectedBaseConfigId: 'reference-baseline',
         fuelSwitchBasis: 'from',
         selectedFuelSwitchYear: 2050,
