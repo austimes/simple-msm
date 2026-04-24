@@ -21,7 +21,7 @@ export default function ConfigurationWorkspacePage() {
   const residualOverlays2025 = usePackageStore((state) => state.residualOverlays2025);
   const focusSolve = useConfigurationSolve(currentConfiguration);
   const { configurations, configurationsById } = useAvailableConfigurations();
-  const { leftCollapsed, rightCollapsed, comparison } = useAppUiStore((state) => state.workspace);
+  const { leftCollapsed, rightCollapsed, comparison, systemFlow } = useAppUiStore((state) => state.workspace);
   const updateWorkspaceUi = useAppUiStore((state) => state.updateWorkspaceUi);
   const workspacePair = useMemo(
     () => resolveWorkspacePair({
@@ -100,7 +100,14 @@ export default function ConfigurationWorkspacePage() {
               selectedFuelSwitchYear: year,
             },
           })}
+          onSystemFlowChange={(updates) => updateWorkspaceUi({
+            systemFlow: {
+              ...systemFlow,
+              ...updates,
+            },
+          })}
           selectedFuelSwitchYear={comparison.selectedFuelSwitchYear}
+          systemFlow={systemFlow}
         />
       )}
       rightSidebar={<RightSidebar />}

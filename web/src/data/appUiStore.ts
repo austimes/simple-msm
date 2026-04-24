@@ -115,6 +115,12 @@ export const useAppUiStore = create<AppUiStore>((set, get) => {
               ...updates.comparison,
             }
             : current.comparison,
+          systemFlow: updates.systemFlow
+            ? {
+              ...current.systemFlow,
+              ...updates.systemFlow,
+            }
+            : current.systemFlow,
         },
       });
     },

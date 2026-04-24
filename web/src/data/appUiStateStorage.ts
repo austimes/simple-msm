@@ -15,6 +15,7 @@ import {
   type LibraryFilters,
   type MethodsTab,
   type WorkspaceComparisonBaseSelectionMode,
+  type WorkspaceSystemFlowUiState,
 } from './appUiState.ts';
 import { PRICE_LEVELS, type PriceLevel } from './types.ts';
 
@@ -107,6 +108,10 @@ function isWorkspaceComparisonBaseSelectionMode(
   return value === 'generated' || value === 'saved' || value === 'none';
 }
 
+function isSystemFlowViewMode(value: unknown): value is WorkspaceSystemFlowUiState['viewMode'] {
+  return value === 'both' || value === 'topology' || value === 'solved';
+}
+
 function readWorkspaceComparisonBaseSelectionMode(
   value: unknown,
   fallback: WorkspaceComparisonBaseSelectionMode,
@@ -163,6 +168,23 @@ function sanitizeWorkspaceComparisonState(
     selectedFuelSwitchYear: readNullableNumber(
       value.selectedFuelSwitchYear,
       fallback.selectedFuelSwitchYear,
+    ),
+  };
+}
+
+function sanitizeWorkspaceSystemFlowState(value: unknown): WorkspaceSystemFlowUiState {
+  const fallback = DEFAULT_APP_UI_STATE.workspace.systemFlow;
+
+  if (!isRecord(value)) {
+    return structuredClone(fallback);
+  }
+
+  return {
+    selectedYear: readNullableNumber(value.selectedYear, fallback.selectedYear),
+    viewMode: isSystemFlowViewMode(value.viewMode) ? value.viewMode : fallback.viewMode,
+    collapsedSegmentIds: readStringArray(
+      value.collapsedSegmentIds,
+      fallback.collapsedSegmentIds,
     ),
   };
 }
@@ -235,6 +257,7 @@ function sanitizeParsedAppUiState(value: unknown): AppUiState {
       ),
       expandedSections: sanitizeWorkspaceExpandedSections(workspace.expandedSections),
       comparison: sanitizeWorkspaceComparisonState(workspace.comparison),
+      systemFlow: sanitizeWorkspaceSystemFlowState(workspace.systemFlow),
     },
     library: {
       sidebarCollapsed: readBoolean(

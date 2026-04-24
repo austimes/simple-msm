@@ -1,4 +1,5 @@
 import type { AdditionalityOrderingMethod } from '../additionality/additionalityAnalysis.ts';
+import type { SystemFlowViewMode } from '../results/systemFlowGraph.ts';
 import type { FuelSwitchBasis, PriceLevel } from './types.ts';
 
 export const METHODS_TABS = ['about', 'conventions', 'confidence', 'phase2', 'evidence'] as const;
@@ -39,11 +40,18 @@ export interface WorkspaceComparisonUiState {
   selectedFuelSwitchYear: number | null;
 }
 
+export interface WorkspaceSystemFlowUiState {
+  selectedYear: number | null;
+  viewMode: SystemFlowViewMode;
+  collapsedSegmentIds: string[];
+}
+
 export interface WorkspaceUiState {
   leftCollapsed: boolean;
   rightCollapsed: boolean;
   expandedSections: LeftSidebarSectionState;
   comparison: WorkspaceComparisonUiState;
+  systemFlow: WorkspaceSystemFlowUiState;
 }
 
 export interface LibraryUiState {
@@ -94,6 +102,11 @@ export const DEFAULT_APP_UI_STATE: AppUiState = {
       selectedBaseConfigId: null,
       fuelSwitchBasis: 'to',
       selectedFuelSwitchYear: null,
+    },
+    systemFlow: {
+      selectedYear: null,
+      viewMode: 'both',
+      collapsedSegmentIds: [],
     },
   },
   library: {

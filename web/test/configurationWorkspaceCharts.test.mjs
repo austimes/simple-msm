@@ -54,7 +54,13 @@ function buildCenterProps(overrides = {}) {
     onBaseSelectionModeChange: () => {},
     onFuelSwitchBasisChange: () => {},
     onFuelSwitchYearChange: () => {},
+    onSystemFlowChange: () => {},
     selectedFuelSwitchYear: null,
+    systemFlow: {
+      selectedYear: null,
+      viewMode: 'both',
+      collapsedSegmentIds: [],
+    },
     ...overrides,
   };
 }
@@ -539,6 +545,21 @@ test('solved workspace renders Cost by Component with diverging chart net metada
   assert.match(html, /aria-label="Reset y-axis range for Demand by Sector"/);
   assert.equal(netSeriesMatches.length, 2);
   assert.equal(resetMatches.length, 4);
+});
+
+test('solved workspace renders the System Flow panel before the chart grid', () => {
+  const html = renderToStaticMarkup(
+    React.createElement(ConfigurationWorkspaceCenter, buildCenterProps()),
+  );
+
+  const systemFlowIndex = html.indexOf('class="system-flow-panel"');
+  const chartGridIndex = html.indexOf('class="workspace-chart-grid"');
+
+  assert.ok(systemFlowIndex >= 0, 'System Flow panel is rendered');
+  assert.ok(chartGridIndex >= 0, 'workspace chart grid is rendered');
+  assert.ok(systemFlowIndex < chartGridIndex, 'System Flow panel appears before the chart grid');
+  assert.match(html, /System flow/);
+  assert.match(html, /System flow view mode/);
 });
 
 test('comparison-enabled workspace shows the fuel-switching chart with its reset control', () => {

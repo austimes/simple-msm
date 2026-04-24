@@ -41,6 +41,11 @@ function buildSampleState(): AppUiState {
         fuelSwitchBasis: 'from',
         selectedFuelSwitchYear: 2050,
       },
+      systemFlow: {
+        selectedYear: 2040,
+        viewMode: 'solved',
+        collapsedSegmentIds: ['segment:conversion:electricity'],
+      },
     },
     library: {
       sidebarCollapsed: true,
@@ -135,6 +140,11 @@ describe('appUiStateStorage', () => {
             fuelSwitchBasis: 'sideways',
             selectedFuelSwitchYear: '2050',
           },
+          systemFlow: {
+            selectedYear: 2030,
+            viewMode: 'unsupported',
+            collapsedSegmentIds: ['segment:a', 42, 'segment:b'],
+          },
         },
         library: {
           filters: {
@@ -187,6 +197,11 @@ describe('appUiStateStorage', () => {
         comparison: {
           ...DEFAULT_APP_UI_STATE.workspace.comparison,
           selectedBaseConfigId: 'reference-baseline',
+        },
+        systemFlow: {
+          ...DEFAULT_APP_UI_STATE.workspace.systemFlow,
+          selectedYear: 2030,
+          collapsedSegmentIds: ['segment:a', 'segment:b'],
         },
       },
       library: {
@@ -281,6 +296,46 @@ describe('appUiStateStorage', () => {
     assert.deepEqual(
       loadPersistedAppUiState(storage).additionality.selectedFocusConfigIds,
       ['reference-efficiency-open'],
+    );
+  });
+
+  test('sanitizes systemFlow view mode, selected year, and collapsed segment ids', () => {
+    const storage = createMemoryStorage();
+    storage.setItem(
+      APP_UI_STATE_STORAGE_KEY,
+      JSON.stringify({
+        workspace: {
+          systemFlow: {
+            selectedYear: 2050,
+            viewMode: 'topology',
+            collapsedSegmentIds: ['segment:one', false, 'segment:two'],
+          },
+        },
+      }),
+    );
+
+    assert.deepEqual(loadPersistedAppUiState(storage).workspace.systemFlow, {
+      selectedYear: 2050,
+      viewMode: 'topology',
+      collapsedSegmentIds: ['segment:one', 'segment:two'],
+    });
+
+    storage.setItem(
+      APP_UI_STATE_STORAGE_KEY,
+      JSON.stringify({
+        workspace: {
+          systemFlow: {
+            selectedYear: '2050',
+            viewMode: 'diagram',
+            collapsedSegmentIds: [1, 2],
+          },
+        },
+      }),
+    );
+
+    assert.deepEqual(
+      loadPersistedAppUiState(storage).workspace.systemFlow,
+      DEFAULT_APP_UI_STATE.workspace.systemFlow,
     );
   });
 });

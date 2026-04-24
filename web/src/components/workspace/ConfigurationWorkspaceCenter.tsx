@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import WorkspaceSolveFailureReport from './WorkspaceSolveFailureReport';
+import SystemFlowGraph from './SystemFlowGraph.tsx';
 import StackedBarChart from '../charts/StackedBarChart.tsx';
 import LineChart from '../charts/LineChart';
 import PathwayCapChart from '../charts/PathwayCapChart';
@@ -25,9 +26,13 @@ import {
   buildFuelSwitchRouteBasisRows,
   type FuelSwitchActivityRow,
 } from '../../results/fuelSwitching.ts';
+import { buildSystemFlowGraphData } from '../../results/systemFlowGraph.ts';
 import { usePackageStore } from '../../data/packageStore.ts';
 import { getResidualOverlayDisplayMode } from '../../data/residualOverlayPresentation.ts';
-import type { WorkspaceComparisonBaseSelectionMode } from '../../data/appUiState.ts';
+import type {
+  WorkspaceComparisonBaseSelectionMode,
+  WorkspaceSystemFlowUiState,
+} from '../../data/appUiState.ts';
 import type { FuelSwitchBasis } from '../../data/types.ts';
 import type { SolveState } from '../../hooks/useConfigurationSolve.ts';
 import type { SolveStateShareSummary } from '../../solver/contract.ts';
@@ -145,7 +150,9 @@ export interface ConfigurationWorkspaceCenterProps {
   onBaseSelectionModeChange: (mode: WorkspaceComparisonBaseSelectionMode) => void;
   onFuelSwitchBasisChange: (basis: FuelSwitchBasis) => void;
   onFuelSwitchYearChange: (year: number) => void;
+  onSystemFlowChange: (updates: Partial<WorkspaceSystemFlowUiState>) => void;
   selectedFuelSwitchYear: number | null;
+  systemFlow: WorkspaceSystemFlowUiState;
 }
 
 function buildComparisonStatus(
@@ -204,7 +211,9 @@ export default function ConfigurationWorkspaceCenter({
   onBaseSelectionModeChange,
   onFuelSwitchBasisChange,
   onFuelSwitchYearChange,
+  onSystemFlowChange,
   selectedFuelSwitchYear,
+  systemFlow,
 }: ConfigurationWorkspaceCenterProps) {
   const residualOverlays2025 = usePackageStore((s) => s.residualOverlays2025);
   const currentConfiguration = usePackageStore((s) => s.currentConfiguration);
@@ -249,6 +258,33 @@ export default function ConfigurationWorkspaceCenter({
   const years = useMemo(
     () => focusSolve.request?.configuration.years ?? [],
     [focusSolve.request?.configuration.years],
+  );
+  const selectedSystemFlowYear = useMemo(() => {
+    if (years.length === 0) {
+      return null;
+    }
+
+    const persistedYear = systemFlow.selectedYear;
+
+    return persistedYear != null && years.includes(persistedYear)
+      ? persistedYear
+      : years[years.length - 1];
+  }, [systemFlow.selectedYear, years]);
+  const systemFlowGraph = useMemo(
+    () => (
+      focusSolve.request && focusSolve.result && selectedSystemFlowYear != null
+        ? buildSystemFlowGraphData(focusSolve.request, focusSolve.result, {
+          year: selectedSystemFlowYear,
+          collapsedSegmentIds: new Set(systemFlow.collapsedSegmentIds),
+        })
+        : null
+    ),
+    [
+      focusSolve.request,
+      focusSolve.result,
+      selectedSystemFlowYear,
+      systemFlow.collapsedSegmentIds,
+    ],
   );
 
   const demandBySectorChart = useMemo(
@@ -438,6 +474,17 @@ export default function ConfigurationWorkspaceCenter({
               ?? 'The base configuration failed to solve for comparison.'}
           </p>
         </section>
+      ) : null}
+      {showCharts && systemFlowGraph && selectedSystemFlowYear != null ? (
+        <SystemFlowGraph
+          availableYears={years}
+          data={systemFlowGraph}
+          selectedYear={selectedSystemFlowYear}
+          viewMode={systemFlow.viewMode}
+          onCollapsedSegmentIdsChange={(collapsedSegmentIds) => onSystemFlowChange({ collapsedSegmentIds })}
+          onViewModeChange={(viewMode) => onSystemFlowChange({ viewMode })}
+          onYearChange={(selectedYear) => onSystemFlowChange({ selectedYear })}
+        />
       ) : null}
       {showCharts && (
         <div className="workspace-chart-grid">

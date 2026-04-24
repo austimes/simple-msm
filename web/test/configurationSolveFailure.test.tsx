@@ -233,7 +233,13 @@ describe('configuration solve failures', () => {
         onBaseSelectionModeChange={() => {}}
         onFuelSwitchBasisChange={() => {}}
         onFuelSwitchYearChange={() => {}}
+        onSystemFlowChange={() => {}}
         selectedFuelSwitchYear={null}
+        systemFlow={{
+          selectedYear: null,
+          viewMode: 'both',
+          collapsedSegmentIds: [],
+        }}
       />,
     );
 
