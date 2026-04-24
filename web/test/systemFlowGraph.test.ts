@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import {
+  SYSTEM_FLOW_ROUTE_NODE_TYPE,
+  buildSystemFlowDiagramLayoutInput,
+} from '../src/components/workspace/systemFlowGraphLayout.ts';
 import { buildSystemFlowGraphData } from '../src/results/systemFlowGraph.ts';
 import { SOLVER_CONTRACT_VERSION, type SolveRequest, type SolveResult } from '../src/solver/contract.ts';
 import { solveWithLpAdapter } from '../src/solver/lpAdapter.ts';
@@ -349,4 +353,20 @@ test('efficiency package derived rows are grouped as variants under the base rou
   assert.equal(packageNode.variantOfBaseRoute, true);
   assert.equal(packageNode.baseStateId, 'heat_fossil');
   assert.equal(packageNode.variantGroupId, baseNode.variantGroupId);
+
+  const diagram = buildSystemFlowDiagramLayoutInput(graph, 'both');
+  const routeNodes = diagram.nodes.filter((node) => node.type === SYSTEM_FLOW_ROUTE_NODE_TYPE);
+  const routeNode = routeNodes[0];
+
+  assert.ok(routeNode);
+
+  const routeOutputEdges = diagram.edges.filter((edge) => {
+    return edge.source === routeNode.id && edge.target.includes('demand:heat');
+  });
+
+  assert.equal(routeNodes.length, 1);
+  assert.equal(routeNode.data.metric, '100 unit');
+  assert.equal(routeNode.data.variants?.length, 2);
+  assert.equal(routeOutputEdges.length, 1);
+  assert.equal(routeOutputEdges[0].data?.metric, '100 unit');
 });
