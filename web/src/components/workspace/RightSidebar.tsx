@@ -5,7 +5,7 @@ import {
 } from '../../data/configurationWorkspaceModel';
 import { buildEfficiencyControlCatalog } from '../../data/efficiencyControlModel';
 import { deriveOutputRunStatusesForConfiguration } from '../../solver/solveScope.ts';
-import { deriveRightSidebarTree } from './rightSidebarTree';
+import { buildSystemStructureCatalog, deriveRightSidebarTree } from './rightSidebarTree';
 import RightSidebarContent from './RightSidebarContent';
 
 export default function RightSidebar() {
@@ -13,11 +13,14 @@ export default function RightSidebar() {
   const appConfig = usePackageStore((s) => s.appConfig);
   const autonomousEfficiencyTracks = usePackageStore((s) => s.autonomousEfficiencyTracks);
   const efficiencyPackages = usePackageStore((s) => s.efficiencyPackages);
+  const residualOverlays2025 = usePackageStore((s) => s.residualOverlays2025);
   const currentConfiguration = usePackageStore((s) => s.currentConfiguration);
   const toggleStateActive = usePackageStore((s) => s.toggleStateActive);
   const setAutonomousEfficiencyForOutput = usePackageStore((s) => s.setAutonomousEfficiencyForOutput);
   const setEfficiencyPackageEnabled = usePackageStore((s) => s.setEfficiencyPackageEnabled);
   const setAllEfficiencyPackagesForOutput = usePackageStore((s) => s.setAllEfficiencyPackagesForOutput);
+  const setResidualOverlayIncluded = usePackageStore((s) => s.setResidualOverlayIncluded);
+  const setResidualOverlayGroupIncluded = usePackageStore((s) => s.setResidualOverlayGroupIncluded);
 
   const [expandedSubsectors, setExpandedSubsectors] = useState<Set<string>>(new Set());
   const [expandedSectors, setExpandedSectors] = useState<Set<string>>(new Set());
@@ -46,9 +49,14 @@ export default function RightSidebar() {
     });
   }, []);
 
-  const catalog = useMemo(
+  const rawCatalog = useMemo(
     () => buildStateCatalog(sectorStates, appConfig),
     [sectorStates, appConfig],
+  );
+
+  const catalog = useMemo(
+    () => buildSystemStructureCatalog(rawCatalog, residualOverlays2025),
+    [rawCatalog, residualOverlays2025],
   );
 
   const outputStatuses = useMemo(
@@ -76,8 +84,18 @@ export default function RightSidebar() {
       expandedSubsectors,
       expandedSectors,
       efficiencyControls,
+      residualOverlays2025,
+      currentConfiguration.residual_overlays?.controls_by_overlay_id ?? {},
     ),
-    [catalog, outputStatuses, expandedSubsectors, expandedSectors, efficiencyControls],
+    [
+      catalog,
+      outputStatuses,
+      expandedSubsectors,
+      expandedSectors,
+      efficiencyControls,
+      residualOverlays2025,
+      currentConfiguration.residual_overlays?.controls_by_overlay_id,
+    ],
   );
 
   return (
@@ -89,6 +107,8 @@ export default function RightSidebar() {
       onSetAutonomousEfficiencyForOutput={setAutonomousEfficiencyForOutput}
       onSetEfficiencyPackageEnabled={setEfficiencyPackageEnabled}
       onSetAllEfficiencyPackagesForOutput={setAllEfficiencyPackagesForOutput}
+      onSetResidualOverlayIncluded={setResidualOverlayIncluded}
+      onSetResidualOverlayGroupIncluded={setResidualOverlayGroupIncluded}
     />
   );
 }

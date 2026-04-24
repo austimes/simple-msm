@@ -36,7 +36,7 @@ function buildSampleState(): AppUiState {
         configurations: false,
       },
       comparison: {
-        baseSelectionMode: 'manual',
+        baseSelectionMode: 'saved',
         selectedBaseConfigId: 'reference-baseline',
         fuelSwitchBasis: 'from',
         selectedFuelSwitchYear: 2050,
@@ -220,6 +220,41 @@ describe('appUiStateStorage', () => {
         },
       },
     });
+  });
+
+  test('migrates legacy workspace comparison modes', () => {
+    const storage = createMemoryStorage();
+    storage.setItem(
+      APP_UI_STATE_STORAGE_KEY,
+      JSON.stringify({
+        workspace: {
+          comparison: {
+            baseSelectionMode: 'auto',
+          },
+        },
+      }),
+    );
+
+    assert.equal(
+      loadPersistedAppUiState(storage).workspace.comparison.baseSelectionMode,
+      'generated',
+    );
+
+    storage.setItem(
+      APP_UI_STATE_STORAGE_KEY,
+      JSON.stringify({
+        workspace: {
+          comparison: {
+            baseSelectionMode: 'manual',
+          },
+        },
+      }),
+    );
+
+    assert.equal(
+      loadPersistedAppUiState(storage).workspace.comparison.baseSelectionMode,
+      'saved',
+    );
   });
 
   test('hydrates legacy selectedTargetConfigId payloads into selectedFocusConfigId', () => {

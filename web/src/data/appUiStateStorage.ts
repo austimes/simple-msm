@@ -104,7 +104,26 @@ function isPriceLevel(value: unknown): value is PriceLevel {
 function isWorkspaceComparisonBaseSelectionMode(
   value: unknown,
 ): value is WorkspaceComparisonBaseSelectionMode {
-  return value === 'auto' || value === 'manual' || value === 'none';
+  return value === 'generated' || value === 'saved' || value === 'none';
+}
+
+function readWorkspaceComparisonBaseSelectionMode(
+  value: unknown,
+  fallback: WorkspaceComparisonBaseSelectionMode,
+): WorkspaceComparisonBaseSelectionMode {
+  if (isWorkspaceComparisonBaseSelectionMode(value)) {
+    return value;
+  }
+
+  if (value === 'auto') {
+    return 'generated';
+  }
+
+  if (value === 'manual') {
+    return 'saved';
+  }
+
+  return fallback;
 }
 
 function sanitizeWorkspaceExpandedSections(value: unknown): LeftSidebarSectionState {
@@ -132,9 +151,10 @@ function sanitizeWorkspaceComparisonState(
   }
 
   return {
-    baseSelectionMode: isWorkspaceComparisonBaseSelectionMode(value.baseSelectionMode)
-      ? value.baseSelectionMode
-      : fallback.baseSelectionMode,
+    baseSelectionMode: readWorkspaceComparisonBaseSelectionMode(
+      value.baseSelectionMode,
+      fallback.baseSelectionMode,
+    ),
     selectedBaseConfigId: readNullableString(
       value.selectedBaseConfigId,
       fallback.selectedBaseConfigId,

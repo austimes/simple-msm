@@ -56,10 +56,12 @@ interface PackageStore extends PackageData {
   setAllEfficiencyPackagesForOutput: (outputId: string, enabled: boolean) => void;
 
   setResidualOverlayIncluded: (overlayId: string, included: boolean) => void;
+  setResidualOverlayGroupIncluded: (overlayIds: string[], included: boolean) => void;
   setAllResidualOverlaysIncluded: (included: boolean) => void;
   setResidualOverlayDisplayMode: (mode: ResidualOverlayDisplayMode) => void;
   setDemandPreset: (presetId: string) => void;
   setRespectMaxShare: (enabled: boolean) => void;
+  setRespectMaxActivity: (enabled: boolean) => void;
   loadConfiguration: (config: ConfigurationDocument) => void;
 }
 
@@ -452,6 +454,19 @@ export const usePackageStore = create<PackageStore>((set, get) => {
       };
       commitConfigurationEdit(nextConfiguration);
     },
+    setResidualOverlayGroupIncluded: (overlayIds, included) => {
+      const nextConfiguration = cloneConfiguration(get().currentConfiguration);
+      nextConfiguration.residual_overlays = {
+        ...nextConfiguration.residual_overlays,
+        controls_by_overlay_id: {
+          ...nextConfiguration.residual_overlays?.controls_by_overlay_id,
+          ...Object.fromEntries(
+            Array.from(new Set(overlayIds)).map((overlayId) => [overlayId, { included }]),
+          ),
+        },
+      };
+      commitConfigurationEdit(nextConfiguration);
+    },
     setAllResidualOverlaysIncluded: (included) => {
       const nextConfiguration = cloneConfiguration(get().currentConfiguration);
       const controls = nextConfiguration.residual_overlays?.controls_by_overlay_id ?? {};
@@ -505,6 +520,14 @@ export const usePackageStore = create<PackageStore>((set, get) => {
       nextConfiguration.solver_options = {
         ...(nextConfiguration.solver_options ?? {}),
         respect_max_share: enabled,
+      };
+      commitConfigurationEdit(nextConfiguration);
+    },
+    setRespectMaxActivity: (enabled) => {
+      const nextConfiguration = cloneConfiguration(get().currentConfiguration);
+      nextConfiguration.solver_options = {
+        ...(nextConfiguration.solver_options ?? {}),
+        respect_max_activity: enabled,
       };
       commitConfigurationEdit(nextConfiguration);
     },

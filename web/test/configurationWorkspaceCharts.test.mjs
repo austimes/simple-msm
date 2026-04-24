@@ -547,7 +547,7 @@ test('comparison-enabled workspace shows the fuel-switching chart with its reset
   const html = renderToStaticMarkup(
     React.createElement(ConfigurationWorkspaceCenter, buildCenterProps({
       baseConfigId: 'reference-baseline',
-      baseSelectionMode: 'manual',
+      baseSelectionMode: 'saved',
       comparisonEnabled: true,
       commonComparisonYears: [2030],
       focusSolve: buildSolveState({
@@ -586,7 +586,7 @@ test('commercial base versus O1-style fuel mix renders gas and liquid switching 
   const html = renderToStaticMarkup(
     React.createElement(ConfigurationWorkspaceCenter, buildCenterProps({
       baseConfigId: 'reference-baseline',
-      baseSelectionMode: 'manual',
+      baseSelectionMode: 'saved',
       comparisonEnabled: true,
       commonComparisonYears: [2030],
       focusSolve: buildSolveState({
@@ -623,7 +623,7 @@ test('commercial same-route efficiency renders residual intensity without fossil
   const html = renderToStaticMarkup(
     React.createElement(ConfigurationWorkspaceCenter, buildCenterProps({
       baseConfigId: 'reference-baseline',
-      baseSelectionMode: 'manual',
+      baseSelectionMode: 'saved',
       comparisonEnabled: true,
       commonComparisonYears: [2030],
       focusSolve: buildSolveState({
@@ -692,7 +692,7 @@ test('attribution-safe comparison renders the efficiency attribution section', (
   const html = renderToStaticMarkup(
     React.createElement(ConfigurationWorkspaceCenter, buildCenterProps({
       baseConfigId: 'reference-baseline',
-      baseSelectionMode: 'manual',
+      baseSelectionMode: 'saved',
       comparisonEnabled: true,
       efficiencyAttributionSafe: true,
       commonComparisonYears: [2030],
@@ -720,7 +720,7 @@ test('comparison with a mismatched scenario backbone shows the attribution-safe 
   const html = renderToStaticMarkup(
     React.createElement(ConfigurationWorkspaceCenter, buildCenterProps({
       baseConfigId: 'reference-baseline',
-      baseSelectionMode: 'manual',
+      baseSelectionMode: 'saved',
       comparisonEnabled: true,
       efficiencyAttributionSafe: false,
       commonComparisonYears: [2030],
@@ -987,7 +987,7 @@ test('base comparison failure keeps focus charts visible and shows a comparison-
   const html = renderToStaticMarkup(
     React.createElement(ConfigurationWorkspaceCenter, buildCenterProps({
       baseConfigId: 'reference-baseline',
-      baseSelectionMode: 'manual',
+      baseSelectionMode: 'saved',
       comparisonEnabled: true,
       commonComparisonYears: [2030],
       baseSolve: buildSolveState({

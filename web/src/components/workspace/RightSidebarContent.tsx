@@ -10,7 +10,62 @@ function formatSectorName(sector: string): string {
 }
 
 function formatEfficiencyPackageClassification(classification: string): string {
-  return classification === 'pure_efficiency_overlay' ? 'Pure' : 'Operational';
+  return classification === 'pure_efficiency_overlay'
+    ? 'Pure efficiency package'
+    : 'Operational efficiency package';
+}
+
+function formatControlMode(mode: string | undefined): string {
+  switch (mode) {
+    case 'externalized':
+      return 'Externalized';
+    case 'target':
+      return 'Target';
+    default:
+      return 'Optimize';
+  }
+}
+
+function formatResidualDomain(domain: string): string {
+  switch (domain) {
+    case 'energy_residual':
+      return 'Energy residual';
+    case 'nonenergy_residual':
+      return 'Non-energy residual';
+    case 'net_sink':
+      return 'Net sink';
+    default:
+      return 'Residual';
+  }
+}
+
+function residualDomainTone(domain: string): 'info' | 'warning' | 'muted' {
+  if (domain === 'net_sink') {
+    return 'muted';
+  }
+  return domain === 'energy_residual' ? 'info' : 'warning';
+}
+
+function formatResidualTotals(totalEnergyPJ: number, totalEmissionsMt: number, totalCostM: number): string {
+  const parts: string[] = [];
+
+  if (totalEnergyPJ !== 0) {
+    parts.push(`${Math.abs(totalEnergyPJ).toFixed(1)} PJ`);
+  }
+  if (totalEmissionsMt !== 0) {
+    parts.push(`${totalEmissionsMt.toFixed(1)} MtCO₂e`);
+  }
+  if (totalCostM !== 0) {
+    parts.push(`$${totalCostM.toFixed(1)}m`);
+  }
+
+  return parts.length > 0 ? parts.join(' · ') : 'No 2025 anchor total';
+}
+
+function formatProxyOutputs(labels: string[]): string {
+  return labels.length > 0
+    ? `Proxy-linked outputs: ${labels.join(', ')}`
+    : 'Proxy-linked to the demand preset average';
 }
 
 function formatMaxShareByYear(maxShareByYear: Record<string, number | null>): string {
@@ -32,6 +87,8 @@ export interface RightSidebarContentProps {
   onSetAutonomousEfficiencyForOutput: (outputId: string, mode: 'baseline' | 'off') => void;
   onSetEfficiencyPackageEnabled: (packageId: string, enabled: boolean) => void;
   onSetAllEfficiencyPackagesForOutput: (outputId: string, enabled: boolean) => void;
+  onSetResidualOverlayIncluded: (overlayId: string, included: boolean) => void;
+  onSetResidualOverlayGroupIncluded: (overlayIds: string[], included: boolean) => void;
 }
 
 export default function RightSidebarContent({
@@ -42,6 +99,8 @@ export default function RightSidebarContent({
   onSetAutonomousEfficiencyForOutput,
   onSetEfficiencyPackageEnabled,
   onSetAllEfficiencyPackagesForOutput,
+  onSetResidualOverlayIncluded,
+  onSetResidualOverlayGroupIncluded,
 }: RightSidebarContentProps) {
   return (
     <React.Fragment>
@@ -55,7 +114,7 @@ export default function RightSidebarContent({
               className={`workspace-sector-title${sectorEntry.isExcluded ? ' workspace-sector-title--clickable' : ''}`}
               onClick={sectorEntry.isExcluded ? () => onToggleExpandedSector(sectorEntry.sector) : undefined}
             >
-              {formatSectorName(sectorEntry.sector)}
+              {sectorEntry.label ?? formatSectorName(sectorEntry.sector)}
             </div>
             {sectorEntry.isExcluded && (
               <div className="workspace-sector-meta">
@@ -67,7 +126,7 @@ export default function RightSidebarContent({
                   className="workspace-mode-toggle"
                   onClick={() => onToggleExpandedSector(sectorEntry.sector)}
                 >
-                  {sectorEntry.isCollapsed ? 'Show sub-sectors' : 'Hide sub-sectors'}
+                  {sectorEntry.isCollapsed ? 'Show segments' : 'Hide segments'}
                 </button>
               </div>
             )}
@@ -105,13 +164,16 @@ export default function RightSidebarContent({
                         {badge.label}
                       </span>
                     ))}
+                    <span className="workspace-mode-badge workspace-mode-badge--muted">
+                      Mode: {formatControlMode(sub.status?.controlMode)}
+                    </span>
                     {sub.canCollapse && (
                       <button
                         type="button"
                         className="workspace-mode-toggle"
                         onClick={() => onToggleExpandedSubsector(sub.outputId)}
                       >
-                        {isCollapsed ? 'Show states' : 'Hide states'}
+                        {isCollapsed ? 'Show routes' : 'Hide routes'}
                       </button>
                     )}
                   </div>
@@ -133,7 +195,7 @@ export default function RightSidebarContent({
                       const chipTitle = pathwaysInactive
                         ? `${state.stateLabel}. ${sub.presentation.detail}`
                         : hasEmbodiedEfficiency
-                          ? `${state.stateLabel}. Embodied efficiency pathway.`
+                          ? `${state.stateLabel}. Embodied efficiency route.`
                           : state.stateLabel;
 
                       return (
@@ -159,7 +221,7 @@ export default function RightSidebarContent({
                 )}
                 {!isCollapsed && hasEfficiencyControls && efficiencyControls && (
                   <div className="workspace-efficiency-controls">
-                    <div className="workspace-efficiency-heading">Efficiency</div>
+                    <div className="workspace-efficiency-heading">Efficiency items</div>
                     {efficiencyControls.autonomousTracks.length > 0 && (
                       <button
                         type="button"
@@ -238,7 +300,7 @@ export default function RightSidebarContent({
                           Embodied
                         </span>
                         <span className="workspace-efficiency-readonly-text">
-                          Controlled by pathway state
+                          Controlled by route
                         </span>
                       </div>
                     )}
@@ -247,11 +309,83 @@ export default function RightSidebarContent({
               </div>
             );
           })}
+          {!sectorEntry.isCollapsed && sectorEntry.residualGroup && (
+            <div className="workspace-residual-group">
+              <div className="workspace-residual-group-header">
+                <div>
+                  <div className="workspace-subsector-title">{sectorEntry.residualGroup.label}</div>
+                  <div className="workspace-subsector-detail">
+                    {sectorEntry.residualGroup.includedCount}/{sectorEntry.residualGroup.totalCount} residuals on
+                  </div>
+                </div>
+                <div className="workspace-residual-actions">
+                  <button
+                    type="button"
+                    className="workspace-mode-toggle"
+                    onClick={() => onSetResidualOverlayGroupIncluded(
+                      sectorEntry.residualGroup?.residuals.map((residual) => residual.overlayId) ?? [],
+                      true,
+                    )}
+                  >
+                    All On
+                  </button>
+                  <button
+                    type="button"
+                    className="workspace-mode-toggle"
+                    onClick={() => onSetResidualOverlayGroupIncluded(
+                      sectorEntry.residualGroup?.residuals.map((residual) => residual.overlayId) ?? [],
+                      false,
+                    )}
+                  >
+                    All Off
+                  </button>
+                </div>
+              </div>
+              {sectorEntry.residualGroup.residuals.map((residual) => (
+                <div key={residual.overlayId} className="workspace-residual-item">
+                  <div className="workspace-residual-item-header">
+                    <div className="workspace-residual-title">{residual.overlayLabel}</div>
+                    <span className={`workspace-mode-badge workspace-mode-badge--${residualDomainTone(residual.overlayDomain)}`}>
+                      {formatResidualDomain(residual.overlayDomain)}
+                    </span>
+                  </div>
+                  <div className="workspace-subsector-detail">
+                    2025 anchor: {formatResidualTotals(
+                      residual.totalEnergyPJ,
+                      residual.totalEmissionsMt,
+                      residual.totalCostM,
+                    )}
+                  </div>
+                  <div className="workspace-subsector-detail">
+                    {formatProxyOutputs(residual.proxyOutputLabels)}
+                  </div>
+                  <div className="workspace-chip-group workspace-chip-group--inline">
+                    <button
+                      type="button"
+                      className={`workspace-chip${residual.included ? ' workspace-chip--active' : ''}`}
+                      aria-pressed={residual.included}
+                      onClick={() => onSetResidualOverlayIncluded(residual.overlayId, true)}
+                    >
+                      <span className="workspace-pill-label">On</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`workspace-chip${residual.included ? '' : ' workspace-chip--active'}`}
+                      aria-pressed={!residual.included}
+                      onClick={() => onSetResidualOverlayIncluded(residual.overlayId, false)}
+                    >
+                      <span className="workspace-pill-label">Off</span>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       ))}
-      <div className="workspace-state-legend" role="note" aria-label="State selector status legend">
+      <div className="workspace-state-legend" role="note" aria-label="System structure status legend">
         <p className="workspace-state-legend-copy">
-          Outputs with active pathways participate in the solve. Outputs whose pathways are all
+          Outputs with active routes participate in the solve. Outputs whose routes are all
           deactivated are excluded. Dependencies like electricity are auto-included when needed.
         </p>
         <div className="workspace-state-legend-items">

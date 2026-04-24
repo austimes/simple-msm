@@ -2,15 +2,15 @@ import { useMemo, useState, useCallback, type ReactNode } from 'react';
 import type {
   LeftSidebarSectionKey,
   LeftSidebarSectionState,
+  WorkspaceComparisonBaseSelectionMode,
 } from '../../data/appUiState.ts';
 import { useAppUiStore } from '../../data/appUiStore.ts';
 import { usePackageStore } from '../../data/packageStore';
 import { getActiveDemandPreset, getCommodityPriceLevel, getActiveCarbonPricePreset } from '../../data/configurationWorkspaceModel';
 import {
-  AGGREGATED_RESIDUAL_OVERLAY_LABEL,
   getResidualOverlayDisplayMode,
-  isAggregatableResidualOverlay,
 } from '../../data/residualOverlayPresentation.ts';
+import { GENERATED_INCUMBENT_BASE_LABEL } from '../../data/systemStructureModel.ts';
 import {
   getConfigurationId,
   isReadonlyConfiguration,
@@ -31,8 +31,6 @@ import type {
   ConfigurationControlMode,
   ConfigurationDocument,
   ResidualOverlayDisplayMode,
-  ResidualOverlayDomain,
-  ResidualOverlayRow,
 } from '../../data/types';
 import {
   formatControlModeLabel,
@@ -58,107 +56,13 @@ interface PriceOnlyCommodityEntry {
 
 type CommodityControlEntry = ControlledCommodityEntry | PriceOnlyCommodityEntry;
 
-interface OverlayCatalogEntry {
-  overlayId: string;
-  overlayLabel: string;
-  overlayDomain: ResidualOverlayDomain;
-  officialAccountingBucket: string;
-  commodityCount: number;
-  totalEnergyPJ: number;
-  totalEmissionsMt: number;
-  totalCostM: number;
-  defaultInclude: boolean;
-}
+type LeftSidebarTab = 'levers' | 'configs' | 'settings';
 
-const DOMAIN_GROUP_ORDER: Record<ResidualOverlayDomain, number> = {
-  energy_residual: 0,
-  nonenergy_residual: 1,
-  net_sink: 2,
-};
-
-const DOMAIN_LABELS: Record<ResidualOverlayDomain, string> = {
-  energy_residual: 'Energy residuals',
-  nonenergy_residual: 'Non-energy residuals',
-  net_sink: 'Net sinks',
-};
-
-function deriveOverlayCatalog(rows: ResidualOverlayRow[]): OverlayCatalogEntry[] {
-  const byId = new Map<string, OverlayCatalogEntry>();
-  for (const row of rows) {
-    let entry = byId.get(row.overlay_id);
-    if (!entry) {
-      entry = {
-        overlayId: row.overlay_id,
-        overlayLabel: row.overlay_label,
-        overlayDomain: row.overlay_domain,
-        officialAccountingBucket: row.official_accounting_bucket,
-        commodityCount: 0,
-        totalEnergyPJ: 0,
-        totalEmissionsMt: 0,
-        totalCostM: 0,
-        defaultInclude: row.default_include,
-      };
-      byId.set(row.overlay_id, entry);
-    }
-    entry.commodityCount += 1;
-    entry.totalEnergyPJ += row.final_energy_pj_2025 ?? 0;
-    entry.totalEmissionsMt += (row.direct_energy_emissions_mtco2e_2025 ?? 0) + (row.other_emissions_mtco2e_2025 ?? 0);
-    entry.totalCostM += row.default_total_cost_ex_carbon_audm_2024 ?? 0;
-    if (!row.default_include) entry.defaultInclude = false;
-  }
-  return Array.from(byId.values()).sort((a, b) =>
-    DOMAIN_GROUP_ORDER[a.overlayDomain] - DOMAIN_GROUP_ORDER[b.overlayDomain]
-    || a.overlayLabel.localeCompare(b.overlayLabel),
-  );
-}
-
-function formatOverlayDetail(entry: OverlayCatalogEntry): string {
-  if (entry.overlayDomain === 'energy_residual') {
-    return `${entry.commodityCount} commodity rows`;
-  }
-  return 'Emissions only';
-}
-
-function formatOverlayPreviewTotals(totalEnergyPJ: number, totalEmissionsMt: number): string {
-  const parts: string[] = [];
-  if (totalEnergyPJ !== 0) {
-    parts.push(`${Math.abs(totalEnergyPJ).toFixed(1)} PJ`);
-  }
-  if (totalEmissionsMt !== 0) {
-    parts.push(`${totalEmissionsMt.toFixed(1)} MtCO₂e`);
-  }
-  return parts.length > 0 ? parts.join(', ') : '—';
-}
-
-function formatOverlayAnchorPreview(entry: OverlayCatalogEntry): string {
-  return formatOverlayPreviewTotals(entry.totalEnergyPJ, entry.totalEmissionsMt);
-}
-
-function summarizeOverlayEntries(entries: OverlayCatalogEntry[]): {
-  count: number;
-  totalEnergyPJ: number;
-  totalEmissionsMt: number;
-} {
-  return entries.reduce(
-    (summary, entry) => ({
-      count: summary.count + 1,
-      totalEnergyPJ: summary.totalEnergyPJ + entry.totalEnergyPJ,
-      totalEmissionsMt: summary.totalEmissionsMt + entry.totalEmissionsMt,
-    }),
-    {
-      count: 0,
-      totalEnergyPJ: 0,
-      totalEmissionsMt: 0,
-    },
-  );
-}
-
-function formatComponentCountLabel(enabledCount: number, totalCount: number): string {
-  const noun = enabledCount === 1 ? 'component' : 'components';
-  return enabledCount === totalCount
-    ? `${enabledCount} ${noun} enabled`
-    : `${enabledCount}/${totalCount} ${noun} enabled`;
-}
+const LEFT_SIDEBAR_TABS: Array<{ key: LeftSidebarTab; label: string }> = [
+  { key: 'levers', label: 'Levers' },
+  { key: 'configs', label: 'Configs' },
+  { key: 'settings', label: 'Settings' },
+];
 
 function formatUnit(raw: string): string {
   return raw
@@ -187,15 +91,27 @@ function formatModeChoiceLabel(mode: ConfigurationControlMode): string {
   return label.replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
+function formatComparisonModeLabel(mode: WorkspaceComparisonBaseSelectionMode): string {
+  switch (mode) {
+    case 'generated':
+      return 'Generated incumbent';
+    case 'saved':
+      return 'Saved base';
+    default:
+      return 'None';
+  }
+}
+
 function renderWorkspaceChipLabel(label: string) {
   return <span className="workspace-pill-label">{formatWorkspacePillLabel(label)}</span>;
 }
 
 interface LeftSidebarProps {
   initialExpandedSections?: Partial<LeftSidebarSectionState>;
+  initialActiveTab?: LeftSidebarTab;
 }
 
-export default function LeftSidebar({ initialExpandedSections }: LeftSidebarProps = {}) {
+export default function LeftSidebar({ initialExpandedSections, initialActiveTab = 'levers' }: LeftSidebarProps = {}) {
   const appConfig = usePackageStore((s) => s.appConfig);
   const sectorStates = usePackageStore((s) => s.sectorStates);
   const currentConfiguration = usePackageStore((s) => s.currentConfiguration);
@@ -203,10 +119,8 @@ export default function LeftSidebar({ initialExpandedSections }: LeftSidebarProp
   const setCommodityPriceLevel = usePackageStore((s) => s.setCommodityPriceLevel);
   const setCarbonPricePreset = usePackageStore((s) => s.setCarbonPricePreset);
   const setRespectMaxShare = usePackageStore((s) => s.setRespectMaxShare);
+  const setRespectMaxActivity = usePackageStore((s) => s.setRespectMaxActivity);
   const setOutputControlMode = usePackageStore((s) => s.setOutputControlMode);
-  const residualOverlays2025 = usePackageStore((s) => s.residualOverlays2025);
-  const setResidualOverlayIncluded = usePackageStore((s) => s.setResidualOverlayIncluded);
-  const setAllResidualOverlaysIncluded = usePackageStore((s) => s.setAllResidualOverlaysIncluded);
   const setResidualOverlayDisplayMode = usePackageStore((s) => s.setResidualOverlayDisplayMode);
   const loadConfiguration = usePackageStore((s) => s.loadConfiguration);
   const activeConfigurationId = usePackageStore((s) => s.activeConfigurationId);
@@ -215,7 +129,10 @@ export default function LeftSidebar({ initialExpandedSections }: LeftSidebarProp
   const autonomousEfficiencyTracks = usePackageStore((s) => s.autonomousEfficiencyTracks);
   const efficiencyPackages = usePackageStore((s) => s.efficiencyPackages);
   const persistedExpandedSections = useAppUiStore((s) => s.workspace.expandedSections);
+  const comparison = useAppUiStore((s) => s.workspace.comparison);
+  const updateWorkspaceUi = useAppUiStore((s) => s.updateWorkspaceUi);
   const setWorkspaceSectionExpanded = useAppUiStore((s) => s.setWorkspaceSectionExpanded);
+  const [activeTab, setActiveTab] = useState<LeftSidebarTab>(initialActiveTab);
   const saveActionState = getConfigurationSaveActionState({
     activeConfigurationId,
     activeConfigurationReadonly,
@@ -275,28 +192,8 @@ export default function LeftSidebar({ initialExpandedSections }: LeftSidebarProp
     [appConfig],
   );
 
-  const overlayCatalog = useMemo(() => deriveOverlayCatalog(residualOverlays2025), [residualOverlays2025]);
-  const overlayControls = useMemo(
-    () => currentConfiguration.residual_overlays?.controls_by_overlay_id ?? {},
-    [currentConfiguration.residual_overlays?.controls_by_overlay_id],
-  );
   const residualOverlayDisplayMode = getResidualOverlayDisplayMode(currentConfiguration);
-  const nonSinkOverlayEntries = useMemo(
-    () => overlayCatalog.filter((entry) => isAggregatableResidualOverlay(entry.overlayDomain)),
-    [overlayCatalog],
-  );
-  const netSinkOverlayEntries = useMemo(
-    () => overlayCatalog.filter((entry) => !isAggregatableResidualOverlay(entry.overlayDomain)),
-    [overlayCatalog],
-  );
-  const enabledNonSinkEntries = useMemo(
-    () => nonSinkOverlayEntries.filter((entry) => overlayControls[entry.overlayId]?.included ?? entry.defaultInclude),
-    [nonSinkOverlayEntries, overlayControls],
-  );
-  const enabledNonSinkSummary = useMemo(
-    () => summarizeOverlayEntries(enabledNonSinkEntries),
-    [enabledNonSinkEntries],
-  );
+  const respectMaxActivity = currentConfiguration.solver_options?.respect_max_activity ?? true;
 
   const builtinConfigs = useMemo(() => loadBuiltinConfigurations(), []);
   const [userConfigs, setUserConfigs] = useState(() => loadUserConfigurations());
@@ -415,6 +312,73 @@ export default function LeftSidebar({ initialExpandedSections }: LeftSidebarProp
     );
   }
 
+  function setBaseSelectionMode(mode: WorkspaceComparisonBaseSelectionMode) {
+    updateWorkspaceUi({
+      comparison: {
+        ...comparison,
+        baseSelectionMode: mode,
+      },
+    });
+  }
+
+  function setSelectedBaseConfigId(configId: string) {
+    updateWorkspaceUi({
+      comparison: {
+        ...comparison,
+        selectedBaseConfigId: configId || null,
+      },
+    });
+  }
+
+  function renderBaseComparisonControls() {
+    const configOptions = [...builtinConfigs, ...userConfigs]
+      .map((configuration) => ({
+        id: getConfigurationId(configuration) ?? configuration.name,
+        label: configuration.name,
+      }))
+      .sort((left, right) => left.label.localeCompare(right.label));
+
+    return (
+      <div className="workspace-subsector-group">
+        <div className="workspace-subsector-title">Base comparison mode</div>
+        <div className="workspace-chip-group workspace-chip-group--inline">
+          {(['generated', 'saved', 'none'] as WorkspaceComparisonBaseSelectionMode[]).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              className={`workspace-chip${comparison.baseSelectionMode === mode ? ' workspace-chip--active' : ''}`}
+              onClick={() => setBaseSelectionMode(mode)}
+            >
+              {renderWorkspaceChipLabel(formatComparisonModeLabel(mode))}
+            </button>
+          ))}
+        </div>
+        {comparison.baseSelectionMode === 'generated' && (
+          <div className="workspace-subsector-detail">
+            {GENERATED_INCUMBENT_BASE_LABEL} uses the active levers and resets enabled modeled outputs to incumbent routes.
+          </div>
+        )}
+        {comparison.baseSelectionMode === 'saved' && (
+          <label className="workspace-field">
+            <span>Saved base</span>
+            <select
+              className="configuration-input"
+              value={comparison.selectedBaseConfigId ?? ''}
+              onChange={(event) => setSelectedBaseConfigId(event.target.value)}
+            >
+              <option value="">Select a saved base configuration</option>
+              {configOptions.map((configuration) => (
+                <option key={configuration.id} value={configuration.id}>
+                  {configuration.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+      </div>
+    );
+  }
+
   function renderSection(
     section: LeftSidebarSectionKey,
     title: string,
@@ -446,327 +410,281 @@ export default function LeftSidebar({ initialExpandedSections }: LeftSidebarProp
 
   return (
     <>
-      {renderSection(
-        'options',
-        'Options',
-        <div className="workspace-subsector-group">
-          <div className="workspace-subsector-title">Respect max-share caps</div>
-          <div className="workspace-subsector-detail">
-            Keeps pathway max-share limits active in the solve and in the pathway cap view.
-            The cap denominator is always the set of active pathways.
-          </div>
-          <div className="workspace-chip-group workspace-chip-group--inline">
-            <button
-              type="button"
-              className={`workspace-chip${respectMaxShare ? ' workspace-chip--active' : ''}`}
-              onClick={() => setRespectMaxShare(true)}
-            >
-              {renderWorkspaceChipLabel('On')}
-            </button>
-            <button
-              type="button"
-              className={`workspace-chip${respectMaxShare ? '' : ' workspace-chip--active'}`}
-              onClick={() => setRespectMaxShare(false)}
-            >
-              {renderWorkspaceChipLabel('Off')}
-            </button>
-          </div>
-          <div className="workspace-subsector-detail">
-            {respectMaxShare
-              ? 'Max-share caps are enforced in the active solve.'
-              : 'Max-share caps are ignored in the active solve.'}
-          </div>
-        </div>,
-      )}
+      <div className="workspace-left-tabs" role="tablist" aria-label="Workspace controls">
+        {LEFT_SIDEBAR_TABS.map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === tab.key}
+            className={`workspace-left-tab${activeTab === tab.key ? ' workspace-left-tab--active' : ''}`}
+            onClick={() => setActiveTab(tab.key)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
-      {renderSection(
-        'demandGrowth',
-        'Demand Growth',
-        <div className="workspace-chip-group">
-          {Object.entries(appConfig.demand_growth_presets).map(([id, preset]) => (
-            <button
-              key={id}
-              className={`workspace-chip${activeDemandPreset === id ? ' workspace-chip--active' : ''}`}
-              onClick={() => setDemandPreset(id)}
-              title={preset.label}
-            >
-              {renderWorkspaceChipLabel(preset.label)}
-            </button>
-          ))}
-          {activeDemandPreset === null && (
-            <span className="workspace-chip workspace-chip--active" title="Custom">
-              {renderWorkspaceChipLabel('Custom')}
-            </span>
-          )}
-        </div>,
-      )}
-
-      {renderSection(
-        'commodityControls',
-        'Commodity Controls',
+      {activeTab === 'levers' && (
         <>
-          {commodityControls.map((entry) => {
-            if (entry.kind === 'controlled') {
-              const activeLevel = getCommodityPriceLevel(currentConfiguration, entry.outputId);
-              const selectorPresentation = getCommodityPriceSelectorPresentation(
-                outputStatuses[entry.outputId],
-                activeLevel,
-              );
-              const currentMode = outputStatuses[entry.outputId]?.controlMode ?? entry.allowedModes[0];
-              const priceDriver = entry.priceDriver;
+          {renderSection(
+            'demandGrowth',
+            'Demand growth',
+            <div className="workspace-chip-group">
+              {Object.entries(appConfig.demand_growth_presets).map(([id, preset]) => (
+                <button
+                  key={id}
+                  className={`workspace-chip${activeDemandPreset === id ? ' workspace-chip--active' : ''}`}
+                  onClick={() => setDemandPreset(id)}
+                  title={preset.label}
+                >
+                  {renderWorkspaceChipLabel(preset.label)}
+                </button>
+              ))}
+              {activeDemandPreset === null && (
+                <span className="workspace-chip workspace-chip--active" title="Custom">
+                  {renderWorkspaceChipLabel('Custom')}
+                </span>
+              )}
+            </div>,
+          )}
 
-              return (
-                <div key={entry.outputId} className="workspace-subsector-group">
-                  <div className="workspace-subsector-title">{entry.label}</div>
-                  {selectorPresentation.detail && (
-                    <div className="workspace-subsector-detail">
-                      {selectorPresentation.detail}
-                    </div>
-                  )}
-                  <div className="workspace-chip-group workspace-chip-group--inline">
-                    {entry.allowedModes.map((mode) => (
-                      <button
-                        key={mode}
-                        type="button"
-                        className={`workspace-chip${currentMode === mode ? ' workspace-chip--active' : ''}`}
-                        onClick={() => setOutputControlMode(entry.outputId, mode)}
-                        title={`Set ${entry.label} to ${formatControlModeLabel(mode)}`}
-                      >
-                        {renderWorkspaceChipLabel(formatModeChoiceLabel(mode))}
-                      </button>
-                    ))}
-                  </div>
-                  {priceDriver && (
-                    <>
-                      <div className="workspace-subsector-detail">
-                        Exogenous price path. This only affects runs where the commodity is externalized.
-                      </div>
+          {renderSection(
+            'commodityControls',
+            'Commodity price levels',
+            <>
+              {commodityControls.map((entry) => {
+                if (entry.kind === 'controlled') {
+                  const activeLevel = getCommodityPriceLevel(currentConfiguration, entry.outputId);
+                  const selectorPresentation = getCommodityPriceSelectorPresentation(
+                    outputStatuses[entry.outputId],
+                    activeLevel,
+                  );
+                  const currentMode = outputStatuses[entry.outputId]?.controlMode ?? entry.allowedModes[0];
+                  const priceDriver = entry.priceDriver;
+
+                  return (
+                    <div key={entry.outputId} className="workspace-subsector-group">
+                      <div className="workspace-subsector-title">{entry.label}</div>
+                      {selectorPresentation.detail && (
+                        <div className="workspace-subsector-detail">
+                          {selectorPresentation.detail}
+                        </div>
+                      )}
                       <div className="workspace-chip-group workspace-chip-group--inline">
-                        {PRICE_LEVELS.map((level) => (
+                        {entry.allowedModes.map((mode) => (
                           <button
-                            key={level}
+                            key={mode}
                             type="button"
-                            className={`workspace-chip${selectorPresentation.activeLevel === level ? ' workspace-chip--active' : ''}${selectorPresentation.selectorEnabled ? '' : ' workspace-chip--inactive'}`}
-                            onClick={() => setCommodityPriceLevel(entry.outputId, level)}
-                            title={
-                              selectorPresentation.selectorEnabled
-                                ? formatCommodityPrice(priceDriver.levels[level])
-                                : `${entry.label} is ${selectorPresentation.controlModeLabel} in the current solve, so the exogenous price selector is inactive.`
-                            }
-                            disabled={!selectorPresentation.selectorEnabled}
+                            className={`workspace-chip${currentMode === mode ? ' workspace-chip--active' : ''}`}
+                            onClick={() => setOutputControlMode(entry.outputId, mode)}
+                            title={`Set ${entry.label} to ${formatControlModeLabel(mode)}`}
                           >
-                            {renderWorkspaceChipLabel(formatCommodityPrice(priceDriver.levels[level]))}
+                            {renderWorkspaceChipLabel(formatModeChoiceLabel(mode))}
                           </button>
                         ))}
                       </div>
-                    </>
-                  )}
+                      {priceDriver && (
+                        <>
+                          <div className="workspace-subsector-detail">
+                            Exogenous price path. This only affects runs where the commodity is externalized.
+                          </div>
+                          <div className="workspace-chip-group workspace-chip-group--inline">
+                            {PRICE_LEVELS.map((level) => (
+                              <button
+                                key={level}
+                                type="button"
+                                className={`workspace-chip${selectorPresentation.activeLevel === level ? ' workspace-chip--active' : ''}${selectorPresentation.selectorEnabled ? '' : ' workspace-chip--inactive'}`}
+                                onClick={() => setCommodityPriceLevel(entry.outputId, level)}
+                                title={
+                                  selectorPresentation.selectorEnabled
+                                    ? formatCommodityPrice(priceDriver.levels[level])
+                                    : `${entry.label} is ${selectorPresentation.controlModeLabel} in the current solve, so the exogenous price selector is inactive.`
+                                }
+                                disabled={!selectorPresentation.selectorEnabled}
+                              >
+                                {renderWorkspaceChipLabel(formatCommodityPrice(priceDriver.levels[level]))}
+                              </button>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  );
+                }
+
+                const activeLevel = getCommodityPriceLevel(currentConfiguration, entry.commodityId);
+
+                return (
+                  <div key={entry.commodityId} className="workspace-subsector-group">
+                    <div className="workspace-subsector-title">{entry.label}</div>
+                    <div className="workspace-subsector-detail">
+                      Exogenous purchase price path for this commodity.
+                    </div>
+                    <div className="workspace-chip-group workspace-chip-group--inline">
+                      {PRICE_LEVELS.map((level) => (
+                        <button
+                          key={level}
+                          type="button"
+                          className={`workspace-chip${activeLevel === level ? ' workspace-chip--active' : ''}`}
+                          onClick={() => setCommodityPriceLevel(entry.commodityId, level)}
+                          title={formatCommodityPrice(entry.priceDriver.levels[level])}
+                        >
+                          {renderWorkspaceChipLabel(formatCommodityPrice(entry.priceDriver.levels[level]))}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </>,
+          )}
+
+          {renderSection(
+            'emissionsPrice',
+            'Emissions / carbon price',
+            <div className="workspace-chip-group workspace-chip-group--inline">
+              {Object.entries(appConfig.carbon_price_presets).map(([id, preset]) => (
+                <button
+                  key={id}
+                  className={`workspace-chip${activeCarbonPreset === id ? ' workspace-chip--active' : ''}`}
+                  onClick={() => setCarbonPricePreset(id)}
+                  title={preset.description ? `${preset.label}. ${preset.description}` : preset.label}
+                >
+                  {renderWorkspaceChipLabel(formatCarbonPriceRange(preset))}
+                </button>
+              ))}
+              {activeCarbonPreset === null && (
+                <span className="workspace-chip workspace-chip--active" title="Custom">
+                  {renderWorkspaceChipLabel('Custom')}
+                </span>
+              )}
+            </div>,
+          )}
+        </>
+      )}
+
+      {activeTab === 'configs' && (
+        <>
+          {renderBaseComparisonControls()}
+          {renderSection(
+            'configurations',
+            'Save / load configs',
+            <>
+              <div className="workspace-configuration-actions">
+                <button
+                  type="button"
+                  className="workspace-chip"
+                  onClick={() => void handleOverwrite()}
+                  disabled={!saveActionState.canSave}
+                  title={saveActionState.disabledReason ?? 'Save this user configuration.'}
+                >
+                  {renderWorkspaceChipLabel('Save')}
+                </button>
+                <button
+                  type="button"
+                  className="workspace-chip workspace-chip--secondary-action"
+                  onClick={handleSaveAs}
+                >
+                  {renderWorkspaceChipLabel('Save As…')}
+                </button>
+              </div>
+
+              {saveNotice && (
+                <div
+                  className={`workspace-status-notice${saveNotice.startsWith('Error') ? ' workspace-status-notice--error' : ''}`}
+                >
+                  {saveNotice}
                 </div>
-              );
-            }
+              )}
 
-            const activeLevel = getCommodityPriceLevel(currentConfiguration, entry.commodityId);
+              {renderConfigurationGroup('User configs', userConfigs)}
+              {renderConfigurationGroup('Built-in configs', builtinConfigs)}
+            </>,
+          )}
+        </>
+      )}
 
-            return (
-              <div key={entry.commodityId} className="workspace-subsector-group">
-                <div className="workspace-subsector-title">{entry.label}</div>
+      {activeTab === 'settings' && (
+        <>
+          {renderSection(
+            'options',
+            'Solver caps',
+            <>
+              <div className="workspace-subsector-group">
+                <div className="workspace-subsector-title">Respect max-share caps</div>
                 <div className="workspace-subsector-detail">
-                  Exogenous purchase price path for this commodity.
+                  Keeps route max-share limits active in the solve and in the route cap view.
+                  The cap denominator is always the set of active routes.
                 </div>
                 <div className="workspace-chip-group workspace-chip-group--inline">
-                  {PRICE_LEVELS.map((level) => (
-                    <button
-                      key={level}
-                      type="button"
-                      className={`workspace-chip${activeLevel === level ? ' workspace-chip--active' : ''}`}
-                      onClick={() => setCommodityPriceLevel(entry.commodityId, level)}
-                      title={formatCommodityPrice(entry.priceDriver.levels[level])}
-                    >
-                      {renderWorkspaceChipLabel(formatCommodityPrice(entry.priceDriver.levels[level]))}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </>,
-      )}
-
-      {renderSection(
-        'emissionsPrice',
-        'Emissions Price',
-        <div className="workspace-chip-group workspace-chip-group--inline">
-          {Object.entries(appConfig.carbon_price_presets).map(([id, preset]) => (
-            <button
-              key={id}
-              className={`workspace-chip${activeCarbonPreset === id ? ' workspace-chip--active' : ''}`}
-              onClick={() => setCarbonPricePreset(id)}
-              title={preset.description ? `${preset.label}. ${preset.description}` : preset.label}
-            >
-              {renderWorkspaceChipLabel(formatCarbonPriceRange(preset))}
-            </button>
-          ))}
-          {activeCarbonPreset === null && (
-            <span className="workspace-chip workspace-chip--active" title="Custom">
-              {renderWorkspaceChipLabel('Custom')}
-            </span>
-          )}
-        </div>,
-      )}
-
-      {renderSection(
-        'overlays',
-        'Overlays',
-        <>
-          <div className="workspace-subsector-detail">
-            Overlay trajectories follow the active demand-growth preset. Commodity shares within each overlay remain fixed at 2025 proportions.
-          </div>
-          {nonSinkOverlayEntries.length > 0 && (
-            <div className="workspace-sector-group">
-              <div className="workspace-sector-title">{AGGREGATED_RESIDUAL_OVERLAY_LABEL}</div>
-              <div className="workspace-subsector-detail">
-                {formatComponentCountLabel(enabledNonSinkSummary.count, nonSinkOverlayEntries.length)}
-                {' · '}
-                {formatOverlayPreviewTotals(
-                  enabledNonSinkSummary.totalEnergyPJ,
-                  enabledNonSinkSummary.totalEmissionsMt,
-                )}
-              </div>
-              <div className="workspace-overlay-control-stack">
-                <div className="workspace-chip-group workspace-chip-group--inline workspace-chip-group--mode-toggle">
-                  {([
-                    'aggregated_non_sink',
-                    'individual',
-                  ] as ResidualOverlayDisplayMode[]).map((mode) => {
-                    const selected = residualOverlayDisplayMode === mode;
-                    return (
-                      <button
-                        key={mode}
-                        type="button"
-                        aria-pressed={selected}
-                        className={`workspace-chip${selected ? ' workspace-chip--active' : ' workspace-chip--toggle-off'}`}
-                        onClick={() => setResidualOverlayDisplayMode(mode)}
-                      >
-                        {renderWorkspaceChipLabel(mode === 'aggregated_non_sink' ? 'Aggregated' : 'Individual')}
-                      </button>
-                    );
-                  })}
-                </div>
-                <div className="workspace-chip-group workspace-chip-group--inline workspace-chip-group--supporting-actions">
                   <button
                     type="button"
-                    className="workspace-chip workspace-chip--secondary-action workspace-chip--utility-action"
-                    onClick={() => setAllResidualOverlaysIncluded(true)}
+                    className={`workspace-chip${respectMaxShare ? ' workspace-chip--active' : ''}`}
+                    onClick={() => setRespectMaxShare(true)}
                   >
-                    {renderWorkspaceChipLabel('All on')}
+                    {renderWorkspaceChipLabel('On')}
                   </button>
                   <button
                     type="button"
-                    className="workspace-chip workspace-chip--secondary-action workspace-chip--utility-action"
-                    onClick={() => setAllResidualOverlaysIncluded(false)}
+                    className={`workspace-chip${respectMaxShare ? '' : ' workspace-chip--active'}`}
+                    onClick={() => setRespectMaxShare(false)}
                   >
-                    {renderWorkspaceChipLabel('All off')}
+                    {renderWorkspaceChipLabel('Off')}
+                  </button>
+                </div>
+                <div className="workspace-subsector-detail">
+                  {respectMaxShare
+                    ? 'Max-share caps are enforced in the active solve.'
+                    : 'Max-share caps are ignored in the active solve.'}
+                </div>
+              </div>
+              <div className="workspace-subsector-group">
+                <div className="workspace-subsector-title">Respect max-activity caps</div>
+                <div className="workspace-chip-group workspace-chip-group--inline">
+                  <button
+                    type="button"
+                    className={`workspace-chip${respectMaxActivity ? ' workspace-chip--active' : ''}`}
+                    onClick={() => setRespectMaxActivity(true)}
+                  >
+                    {renderWorkspaceChipLabel('On')}
+                  </button>
+                  <button
+                    type="button"
+                    className={`workspace-chip${respectMaxActivity ? '' : ' workspace-chip--active'}`}
+                    onClick={() => setRespectMaxActivity(false)}
+                  >
+                    {renderWorkspaceChipLabel('Off')}
                   </button>
                 </div>
               </div>
-              {nonSinkOverlayEntries.map((entry) => {
-                const included = overlayControls[entry.overlayId]?.included ?? entry.defaultInclude;
+            </>,
+          )}
+
+          {renderSection(
+            'overlays',
+            'Residual display mode',
+            <div className="workspace-chip-group workspace-chip-group--inline workspace-chip-group--mode-toggle">
+              {([
+                'aggregated_non_sink',
+                'individual',
+              ] as ResidualOverlayDisplayMode[]).map((mode) => {
+                const selected = residualOverlayDisplayMode === mode;
                 return (
-                  <div key={entry.overlayId} className="workspace-subsector-group">
-                    <div className="workspace-subsector-title">{entry.overlayLabel}</div>
-                    <div className="workspace-subsector-detail">
-                      {DOMAIN_LABELS[entry.overlayDomain]} · {formatOverlayDetail(entry)} · {formatOverlayAnchorPreview(entry)}
-                    </div>
-                    <div className="workspace-chip-group workspace-chip-group--inline">
-                      <button
-                        type="button"
-                        className={`workspace-chip${included ? ' workspace-chip--active' : ''}`}
-                        onClick={() => setResidualOverlayIncluded(entry.overlayId, true)}
-                      >
-                        {renderWorkspaceChipLabel('On')}
-                      </button>
-                      <button
-                        type="button"
-                        className={`workspace-chip${included ? '' : ' workspace-chip--active'}`}
-                        onClick={() => setResidualOverlayIncluded(entry.overlayId, false)}
-                      >
-                        {renderWorkspaceChipLabel('Off')}
-                      </button>
-                    </div>
-                  </div>
+                  <button
+                    key={mode}
+                    type="button"
+                    aria-pressed={selected}
+                    className={`workspace-chip${selected ? ' workspace-chip--active' : ' workspace-chip--toggle-off'}`}
+                    onClick={() => setResidualOverlayDisplayMode(mode)}
+                  >
+                    {renderWorkspaceChipLabel(mode === 'aggregated_non_sink' ? 'Aggregated' : 'Individual')}
+                  </button>
                 );
               })}
-            </div>
+            </div>,
           )}
-          {netSinkOverlayEntries.length > 0 && (
-            <div className="workspace-sector-group">
-              <div className="workspace-sector-title">{DOMAIN_LABELS.net_sink}</div>
-              {netSinkOverlayEntries.map((entry) => {
-                const included = overlayControls[entry.overlayId]?.included ?? entry.defaultInclude;
-                return (
-                  <div key={entry.overlayId} className="workspace-subsector-group">
-                    <div className="workspace-subsector-title">{entry.overlayLabel}</div>
-                    <div className="workspace-subsector-detail">
-                      {formatOverlayDetail(entry)} · {formatOverlayAnchorPreview(entry)}
-                    </div>
-                    <div className="workspace-chip-group workspace-chip-group--inline">
-                      <button
-                        type="button"
-                        className={`workspace-chip${included ? ' workspace-chip--active' : ''}`}
-                        onClick={() => setResidualOverlayIncluded(entry.overlayId, true)}
-                      >
-                        {renderWorkspaceChipLabel('On')}
-                      </button>
-                      <button
-                        type="button"
-                        className={`workspace-chip${included ? '' : ' workspace-chip--active'}`}
-                        onClick={() => setResidualOverlayIncluded(entry.overlayId, false)}
-                      >
-                        {renderWorkspaceChipLabel('Off')}
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </>,
-      )}
-
-      {renderSection(
-        'configurations',
-        'Configurations',
-        <>
-          <div className="workspace-configuration-actions">
-            <button
-              type="button"
-              className="workspace-chip"
-              onClick={() => void handleOverwrite()}
-              disabled={!saveActionState.canSave}
-              title={saveActionState.disabledReason ?? 'Save this user configuration.'}
-            >
-              {renderWorkspaceChipLabel('Save')}
-            </button>
-            <button
-              type="button"
-              className="workspace-chip workspace-chip--secondary-action"
-              onClick={handleSaveAs}
-            >
-              {renderWorkspaceChipLabel('Save As…')}
-            </button>
-          </div>
-
-          {saveNotice && (
-            <div
-              className={`workspace-status-notice${saveNotice.startsWith('Error') ? ' workspace-status-notice--error' : ''}`}
-            >
-              {saveNotice}
-            </div>
-          )}
-
-          {renderConfigurationGroup('User configurations', userConfigs)}
-          {renderConfigurationGroup('Built-in configurations', builtinConfigs)}
-        </>,
+        </>
       )}
     </>
   );

@@ -158,10 +158,22 @@ function buildComparisonStatus(
     return 'Base comparison is disabled. Explorer charts show the live focus run only.';
   }
 
+  if (baseSelectionMode === 'generated') {
+    if (baseSolve.phase === 'solving') {
+      return 'Refreshing the generated incumbent base run for Explorer differencing.';
+    }
+
+    if (baseSolve.phase === 'error') {
+      return 'The generated incumbent base run failed, so differencing charts are temporarily unavailable while focus charts remain visible.';
+    }
+
+    return comparisonEnabled
+      ? 'Explorer differencing is active: generated incumbent base versus live focus.'
+      : 'Explorer differencing is unavailable for the generated incumbent base.';
+  }
+
   if (!baseConfigId) {
-    return baseSelectionMode === 'auto'
-      ? 'No saved base is associated with the current working configuration, so differencing charts are disabled.'
-      : 'Choose a saved base configuration to enable differencing charts.';
+    return 'Choose a saved base configuration to enable differencing charts.';
   }
 
   if (baseSolve.phase === 'solving') {
@@ -356,12 +368,12 @@ export default function ConfigurationWorkspaceCenter({
           <div>
             <h2>Explorer comparison pair</h2>
             <p className="workspace-comparison-note">
-              Explorer always solves the live working configuration as Focus. A saved Base
-              configuration is optional and only enables differencing charts.
+              Explorer always solves the live working configuration as Focus. Base can be
+              generated from the focus structure, selected from saved configs, or disabled.
             </p>
           </div>
           <div className="workspace-chart-toggle" role="tablist" aria-label="Base selection mode">
-            {(['auto', 'manual', 'none'] as WorkspaceComparisonBaseSelectionMode[]).map((mode) => (
+            {(['generated', 'saved', 'none'] as WorkspaceComparisonBaseSelectionMode[]).map((mode) => (
               <button
                 key={mode}
                 type="button"
@@ -369,7 +381,7 @@ export default function ConfigurationWorkspaceCenter({
                 onClick={() => onBaseSelectionModeChange(mode)}
                 aria-pressed={baseSelectionMode === mode}
               >
-                {mode === 'auto' ? 'Auto' : mode === 'manual' ? 'Manual' : 'None'}
+                {mode === 'generated' ? 'Generated' : mode === 'saved' ? 'Saved' : 'None'}
               </button>
             ))}
           </div>
@@ -382,10 +394,14 @@ export default function ConfigurationWorkspaceCenter({
               className="configuration-input"
               value={baseSelectionMode === 'none' ? '' : baseConfigId ?? ''}
               onChange={(event) => onBaseConfigChange(event.target.value)}
-              disabled={baseSelectionMode !== 'manual'}
+              disabled={baseSelectionMode !== 'saved'}
             >
               <option value="">
-                {baseSelectionMode === 'none' ? 'Disabled' : 'Select a saved base configuration'}
+                {baseSelectionMode === 'generated'
+                  ? 'Generated incumbent base'
+                  : baseSelectionMode === 'none'
+                    ? 'Disabled'
+                    : 'Select a saved base configuration'}
               </option>
               {configurationOptions.map((configuration) => (
                 <option key={configuration.id} value={configuration.id}>
@@ -419,7 +435,7 @@ export default function ConfigurationWorkspaceCenter({
           <p>
             {baseSolve.failure?.headline
               ?? baseSolve.error
-              ?? 'The saved base configuration failed to solve for comparison.'}
+              ?? 'The base configuration failed to solve for comparison.'}
           </p>
         </section>
       ) : null}
