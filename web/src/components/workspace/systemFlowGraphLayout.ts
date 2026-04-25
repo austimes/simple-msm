@@ -2,6 +2,7 @@ import type { Edge, Node } from '@xyflow/react';
 import type { ElkExtendedEdge, ElkNode } from 'elkjs/lib/elk-api';
 import type ElkConstructor from 'elkjs/lib/elk.bundled.js';
 import { getPresentation } from '../../data/chartPresentation.ts';
+import { SYSTEM_STRUCTURE_GROUPS } from '../../data/systemStructureModel.ts';
 import type {
   SystemFlowEdge,
   SystemFlowGraphData,
@@ -10,6 +11,7 @@ import type {
   SystemFlowViewMode,
 } from '../../results/systemFlowGraph.ts';
 
+export const SYSTEM_FLOW_SECTOR_NODE_TYPE = 'systemFlowSector';
 export const SYSTEM_FLOW_SEGMENT_NODE_TYPE = 'systemFlowSegment';
 export const SYSTEM_FLOW_ROUTE_NODE_TYPE = 'systemFlowRoute';
 export const SYSTEM_FLOW_TERMINAL_NODE_TYPE = 'systemFlowTerminal';
@@ -23,6 +25,13 @@ const COLLAPSED_SEGMENT_WIDTH = 238;
 const COLLAPSED_SEGMENT_HEIGHT = 88;
 const VISIBLE_VARIANT_LIMIT = 3;
 
+interface SystemFlowSectorGroup {
+  id: string;
+  label: string;
+  color: string;
+  sortOrder: number;
+}
+
 export interface SystemFlowRouteVariant {
   id: string;
   label: string;
@@ -31,12 +40,13 @@ export interface SystemFlowRouteVariant {
 }
 
 export interface SystemFlowDiagramNodeData extends Record<string, unknown> {
-  kind: 'segment' | 'route' | 'terminal';
+  kind: 'sector' | 'segment' | 'route' | 'terminal';
   label: string;
   role: string;
   color: string;
   selected: boolean;
   muted: boolean;
+  sectorId?: string;
   segmentId?: string;
   collapsed?: boolean;
   hiddenCount?: number;
@@ -59,6 +69,7 @@ export interface SystemFlowDiagramEdgeData extends Record<string, unknown> {
 
 export type SystemFlowDiagramNode = Node<
   SystemFlowDiagramNodeData,
+  | typeof SYSTEM_FLOW_SECTOR_NODE_TYPE
   | typeof SYSTEM_FLOW_SEGMENT_NODE_TYPE
   | typeof SYSTEM_FLOW_ROUTE_NODE_TYPE
   | typeof SYSTEM_FLOW_TERMINAL_NODE_TYPE
@@ -109,6 +120,45 @@ type ElkInstance = InstanceType<typeof ElkConstructor>;
 
 let elk: ElkInstance | null = null;
 
+const STRUCTURE_GROUPS_BY_OUTPUT_ID = new Map<string, (typeof SYSTEM_STRUCTURE_GROUPS)[number]>();
+SYSTEM_STRUCTURE_GROUPS.forEach((group) => {
+  group.outputIds.forEach((outputId) => {
+    STRUCTURE_GROUPS_BY_OUTPUT_ID.set(outputId, group);
+  });
+});
+
+const STRUCTURE_GROUP_ORDER = new Map<string, number>();
+SYSTEM_STRUCTURE_GROUPS.forEach((group, index) => {
+  STRUCTURE_GROUP_ORDER.set(group.id, index * 100);
+});
+
+const SECTOR_PRESENTATION_IDS: Record<string, string> = {
+  energy_supply: 'electricity_supply',
+  industrial_production: 'generic_industrial_heat',
+  removals_land: 'removals_negative_emissions',
+};
+
+const FALLBACK_SECTOR_GROUPS: Record<string, SystemFlowSectorGroup> = {
+  supply_inputs: {
+    id: 'supply_inputs',
+    label: 'Supply inputs',
+    color: '#64748b',
+    sortOrder: -200,
+  },
+  external_demand: {
+    id: 'external_demand',
+    label: 'External demand',
+    color: '#64748b',
+    sortOrder: 1_000,
+  },
+  other_modeled_outputs: {
+    id: 'other_modeled_outputs',
+    label: 'Other modeled outputs',
+    color: '#64748b',
+    sortOrder: 900,
+  },
+};
+
 async function getElk(): Promise<ElkInstance> {
   const { default: ELK } = await import('elkjs/lib/elk.bundled.js');
   elk ??= new ELK();
@@ -151,6 +201,10 @@ export function formatSystemFlowShare(value: number | null): string | null {
 
 function segmentNodeId(segmentId: string): string {
   return `system-flow-segment:${segmentId}`;
+}
+
+function sectorNodeId(sectorId: string): string {
+  return `system-flow-sector:${sectorId}`;
 }
 
 function routeDiagramNodeId(groupId: string): string {
@@ -207,6 +261,40 @@ function segmentColor(segment: SystemFlowSegment): string {
 
 function segmentRoleLabel(segment: SystemFlowSegment): string {
   return segment.role.replaceAll('_', ' ');
+}
+
+function segmentOutputId(segment: SystemFlowSegment): string | null {
+  const [, , outputId] = segment.id.split(':');
+  return outputId ?? null;
+}
+
+function structureGroupColor(groupId: string, label: string): string {
+  const presentationId = SECTOR_PRESENTATION_IDS[groupId] ?? groupId;
+  return getPresentation('sector', presentationId, label).color;
+}
+
+function sectorGroupForSegment(segment: SystemFlowSegment): SystemFlowSectorGroup {
+  if (segment.role === 'exogenous_supply') {
+    return FALLBACK_SECTOR_GROUPS.supply_inputs;
+  }
+
+  if (segment.id === 'segment:external_commodity_demand') {
+    return FALLBACK_SECTOR_GROUPS.external_demand;
+  }
+
+  const outputId = segmentOutputId(segment);
+  const structureGroup = outputId ? STRUCTURE_GROUPS_BY_OUTPUT_ID.get(outputId) : undefined;
+
+  if (!structureGroup) {
+    return FALLBACK_SECTOR_GROUPS.other_modeled_outputs;
+  }
+
+  return {
+    id: structureGroup.id,
+    label: structureGroup.label,
+    color: structureGroupColor(structureGroup.id, structureGroup.label),
+    sortOrder: STRUCTURE_GROUP_ORDER.get(structureGroup.id) ?? 800,
+  };
 }
 
 function routeNodeHeight(variantCount: number): number {
@@ -279,7 +367,7 @@ function buildRouteItems(nodes: SystemFlowNode[], viewMode: SystemFlowViewMode):
         variants: visibleVariants,
         variantOverflow: Math.max(0, variants.length - visibleVariants.length),
       },
-      draggable: false,
+      draggable: true,
       selectable: false,
       focusable: false,
     };
@@ -323,7 +411,7 @@ function buildTerminalItems(nodes: SystemFlowNode[], viewMode: SystemFlowViewMod
           segmentId: sourceNode.segmentId,
           metric,
         },
-        draggable: false,
+        draggable: true,
         selectable: false,
         focusable: false,
       };
@@ -469,8 +557,16 @@ export function buildSystemFlowDiagramLayoutInput(
     ...buildTerminalItems(data.nodes, viewMode),
   ].sort((left, right) => left.sortKey.localeCompare(right.sortKey) || left.id.localeCompare(right.id));
   const segmentById = new Map(data.segments.map((segment) => [segment.id, segment]));
+  const sectorGroupBySegmentId = new Map<string, SystemFlowSectorGroup>();
+  const sectorGroups = new Map<string, SystemFlowSectorGroup>();
   const itemsBySegment = new Map<string, DiagramItem[]>();
   const sourceNodeToDiagramNode = new Map<string, string>();
+
+  for (const segment of data.segments) {
+    const sectorGroup = sectorGroupForSegment(segment);
+    sectorGroupBySegmentId.set(segment.id, sectorGroup);
+    sectorGroups.set(sectorGroup.id, sectorGroup);
+  }
 
   for (const item of items) {
     const segmentItems = itemsBySegment.get(item.segmentId) ?? [];
@@ -483,10 +579,43 @@ export function buildSystemFlowDiagramLayoutInput(
   }
 
   const diagramNodes: SystemFlowDiagramNode[] = [];
+  const sortedSectorGroups = Array.from(sectorGroups.values()).sort((left, right) => {
+    return left.sortOrder - right.sortOrder
+      || left.label.localeCompare(right.label)
+      || left.id.localeCompare(right.id);
+  });
+
+  for (const sectorGroup of sortedSectorGroups) {
+    const sectorSegments = data.segments.filter((segment) => sectorGroupBySegmentId.get(segment.id)?.id === sectorGroup.id);
+    const selected = sectorSegments.some((segment) => {
+      return (itemsBySegment.get(segment.id) ?? []).some((item) => item.node.data.selected);
+    });
+
+    diagramNodes.push({
+      id: sectorNodeId(sectorGroup.id),
+      type: SYSTEM_FLOW_SECTOR_NODE_TYPE,
+      position: { x: 0, y: 0 },
+      data: {
+        kind: 'sector',
+        label: sectorGroup.label,
+        role: 'system group',
+        color: sectorGroup.color,
+        selected,
+        muted: viewMode === 'solved' ? !selected : false,
+        sectorId: sectorGroup.id,
+        hiddenCount: sectorSegments.length,
+      },
+      draggable: true,
+      selectable: false,
+      focusable: false,
+    });
+  }
 
   for (const segment of data.segments) {
     const segmentItems = itemsBySegment.get(segment.id) ?? [];
     const groupNodeId = segmentNodeId(segment.id);
+    const sectorGroup = sectorGroupBySegmentId.get(segment.id);
+    const parentId = sectorGroup ? sectorNodeId(sectorGroup.id) : undefined;
 
     if (segment.collapsed) {
       const selected = segmentItems.some((item) => item.node.data.selected);
@@ -494,6 +623,8 @@ export function buildSystemFlowDiagramLayoutInput(
         id: groupNodeId,
         type: SYSTEM_FLOW_SEGMENT_NODE_TYPE,
         position: { x: 0, y: 0 },
+        parentId,
+        extent: parentId ? 'parent' : undefined,
         width: COLLAPSED_SEGMENT_WIDTH,
         height: COLLAPSED_SEGMENT_HEIGHT,
         data: {
@@ -507,7 +638,7 @@ export function buildSystemFlowDiagramLayoutInput(
           collapsed: true,
           hiddenCount: segmentItems.length,
         },
-        draggable: false,
+        draggable: true,
         selectable: false,
         focusable: false,
       });
@@ -524,6 +655,8 @@ export function buildSystemFlowDiagramLayoutInput(
       id: groupNodeId,
       type: SYSTEM_FLOW_SEGMENT_NODE_TYPE,
       position: { x: 0, y: 0 },
+      parentId,
+      extent: parentId ? 'parent' : undefined,
       data: {
         kind: 'segment',
         label: segment.label,
@@ -535,7 +668,7 @@ export function buildSystemFlowDiagramLayoutInput(
         collapsed: false,
         hiddenCount: segmentItems.length,
       },
-      draggable: false,
+      draggable: true,
       selectable: false,
       focusable: false,
     });
@@ -573,6 +706,38 @@ function elkNodeForDiagramNode(node: SystemFlowDiagramNode): ElkNode {
   };
 }
 
+function compoundLayoutOptions(node: SystemFlowDiagramNode): Record<string, string> {
+  if (node.data.kind === 'sector') {
+    return {
+      'elk.padding': '[top=50,left=22,bottom=22,right=22]',
+      'elk.spacing.nodeNode': '34',
+      'elk.layered.spacing.nodeNodeBetweenLayers': '88',
+    };
+  }
+
+  return {
+    'elk.padding': '[top=54,left=18,bottom=18,right=18]',
+    'elk.spacing.nodeNode': '18',
+  };
+}
+
+function elkNodeForTree(
+  node: SystemFlowDiagramNode,
+  childrenByParent: Map<string, SystemFlowDiagramNode[]>,
+): ElkNode {
+  const children = childrenByParent.get(node.id);
+
+  if (!children || children.length === 0) {
+    return elkNodeForDiagramNode(node);
+  }
+
+  return {
+    id: node.id,
+    children: children.map((childNode) => elkNodeForTree(childNode, childrenByParent)),
+    layoutOptions: compoundLayoutOptions(node),
+  };
+}
+
 function toElkGraph(layout: SystemFlowDiagramLayout): ElkNode {
   const childrenByParent = new Map<string, SystemFlowDiagramNode[]>();
   const topLevelNodes: SystemFlowDiagramNode[] = [];
@@ -587,22 +752,7 @@ function toElkGraph(layout: SystemFlowDiagramLayout): ElkNode {
     }
   }
 
-  const children = topLevelNodes.map((node) => {
-    const nestedChildren = childrenByParent.get(node.id);
-
-    if (!nestedChildren) {
-      return elkNodeForDiagramNode(node);
-    }
-
-    return {
-      id: node.id,
-      children: nestedChildren.map(elkNodeForDiagramNode),
-      layoutOptions: {
-        'elk.padding': '[top=54,left=18,bottom=18,right=18]',
-        'elk.spacing.nodeNode': '18',
-      },
-    };
-  });
+  const children = topLevelNodes.map((node) => elkNodeForTree(node, childrenByParent));
   const edges: ElkExtendedEdge[] = layout.edges.map((edge) => ({
     id: edge.id,
     sources: [edge.source],

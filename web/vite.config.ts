@@ -2,7 +2,10 @@ import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import fs from 'fs';
+import { fileURLToPath } from 'url';
 import { getConfigurationDocumentId } from './src/data/configurationMetadata.ts';
+
+const configDirname = path.dirname(fileURLToPath(import.meta.url));
 
 function slugifyConfigurationName(name: string): string {
   return (
@@ -91,7 +94,7 @@ function removeDuplicateUserConfigurationFiles(configDir: string, configId: stri
 }
 
 function userConfigApi(): Plugin {
-  const configDir = path.resolve(__dirname, 'src/configurations/user');
+  const configDir = path.resolve(configDirname, 'src/configurations/user');
 
   return {
     name: 'user-config-api',
@@ -164,8 +167,8 @@ export default defineConfig({
   plugins: [react(), userConfigApi()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, 'src'),
-      '@root': path.resolve(__dirname, '..'),
+      '@': path.resolve(configDirname, 'src'),
+      '@root': path.resolve(configDirname, '..'),
     },
   },
   build: {
@@ -187,7 +190,7 @@ export default defineConfig({
   },
   server: {
     fs: {
-      allow: [path.resolve(__dirname, '..')],
+      allow: [path.resolve(configDirname, '..')],
     },
   },
 });

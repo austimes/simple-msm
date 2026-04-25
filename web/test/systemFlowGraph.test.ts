@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   SYSTEM_FLOW_ROUTE_NODE_TYPE,
+  SYSTEM_FLOW_SECTOR_NODE_TYPE,
+  SYSTEM_FLOW_SEGMENT_NODE_TYPE,
   buildSystemFlowDiagramLayoutInput,
 } from '../src/components/workspace/systemFlowGraphLayout.ts';
 import { buildSystemFlowGraphData } from '../src/results/systemFlowGraph.ts';
@@ -212,6 +214,54 @@ test('external commodity demand appears as a separate residual demand edge', () 
   assert.equal(edge.targetId, 'demand:external:electricity');
   assert.equal(edge.sourceId, 'output:electricity');
   assertClose(edge.solvedValue, 50, 'external electricity demand edge');
+});
+
+test('diagram groups segments under system-structure sector containers and keeps nodes draggable', () => {
+  const request: SolveRequest = {
+    ...buildElectricityRequest('externalized'),
+    requestId: 'system-flow-commercial-sector-groups',
+  };
+
+  request.rows = request.rows.map((row) => {
+    if (row.outputId !== 'process') {
+      return row;
+    }
+
+    return {
+      ...row,
+      outputId: 'commercial_building_services',
+      outputLabel: 'Commercial building services',
+    };
+  });
+  request.configuration = {
+    ...request.configuration,
+    controlsByOutput: {
+      commercial_building_services: request.configuration.controlsByOutput.process,
+      electricity: request.configuration.controlsByOutput.electricity,
+    },
+    serviceDemandByOutput: {
+      commercial_building_services: { 2030: 100 },
+    },
+  };
+
+  const result = solveWithLpAdapter(request);
+  const graph = buildSystemFlowGraphData(request, result, { year: 2030 });
+  const diagram = buildSystemFlowDiagramLayoutInput(graph, 'both');
+  const sectorNodes = diagram.nodes.filter((node) => node.type === SYSTEM_FLOW_SECTOR_NODE_TYPE);
+  const segmentNodes = diagram.nodes.filter((node) => node.type === SYSTEM_FLOW_SEGMENT_NODE_TYPE);
+  const buildingsSector = sectorNodes.find((node) => node.data.sectorId === 'buildings');
+  const energySector = sectorNodes.find((node) => node.data.sectorId === 'energy_supply');
+  const commercialSegment = segmentNodes.find((node) => node.data.segmentId === 'segment:end_use:commercial_building_services');
+  const electricitySegment = segmentNodes.find((node) => node.data.segmentId === 'segment:conversion:electricity');
+
+  assert.equal(result.status, 'solved');
+  assert.ok(buildingsSector);
+  assert.ok(energySector);
+  assert.equal(buildingsSector.data.label, 'Buildings');
+  assert.equal(energySector.data.label, 'Energy supply');
+  assert.equal(commercialSegment?.parentId, buildingsSector.id);
+  assert.equal(electricitySegment?.parentId, energySector.id);
+  assert.ok(diagram.nodes.every((node) => node.draggable !== false));
 });
 
 test('efficiency package derived rows are grouped as variants under the base route', () => {

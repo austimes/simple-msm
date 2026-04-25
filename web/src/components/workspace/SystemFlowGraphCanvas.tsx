@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Background,
   BaseEdge,
@@ -8,12 +8,15 @@ import {
   Position,
   ReactFlow,
   ReactFlowProvider,
+  applyNodeChanges,
   getSmoothStepPath,
   useReactFlow,
   type EdgeProps,
+  type NodeChange,
   type NodeProps,
   type NodeTypes,
   type EdgeTypes,
+  type XYPosition,
 } from '@xyflow/react';
 import type {
   SystemFlowGraphData,
@@ -22,6 +25,7 @@ import type {
 import {
   SYSTEM_FLOW_EDGE_TYPE,
   SYSTEM_FLOW_ROUTE_NODE_TYPE,
+  SYSTEM_FLOW_SECTOR_NODE_TYPE,
   SYSTEM_FLOW_SEGMENT_NODE_TYPE,
   SYSTEM_FLOW_TERMINAL_NODE_TYPE,
   layoutSystemFlowDiagram,
@@ -38,6 +42,26 @@ export interface SystemFlowGraphCanvasProps {
   data: SystemFlowGraphData;
   onToggleSegment: (segmentId: string) => void;
   viewMode: SystemFlowViewMode;
+}
+
+function stopGraphInteraction(event: React.PointerEvent | React.MouseEvent) {
+  event.stopPropagation();
+}
+
+function SystemFlowSectorNode({ data }: NodeProps<SystemFlowDiagramNode>) {
+  return (
+    <div
+      className={`system-flow-sector-node${data.selected ? ' system-flow-sector-node--selected' : ''}${data.muted ? ' system-flow-node--muted' : ''}`}
+      style={{ '--system-flow-node-color': data.color } as React.CSSProperties}
+    >
+      <div className="system-flow-sector-node__header">
+        <span className="system-flow-sector-node__label">{data.label}</span>
+        <span className="system-flow-sector-node__meta">
+          {data.hiddenCount ?? 0} segments
+        </span>
+      </div>
+    </div>
+  );
 }
 
 function SystemFlowSegmentNode({ data }: NodeProps<SystemFlowDiagramNode>) {
@@ -59,7 +83,10 @@ function SystemFlowSegmentNode({ data }: NodeProps<SystemFlowDiagramNode>) {
           <button
             type="button"
             className="system-flow-segment-node__toggle nodrag nopan"
+            onPointerDown={stopGraphInteraction}
+            onMouseDown={stopGraphInteraction}
             onClick={(event) => {
+              event.preventDefault();
               event.stopPropagation();
               data.onToggleSegment?.(segmentId);
             }}
@@ -196,6 +223,7 @@ function SystemFlowEdge({
 }
 
 const NODE_TYPES = {
+  [SYSTEM_FLOW_SECTOR_NODE_TYPE]: SystemFlowSectorNode,
   [SYSTEM_FLOW_SEGMENT_NODE_TYPE]: SystemFlowSegmentNode,
   [SYSTEM_FLOW_ROUTE_NODE_TYPE]: SystemFlowRouteNode,
   [SYSTEM_FLOW_TERMINAL_NODE_TYPE]: SystemFlowTerminalNode,
@@ -251,16 +279,26 @@ function SystemFlowCanvasInner({
 }: SystemFlowGraphCanvasProps) {
   const { fitView } = useReactFlow<SystemFlowDiagramNode, SystemFlowDiagramEdge>();
   const { layout, isLoading } = useSystemFlowLayout(data, viewMode);
-  const nodes = useMemo<SystemFlowDiagramNode[]>(() => {
+  const manualPositionsRef = useRef(new Map<string, XYPosition>());
+  const [nodes, setNodes] = useState<SystemFlowDiagramNode[]>([]);
+  const nodesWithActions = useMemo<SystemFlowDiagramNode[]>(() => {
     return layout.nodes.map((node) => {
+      const cachedPosition = manualPositionsRef.current.get(node.id);
+      const nextNode = cachedPosition
+        ? {
+          ...node,
+          position: cachedPosition,
+        }
+        : node;
+
       if (node.type !== SYSTEM_FLOW_SEGMENT_NODE_TYPE) {
-        return node;
+        return nextNode;
       }
 
       return {
-        ...node,
+        ...nextNode,
         data: {
-          ...node.data,
+          ...nextNode.data,
           onToggleSegment,
         },
       };
@@ -268,26 +306,45 @@ function SystemFlowCanvasInner({
   }, [layout.nodes, onToggleSegment]);
 
   useEffect(() => {
-    if (nodes.length === 0) {
+    setNodes(nodesWithActions);
+  }, [nodesWithActions]);
+
+  const onNodesChange = useCallback((changes: NodeChange<SystemFlowDiagramNode>[]) => {
+    setNodes((currentNodes) => {
+      const nextNodes = applyNodeChanges(changes, currentNodes) as SystemFlowDiagramNode[];
+      const changedNodeIds = new Set(
+        changes.flatMap((change) => ('id' in change ? [change.id] : [])),
+      );
+
+      for (const node of nextNodes) {
+        if (changedNodeIds.has(node.id)) {
+          manualPositionsRef.current.set(node.id, node.position);
+        }
+      }
+
+      return nextNodes;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (layout.nodes.length === 0) {
       return;
     }
 
     const animationFrame = window.requestAnimationFrame(() => {
-      const focusNodes = nodes.filter((node) => {
-        return node.data.selected && (node.type !== SYSTEM_FLOW_SEGMENT_NODE_TYPE || Boolean(node.data.collapsed));
-      });
+      const focusNodes = layout.nodes.filter((node) => !node.parentId);
 
       fitView({
         nodes: focusNodes.length > 0 ? focusNodes.map((node) => ({ id: node.id })) : undefined,
         padding: 0.16,
-        minZoom: 0.42,
+        minZoom: 0.32,
         maxZoom: 0.82,
         duration: 240,
       });
     });
 
     return () => window.cancelAnimationFrame(animationFrame);
-  }, [collapsedSegmentIds, fitView, nodes, viewMode]);
+  }, [collapsedSegmentIds, fitView, layout.nodes, viewMode]);
 
   return (
     <div className={`system-flow-graph system-flow-graph--${viewMode}`}>
@@ -299,14 +356,15 @@ function SystemFlowCanvasInner({
         edges={layout.edges}
         nodeTypes={NODE_TYPES}
         edgeTypes={EDGE_TYPES}
-        nodesDraggable={false}
+        onNodesChange={onNodesChange}
+        nodesDraggable
         nodesConnectable={false}
         nodesFocusable={false}
         edgesFocusable={false}
         edgesReconnectable={false}
         elementsSelectable={false}
         fitView
-        fitViewOptions={{ padding: 0.16, minZoom: 0.42, maxZoom: 0.82 }}
+        fitViewOptions={{ padding: 0.16, minZoom: 0.32, maxZoom: 0.82 }}
         minZoom={0.32}
         maxZoom={1.6}
         panOnScroll
