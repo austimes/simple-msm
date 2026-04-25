@@ -1,5 +1,5 @@
 import type { Edge, Node } from '@xyflow/react';
-import type { ElkExtendedEdge, ElkNode } from 'elkjs/lib/elk-api';
+import type { ElkExtendedEdge, ElkNode, ElkPort } from 'elkjs/lib/elk-api';
 import type ElkConstructor from 'elkjs/lib/elk.bundled.js';
 import { getPresentation } from '../../data/chartPresentation.ts';
 import { SYSTEM_STRUCTURE_GROUPS } from '../../data/systemStructureModel.ts';
@@ -24,6 +24,9 @@ const TERMINAL_NODE_HEIGHT = 58;
 const COLLAPSED_SEGMENT_WIDTH = 238;
 const COLLAPSED_SEGMENT_HEIGHT = 88;
 const VISIBLE_VARIANT_LIMIT = 3;
+const PORT_SIZE = 8;
+
+export type SystemFlowPortSide = 'left' | 'right';
 
 interface SystemFlowSectorGroup {
   id: string;
@@ -37,6 +40,17 @@ export interface SystemFlowRouteVariant {
   label: string;
   metric: string;
   selected: boolean;
+}
+
+export interface SystemFlowDiagramPort {
+  id: string;
+  side: SystemFlowPortSide;
+  index: number;
+  color: string;
+  label: string;
+  selected: boolean;
+  muted: boolean;
+  offsetY: number | null;
 }
 
 export interface SystemFlowDiagramNodeData extends Record<string, unknown> {
@@ -54,6 +68,7 @@ export interface SystemFlowDiagramNodeData extends Record<string, unknown> {
   shareLabel?: string | null;
   variants?: SystemFlowRouteVariant[];
   variantOverflow?: number;
+  ports?: SystemFlowDiagramPort[];
   onToggleSegment?: (segmentId: string) => void;
 }
 
@@ -65,6 +80,10 @@ export interface SystemFlowDiagramEdgeData extends Record<string, unknown> {
   muted: boolean;
   width: number;
   showLabel: boolean;
+  sourcePortId: string;
+  targetPortId: string;
+  laneIndex: number;
+  laneCount: number;
 }
 
 export type SystemFlowDiagramNode = Node<
@@ -114,6 +133,18 @@ interface AggregatedEdge {
   possible: boolean;
   solvedValue: number;
   selected: boolean;
+}
+
+interface DiagramPortsAndEdges {
+  edges: SystemFlowDiagramEdge[];
+  portsByNodeId: Map<string, SystemFlowDiagramPort[]>;
+}
+
+interface SystemFlowDiagramPortDraft extends SystemFlowDiagramPort {
+  activeRank: number;
+  commoditySortKey: string;
+  edgeId: string;
+  oppositeNodeSortKey: string;
 }
 
 type ElkInstance = InstanceType<typeof ElkConstructor>;
@@ -213,6 +244,18 @@ function routeDiagramNodeId(groupId: string): string {
 
 function terminalDiagramNodeId(nodeId: string): string {
   return `system-flow-node:${nodeId}`;
+}
+
+function elkPortId(nodeId: string, portId: string): string {
+  return `${nodeId}:${portId}`;
+}
+
+function sourcePortId(edgeId: string): string {
+  return `source:${edgeId}`;
+}
+
+function targetPortId(edgeId: string): string {
+  return `target:${edgeId}`;
 }
 
 function nodeColor(node: SystemFlowNode): string {
@@ -368,7 +411,7 @@ function buildRouteItems(nodes: SystemFlowNode[], viewMode: SystemFlowViewMode):
         variantOverflow: Math.max(0, variants.length - visibleVariants.length),
       },
       draggable: true,
-      selectable: false,
+      selectable: true,
       focusable: false,
     };
 
@@ -412,7 +455,7 @@ function buildTerminalItems(nodes: SystemFlowNode[], viewMode: SystemFlowViewMod
           metric,
         },
         draggable: true,
-        selectable: false,
+        selectable: true,
         focusable: false,
       };
 
@@ -481,11 +524,102 @@ function edgeWidth(edge: AggregatedEdge, maxByCommodity: Map<string, number>, vi
   return 2 + share * 5;
 }
 
+function nodeSortKey(node: SystemFlowDiagramNode): string {
+  return [
+    node.parentId ?? '',
+    node.data.kind,
+    node.data.segmentId ?? '',
+    node.data.label,
+    node.id,
+  ].join('::');
+}
+
+function portSideRank(side: SystemFlowPortSide): number {
+  return side === 'left' ? 0 : 1;
+}
+
+function addPortDraft(
+  portsByNodeId: Map<string, SystemFlowDiagramPortDraft[]>,
+  nodeId: string,
+  port: SystemFlowDiagramPortDraft,
+) {
+  const ports = portsByNodeId.get(nodeId) ?? [];
+  ports.push(port);
+  portsByNodeId.set(nodeId, ports);
+}
+
+function finalizePortsByNodeId(
+  portDraftsByNodeId: Map<string, SystemFlowDiagramPortDraft[]>,
+): Map<string, SystemFlowDiagramPort[]> {
+  const portsByNodeId = new Map<string, SystemFlowDiagramPort[]>();
+
+  for (const [nodeId, portDrafts] of portDraftsByNodeId.entries()) {
+    const indexesBySide = new Map<SystemFlowPortSide, number>();
+    const ports = [...portDrafts]
+      .sort((left, right) => {
+        return left.activeRank - right.activeRank
+          || portSideRank(left.side) - portSideRank(right.side)
+          || left.commoditySortKey.localeCompare(right.commoditySortKey)
+          || left.oppositeNodeSortKey.localeCompare(right.oppositeNodeSortKey)
+          || left.edgeId.localeCompare(right.edgeId);
+      })
+      .map((portDraft) => {
+        const index = indexesBySide.get(portDraft.side) ?? 0;
+        indexesBySide.set(portDraft.side, index + 1);
+
+        return {
+          id: portDraft.id,
+          side: portDraft.side,
+          index,
+          color: portDraft.color,
+          label: portDraft.label,
+          selected: portDraft.selected,
+          muted: portDraft.muted,
+          offsetY: portDraft.offsetY,
+        };
+      });
+
+    portsByNodeId.set(nodeId, ports);
+  }
+
+  return portsByNodeId;
+}
+
+function assignLaneIndexes(edges: AggregatedEdge[]): Map<string, { laneIndex: number; laneCount: number }> {
+  const edgesByPair = new Map<string, AggregatedEdge[]>();
+  const lanesByEdgeId = new Map<string, { laneIndex: number; laneCount: number }>();
+
+  for (const edge of edges) {
+    const key = `${edge.source}::${edge.target}`;
+    const group = edgesByPair.get(key) ?? [];
+    group.push(edge);
+    edgesByPair.set(key, group);
+  }
+
+  for (const group of edgesByPair.values()) {
+    const sortedGroup = [...group].sort((left, right) => {
+      return (left.commodityId ?? left.label).localeCompare(right.commodityId ?? right.label)
+        || (left.kind ?? '').localeCompare(right.kind ?? '')
+        || left.id.localeCompare(right.id);
+    });
+
+    sortedGroup.forEach((edge, index) => {
+      lanesByEdgeId.set(edge.id, {
+        laneIndex: index,
+        laneCount: sortedGroup.length,
+      });
+    });
+  }
+
+  return lanesByEdgeId;
+}
+
 function buildDiagramEdges(
   data: SystemFlowGraphData,
   sourceNodeToDiagramNode: Map<string, string>,
   viewMode: SystemFlowViewMode,
-): SystemFlowDiagramEdge[] {
+  diagramNodes: SystemFlowDiagramNode[],
+): DiagramPortsAndEdges {
   const pendingEdges: PendingEdge[] = [];
 
   for (const edge of data.edges) {
@@ -516,36 +650,90 @@ function buildDiagramEdges(
 
   const aggregatedEdges = aggregateEdges(pendingEdges);
   const maxByCommodity = new Map<string, number>();
+  const nodeSortKeys = new Map(diagramNodes.map((node) => [node.id, nodeSortKey(node)]));
+  const portDraftsByNodeId = new Map<string, SystemFlowDiagramPortDraft[]>();
+  const laneIndexes = assignLaneIndexes(aggregatedEdges);
 
   for (const edge of aggregatedEdges) {
     const key = edge.commodityId ?? edge.label;
     maxByCommodity.set(key, Math.max(maxByCommodity.get(key) ?? 0, Math.abs(edge.solvedValue)));
   }
 
-  return aggregatedEdges.map((edge) => {
+  const edges: SystemFlowDiagramEdge[] = aggregatedEdges.map((edge) => {
     const max = maxByCommodity.get(edge.commodityId ?? edge.label) ?? 0;
     const relativeValue = max > 0 ? Math.abs(edge.solvedValue) / max : 0;
     const showLabel = viewMode !== 'topology' && edge.selected && relativeValue >= (viewMode === 'solved' ? 0.22 : 0.34);
+    const color = edgeColor(edge);
+    const muted = viewMode === 'solved' ? !edge.selected : viewMode !== 'topology' && !edge.selected;
+    const sourceHandle = sourcePortId(edge.id);
+    const targetHandle = targetPortId(edge.id);
+    const lane = laneIndexes.get(edge.id) ?? { laneIndex: 0, laneCount: 1 };
+    const commoditySortKey = [
+      edge.commodityId ?? '',
+      edge.label,
+      edge.kind ?? '',
+      edge.unit,
+    ].join('::');
+
+    addPortDraft(portDraftsByNodeId, edge.source, {
+      id: sourceHandle,
+      side: 'right',
+      index: 0,
+      color,
+      label: edge.label,
+      selected: edge.selected,
+      muted,
+      offsetY: null,
+      activeRank: edge.selected ? 0 : 1,
+      commoditySortKey,
+      edgeId: edge.id,
+      oppositeNodeSortKey: nodeSortKeys.get(edge.target) ?? edge.target,
+    });
+    addPortDraft(portDraftsByNodeId, edge.target, {
+      id: targetHandle,
+      side: 'left',
+      index: 0,
+      color,
+      label: edge.label,
+      selected: edge.selected,
+      muted,
+      offsetY: null,
+      activeRank: edge.selected ? 0 : 1,
+      commoditySortKey,
+      edgeId: edge.id,
+      oppositeNodeSortKey: nodeSortKeys.get(edge.source) ?? edge.source,
+    });
 
     return {
       id: edge.id,
       type: SYSTEM_FLOW_EDGE_TYPE,
       source: edge.source,
       target: edge.target,
+      sourceHandle,
+      targetHandle,
       data: {
         label: edge.label,
         metric: formatSystemFlowActivity(edge.solvedValue, edge.unit),
-        color: edgeColor(edge),
+        color,
         selected: edge.selected,
-        muted: viewMode === 'solved' ? !edge.selected : viewMode !== 'topology' && !edge.selected,
+        muted,
         width: edgeWidth(edge, maxByCommodity, viewMode),
         showLabel,
+        sourcePortId: sourceHandle,
+        targetPortId: targetHandle,
+        laneIndex: lane.laneIndex,
+        laneCount: lane.laneCount,
       },
       selectable: false,
       focusable: false,
       interactionWidth: 18,
     };
   });
+
+  return {
+    edges,
+    portsByNodeId: finalizePortsByNodeId(portDraftsByNodeId),
+  };
 }
 
 export function buildSystemFlowDiagramLayoutInput(
@@ -606,7 +794,7 @@ export function buildSystemFlowDiagramLayoutInput(
         hiddenCount: sectorSegments.length,
       },
       draggable: true,
-      selectable: false,
+      selectable: true,
       focusable: false,
     });
   }
@@ -639,7 +827,7 @@ export function buildSystemFlowDiagramLayoutInput(
           hiddenCount: segmentItems.length,
         },
         draggable: true,
-        selectable: false,
+        selectable: true,
         focusable: false,
       });
 
@@ -669,7 +857,7 @@ export function buildSystemFlowDiagramLayoutInput(
         hiddenCount: segmentItems.length,
       },
       draggable: true,
-      selectable: false,
+      selectable: true,
       focusable: false,
     });
 
@@ -692,17 +880,54 @@ export function buildSystemFlowDiagramLayoutInput(
     }
   }
 
+  const { edges, portsByNodeId } = buildDiagramEdges(data, sourceNodeToDiagramNode, viewMode, diagramNodes);
+
   return {
-    nodes: diagramNodes,
-    edges: buildDiagramEdges(data, sourceNodeToDiagramNode, viewMode),
+    nodes: diagramNodes.map((node) => {
+      const ports = portsByNodeId.get(node.id);
+
+      if (!ports || ports.length === 0) {
+        return node;
+      }
+
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          ports,
+        },
+      };
+    }),
+    edges,
+  };
+}
+
+function elkPortForDiagramPort(nodeId: string, port: SystemFlowDiagramPort): ElkPort {
+  return {
+    id: elkPortId(nodeId, port.id),
+    width: PORT_SIZE,
+    height: PORT_SIZE,
+    layoutOptions: {
+      'org.eclipse.elk.port.side': port.side === 'left' ? 'WEST' : 'EAST',
+      'org.eclipse.elk.port.index': `${port.index}`,
+    },
   };
 }
 
 function elkNodeForDiagramNode(node: SystemFlowDiagramNode): ElkNode {
+  const ports = node.data.ports ?? [];
+
   return {
     id: node.id,
     width: Number(node.width ?? node.style?.width ?? TERMINAL_NODE_WIDTH),
     height: Number(node.height ?? node.style?.height ?? TERMINAL_NODE_HEIGHT),
+    ports: ports.map((port) => elkPortForDiagramPort(node.id, port)),
+    layoutOptions: ports.length > 0
+      ? {
+        'org.eclipse.elk.portConstraints': 'FIXED_ORDER',
+        'org.eclipse.elk.spacing.portPort': '10',
+      }
+      : undefined,
   };
 }
 
@@ -755,8 +980,8 @@ function toElkGraph(layout: SystemFlowDiagramLayout): ElkNode {
   const children = topLevelNodes.map((node) => elkNodeForTree(node, childrenByParent));
   const edges: ElkExtendedEdge[] = layout.edges.map((edge) => ({
     id: edge.id,
-    sources: [edge.source],
-    targets: [edge.target],
+    sources: [edge.sourceHandle ? elkPortId(edge.source, edge.sourceHandle) : edge.source],
+    targets: [edge.targetHandle ? elkPortId(edge.target, edge.targetHandle) : edge.target],
   }));
 
   return {
@@ -787,9 +1012,27 @@ function collectElkNodes(node: ElkNode, byId: Map<string, ElkNode>) {
   }
 }
 
+function collectElkPortOffsets(node: ElkNode, byNodePortId: Map<string, number>) {
+  for (const port of node.ports ?? []) {
+    const prefix = `${node.id}:`;
+    const portId = port.id.startsWith(prefix) ? port.id.slice(prefix.length) : port.id;
+    const portCenterY = (port.y ?? 0) + (port.height ?? PORT_SIZE) / 2;
+
+    if (Number.isFinite(portCenterY)) {
+      byNodePortId.set(`${node.id}::${portId}`, portCenterY);
+    }
+  }
+
+  for (const child of node.children ?? []) {
+    collectElkPortOffsets(child, byNodePortId);
+  }
+}
+
 function applyElkLayout(layout: SystemFlowDiagramLayout, elkGraph: ElkNode): SystemFlowDiagramLayout {
   const elkNodesById = new Map<string, ElkNode>();
+  const elkPortOffsetsByNodePortId = new Map<string, number>();
   collectElkNodes(elkGraph, elkNodesById);
+  collectElkPortOffsets(elkGraph, elkPortOffsetsByNodePortId);
 
   return {
     nodes: layout.nodes.map((node) => {
@@ -810,6 +1053,47 @@ function applyElkLayout(layout: SystemFlowDiagramLayout, elkGraph: ElkNode): Sys
           width: elkNode.width ?? node.width,
           height: elkNode.height ?? node.height,
         },
+        data: {
+          ...node.data,
+          ports: node.data.ports?.map((port) => ({
+            ...port,
+            offsetY: elkPortOffsetsByNodePortId.get(`${node.id}::${port.id}`) ?? port.offsetY,
+          })),
+        },
+      };
+    }),
+    edges: layout.edges,
+  };
+}
+
+function fallbackPortOffset(port: SystemFlowDiagramPort, ports: SystemFlowDiagramPort[], nodeHeight: number): number {
+  const portsOnSide = ports.filter((candidate) => candidate.side === port.side);
+  const index = portsOnSide.findIndex((candidate) => candidate.id === port.id);
+  const resolvedIndex = index >= 0 ? index : port.index;
+
+  return ((resolvedIndex + 1) / (portsOnSide.length + 1)) * nodeHeight;
+}
+
+function applyFallbackPortOffsets(layout: SystemFlowDiagramLayout): SystemFlowDiagramLayout {
+  return {
+    nodes: layout.nodes.map((node) => {
+      const ports = node.data.ports;
+
+      if (!ports || ports.length === 0) {
+        return node;
+      }
+
+      const nodeHeight = Number(node.height ?? node.style?.height ?? TERMINAL_NODE_HEIGHT);
+
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          ports: ports.map((port) => ({
+            ...port,
+            offsetY: port.offsetY ?? fallbackPortOffset(port, ports, nodeHeight),
+          })),
+        },
       };
     }),
     edges: layout.edges,
@@ -821,6 +1105,11 @@ export async function layoutSystemFlowDiagram(
   viewMode: SystemFlowViewMode,
 ): Promise<SystemFlowDiagramLayout> {
   const layoutInput = buildSystemFlowDiagramLayoutInput(data, viewMode);
-  const elkGraph = await (await getElk()).layout(toElkGraph(layoutInput));
-  return applyElkLayout(layoutInput, elkGraph);
+
+  try {
+    const elkGraph = await (await getElk()).layout(toElkGraph(layoutInput));
+    return applyElkLayout(layoutInput, elkGraph);
+  } catch {
+    return applyFallbackPortOffsets(layoutInput);
+  }
 }

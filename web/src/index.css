@@ -3043,6 +3043,35 @@ body {
   background: var(--system-flow-node-color, #64748b);
 }
 
+.system-flow-graph .react-flow__handle.system-flow-port {
+  inline-size: 8px;
+  block-size: 8px;
+  border: 1.5px solid var(--color-surface);
+  background: var(--system-flow-port-color, var(--system-flow-node-color, #64748b));
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.08);
+  opacity: 0.72;
+  pointer-events: none;
+}
+
+.system-flow-graph .react-flow__handle-left.system-flow-port {
+  left: -5px;
+}
+
+.system-flow-graph .react-flow__handle-right.system-flow-port {
+  right: -5px;
+}
+
+.system-flow-graph .react-flow__handle.system-flow-port--selected {
+  inline-size: 9px;
+  block-size: 9px;
+  opacity: 1;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.14);
+}
+
+.system-flow-graph .react-flow__handle.system-flow-port--muted {
+  opacity: 0.36;
+}
+
 .system-flow-graph__loading {
   position: absolute;
   z-index: 8;
@@ -3289,6 +3318,10 @@ body {
   fill: none;
   stroke-linecap: round;
   opacity: 0.28;
+}
+
+.system-flow-diagram-edge--port-routed {
+  stroke-linejoin: round;
 }
 
 .system-flow-diagram-edge--selected {

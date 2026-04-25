@@ -9,7 +9,6 @@ import {
   ReactFlow,
   ReactFlowProvider,
   applyNodeChanges,
-  getSmoothStepPath,
   useReactFlow,
   type EdgeProps,
   type NodeChange,
@@ -18,6 +17,7 @@ import {
   type EdgeTypes,
   type XYPosition,
 } from '@xyflow/react';
+import { getSystemFlowPortEdgePath } from './systemFlowGraphEdges.ts';
 import type {
   SystemFlowGraphData,
   SystemFlowViewMode,
@@ -33,6 +33,7 @@ import {
   type SystemFlowDiagramEdgeData,
   type SystemFlowDiagramLayout,
   type SystemFlowDiagramNode,
+  type SystemFlowDiagramPort,
 } from './systemFlowGraphLayout.ts';
 
 void React;
@@ -46,6 +47,42 @@ export interface SystemFlowGraphCanvasProps {
 
 function stopGraphInteraction(event: React.PointerEvent | React.MouseEvent) {
   event.stopPropagation();
+}
+
+function SystemFlowNodePorts({ ports }: { ports?: SystemFlowDiagramPort[] }) {
+  if (!ports || ports.length === 0) {
+    return null;
+  }
+
+  const portCountsBySide = ports.reduce((counts, port) => {
+    counts.set(port.side, (counts.get(port.side) ?? 0) + 1);
+    return counts;
+  }, new Map<SystemFlowDiagramPort['side'], number>());
+
+  return (
+    <>
+      {ports.map((port) => {
+        const sideCount = portCountsBySide.get(port.side) ?? 1;
+        const fallbackTop = `${((port.index + 1) / (sideCount + 1)) * 100}%`;
+
+        return (
+          <Handle
+            key={port.id}
+            id={port.id}
+            type={port.side === 'left' ? 'target' : 'source'}
+            position={port.side === 'left' ? Position.Left : Position.Right}
+            isConnectable={false}
+            className={`system-flow-port${port.selected ? ' system-flow-port--selected' : ''}${port.muted ? ' system-flow-port--muted' : ''}`}
+            style={{
+              '--system-flow-port-color': port.color,
+              top: port.offsetY == null ? fallbackTop : `${port.offsetY}px`,
+            } as React.CSSProperties}
+            aria-label={port.label}
+          />
+        );
+      })}
+    </>
+  );
 }
 
 function SystemFlowSectorNode({ data }: NodeProps<SystemFlowDiagramNode>) {
@@ -73,7 +110,7 @@ function SystemFlowSegmentNode({ data }: NodeProps<SystemFlowDiagramNode>) {
       className={`system-flow-segment-node${collapsed ? ' system-flow-segment-node--collapsed' : ''}${data.muted ? ' system-flow-node--muted' : ''}`}
       style={{ '--system-flow-node-color': data.color } as React.CSSProperties}
     >
-      {collapsed ? <Handle type="target" position={Position.Left} /> : null}
+      <SystemFlowNodePorts ports={collapsed ? data.ports : undefined} />
       <div className="system-flow-segment-node__header">
         <div>
           <span className="system-flow-segment-node__label">{data.label}</span>
@@ -102,7 +139,6 @@ function SystemFlowSegmentNode({ data }: NodeProps<SystemFlowDiagramNode>) {
           {data.hiddenCount ?? 0} objects hidden
         </div>
       ) : null}
-      {collapsed ? <Handle type="source" position={Position.Right} /> : null}
     </div>
   );
 }
@@ -116,7 +152,7 @@ function SystemFlowRouteNode({ data }: NodeProps<SystemFlowDiagramNode>) {
       className={`system-flow-diagram-node system-flow-diagram-node--route${data.selected ? ' system-flow-diagram-node--selected' : ''}${data.muted ? ' system-flow-node--muted' : ''}`}
       style={{ '--system-flow-node-color': data.color } as React.CSSProperties}
     >
-      <Handle type="target" position={Position.Left} />
+      <SystemFlowNodePorts ports={data.ports} />
       <div className="system-flow-diagram-node__body">
         <div className="system-flow-diagram-node__topline">
           <span className="system-flow-diagram-node__label">{data.label}</span>
@@ -145,7 +181,6 @@ function SystemFlowRouteNode({ data }: NodeProps<SystemFlowDiagramNode>) {
           </div>
         ) : null}
       </div>
-      <Handle type="source" position={Position.Right} />
     </div>
   );
 }
@@ -156,12 +191,11 @@ function SystemFlowTerminalNode({ data }: NodeProps<SystemFlowDiagramNode>) {
       className={`system-flow-diagram-node system-flow-diagram-node--terminal system-flow-diagram-node--${data.role}${data.selected ? ' system-flow-diagram-node--selected' : ''}${data.muted ? ' system-flow-node--muted' : ''}`}
       style={{ '--system-flow-node-color': data.color } as React.CSSProperties}
     >
-      <Handle type="target" position={Position.Left} />
+      <SystemFlowNodePorts ports={data.ports} />
       <div className="system-flow-diagram-node__body">
         <span className="system-flow-diagram-node__label">{data.label}</span>
         <span className="system-flow-diagram-node__metrics">{data.metric}</span>
       </div>
-      <Handle type="source" position={Position.Right} />
     </div>
   );
 }
@@ -171,8 +205,6 @@ function SystemFlowEdge({
   sourceY,
   targetX,
   targetY,
-  sourcePosition,
-  targetPosition,
   data,
 }: EdgeProps<SystemFlowDiagramEdge>) {
   const edgeData: SystemFlowDiagramEdgeData = data ?? {
@@ -183,22 +215,25 @@ function SystemFlowEdge({
     muted: false,
     width: 1.2,
     showLabel: false,
+    sourcePortId: '',
+    targetPortId: '',
+    laneIndex: 0,
+    laneCount: 1,
   };
-  const [edgePath, labelX, labelY] = getSmoothStepPath({
+  const { path: edgePath, labelX, labelY } = getSystemFlowPortEdgePath({
     sourceX,
     sourceY,
-    sourcePosition,
     targetX,
     targetY,
-    targetPosition,
-    borderRadius: 14,
+    laneIndex: edgeData.laneIndex,
+    laneCount: edgeData.laneCount,
   });
 
   return (
     <>
       <BaseEdge
         path={edgePath}
-        className={`system-flow-diagram-edge${edgeData.selected ? ' system-flow-diagram-edge--selected' : ''}${edgeData.muted ? ' system-flow-diagram-edge--muted' : ''}`}
+        className={`system-flow-diagram-edge system-flow-diagram-edge--port-routed${edgeData.selected ? ' system-flow-diagram-edge--selected' : ''}${edgeData.muted ? ' system-flow-diagram-edge--muted' : ''}`}
         style={{
           stroke: edgeData.color,
           strokeWidth: edgeData.width,
@@ -362,7 +397,7 @@ function SystemFlowCanvasInner({
         nodesFocusable={false}
         edgesFocusable={false}
         edgesReconnectable={false}
-        elementsSelectable={false}
+        elementsSelectable
         fitView
         fitViewOptions={{ padding: 0.16, minZoom: 0.32, maxZoom: 0.82 }}
         minZoom={0.32}

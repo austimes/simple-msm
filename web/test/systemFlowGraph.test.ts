@@ -4,8 +4,11 @@ import {
   SYSTEM_FLOW_ROUTE_NODE_TYPE,
   SYSTEM_FLOW_SECTOR_NODE_TYPE,
   SYSTEM_FLOW_SEGMENT_NODE_TYPE,
+  SYSTEM_FLOW_TERMINAL_NODE_TYPE,
   buildSystemFlowDiagramLayoutInput,
+  layoutSystemFlowDiagram,
 } from '../src/components/workspace/systemFlowGraphLayout.ts';
+import { getSystemFlowPortEdgePath } from '../src/components/workspace/systemFlowGraphEdges.ts';
 import { buildSystemFlowGraphData } from '../src/results/systemFlowGraph.ts';
 import { SOLVER_CONTRACT_VERSION, type SolveRequest, type SolveResult } from '../src/solver/contract.ts';
 import { solveWithLpAdapter } from '../src/solver/lpAdapter.ts';
@@ -149,6 +152,63 @@ function buildElectricityRequest(electricityMode: 'optimize' | 'externalized'): 
   };
 }
 
+function buildMultiInputRequest(): SolveRequest {
+  return {
+    contractVersion: SOLVER_CONTRACT_VERSION,
+    requestId: 'system-flow-multi-input',
+    rows: [
+      createRow({
+        rowId: 'process_hybrid::2030',
+        outputId: 'process',
+        stateId: 'process_hybrid',
+        cost: 1,
+        inputs: [
+          { commodityId: 'natural_gas', coefficient: 1, unit: 'GJ/unit' },
+          { commodityId: 'electricity', coefficient: 2, unit: 'MWh/unit' },
+        ],
+      }),
+    ],
+    configuration: {
+      name: 'System flow multi input',
+      description: null,
+      years: [2030],
+      controlsByOutput: {
+        process: {
+          2030: {
+            mode: 'optimize',
+            activeStateIds: null,
+            targetValue: null,
+          },
+        },
+      },
+      serviceDemandByOutput: {
+        process: { 2030: 100 },
+      },
+      externalCommodityDemandByCommodity: {},
+      commodityPriceByCommodity: {
+        electricity: {
+          unit: 'AUD/MWh',
+          valuesByYear: { 2030: 4 },
+        },
+        natural_gas: {
+          unit: 'AUD/GJ',
+          valuesByYear: { 2030: 1 },
+        },
+      },
+      carbonPriceByYear: { 2030: 0 },
+      options: {
+        respectMaxShare: true,
+        respectMaxActivity: true,
+        softConstraints: false,
+        shareSmoothing: {
+          enabled: false,
+          maxDeltaPp: null,
+        },
+      },
+    },
+  };
+}
+
 function assertClose(actual: number, expected: number, label: string) {
   assert.ok(Math.abs(actual - expected) < 1e-9, `${label}: expected ${expected}, received ${actual}`);
 }
@@ -262,6 +322,108 @@ test('diagram groups segments under system-structure sector containers and keeps
   assert.equal(commercialSegment?.parentId, buildingsSector.id);
   assert.equal(electricitySegment?.parentId, energySector.id);
   assert.ok(diagram.nodes.every((node) => node.draggable !== false));
+});
+
+test('diagram assigns distinct target ports for multiple edges entering the same route node', () => {
+  const request = buildMultiInputRequest();
+  const result = solveWithLpAdapter(request);
+  const graph = buildSystemFlowGraphData(request, result, { year: 2030 });
+  const diagram = buildSystemFlowDiagramLayoutInput(graph, 'both');
+  const routeNode = diagram.nodes.find((node) => node.type === SYSTEM_FLOW_ROUTE_NODE_TYPE);
+
+  assert.equal(result.status, 'solved');
+  assert.ok(routeNode);
+
+  const incomingEdges = diagram.edges.filter((edge) => edge.target === routeNode.id);
+  const targetHandles = new Set(incomingEdges.map((edge) => edge.targetHandle));
+  const leftPorts = routeNode.data.ports?.filter((port) => port.side === 'left') ?? [];
+
+  assert.equal(incomingEdges.length, 2);
+  assert.equal(targetHandles.size, incomingEdges.length);
+  assert.deepEqual(leftPorts.map((port) => port.index), [0, 1]);
+});
+
+test('diagram assigns distinct source ports for multiple edges leaving the same source node', () => {
+  const request = buildElectricityRequest('optimize');
+  const result = solveWithLpAdapter(request);
+  const graph = buildSystemFlowGraphData(request, result, { year: 2030 });
+  const diagram = buildSystemFlowDiagramLayoutInput(graph, 'both');
+  const naturalGasNode = diagram.nodes.find((node) => {
+    return node.type === SYSTEM_FLOW_TERMINAL_NODE_TYPE && node.data.label === 'Natural Gas';
+  });
+
+  assert.equal(result.status, 'solved');
+  assert.ok(naturalGasNode);
+
+  const outgoingEdges = diagram.edges.filter((edge) => edge.source === naturalGasNode.id);
+  const sourceHandles = new Set(outgoingEdges.map((edge) => edge.sourceHandle));
+  const rightPorts = naturalGasNode.data.ports?.filter((port) => port.side === 'right') ?? [];
+
+  assert.ok(outgoingEdges.length >= 2);
+  assert.equal(sourceHandles.size, outgoingEdges.length);
+  assert.equal(rightPorts.length, outgoingEdges.length);
+});
+
+test('collapsed segments receive ports for aggregated hidden edges', () => {
+  const request = buildMultiInputRequest();
+  const result = solveWithLpAdapter(request);
+  const graph = buildSystemFlowGraphData(request, result, {
+    year: 2030,
+    collapsedSegmentIds: new Set(['segment:exogenous_supply', 'segment:end_use:process']),
+  });
+  const diagram = buildSystemFlowDiagramLayoutInput(graph, 'both');
+  const processSegment = diagram.nodes.find((node) => {
+    return node.type === SYSTEM_FLOW_SEGMENT_NODE_TYPE && node.data.segmentId === 'segment:end_use:process';
+  });
+  const exogenousSegment = diagram.nodes.find((node) => {
+    return node.type === SYSTEM_FLOW_SEGMENT_NODE_TYPE && node.data.segmentId === 'segment:exogenous_supply';
+  });
+
+  assert.equal(result.status, 'solved');
+  assert.ok(processSegment);
+  assert.ok(exogenousSegment);
+  assert.equal(processSegment.data.collapsed, true);
+  assert.equal(exogenousSegment.data.collapsed, true);
+
+  const processLeftPorts = processSegment.data.ports?.filter((port) => port.side === 'left') ?? [];
+  const exogenousRightPorts = exogenousSegment.data.ports?.filter((port) => port.side === 'right') ?? [];
+
+  assert.equal(processLeftPorts.length, 2);
+  assert.equal(exogenousRightPorts.length, 2);
+});
+
+test('layoutSystemFlowDiagram returns finite port offsets after layout', async () => {
+  const request = buildMultiInputRequest();
+  const result = solveWithLpAdapter(request);
+  const graph = buildSystemFlowGraphData(request, result, { year: 2030 });
+  const diagram = await layoutSystemFlowDiagram(graph, 'both');
+  const ports = diagram.nodes.flatMap((node) => node.data.ports ?? []);
+
+  assert.equal(result.status, 'solved');
+  assert.ok(ports.length > 0);
+  assert.ok(ports.every((port) => port.offsetY != null && Number.isFinite(port.offsetY)));
+});
+
+test('custom port edge path separates parallel lanes', () => {
+  const first = getSystemFlowPortEdgePath({
+    sourceX: 10,
+    sourceY: 20,
+    targetX: 220,
+    targetY: 80,
+    laneIndex: 0,
+    laneCount: 2,
+  });
+  const second = getSystemFlowPortEdgePath({
+    sourceX: 10,
+    sourceY: 20,
+    targetX: 220,
+    targetY: 80,
+    laneIndex: 1,
+    laneCount: 2,
+  });
+
+  assert.notEqual(first.path, second.path);
+  assert.notEqual(first.labelX, second.labelX);
 });
 
 test('efficiency package derived rows are grouped as variants under the base route', () => {
