@@ -197,6 +197,54 @@ describe('deriveRightSidebarTree', () => {
     );
   });
 
+  test('uses library-owned system structure rows when provided', () => {
+    const catalog = [
+      {
+        sector: 'source_sector',
+        subsectors: [
+          buildSubsector('electricity', 'Electricity supply'),
+          buildSubsector('electricity_grid_losses_own_use', 'Grid losses and own-use'),
+        ],
+      },
+    ];
+
+    const systemCatalog = buildSystemStructureCatalog(
+      catalog,
+      [],
+      [
+        {
+          group_id: 'energy_supply',
+          group_label: 'Energy supply',
+          display_order: 40,
+          notes: '',
+        },
+      ],
+      [
+        {
+          group_id: 'energy_supply',
+          family_id: 'electricity',
+          display_order: 10,
+          notes: '',
+        },
+        {
+          group_id: 'energy_supply',
+          family_id: 'electricity_grid_losses_own_use',
+          display_order: 20,
+          notes: '',
+        },
+      ],
+    );
+
+    assert.equal(systemCatalog.length, 1);
+    assert.equal(systemCatalog[0].sector, 'energy_supply');
+    assert.equal(systemCatalog[0].label, 'Energy supply');
+    assert.deepEqual(
+      systemCatalog[0].subsectors.map((subsector) => subsector.outputId),
+      ['electricity', 'electricity_grid_losses_own_use'],
+    );
+    assert.deepEqual(systemCatalog[0].residualOverlayIds, []);
+  });
+
   test('attaches residual groups without turning them into route nodes', () => {
     const catalog = buildSystemStructureCatalog(
       [

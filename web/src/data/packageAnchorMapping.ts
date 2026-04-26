@@ -18,17 +18,9 @@ export function deriveBaselineAnchorsFromPackage(
         unit: row.unit,
         provenance_note: `${row.source_family} — ${row.coverage_note}`,
       };
-    } else if (row.anchor_type === 'external_electricity_balance_anchor') {
-      anchors['electricity'] = {
-        output_role: 'endogenous_supply_commodity',
-        anchor_kind: 'external_commodity_demand',
-        anchor_year: 2025,
-        value: row.quantity_2025 ?? 0,
-        unit: row.unit,
-        provenance_note: `${row.source_family} — ${row.coverage_note}`,
-      };
     }
-    // Skip 'derived_explicit_electricity_load' and 'electricity_output_benchmark' — informational only
+    // Skip legacy electricity balance rows; built-in electricity closure now comes from
+    // modeled demand plus first-class residual families.
   }
 
   return anchors;

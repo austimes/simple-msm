@@ -135,12 +135,13 @@ test('configuration documents round-trip through browser persistence into scoped
   assert.ok(!outputsInRequest.has('cement_equivalent'));
 });
 
-test('residual overlay materialization backfills CSV-driven defaults and aggregated display mode', async () => {
+test('residual overlay materialization is a no-op for the migrated built-in package', async () => {
   const { materializeResidualOverlayConfiguration } = await loadViteModule('/src/data/configurationDocumentLoader.ts');
   const { usePackageStore } = await loadViteModule('/src/data/packageStore.ts');
   const configuration = readJson('../src/configurations/reference-baseline.json');
   const overlayRows = usePackageStore.getState().residualOverlays2025;
 
+  assert.equal(overlayRows.length, 0);
   delete configuration.residual_overlays;
   delete configuration.presentation_options;
 
@@ -148,29 +149,9 @@ test('residual overlay materialization backfills CSV-driven defaults and aggrega
     structuredClone(configuration),
     overlayRows,
   );
-  const controls = materialized.residual_overlays?.controls_by_overlay_id ?? {};
-  const overlayIdsByDomain = overlayRows.reduce((groups, row) => {
-    if (!groups[row.overlay_domain]) {
-      groups[row.overlay_domain] = new Set();
-    }
-    groups[row.overlay_domain].add(row.overlay_id);
-    return groups;
-  }, {});
 
-  for (const overlayId of overlayIdsByDomain.energy_residual ?? []) {
-    assert.equal(controls[overlayId]?.included, true, `${overlayId} should default on`);
-  }
-  for (const overlayId of overlayIdsByDomain.nonenergy_residual ?? []) {
-    assert.equal(controls[overlayId]?.included, true, `${overlayId} should default on`);
-  }
-  for (const overlayId of overlayIdsByDomain.net_sink ?? []) {
-    assert.equal(controls[overlayId]?.included, false, `${overlayId} should default off`);
-  }
-
-  assert.equal(
-    materialized.presentation_options?.residual_overlay_display_mode,
-    'aggregated_non_sink',
-  );
+  assert.equal(materialized.residual_overlays, undefined);
+  assert.equal(materialized.presentation_options, undefined);
 });
 
 test('configuration documents accept the compact efficiency control shape', async () => {
@@ -637,11 +618,7 @@ test('left sidebar configs and settings render comparison, save, and residual di
   assert.match(settingsHtml, /Solver caps/);
   assert.match(settingsHtml, /Respect max-share caps/);
   assert.match(settingsHtml, /Respect max-activity caps/);
-  assert.match(settingsHtml, /Residual display mode/);
-  assert.match(settingsHtml, /Aggregated/);
-  assert.match(settingsHtml, /Individual/);
-  assert.match(settingsHtml, /workspace-chip-group--mode-toggle/);
-  assert.match(settingsHtml, /aria-pressed="true"/);
-  assert.match(settingsHtml, /aria-pressed="false"/);
+  assert.doesNotMatch(settingsHtml, /Residual display mode/);
+  assert.doesNotMatch(settingsHtml, /workspace-chip-group--mode-toggle/);
   assert.doesNotMatch(settingsHtml, /Residual LULUCF sink/);
 });

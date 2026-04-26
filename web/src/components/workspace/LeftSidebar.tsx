@@ -115,6 +115,7 @@ export default function LeftSidebar({ initialExpandedSections, initialActiveTab 
   const appConfig = usePackageStore((s) => s.appConfig);
   const sectorStates = usePackageStore((s) => s.sectorStates);
   const currentConfiguration = usePackageStore((s) => s.currentConfiguration);
+  const residualOverlays2025 = usePackageStore((s) => s.residualOverlays2025);
   const setDemandPreset = usePackageStore((s) => s.setDemandPreset);
   const setCommodityPriceLevel = usePackageStore((s) => s.setCommodityPriceLevel);
   const setCarbonPricePreset = usePackageStore((s) => s.setCarbonPricePreset);
@@ -661,7 +662,7 @@ export default function LeftSidebar({ initialExpandedSections, initialActiveTab 
             </>,
           )}
 
-          {renderSection(
+          {residualOverlays2025.length > 0 ? renderSection(
             'overlays',
             'Residual display mode',
             <div className="workspace-chip-group workspace-chip-group--inline workspace-chip-group--mode-toggle">
@@ -683,7 +684,7 @@ export default function LeftSidebar({ initialExpandedSections, initialActiveTab 
                 );
               })}
             </div>,
-          )}
+          ) : null}
         </>
       )}
     </>

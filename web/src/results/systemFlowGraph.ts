@@ -5,6 +5,10 @@ import type {
   SolveResult,
   SolveStateShareSummary,
 } from '../solver/contract.ts';
+import type {
+  SystemStructureGroupRow,
+  SystemStructureMemberRow,
+} from '../data/types.ts';
 
 export type SystemFlowViewMode = 'both' | 'topology' | 'solved';
 
@@ -29,6 +33,9 @@ export interface SystemFlowSegment {
   label: string;
   role: SystemFlowSegmentRole;
   collapsed: boolean;
+  systemGroupId?: string;
+  systemGroupLabel?: string;
+  systemGroupOrder?: number;
 }
 
 export interface SystemFlowNode {
@@ -79,6 +86,12 @@ export interface SystemFlowSummary {
 interface RouteActivity {
   activity: number;
   share: number | null;
+}
+
+interface SystemFlowStructureGroup {
+  id: string;
+  label: string;
+  order: number;
 }
 
 const EPSILON = 1e-9;
@@ -184,6 +197,29 @@ function buildStateShareLookup(stateShares: SolveStateShareSummary[]): {
   }
 
   return { byRowId, byOutputYearState };
+}
+
+function buildSystemGroupLookup(
+  groups: SystemStructureGroupRow[] | undefined,
+  members: SystemStructureMemberRow[] | undefined,
+): Map<string, SystemFlowStructureGroup> {
+  const groupsById = new Map((groups ?? []).map((group) => [group.group_id, group]));
+  const lookup = new Map<string, SystemFlowStructureGroup>();
+
+  for (const member of members ?? []) {
+    const group = groupsById.get(member.group_id);
+    if (!group) {
+      continue;
+    }
+
+    lookup.set(member.family_id, {
+      id: group.group_id,
+      label: group.group_label,
+      order: group.display_order,
+    });
+  }
+
+  return lookup;
 }
 
 function resolveRouteActivity(
@@ -308,9 +344,15 @@ export function buildSystemFlowGraphData(
   options: {
     year: number;
     collapsedSegmentIds?: ReadonlySet<string>;
+    systemStructureGroups?: SystemStructureGroupRow[];
+    systemStructureMembers?: SystemStructureMemberRow[];
   },
 ): SystemFlowGraphData {
   const collapsedSegmentIds = options.collapsedSegmentIds ?? new Set<string>();
+  const systemGroupByOutputId = buildSystemGroupLookup(
+    options.systemStructureGroups,
+    options.systemStructureMembers,
+  );
   const commodityModes = buildCommodityModeLookup(result, options.year);
   const shareLookup = buildStateShareLookup(result.reporting.stateShares);
   const rowsForYear = request.rows.filter((row) => row.year === options.year);
@@ -319,18 +361,37 @@ export function buildSystemFlowGraphData(
   const nodes = new Map<string, SystemFlowNode>();
   const edges: SystemFlowEdge[] = [];
 
-  function ensureSegment(id: string, label: string, role: SystemFlowSegmentRole): SystemFlowSegment {
+  function ensureSegment(
+    id: string,
+    label: string,
+    role: SystemFlowSegmentRole,
+    outputId?: string,
+  ): SystemFlowSegment {
     const existing = segments.get(id);
 
     if (existing) {
+      const systemGroup = outputId ? systemGroupByOutputId.get(outputId) : undefined;
+      if (systemGroup && !existing.systemGroupId) {
+        existing.systemGroupId = systemGroup.id;
+        existing.systemGroupLabel = systemGroup.label;
+        existing.systemGroupOrder = systemGroup.order;
+      }
       return existing;
     }
 
+    const systemGroup = outputId ? systemGroupByOutputId.get(outputId) : undefined;
     const segment = {
       id,
       label,
       role,
       collapsed: collapsedSegmentIds.has(id),
+      ...(systemGroup
+        ? {
+            systemGroupId: systemGroup.id,
+            systemGroupLabel: systemGroup.label,
+            systemGroupOrder: systemGroup.order,
+          }
+        : {}),
     };
     segments.set(id, segment);
     return segment;
@@ -370,7 +431,7 @@ export function buildSystemFlowGraphData(
 
   function ensureSupplyOutputNode(row: NormalizedSolverRow): string {
     const segmentId = conversionSegmentId(row.outputId);
-    ensureSegment(segmentId, row.outputLabel, 'conversion');
+    ensureSegment(segmentId, row.outputLabel, 'conversion', row.outputId);
     const id = outputNodeId(row.outputId);
     upsertNode({
       id,
@@ -390,7 +451,7 @@ export function buildSystemFlowGraphData(
 
   function ensureRequiredDemandNode(row: NormalizedSolverRow): string {
     const segmentId = endUseSegmentId(row.outputId);
-    ensureSegment(segmentId, row.outputLabel, 'end_use');
+    ensureSegment(segmentId, row.outputLabel, 'end_use', row.outputId);
     const demand = request.configuration.serviceDemandByOutput[row.outputId]?.[yearKey(options.year)] ?? 0;
     const id = demandNodeId(row.outputId);
     upsertNode({
@@ -411,7 +472,7 @@ export function buildSystemFlowGraphData(
 
   function ensureOptionalOutputNode(row: NormalizedSolverRow): string {
     const segmentId = optionalSegmentId(row.outputId);
-    ensureSegment(segmentId, row.outputLabel, 'optional_activity');
+    ensureSegment(segmentId, row.outputLabel, 'optional_activity', row.outputId);
     const id = outputNodeId(row.outputId);
     upsertNode({
       id,
@@ -469,14 +530,14 @@ export function buildSystemFlowGraphData(
 
     if (row.outputRole === 'endogenous_supply_commodity') {
       segmentId = conversionSegmentId(row.outputId);
-      ensureSegment(segmentId, row.outputLabel, 'conversion');
+      ensureSegment(segmentId, row.outputLabel, 'conversion', row.outputId);
       ensureSupplyOutputNode(row);
     } else if (row.outputRole === 'optional_activity') {
       segmentId = optionalSegmentId(row.outputId);
-      ensureSegment(segmentId, row.outputLabel, 'optional_activity');
+      ensureSegment(segmentId, row.outputLabel, 'optional_activity', row.outputId);
     } else {
       segmentId = endUseSegmentId(row.outputId);
-      ensureSegment(segmentId, row.outputLabel, 'end_use');
+      ensureSegment(segmentId, row.outputLabel, 'end_use', row.outputId);
     }
 
     const routeActivity = resolveRouteActivity(row, shareLookup);

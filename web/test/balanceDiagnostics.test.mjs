@@ -1,21 +1,19 @@
 /**
- * Overlay parsing and balance diagnostics tests.
+ * Residual family balance diagnostics tests.
  *
- * Verifies that overlay CSV files parse correctly, that default-include
- * filtering works, and that aggregation totals match expected 2025 values.
+ * Verifies that the built-in package no longer uses residual overlay sidecar
+ * rows and that first-class residual families reproduce the 2025 closure
+ * quantities formerly represented by overlays.
  *
  * Run:  bunx tsx --test test/balanceDiagnostics.test.mjs
  */
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { parseCsv } from '../src/data/parseCsv.ts';
-import {
-  getDefaultIncludedResidualOverlays,
-  summarizeOverlayTotals,
-} from '../src/data/balanceDiagnostics.ts';
-
-// --- Helpers ---
+import { summarizeResidualFamilyTotals } from '../src/data/balanceDiagnostics.ts';
+import { loadPkg } from './solverTestUtils.mjs';
 
 function readText(relativePath) {
   const url = new URL(relativePath, import.meta.url);
@@ -28,154 +26,103 @@ function parseNum(raw) {
   return Number.isFinite(n) ? n : null;
 }
 
-function parseBool(raw) {
-  return raw?.trim().toLowerCase() === 'true';
-}
-
-function parseEmptyNull(raw) {
-  if (!raw || raw.trim() === '') return null;
-  return raw;
-}
-
-// --- Load CSVs ---
-
 const OVERLAYS = '../../sector_trajectory_library/overlays';
 const VALIDATION = '../../sector_trajectory_library/validation';
 
 const overlayRows = parseCsv(readText(`${OVERLAYS}/residual_overlays.csv`));
 const commodityBalanceRows = parseCsv(readText(`${VALIDATION}/baseline_commodity_balance.csv`));
 const emissionsBalanceRows = parseCsv(readText(`${VALIDATION}/baseline_emissions_balance.csv`));
+const pkg = loadPkg();
+const residualFamilyRows = pkg.sectorStates.filter(
+  (row) => row.family_resolution === 'residual_stub' && row.year === 2025,
+);
+const residualFamilyIds = new Set(residualFamilyRows.map((row) => row.family_id));
+const totals = summarizeResidualFamilyTotals(pkg.sectorStates);
 
-// --- Typed rows for diagnostics module ---
+function listFamilyDirectories() {
+  const root = new URL('../../sector_trajectory_library/families', import.meta.url);
+  return readdirSync(root).filter((entry) => {
+    try {
+      readFileSync(join(root.pathname, entry, 'family_states.csv'), 'utf8');
+      return true;
+    } catch {
+      return false;
+    }
+  });
+}
 
-const typedOverlays = overlayRows.map((r) => ({
-  overlay_id: r['overlay_id'],
-  overlay_label: r['overlay_label'],
-  overlay_domain: r['overlay_domain'],
-  official_accounting_bucket: r['official_accounting_bucket'],
-  year: Number(r['year']),
-  commodity: parseEmptyNull(r['commodity']),
-  final_energy_pj_2025: parseNum(r['final_energy_pj_2025']),
-  native_unit: r['native_unit'] ?? '',
-  native_quantity_2025: parseNum(r['native_quantity_2025']),
-  direct_energy_emissions_mtco2e_2025: parseNum(r['direct_energy_emissions_mtco2e_2025']),
-  other_emissions_mtco2e_2025: parseNum(r['other_emissions_mtco2e_2025']),
-  carbon_billable_emissions_mtco2e_2025: parseNum(r['carbon_billable_emissions_mtco2e_2025']),
-  default_price_basis: r['default_price_basis'] ?? '',
-  default_price_per_native_unit_aud_2024: parseNum(r['default_price_per_native_unit_aud_2024']),
-  default_commodity_cost_audm_2024: parseNum(r['default_commodity_cost_audm_2024']),
-  default_fixed_noncommodity_cost_audm_2024: parseNum(r['default_fixed_noncommodity_cost_audm_2024']),
-  default_total_cost_ex_carbon_audm_2024: parseNum(r['default_total_cost_ex_carbon_audm_2024']),
-  default_include: parseBool(r['default_include']),
-  allocation_method: r['allocation_method'] ?? '',
-  cost_basis_note: r['cost_basis_note'] ?? '',
-  notes: r['notes'] ?? '',
-}));
-
-// =============================================================================
-// 1. Overlay parsing tests
-// =============================================================================
-
-describe('Overlay parsing', () => {
-  it('residual_overlays.csv loads 39 data rows', () => {
-    assert.equal(overlayRows.length, 39);
+describe('Residual family migration', () => {
+  it('residual_overlays.csv is retained as a header-only compatibility table', () => {
+    assert.equal(overlayRows.length, 0);
   });
 
-  it('34 rows are energy_residual domain', () => {
-    const energy = typedOverlays.filter((r) => r.overlay_domain === 'energy_residual');
-    assert.equal(energy.length, 34);
+  it('loads 14 residual stub families with one 2025 incumbent row each', () => {
+    assert.equal(residualFamilyIds.size, 14);
+    assert.equal(residualFamilyRows.length, 14);
+    for (const row of residualFamilyRows) {
+      assert.equal(row.state_label, 'Residual incumbent');
+    }
   });
 
-  it('4 rows are nonenergy_residual domain', () => {
-    const nonEnergy = typedOverlays.filter((r) => r.overlay_domain === 'nonenergy_residual');
-    assert.equal(nonEnergy.length, 4);
-  });
-
-  it('1 row is net_sink domain', () => {
-    const sink = typedOverlays.filter((r) => r.overlay_domain === 'net_sink');
-    assert.equal(sink.length, 1);
-  });
-
-  it('baseline_commodity_balance.csv loads 7 data rows', () => {
-    assert.equal(commodityBalanceRows.length, 7);
-  });
-
-  it('baseline_emissions_balance.csv loads 10 data rows', () => {
-    assert.equal(emissionsBalanceRows.length, 10);
+  it('every residual family directory has demand, validation, and documentation companions', () => {
+    const familyDirs = new Set(listFamilyDirectories());
+    for (const familyId of residualFamilyIds) {
+      assert.ok(familyDirs.has(familyId), `missing residual family directory ${familyId}`);
+      for (const filename of ['demand.csv', 'family_states.csv', 'README.md', 'validation.md']) {
+        const path = new URL(`../../sector_trajectory_library/families/${familyId}/${filename}`, import.meta.url);
+        assert.ok(readFileSync(path, 'utf8').length > 0, `${familyId}/${filename} should not be empty`);
+      }
+    }
   });
 });
 
-// =============================================================================
-// 2. Default-include filtering tests
-// =============================================================================
-
-describe('Default-include filtering', () => {
-  it('38 overlay rows have default_include=True (34 energy + 4 non-energy)', () => {
-    const included = getDefaultIncludedResidualOverlays(typedOverlays);
-    assert.equal(included.length, 38);
-  });
-
-  it('LULUCF sink row is excluded by default', () => {
-    const included = getDefaultIncludedResidualOverlays(typedOverlays);
-    const hasSink = included.some((r) => r.overlay_id === 'residual_lulucf_sink');
-    assert.equal(hasSink, false);
-  });
-});
-
-// =============================================================================
-// 3. Aggregation tests
-// =============================================================================
-
-describe('Aggregation totals', () => {
-  const totals = summarizeOverlayTotals(typedOverlays);
-
-  it('total residual energy PJ ≈ 1354.152', () => {
+describe('Residual family aggregation totals', () => {
+  it('total residual final energy excluding grid losses is about 1354.152 PJ', () => {
     assert.ok(
       Math.abs(totals.totalResidualEnergyPj - 1354.152) < 0.5,
-      `Expected ≈1354.152, got ${totals.totalResidualEnergyPj}`,
+      `Expected about 1354.152, got ${totals.totalResidualEnergyPj}`,
     );
   });
 
-  it('total residual energy emissions ≈ 57.169 MtCO2e', () => {
+  it('residual final electricity is about 101.599 TWh', () => {
     assert.ok(
-      Math.abs(totals.totalResidualEnergyEmissions - 57.169) < 0.5,
-      `Expected ≈57.169, got ${totals.totalResidualEnergyEmissions}`,
+      Math.abs((totals.residualFinalElectricityTwh ?? 0) - 101.599) < 0.001,
+      `Expected about 101.599, got ${totals.residualFinalElectricityTwh}`,
     );
   });
 
-  it('total residual non-energy emissions (excl LULUCF) ≈ 86.735 MtCO2e', () => {
+  it('grid losses and own-use electricity is about 42.420 TWh', () => {
     assert.ok(
-      Math.abs(totals.totalResidualNonEnergyEmissions - 86.735) < 0.01,
-      `Expected ≈86.735, got ${totals.totalResidualNonEnergyEmissions}`,
+      Math.abs((totals.gridLossesOwnUseElectricityTwh ?? 0) - 42.42) < 0.001,
+      `Expected about 42.420, got ${totals.gridLossesOwnUseElectricityTwh}`,
     );
   });
 
-  it('LULUCF sink = -73.7 MtCO2e', () => {
+  it('total residual energy emissions are about 57.169 MtCO2e', () => {
+    assert.ok(
+      Math.abs(totals.totalResidualEnergyEmissions - 57.169) < 0.001,
+      `Expected about 57.169, got ${totals.totalResidualEnergyEmissions}`,
+    );
+  });
+
+  it('total residual non-energy emissions excluding LULUCF are about 86.735 MtCO2e', () => {
+    assert.ok(
+      Math.abs(totals.totalResidualNonEnergyEmissions - 86.735) < 0.001,
+      `Expected about 86.735, got ${totals.totalResidualNonEnergyEmissions}`,
+    );
+  });
+
+  it('LULUCF sink remains optional at -73.7 MtCO2e', () => {
     assert.equal(totals.lulucfSinkMtco2e, -73.7);
   });
 
-  it('total carbon-billable emissions ≈ 143.904 MtCO2e', () => {
+  it('total positive carbon-billable residual emissions are about 143.904 MtCO2e', () => {
     assert.ok(
-      Math.abs(totals.totalCarbonBillableEmissionsMtco2e - 143.904) < 0.01,
-      `Expected ≈143.904, got ${totals.totalCarbonBillableEmissionsMtco2e}`,
+      Math.abs(totals.totalCarbonBillableEmissionsMtco2e - 143.904) < 0.001,
+      `Expected about 143.904, got ${totals.totalCarbonBillableEmissionsMtco2e}`,
     );
-  });
-
-  it('total overlay commodity cost ≈ 40820.1 AUD M 2024', () => {
-    assert.ok(
-      Math.abs(totals.totalOverlayCommodityCostAudm2024 - 40820.1) < 1.0,
-      `Expected ≈40820.1, got ${totals.totalOverlayCommodityCostAudm2024}`,
-    );
-  });
-
-  it('total overlay fixed cost = 0 AUD M 2024', () => {
-    assert.equal(totals.totalOverlayFixedCostAudm2024, 0);
   });
 });
-
-// =============================================================================
-// 4. Cross-check with diagnostic tables
-// =============================================================================
 
 describe('Diagnostic table cross-checks', () => {
   it('baseline_commodity_balance total row difference_to_benchmark_pj_2025 is 0', () => {
@@ -185,7 +132,7 @@ describe('Diagnostic table cross-checks', () => {
     assert.equal(diff, 0.0, `Expected difference 0, got ${diff}`);
   });
 
-  it('baseline_emissions_balance positive-sectors row difference ≈ 0', () => {
+  it('baseline_emissions_balance positive-sectors row difference is about 0', () => {
     const positiveRow = emissionsBalanceRows.find((r) =>
       r['official_category']?.startsWith('Positive-emitting'),
     );
@@ -193,7 +140,7 @@ describe('Diagnostic table cross-checks', () => {
     const diff = parseNum(positiveRow['difference_to_official_mtco2e_2025']);
     assert.ok(
       diff !== null && Math.abs(diff) < 0.01,
-      `Expected difference ≈ 0, got ${diff}`,
+      `Expected difference about 0, got ${diff}`,
     );
   });
 });

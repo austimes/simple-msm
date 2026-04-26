@@ -4,6 +4,7 @@ export interface EmissionEntry {
 }
 
 export type OutputRole = 'required_service' | 'endogenous_supply_commodity' | 'optional_activity';
+export type FamilyResolution = 'modeled' | 'residual_stub';
 
 export type ConfigurationControlMode =
   | 'optimize'
@@ -219,6 +220,40 @@ export interface PackageSchemaInfo {
   fields: PackageSchemaField[];
 }
 
+export interface FamilyMetadata {
+  family_id: string;
+  sector: string;
+  subsector: string;
+  service_or_output_name: string;
+  region: string;
+  output_role: OutputRole;
+  output_unit: string;
+  output_quantity_basis: string;
+  default_incumbent_state_id: string;
+  maintainer_owner_id: string;
+  review_owner_id: string;
+  family_status: string;
+  family_maturity: string;
+  family_resolution: FamilyResolution;
+  coverage_scope_id: string;
+  coverage_scope_label: string;
+  notes: string;
+}
+
+export interface SystemStructureGroupRow {
+  group_id: string;
+  group_label: string;
+  display_order: number;
+  notes: string;
+}
+
+export interface SystemStructureMemberRow {
+  group_id: string;
+  family_id: string;
+  display_order: number;
+  notes: string;
+}
+
 export interface PackageCompanionDoc {
   key: string;
   path: string;
@@ -291,6 +326,9 @@ export interface EfficiencyPackage {
 
 export interface SectorState {
   family_id: string;
+  family_resolution: FamilyResolution;
+  coverage_scope_id: string;
+  coverage_scope_label: string;
   sector: string;
   subsector: string;
   service_or_output_name: string;
@@ -432,6 +470,9 @@ export interface EmissionsBalance2025Row {
 }
 
 export interface PackageData {
+  familyMetadata: FamilyMetadata[];
+  systemStructureGroups: SystemStructureGroupRow[];
+  systemStructureMembers: SystemStructureMemberRow[];
   sectorStates: SectorState[];
   autonomousEfficiencyTracks: AutonomousEfficiencyTrack[];
   efficiencyPackages: EfficiencyPackage[];

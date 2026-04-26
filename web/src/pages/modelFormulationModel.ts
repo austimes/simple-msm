@@ -1,4 +1,7 @@
-import { summarizeOverlayTotals } from '../data/balanceDiagnostics.ts';
+import {
+  summarizeOverlayTotals,
+  summarizeResidualFamilyTotals,
+} from '../data/balanceDiagnostics.ts';
 import { getCommodityMetadata } from '../data/commodityMetadata.ts';
 import type {
   AppConfigRegistry,
@@ -101,6 +104,12 @@ export interface ModelFormulationOverlaySummary {
   totalCarbonBillableEmissionsMtco2e: number;
   totalOverlayCommodityCostAudm2024: number;
   totalOverlayFixedCostAudm2024: number;
+  residualFinalElectricityTwh?: number;
+  gridLossesOwnUseElectricityTwh?: number;
+  includedResidualFamilyCount?: number;
+  energyResidualFamilyCount?: number;
+  nonEnergyResidualFamilyCount?: number;
+  sinkResidualFamilyCount?: number;
   includedOverlayCount: number;
   energyOverlayCount: number;
   nonEnergyOverlayCount: number;
@@ -171,11 +180,13 @@ export const MODEL_FORMULATION_PIPELINE_STEPS: ModelFormulationPipelineStep[] = 
     artifacts: ['lpAdapter.ts'],
   },
   {
-    title: '5. Residual overlay closure',
+    title: '5. Residual family closure',
     summary:
-      'Layer fixed 2025 residual overlays back onto commodity and emissions accounting after the LP for diagnostic closure.',
+      'Residual stubs enter as ordinary required-service family rows, so omitted-sector demand, inputs, and emissions flow through the same LP and reporting path as modeled families.',
     artifacts: [
-      'overlays/residual_overlays.csv',
+      'families/*/demand.csv',
+      'families/*/family_states.csv',
+      'shared/system_structure_members.csv',
       'validation/baseline_commodity_balance.csv',
       'validation/baseline_emissions_balance.csv',
     ],
@@ -245,13 +256,13 @@ export const MODEL_FORMULATION_SOURCE_MAPPING: ModelFormulationSourceMappingRow[
     source: 'families/*/demand.csv + shared/external_commodity_demands.csv',
     mapsTo: '2025 anchors',
     howItEnters:
-      'Provide anchor values when demand tables are generated from anchor-year starting points.',
+      'Family demand rows provide anchor values when demand tables are generated from anchor-year starting points. External commodity demand remains parser-compatible but is empty for the built-in baseline.',
   },
   {
     source: 'shared/demand_growth_curves.csv + currentConfiguration.demand_generation',
-    mapsTo: 'resolved service and external commodity demand tables',
+    mapsTo: 'resolved service demand tables',
     howItEnters:
-      'Resolve the D_o,y and X_c,y tables before solve, with year_overrides replacing the growth formula when present.',
+      'Resolve the D_o,y tables before solve, with year_overrides replacing the growth formula when present.',
   },
   {
     source: 'shared/commodity_price_curves.csv + currentConfiguration.commodity_pricing',
@@ -272,22 +283,22 @@ export const MODEL_FORMULATION_SOURCE_MAPPING: ModelFormulationSourceMappingRow[
       'Determine whether rows behave as required services, endogenous supply commodities, or optional activities, then apply control-mode filtering.',
   },
   {
-    source: 'overlays/residual_overlays.csv',
-    mapsTo: 'post-solve accounting overlays, not LP variables',
+    source: 'residual-stub families',
+    mapsTo: 'ordinary LP activity variables',
     howItEnters:
-      'Stay outside buildSolveRequest.ts and lpAdapter.ts, then close omitted 2025 sectors in diagnostic reporting.',
+      'Load through the same family/state/demand path as modeled segments, then contribute normal commodity inputs, emissions, costs, and route shares.',
   },
   {
     source: 'validation/baseline_commodity_balance.csv + validation/baseline_emissions_balance.csv',
     mapsTo: '2025 closure diagnostics',
     howItEnters:
-      'Provide the benchmark tables used to explain how explicit modeled rows plus residual overlays close the 2025 package balances.',
+      'Provide the benchmark tables used to explain how modeled rows plus residual-family rows close the 2025 package balances.',
   },
 ];
 
 export const MODEL_FORMULATION_CAVEATS: string[] = [
   'Share smoothing exists in the configuration but is not yet enforced in the LP core.',
-  'Residual overlays are post-solve only; they are not LP variables or LP constraints.',
+  'Residual stubs are coarse calibration families; they are first-class LP rows, not optimisable technology representations.',
   'Soft constraints only relax max_share and max_activity.',
 ];
 
@@ -540,11 +551,26 @@ function buildObjectiveExample(
 }
 
 function buildOverlaySummary(
+  sectorStates: SectorState[],
+  currentConfiguration: ConfigurationDocument,
   residualOverlays2025: ResidualOverlayRow[],
   commodityBalance2025: CommodityBalance2025Row[],
   emissionsBalance2025: EmissionsBalance2025Row[],
 ): ModelFormulationOverlaySummary {
-  const totals = summarizeOverlayTotals(residualOverlays2025);
+  const residualFamilyRows = sectorStates.filter(
+    (row) => row.family_resolution === 'residual_stub' && row.year === 2025,
+  );
+  const includedResidualFamilyIds = new Set(
+    residualFamilyRows
+      .map((row) => row.family_id)
+      .filter((familyId) => {
+        const activeStateIds = currentConfiguration.service_controls[familyId]?.active_state_ids;
+        return !(Array.isArray(activeStateIds) && activeStateIds.length === 0);
+      }),
+  );
+  const totals = residualOverlays2025.length > 0
+    ? summarizeOverlayTotals(residualOverlays2025)
+    : summarizeResidualFamilyTotals(sectorStates, includedResidualFamilyIds);
   const includedOverlayIds = new Set(
     residualOverlays2025
       .filter((row) => row.default_include)
@@ -577,10 +603,18 @@ function buildOverlaySummary(
 
   return {
     ...totals,
-    includedOverlayCount: includedOverlayIds.size,
-    energyOverlayCount: energyOverlayIds.size,
-    nonEnergyOverlayCount: nonEnergyOverlayIds.size,
-    sinkOverlayCount: sinkOverlayIds.size,
+    includedOverlayCount: residualOverlays2025.length > 0
+      ? includedOverlayIds.size
+      : totals.includedResidualFamilyCount ?? 0,
+    energyOverlayCount: residualOverlays2025.length > 0
+      ? energyOverlayIds.size
+      : totals.energyResidualFamilyCount ?? 0,
+    nonEnergyOverlayCount: residualOverlays2025.length > 0
+      ? nonEnergyOverlayIds.size
+      : totals.nonEnergyResidualFamilyCount ?? 0,
+    sinkOverlayCount: residualOverlays2025.length > 0
+      ? sinkOverlayIds.size
+      : totals.sinkResidualFamilyCount ?? 0,
     commodityBalanceRowCount: commodityBalance2025.length,
     emissionsBalanceRowCount: emissionsBalance2025.length,
     totalFinalEnergyBenchmarkPj: totalFinalEnergyRow?.balanced_total_pj_2025 ?? null,
@@ -608,7 +642,7 @@ function buildStats(
       value: request ? formatCompactNumber(request.rows.length) : 'Unavailable',
     },
     {
-      label: 'Default-included residual components',
+      label: 'Default-included residual families',
       value: formatCompactNumber(overlaySummary.includedOverlayCount),
     },
     {
@@ -637,6 +671,8 @@ export function buildModelFormulationViewModel({
   emissionsBalance2025,
 }: ModelFormulationInput): ModelFormulationViewModel {
   const overlaySummary = buildOverlaySummary(
+    sectorStates,
+    currentConfiguration,
     residualOverlays2025,
     commodityBalance2025,
     emissionsBalance2025,
@@ -681,7 +717,7 @@ export function buildModelFormulationViewModel({
   return {
     title: 'Model Formulation',
     intro: [
-      'This page explains the current LP core the app solves, how configuration inputs are resolved before solve, and how fixed residual overlays are layered on afterward.',
+      'This page explains the current LP core the app solves, how configuration inputs are resolved before solve, and how residual stubs enter through the same family rows as modeled segments.',
       'It is a read-only explainer of the model wiring used in the current app, not a second configuration workspace.',
     ],
     stats: buildStats(normalizedRows, overlaySummary, request),

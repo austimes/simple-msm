@@ -325,6 +325,15 @@ function sectorGroupForSegment(segment: SystemFlowSegment): SystemFlowSectorGrou
     return FALLBACK_SECTOR_GROUPS.external_demand;
   }
 
+  if (segment.systemGroupId && segment.systemGroupLabel) {
+    return {
+      id: segment.systemGroupId,
+      label: segment.systemGroupLabel,
+      color: structureGroupColor(segment.systemGroupId, segment.systemGroupLabel),
+      sortOrder: segment.systemGroupOrder ?? 800,
+    };
+  }
+
   const outputId = segmentOutputId(segment);
   const structureGroup = outputId ? STRUCTURE_GROUPS_BY_OUTPUT_ID.get(outputId) : undefined;
 

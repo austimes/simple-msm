@@ -291,10 +291,10 @@ describe('buildings only with electricity endogenous (optimize) — scaled deman
     assert.equal(request.configuration.controlsByOutput.electricity?.['2025']?.mode, 'optimize');
   });
 
-  test('external electricity demand is preserved for auto-included electricity', () => {
-    assert.ok(
-      request.configuration.externalCommodityDemandByCommodity.electricity != null,
-      'external electricity demand should be preserved when electricity is in the run',
+  test('auto-included electricity does not reintroduce built-in external electricity demand', () => {
+    assert.equal(
+      request.configuration.externalCommodityDemandByCommodity.electricity,
+      undefined,
     );
   });
 });

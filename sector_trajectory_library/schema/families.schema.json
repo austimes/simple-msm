@@ -18,6 +18,9 @@
     "review_owner_id",
     "family_status",
     "family_maturity",
+    "family_resolution",
+    "coverage_scope_id",
+    "coverage_scope_label",
     "notes"
   ],
   "properties": {
@@ -72,6 +75,22 @@
     "family_maturity": {
       "type": "string",
       "description": "Field family_maturity in the family registry."
+    },
+    "family_resolution": {
+      "type": "string",
+      "enum": [
+        "modeled",
+        "residual_stub"
+      ],
+      "description": "Resolution class for the family. Modeled families have explicit sector-state evidence; residual_stub families are first-class calibration buckets."
+    },
+    "coverage_scope_id": {
+      "type": "string",
+      "description": "Identifier for the modeled or residual coverage scope represented by this family."
+    },
+    "coverage_scope_label": {
+      "type": "string",
+      "description": "Human-readable label for the modeled or residual coverage scope represented by this family."
     },
     "notes": {
       "type": "string",

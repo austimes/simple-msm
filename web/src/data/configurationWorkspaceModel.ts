@@ -2,6 +2,7 @@ import type {
   AppConfigRegistry,
   ConfigurationDocument,
   ConfigurationYearKey,
+  FamilyResolution,
   PriceLevel,
   SectorState,
 } from './types.ts';
@@ -21,6 +22,8 @@ export interface SubsectorCatalogEntry {
   subsector: string;
   outputId: string;
   outputLabel: string;
+  familyResolution?: FamilyResolution;
+  coverageScopeLabel?: string;
   states: StateCatalogEntry[];
 }
 
@@ -108,6 +111,8 @@ export function buildStateCatalog(
         subsector,
         outputId,
         outputLabel,
+        familyResolution: firstRow?.family_resolution,
+        coverageScopeLabel: firstRow?.coverage_scope_label,
         states: Array.from(stateMap.values())
           .sort(compareStateCatalogEntries)
           .map(({ stateId, stateLabel }) => ({

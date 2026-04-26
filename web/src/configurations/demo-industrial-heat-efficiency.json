@@ -81,6 +81,88 @@
     "engineered_removals": {
       "mode": "optimize",
       "active_state_ids": []
+    },
+    "commercial_other": {
+      "mode": "optimize",
+      "active_state_ids": [
+        "commercial_other__residual_incumbent"
+      ]
+    },
+    "residential_other": {
+      "mode": "optimize",
+      "active_state_ids": [
+        "residential_other__residual_incumbent"
+      ]
+    },
+    "transport_other": {
+      "mode": "optimize",
+      "active_state_ids": [
+        "transport_other__residual_incumbent"
+      ]
+    },
+    "manufacturing_other": {
+      "mode": "optimize",
+      "active_state_ids": [
+        "manufacturing_other__residual_incumbent"
+      ]
+    },
+    "mining_other": {
+      "mode": "optimize",
+      "active_state_ids": [
+        "mining_other__residual_incumbent"
+      ]
+    },
+    "construction_other": {
+      "mode": "optimize",
+      "active_state_ids": [
+        "construction_other__residual_incumbent"
+      ]
+    },
+    "water_waste_other": {
+      "mode": "optimize",
+      "active_state_ids": [
+        "water_waste_other__residual_incumbent"
+      ]
+    },
+    "other_other": {
+      "mode": "optimize",
+      "active_state_ids": [
+        "other_other__residual_incumbent"
+      ]
+    },
+    "residual_fugitives": {
+      "mode": "optimize",
+      "active_state_ids": [
+        "residual_fugitives__residual_incumbent"
+      ]
+    },
+    "residual_ippu_other": {
+      "mode": "optimize",
+      "active_state_ids": [
+        "residual_ippu_other__residual_incumbent"
+      ]
+    },
+    "residual_agriculture_other": {
+      "mode": "optimize",
+      "active_state_ids": [
+        "residual_agriculture_other__residual_incumbent"
+      ]
+    },
+    "residual_waste": {
+      "mode": "optimize",
+      "active_state_ids": [
+        "residual_waste__residual_incumbent"
+      ]
+    },
+    "residual_lulucf_sink": {
+      "mode": "optimize",
+      "active_state_ids": []
+    },
+    "electricity_grid_losses_own_use": {
+      "mode": "optimize",
+      "active_state_ids": [
+        "electricity_grid_losses_own_use__residual_incumbent"
+      ]
     }
   },
   "service_demands": {
@@ -171,6 +253,118 @@
       "2040": 38257.24,
       "2045": 38834.55,
       "2050": 39420.58
+    },
+    "commercial_other": {
+      "2025": 1,
+      "2030": 1,
+      "2035": 1,
+      "2040": 1,
+      "2045": 1,
+      "2050": 1
+    },
+    "residential_other": {
+      "2025": 1,
+      "2030": 1,
+      "2035": 1,
+      "2040": 1,
+      "2045": 1,
+      "2050": 1
+    },
+    "transport_other": {
+      "2025": 1,
+      "2030": 1,
+      "2035": 1,
+      "2040": 1,
+      "2045": 1,
+      "2050": 1
+    },
+    "manufacturing_other": {
+      "2025": 1,
+      "2030": 1,
+      "2035": 1,
+      "2040": 1,
+      "2045": 1,
+      "2050": 1
+    },
+    "mining_other": {
+      "2025": 1,
+      "2030": 1,
+      "2035": 1,
+      "2040": 1,
+      "2045": 1,
+      "2050": 1
+    },
+    "construction_other": {
+      "2025": 1,
+      "2030": 1,
+      "2035": 1,
+      "2040": 1,
+      "2045": 1,
+      "2050": 1
+    },
+    "water_waste_other": {
+      "2025": 1,
+      "2030": 1,
+      "2035": 1,
+      "2040": 1,
+      "2045": 1,
+      "2050": 1
+    },
+    "other_other": {
+      "2025": 1,
+      "2030": 1,
+      "2035": 1,
+      "2040": 1,
+      "2045": 1,
+      "2050": 1
+    },
+    "residual_fugitives": {
+      "2025": 1,
+      "2030": 1,
+      "2035": 1,
+      "2040": 1,
+      "2045": 1,
+      "2050": 1
+    },
+    "residual_ippu_other": {
+      "2025": 1,
+      "2030": 1,
+      "2035": 1,
+      "2040": 1,
+      "2045": 1,
+      "2050": 1
+    },
+    "residual_agriculture_other": {
+      "2025": 1,
+      "2030": 1,
+      "2035": 1,
+      "2040": 1,
+      "2045": 1,
+      "2050": 1
+    },
+    "residual_waste": {
+      "2025": 1,
+      "2030": 1,
+      "2035": 1,
+      "2040": 1,
+      "2045": 1,
+      "2050": 1
+    },
+    "residual_lulucf_sink": {
+      "2025": 1,
+      "2030": 1,
+      "2035": 1,
+      "2040": 1,
+      "2045": 1,
+      "2050": 1
+    },
+    "electricity_grid_losses_own_use": {
+      "2025": 1,
+      "2030": 1,
+      "2035": 1,
+      "2040": 1,
+      "2045": 1,
+      "2050": 1
     }
   },
   "demand_generation": {
@@ -188,7 +382,21 @@
       "crude_steel": 5700000,
       "cement_equivalent": 9600000,
       "livestock_output_bundle": 31134.94,
-      "cropping_horticulture_output_bundle": 36576.29
+      "cropping_horticulture_output_bundle": 36576.29,
+      "commercial_other": 1,
+      "residential_other": 1,
+      "transport_other": 1,
+      "manufacturing_other": 1,
+      "mining_other": 1,
+      "construction_other": 1,
+      "water_waste_other": 1,
+      "other_other": 1,
+      "residual_fugitives": 1,
+      "residual_ippu_other": 1,
+      "residual_agriculture_other": 1,
+      "residual_waste": 1,
+      "residual_lulucf_sink": 1,
+      "electricity_grid_losses_own_use": 1
     },
     "service_growth_rates_pct_per_year": {
       "residential_building_services": 0.6,
@@ -203,24 +411,10 @@
       "livestock_output_bundle": 0.2,
       "cropping_horticulture_output_bundle": 0.3
     },
-    "external_commodity_anchors": {
-      "electricity": 144018720
-    },
-    "external_commodity_growth_rates_pct_per_year": {
-      "electricity": 0.2
-    },
+    "external_commodity_anchors": null,
+    "external_commodity_growth_rates_pct_per_year": null,
     "year_overrides": {},
     "notes": "Resolved milestone-year demand tables are included for reproducibility. The preset metadata explains how they were generated."
-  },
-  "external_commodity_demands": {
-    "electricity": {
-      "2025": 144018720,
-      "2030": 145464679,
-      "2035": 146925157,
-      "2040": 148400297,
-      "2045": 149890248,
-      "2050": 151395158
-    }
   },
   "commodity_pricing": {
     "selections_by_commodity": {

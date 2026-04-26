@@ -154,6 +154,12 @@ export function materializeResidualOverlayConfiguration(
   configuration: ConfigurationDocument,
   overlayRows: ResidualOverlayRow[],
 ): ConfigurationDocument {
+  if (overlayRows.length === 0) {
+    const nextConfiguration = { ...configuration };
+    delete nextConfiguration.residual_overlays;
+    return nextConfiguration;
+  }
+
   const defaults = buildDefaultResidualOverlays(overlayRows).controls_by_overlay_id;
   const knownIds = Object.keys(defaults);
   const existing = configuration.residual_overlays?.controls_by_overlay_id ?? {};

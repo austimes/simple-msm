@@ -1,6 +1,9 @@
 import { useMemo } from 'react';
 import { usePackageStore } from '../data/packageStore';
-import { summarizeOverlayTotals } from '../data/balanceDiagnostics';
+import {
+  summarizeOverlayTotals,
+  summarizeResidualFamilyTotals,
+} from '../data/balanceDiagnostics';
 import {
   AGGREGATED_RESIDUAL_OVERLAY_LABEL,
   DEFAULT_RESIDUAL_OVERLAY_DISPLAY_MODE,
@@ -51,10 +54,14 @@ function aggregateResidualOverlays(rows: ResidualOverlayRow[]): AggregatedResidu
 
 export default function BaselineClosureDiagnosticsCard() {
   const residualOverlays2025 = usePackageStore((state) => state.residualOverlays2025);
+  const sectorStates = usePackageStore((state) => state.sectorStates);
+  const hasOverlayRows = residualOverlays2025.length > 0;
 
   const totals = useMemo(
-    () => summarizeOverlayTotals(residualOverlays2025),
-    [residualOverlays2025],
+    () => hasOverlayRows
+      ? summarizeOverlayTotals(residualOverlays2025)
+      : summarizeResidualFamilyTotals(sectorStates),
+    [hasOverlayRows, residualOverlays2025, sectorStates],
   );
 
   const aggregatedResiduals = useMemo(
@@ -73,12 +80,12 @@ export default function BaselineClosureDiagnosticsCard() {
     <section className="methods-content-card">
       <h2>Baseline closure diagnostics (2025)</h2>
       <p>
-        These residual overlay layers account for parts of the economy not explicitly modeled as
-        optimizable sector states. They are fixed 2025 accounting entries used for balance-sheet
-        closure only.
+        {hasOverlayRows
+          ? 'These residual overlay layers account for parts of the economy not explicitly modeled as optimizable sector states. They are fixed 2025 accounting entries used for balance-sheet closure only.'
+          : 'Residual closure is represented by first-class residual family rows. Those rows carry demand, commodity inputs, and emissions through the same solve path as modeled segments.'}
       </p>
 
-      <h3>{AGGREGATED_RESIDUAL_OVERLAY_LABEL}</h3>
+      <h3>{hasOverlayRows ? AGGREGATED_RESIDUAL_OVERLAY_LABEL : 'Residual family closure'}</h3>
       <div className="library-mini-table">
         <div className="library-mini-table-row library-mini-table-row--header">
           <span>Residual component</span>
@@ -86,14 +93,14 @@ export default function BaselineClosureDiagnosticsCard() {
           <span>Energy emissions (MtCO₂e)</span>
           <span>Non-energy emissions (MtCO₂e)</span>
         </div>
-        {aggregatedResiduals.map((row) => (
+        {hasOverlayRows ? aggregatedResiduals.map((row) => (
           <div key={row.overlay_id} className="library-mini-table-row">
             <span>{row.overlay_label}</span>
             <span>{fmt(row.final_energy_pj_2025)}</span>
             <span>{fmt(row.direct_energy_emissions_mtco2e_2025)}</span>
             <span>{fmt(row.other_emissions_mtco2e_2025)}</span>
           </div>
-        ))}
+        )) : null}
         <div className="library-mini-table-row library-mini-table-row--header">
           <span>Total</span>
           <span>{fmt(totals.totalResidualEnergyPj)}</span>
@@ -141,6 +148,18 @@ export default function BaselineClosureDiagnosticsCard() {
           <div className="configuration-stat-card">
             <span>Overlay commodity cost</span>
             <strong>{fmt(totals.totalOverlayCommodityCostAudm2024, 1)} AUD M</strong>
+          </div>
+        ) : null}
+        {totals.residualFinalElectricityTwh != null ? (
+          <div className="configuration-stat-card">
+            <span>Residual final electricity</span>
+            <strong>{fmt(totals.residualFinalElectricityTwh, 3)} TWh</strong>
+          </div>
+        ) : null}
+        {totals.gridLossesOwnUseElectricityTwh != null ? (
+          <div className="configuration-stat-card">
+            <span>Grid losses and own-use</span>
+            <strong>{fmt(totals.gridLossesOwnUseElectricityTwh, 3)} TWh</strong>
           </div>
         ) : null}
       </div>

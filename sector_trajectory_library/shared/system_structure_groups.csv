@@ -1,0 +1,10 @@
+group_id,group_label,display_order,notes
+buildings,Buildings,10,Residential and commercial service families plus building-sector residual stubs.
+road_transport,Road transport,20,"Passenger, freight, and omitted transport residual activity."
+industrial_production,Industrial production,30,"Industrial heat, steel, cement, manufacturing residuals, and IPPU residuals."
+energy_supply,Energy supply,40,"Electricity supply, fuel-production residuals, fugitive emissions, and grid losses or own-use."
+agriculture,Agriculture,50,Coarse agriculture output bundles and residual agriculture emissions.
+construction,Construction,60,Construction residual energy activity until an explicit construction family exists.
+water_waste,Water and waste,70,Water-sector residual electricity and waste emissions activity.
+other_sectors,Other sectors,80,Residual activity not assigned to a more specific current group.
+removals_land,Removals and land,90,Engineered and land removals plus optional LULUCF calibration sink.

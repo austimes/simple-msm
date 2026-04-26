@@ -15,6 +15,9 @@ function buildSectorState(
 ): SectorState {
   return {
     family_id: 'transport_family',
+    family_resolution: 'modeled',
+    coverage_scope_id: 'transport_family',
+    coverage_scope_label: 'Transport family',
     sector: 'Transport',
     subsector: 'Road',
     service_or_output_name: 'passenger_road_transport',
