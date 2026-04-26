@@ -18,6 +18,9 @@ import type {
   EmissionsBalance2025Row,
   EfficiencyPackage,
   EfficiencyPackageClassification,
+  FamilyMetadata,
+  FamilyResolution,
+  OutputRole,
   PackageData,
   PriceLevel,
   ResidualOverlayDomain,
@@ -25,19 +28,11 @@ import type {
   SectorState,
   ServiceDemandAnchorRow,
   ServiceDemandAnchorType,
+  SystemStructureGroupRow,
+  SystemStructureMemberRow,
 } from './types.ts';
 
-interface FamilyRegistryRow {
-  family_id: string;
-  sector: string;
-  subsector: string;
-  service_or_output_name: string;
-  region: string;
-  output_role: string;
-  output_unit: string;
-  output_quantity_basis: string;
-  default_incumbent_state_id: string;
-}
+type FamilyRegistryRow = FamilyMetadata;
 
 interface FamilyDemandRow {
   family_id: string;
@@ -84,6 +79,13 @@ interface CarbonPriceCurveRow {
   unit: string;
   provenance_note: string;
   values_by_year: Record<string, number>;
+}
+
+interface SystemStructureMemberLookup {
+  groupId: string;
+  groupLabel: string;
+  groupOrder: number;
+  memberOrder: number;
 }
 
 interface NodeDirectoryEntryLike {
@@ -353,6 +355,30 @@ function parseEfficiencyPackageClassification(
   );
 }
 
+function parseFamilyResolution(raw: string | undefined, label: string): FamilyResolution {
+  const value = parseRequiredString(raw, label);
+  if (value === 'modeled' || value === 'residual_stub') {
+    return value;
+  }
+
+  throw new Error(
+    `${label} must be "modeled" or "residual_stub"; received ${JSON.stringify(value)}`,
+  );
+}
+
+function parseOutputRole(raw: string | undefined, label: string): OutputRole {
+  const value = parseRequiredString(raw, label);
+  if (
+    value === 'required_service'
+    || value === 'endogenous_supply_commodity'
+    || value === 'optional_activity'
+  ) {
+    return value;
+  }
+
+  throw new Error(`Unknown output_role for ${label}: ${JSON.stringify(value)}`);
+}
+
 function validateEfficiencyReferences(
   familyId: string,
   artifactLabel: string,
@@ -458,16 +484,84 @@ function normalizePresetDescription(description: string): string {
 }
 
 function toFamilyRegistryRow(row: Record<string, string>): FamilyRegistryRow {
+  const familyId = parseRequiredString(row['family_id'], 'shared/families.csv.family_id');
   return {
-    family_id: row['family_id'],
-    sector: row['sector'],
-    subsector: row['subsector'],
-    service_or_output_name: row['service_or_output_name'],
-    region: row['region'],
-    output_role: row['output_role'],
-    output_unit: row['output_unit'],
-    output_quantity_basis: row['output_quantity_basis'],
-    default_incumbent_state_id: row['default_incumbent_state_id'],
+    family_id: familyId,
+    sector: parseRequiredString(row['sector'], `shared/families.csv.${familyId}.sector`),
+    subsector: parseRequiredString(row['subsector'], `shared/families.csv.${familyId}.subsector`),
+    service_or_output_name: parseRequiredString(
+      row['service_or_output_name'],
+      `shared/families.csv.${familyId}.service_or_output_name`,
+    ),
+    region: parseRequiredString(row['region'], `shared/families.csv.${familyId}.region`),
+    output_role: parseOutputRole(row['output_role'], `shared/families.csv.${familyId}.output_role`),
+    output_unit: parseRequiredString(row['output_unit'], `shared/families.csv.${familyId}.output_unit`),
+    output_quantity_basis: parseRequiredString(
+      row['output_quantity_basis'],
+      `shared/families.csv.${familyId}.output_quantity_basis`,
+    ),
+    default_incumbent_state_id: parseRequiredString(
+      row['default_incumbent_state_id'],
+      `shared/families.csv.${familyId}.default_incumbent_state_id`,
+    ),
+    maintainer_owner_id: parseRequiredString(
+      row['maintainer_owner_id'],
+      `shared/families.csv.${familyId}.maintainer_owner_id`,
+    ),
+    review_owner_id: parseRequiredString(
+      row['review_owner_id'],
+      `shared/families.csv.${familyId}.review_owner_id`,
+    ),
+    family_status: parseRequiredString(
+      row['family_status'],
+      `shared/families.csv.${familyId}.family_status`,
+    ),
+    family_maturity: parseRequiredString(
+      row['family_maturity'],
+      `shared/families.csv.${familyId}.family_maturity`,
+    ),
+    family_resolution: parseFamilyResolution(
+      row['family_resolution'],
+      `shared/families.csv.${familyId}.family_resolution`,
+    ),
+    coverage_scope_id: parseRequiredString(
+      row['coverage_scope_id'],
+      `shared/families.csv.${familyId}.coverage_scope_id`,
+    ),
+    coverage_scope_label: parseRequiredString(
+      row['coverage_scope_label'],
+      `shared/families.csv.${familyId}.coverage_scope_label`,
+    ),
+    notes: row['notes'] ?? '',
+  };
+}
+
+function toSystemStructureGroupRow(row: Record<string, string>): SystemStructureGroupRow {
+  const groupId = parseRequiredString(row['group_id'], 'shared/system_structure_groups.csv.group_id');
+  return {
+    group_id: groupId,
+    group_label: parseRequiredString(
+      row['group_label'],
+      `shared/system_structure_groups.csv.${groupId}.group_label`,
+    ),
+    display_order: parseRequiredNumber(
+      row['display_order'],
+      `shared/system_structure_groups.csv.${groupId}.display_order`,
+    ),
+    notes: row['notes'] ?? '',
+  };
+}
+
+function toSystemStructureMemberRow(row: Record<string, string>): SystemStructureMemberRow {
+  const familyId = parseRequiredString(row['family_id'], 'shared/system_structure_members.csv.family_id');
+  return {
+    group_id: parseRequiredString(row['group_id'], `shared/system_structure_members.csv.${familyId}.group_id`),
+    family_id: familyId,
+    display_order: parseRequiredNumber(
+      row['display_order'],
+      `shared/system_structure_members.csv.${familyId}.display_order`,
+    ),
+    notes: row['notes'] ?? '',
   };
 }
 
@@ -534,6 +628,9 @@ function toSectorState(
 ): SectorState {
   return {
     family_id: row['family_id'],
+    family_resolution: family.family_resolution,
+    coverage_scope_id: family.coverage_scope_id,
+    coverage_scope_label: family.coverage_scope_label,
     sector: family.sector,
     subsector: family.subsector,
     service_or_output_name: family.service_or_output_name,
@@ -990,6 +1087,106 @@ function buildCarbonPricePresets(
   );
 }
 
+function formatLabelFromId(id: string): string {
+  return id
+    .replaceAll('_', ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (match) => match.toUpperCase());
+}
+
+function buildSystemStructureLookup(
+  groups: SystemStructureGroupRow[],
+  members: SystemStructureMemberRow[],
+): Map<string, SystemStructureMemberLookup> {
+  const groupsById = new Map(groups.map((group) => [group.group_id, group]));
+  const lookup = new Map<string, SystemStructureMemberLookup>();
+
+  for (const member of members) {
+    const group = groupsById.get(member.group_id);
+    if (!group) {
+      continue;
+    }
+
+    lookup.set(member.family_id, {
+      groupId: group.group_id,
+      groupLabel: group.group_label,
+      groupOrder: group.display_order,
+      memberOrder: member.display_order,
+    });
+  }
+
+  return lookup;
+}
+
+function buildOutputRoles(
+  appConfig: AppConfigRegistry,
+  families: FamilyRegistryRow[],
+  groups: SystemStructureGroupRow[],
+  members: SystemStructureMemberRow[],
+): AppConfigRegistry['output_roles'] {
+  const systemLookup = buildSystemStructureLookup(groups, members);
+  const outputRoles = { ...appConfig.output_roles };
+
+  for (const family of families) {
+    if (outputRoles[family.family_id]) {
+      continue;
+    }
+
+    const structure = systemLookup.get(family.family_id);
+    outputRoles[family.family_id] = {
+      output_role: family.output_role,
+      display_label: family.coverage_scope_label || formatLabelFromId(family.family_id),
+      display_group: structure?.groupLabel ?? formatLabelFromId(family.sector),
+      display_group_order: structure?.groupOrder ?? 900,
+      display_order: structure?.memberOrder ?? 900,
+      participates_in_commodity_balance: family.output_role === 'endogenous_supply_commodity',
+      demand_required: family.output_role === 'required_service',
+      default_control_mode: family.output_role === 'endogenous_supply_commodity'
+        ? 'externalized'
+        : 'optimize',
+      allowed_control_modes: family.output_role === 'endogenous_supply_commodity'
+        ? ['optimize', 'externalized']
+        : ['optimize'],
+      explanation_group: structure?.groupId ?? family.sector,
+    };
+  }
+
+  return outputRoles;
+}
+
+function validateSystemStructure(
+  families: FamilyRegistryRow[],
+  groups: SystemStructureGroupRow[],
+  members: SystemStructureMemberRow[],
+): void {
+  const groupIds = new Set(groups.map((group) => group.group_id));
+  const familyIds = new Set(families.map((family) => family.family_id));
+  const seenByFamily = new Map<string, number>();
+
+  for (const member of members) {
+    if (!groupIds.has(member.group_id)) {
+      throw new Error(
+        `Unknown system structure group ${JSON.stringify(member.group_id)} for family ${JSON.stringify(member.family_id)}`,
+      );
+    }
+    if (!familyIds.has(member.family_id)) {
+      throw new Error(`Unknown system structure family ${JSON.stringify(member.family_id)}`);
+    }
+
+    seenByFamily.set(member.family_id, (seenByFamily.get(member.family_id) ?? 0) + 1);
+  }
+
+  for (const family of families) {
+    const count = seenByFamily.get(family.family_id) ?? 0;
+    if (count !== 1) {
+      throw new Error(
+        `Family ${JSON.stringify(family.family_id)} must appear in system_structure_members.csv exactly once; found ${count}.`,
+      );
+    }
+  }
+}
+
 export function loadPackage(): PackageData {
   const appConfig = loadAppConfig();
   if (Object.keys(packageTextFiles).length === 0) {
@@ -1004,6 +1201,9 @@ export function loadPackage(): PackageData {
     );
 
     return {
+      familyMetadata: [],
+      systemStructureGroups: [],
+      systemStructureMembers: [],
       sectorStates: [],
       autonomousEfficiencyTracks: [],
       efficiencyPackages: [],
@@ -1020,6 +1220,19 @@ export function loadPackage(): PackageData {
   }
 
   const families = parseCsv(requirePackageFile('shared/families.csv')).map(toFamilyRegistryRow);
+  const systemStructureGroups = parseCsv(
+    requirePackageFile('shared/system_structure_groups.csv'),
+  ).map(toSystemStructureGroupRow);
+  const systemStructureMembers = parseCsv(
+    requirePackageFile('shared/system_structure_members.csv'),
+  ).map(toSystemStructureMemberRow);
+  validateSystemStructure(families, systemStructureGroups, systemStructureMembers);
+  appConfig.output_roles = buildOutputRoles(
+    appConfig,
+    families,
+    systemStructureGroups,
+    systemStructureMembers,
+  );
   const familyById = new Map(families.map((row) => [row.family_id, row]));
   const sectorStates = listPackageFiles('families/', '/family_states.csv').flatMap((path) => {
     const rows = parseCsv(requirePackageFile(path));
@@ -1094,6 +1307,9 @@ export function loadPackage(): PackageData {
   );
 
   return {
+    familyMetadata: families,
+    systemStructureGroups,
+    systemStructureMembers,
     sectorStates,
     autonomousEfficiencyTracks,
     efficiencyPackages,

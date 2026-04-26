@@ -8,7 +8,12 @@ import {
   SYSTEM_STRUCTURE_GROUPS,
   type ResidualOverlayCatalogEntry,
 } from '../../data/systemStructureModel.ts';
-import type { ConfigurationResidualOverlayControl, ResidualOverlayRow } from '../../data/types.ts';
+import type {
+  ConfigurationResidualOverlayControl,
+  ResidualOverlayRow,
+  SystemStructureGroupRow,
+  SystemStructureMemberRow,
+} from '../../data/types.ts';
 import type { DerivedOutputRunStatus } from '../../solver/solveScope.ts';
 import {
   getRightSidebarStatusPresentation,
@@ -63,6 +68,8 @@ export interface RightSidebarSectorNode extends SectorCatalogEntry {
 export function buildSystemStructureCatalog(
   catalog: SectorCatalogEntry[],
   residualOverlays2025: ResidualOverlayRow[] = [],
+  systemStructureGroups: SystemStructureGroupRow[] = [],
+  systemStructureMembers: SystemStructureMemberRow[] = [],
 ): RightSidebarCatalogEntry[] {
   const subsectorsByOutput = new Map<string, SubsectorCatalogEntry>();
   for (const sectorEntry of catalog) {
@@ -75,29 +82,67 @@ export function buildSystemStructureCatalog(
   const consumedOutputIds = new Set<string>();
   const systemCatalog: RightSidebarCatalogEntry[] = [];
 
-  for (const group of SYSTEM_STRUCTURE_GROUPS) {
-    const subsectors = group.outputIds
-      .map((outputId) => {
-        const subsector = subsectorsByOutput.get(outputId);
-        if (subsector) {
-          consumedOutputIds.add(outputId);
-        }
-        return subsector ?? null;
-      })
-      .filter((subsector): subsector is SubsectorCatalogEntry => subsector != null);
-    const availableResidualIds = group.residualOverlayIds.filter((overlayId) => residualIds.has(overlayId));
+  if (systemStructureGroups.length > 0 && systemStructureMembers.length > 0) {
+    const membersByGroupId = systemStructureMembers.reduce<Map<string, SystemStructureMemberRow[]>>(
+      (result, member) => {
+        const rows = result.get(member.group_id) ?? [];
+        rows.push(member);
+        result.set(member.group_id, rows);
+        return result;
+      },
+      new Map<string, SystemStructureMemberRow[]>(),
+    );
 
-    if (subsectors.length === 0 && availableResidualIds.length === 0) {
-      continue;
+    for (const group of [...systemStructureGroups].sort((left, right) => left.display_order - right.display_order)) {
+      const members = [...(membersByGroupId.get(group.group_id) ?? [])]
+        .sort((left, right) => left.display_order - right.display_order);
+      const subsectors = members
+        .map((member) => {
+          const subsector = subsectorsByOutput.get(member.family_id);
+          if (subsector) {
+            consumedOutputIds.add(member.family_id);
+          }
+          return subsector ?? null;
+        })
+        .filter((subsector): subsector is SubsectorCatalogEntry => subsector != null);
+
+      if (subsectors.length === 0) {
+        continue;
+      }
+
+      systemCatalog.push({
+        sector: group.group_id,
+        systemGroupId: group.group_id,
+        label: group.group_label,
+        residualOverlayIds: [],
+        subsectors,
+      });
     }
+  } else {
+    for (const group of SYSTEM_STRUCTURE_GROUPS) {
+      const subsectors = group.outputIds
+        .map((outputId) => {
+          const subsector = subsectorsByOutput.get(outputId);
+          if (subsector) {
+            consumedOutputIds.add(outputId);
+          }
+          return subsector ?? null;
+        })
+        .filter((subsector): subsector is SubsectorCatalogEntry => subsector != null);
+      const availableResidualIds = group.residualOverlayIds.filter((overlayId) => residualIds.has(overlayId));
 
-    systemCatalog.push({
-      sector: group.id,
-      systemGroupId: group.id,
-      label: group.label,
-      residualOverlayIds: availableResidualIds,
-      subsectors,
-    });
+      if (subsectors.length === 0 && availableResidualIds.length === 0) {
+        continue;
+      }
+
+      systemCatalog.push({
+        sector: group.id,
+        systemGroupId: group.id,
+        label: group.label,
+        residualOverlayIds: availableResidualIds,
+        subsectors,
+      });
+    }
   }
 
   for (const sectorEntry of catalog) {

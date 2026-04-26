@@ -1,0 +1,2 @@
+family_id,anchor_year,anchor_value,unit,demand_growth_curve_id,anchor_status,source_family,coverage_note,notes
+manufacturing_other,2025,1,residual_activity,simple_sector_growth_central__manufacturing_other,derived_residual_stub,Migrated residual calibration layer,Manufacturing other uses a residual_activity anchor of 1; quantities live on the residual incumbent state.,"Growth proxy: low_temperature_heat, medium_temperature_heat, high_temperature_heat, crude_steel, cement_equivalent. Confidence: low."

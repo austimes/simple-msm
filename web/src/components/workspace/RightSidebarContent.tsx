@@ -141,6 +141,7 @@ export default function RightSidebarContent({
             const hasEfficiencyControls = efficiencyControls?.hasControls === true;
             const autonomousEnabled = efficiencyControls?.autonomousTracks.some((track) => track.enabled) ?? false;
             const embodiedStateIdSet = new Set(efficiencyControls?.embodiedStateIds ?? []);
+            const isResidualStub = sub.familyResolution === 'residual_stub';
 
             return (
               <div
@@ -153,8 +154,16 @@ export default function RightSidebarContent({
                 >
                   {sub.outputLabel}
                 </div>
-                {badges.length > 0 && (
+                {(badges.length > 0 || isResidualStub) && (
                   <div className="workspace-subsector-meta">
+                    {isResidualStub && (
+                      <span
+                        className="workspace-mode-badge workspace-mode-badge--warning"
+                        title={sub.coverageScopeLabel ?? sub.outputLabel}
+                      >
+                        Residual stub
+                      </span>
+                    )}
                     {badges.map((badge) => (
                       <span
                         key={badge.key}

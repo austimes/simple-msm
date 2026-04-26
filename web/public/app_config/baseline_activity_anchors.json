@@ -15,6 +15,22 @@
     "unit": "GJ_service_eq",
     "provenance_note": "Australian Energy Update 2025 Table 5 / Table 11 — Aligned to 2023–24 commercial final energy use as the incumbent service-demand anchor."
   },
+  "commercial_other": {
+    "output_role": "required_service",
+    "anchor_kind": "service_demand",
+    "anchor_year": 2025,
+    "value": 1,
+    "unit": "residual_activity",
+    "provenance_note": "Migrated residual calibration layer — Commercial other uses a residual_activity anchor of 1; quantities live on the residual incumbent state."
+  },
+  "construction_other": {
+    "output_role": "required_service",
+    "anchor_kind": "service_demand",
+    "anchor_year": 2025,
+    "value": 1,
+    "unit": "residual_activity",
+    "provenance_note": "Migrated residual calibration layer — Construction other uses a residual_activity anchor of 1; quantities live on the residual incumbent state."
+  },
   "cropping_horticulture_output_bundle": {
     "output_role": "required_service",
     "anchor_kind": "service_demand",
@@ -30,6 +46,14 @@
     "value": 5700000,
     "unit": "t_crude_steel",
     "provenance_note": "Phase 1 reference scenario v0.2 — Inherited crude steel output anchor from the Phase 1 calibration build."
+  },
+  "electricity_grid_losses_own_use": {
+    "output_role": "required_service",
+    "anchor_kind": "service_demand",
+    "anchor_year": 2025,
+    "value": 1,
+    "unit": "residual_activity",
+    "provenance_note": "Migrated residual calibration layer — Electricity grid losses and own-use uses a residual_activity anchor of 1; quantities live on the residual incumbent state."
   },
   "engineered_removals": {
     "output_role": "required_service",
@@ -79,6 +103,14 @@
     "unit": "GJ_useful_heat",
     "provenance_note": "Phase 1 reference scenario v0.2 — Inherited low-temperature useful-heat anchor from the synthetic Phase 1 calibration build; broad manufacturing proxy."
   },
+  "manufacturing_other": {
+    "output_role": "required_service",
+    "anchor_kind": "service_demand",
+    "anchor_year": 2025,
+    "value": 1,
+    "unit": "residual_activity",
+    "provenance_note": "Migrated residual calibration layer — Manufacturing other uses a residual_activity anchor of 1; quantities live on the residual incumbent state."
+  },
   "medium_temperature_heat": {
     "output_role": "required_service",
     "anchor_kind": "service_demand",
@@ -86,6 +118,22 @@
     "value": 140000000,
     "unit": "GJ_useful_heat",
     "provenance_note": "Phase 1 reference scenario v0.2 — Inherited medium-temperature useful-heat anchor from the synthetic Phase 1 calibration build; broad manufacturing proxy."
+  },
+  "mining_other": {
+    "output_role": "required_service",
+    "anchor_kind": "service_demand",
+    "anchor_year": 2025,
+    "value": 1,
+    "unit": "residual_activity",
+    "provenance_note": "Migrated residual calibration layer — Mining other uses a residual_activity anchor of 1; quantities live on the residual incumbent state."
+  },
+  "other_other": {
+    "output_role": "required_service",
+    "anchor_kind": "service_demand",
+    "anchor_year": 2025,
+    "value": 1,
+    "unit": "residual_activity",
+    "provenance_note": "Migrated residual calibration layer — Other sectors residual uses a residual_activity anchor of 1; quantities live on the residual incumbent state."
   },
   "passenger_road_transport": {
     "output_role": "required_service",
@@ -103,12 +151,68 @@
     "unit": "GJ_service_eq",
     "provenance_note": "Australian Energy Update 2025 Table 5 / Table 11 — Aligned to 2023–24 residential final energy use as the incumbent service-demand anchor."
   },
-  "electricity": {
-    "output_role": "endogenous_supply_commodity",
-    "anchor_kind": "external_commodity_demand",
+  "residential_other": {
+    "output_role": "required_service",
+    "anchor_kind": "service_demand",
     "anchor_year": 2025,
-    "value": 144018720,
-    "unit": "MWh",
-    "provenance_note": "Derived = official total generation benchmark - explicit modelled end-use electricity. — Residual electricity-supply output required to reach total generation, covering omitted-sector final demand plus losses/own-use."
+    "value": 1,
+    "unit": "residual_activity",
+    "provenance_note": "Migrated residual calibration layer — Residential other uses a residual_activity anchor of 1; quantities live on the residual incumbent state."
+  },
+  "residual_agriculture_other": {
+    "output_role": "required_service",
+    "anchor_kind": "service_demand",
+    "anchor_year": 2025,
+    "value": 1,
+    "unit": "residual_activity",
+    "provenance_note": "Migrated residual calibration layer — Residual agriculture other uses a residual_activity anchor of 1; quantities live on the residual incumbent state."
+  },
+  "residual_fugitives": {
+    "output_role": "required_service",
+    "anchor_kind": "service_demand",
+    "anchor_year": 2025,
+    "value": 1,
+    "unit": "residual_activity",
+    "provenance_note": "Migrated residual calibration layer — Residual fugitive emissions uses a residual_activity anchor of 1; quantities live on the residual incumbent state."
+  },
+  "residual_ippu_other": {
+    "output_role": "required_service",
+    "anchor_kind": "service_demand",
+    "anchor_year": 2025,
+    "value": 1,
+    "unit": "residual_activity",
+    "provenance_note": "Migrated residual calibration layer — Residual IPPU other uses a residual_activity anchor of 1; quantities live on the residual incumbent state."
+  },
+  "residual_lulucf_sink": {
+    "output_role": "required_service",
+    "anchor_kind": "service_demand",
+    "anchor_year": 2025,
+    "value": 1,
+    "unit": "residual_activity",
+    "provenance_note": "Migrated residual calibration layer — Residual LULUCF sink uses a residual_activity anchor of 1; quantities live on the residual incumbent state."
+  },
+  "residual_waste": {
+    "output_role": "required_service",
+    "anchor_kind": "service_demand",
+    "anchor_year": 2025,
+    "value": 1,
+    "unit": "residual_activity",
+    "provenance_note": "Migrated residual calibration layer — Residual waste emissions uses a residual_activity anchor of 1; quantities live on the residual incumbent state."
+  },
+  "transport_other": {
+    "output_role": "required_service",
+    "anchor_kind": "service_demand",
+    "anchor_year": 2025,
+    "value": 1,
+    "unit": "residual_activity",
+    "provenance_note": "Migrated residual calibration layer — Transport other uses a residual_activity anchor of 1; quantities live on the residual incumbent state."
+  },
+  "water_waste_other": {
+    "output_role": "required_service",
+    "anchor_kind": "service_demand",
+    "anchor_year": 2025,
+    "value": 1,
+    "unit": "residual_activity",
+    "provenance_note": "Migrated residual calibration layer — Water and waste other uses a residual_activity anchor of 1; quantities live on the residual incumbent state."
   }
 }

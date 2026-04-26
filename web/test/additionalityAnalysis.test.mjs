@@ -233,7 +233,7 @@ describe('additionality analysis', () => {
   test('derives the expected state-toggle atoms for reference-baseline vs synthetic state-open target', () => {
     const atoms = deriveAdditionalityAtoms(buildBaseCase(), buildStateOpenCase(), pkg);
 
-    assert.equal(atoms.length, 24);
+    assert.equal(atoms.length, 25);
     assert.deepEqual(
       atoms.map((atom) => `${atom.outputLabel}|${atom.stateLabel}|${atom.action}`),
       [
@@ -261,6 +261,7 @@ describe('additionality analysis', () => {
         'Passenger road transport|Hybrid-heavy passenger road fleet|enable',
         'Residential building services|Deep-electric residential services|enable',
         'Residential building services|Electrified efficient residential services|enable',
+        'Residual LULUCF sink|Residual incumbent|enable',
       ],
     );
   });

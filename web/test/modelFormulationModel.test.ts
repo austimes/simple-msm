@@ -66,19 +66,21 @@ describe('modelFormulationModel', () => {
     assert.match(model.objectiveExample.note, /double counting/i);
   });
 
-  test('keeps overlay totals and overlay source mapping explicitly outside LP inputs', () => {
+  test('summarizes residual families as first-class LP inputs', () => {
     const fixture = loadFormulationFixtureData();
     const model = buildModelFormulationViewModel(fixture);
 
     assert.ok(model.overlaySummary.totalResidualEnergyPj > 0);
     assert.ok(model.overlaySummary.totalResidualNonEnergyEmissions > 0);
+    assert.ok((model.overlaySummary.residualFinalElectricityTwh ?? 0) > 100);
+    assert.ok((model.overlaySummary.gridLossesOwnUseElectricityTwh ?? 0) > 40);
 
-    const overlayMapping = model.sourceMapping.find(
-      (row) => row.source === 'overlays/residual_overlays.csv',
+    const residualMapping = model.sourceMapping.find(
+      (row) => row.source === 'residual-stub families',
     );
 
-    assert.ok(overlayMapping, 'expected residual overlay source mapping row');
-    assert.match(overlayMapping.mapsTo, /not LP variables/i);
-    assert.match(overlayMapping.howItEnters, /outside buildSolveRequest\.ts and lpAdapter\.ts/i);
+    assert.ok(residualMapping, 'expected residual family source mapping row');
+    assert.match(residualMapping.mapsTo, /LP activity variables/i);
+    assert.match(residualMapping.howItEnters, /same family\/state\/demand path/i);
   });
 });

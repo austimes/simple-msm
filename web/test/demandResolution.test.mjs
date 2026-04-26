@@ -42,7 +42,7 @@ test('reference configuration demand metadata reproduces the stored demand table
 
   assert.deepEqual(
     resolved.external_commodity_demands,
-    referenceConfiguration.external_commodity_demands,
+    referenceConfiguration.external_commodity_demands ?? {},
   );
   assert.equal(
     appConfig.demand_growth_presets[resolved.demand_generation.preset_id].provenance_note,

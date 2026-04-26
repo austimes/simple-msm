@@ -3,23 +3,38 @@
     "label": "Flat from 2025",
     "description": "Keeps each service demand at its 2025 anchor across all milestone years.",
     "annual_growth_rates_pct_per_year": {
-      "residential_building_services": 0,
+      "cement_equivalent": 0,
       "commercial_building_services": 0,
-      "passenger_road_transport": 0,
+      "commercial_other": 0,
+      "construction_other": 0,
+      "cropping_horticulture_output_bundle": 0,
+      "crude_steel": 0,
+      "electricity": 0,
+      "electricity_grid_losses_own_use": 0,
+      "engineered_removals": 0,
       "freight_road_transport": 0,
+      "high_temperature_heat": 0,
+      "land_sequestration": 0,
+      "livestock_output_bundle": 0,
       "low_temperature_heat": 0,
+      "manufacturing_other": 0,
       "medium_temperature_heat": 0,
-      "high_temperature_heat": 0,
-      "crude_steel": 0,
-      "cement_equivalent": 0,
-      "livestock_output_bundle": 0,
-      "cropping_horticulture_output_bundle": 0
+      "mining_other": 0,
+      "other_other": 0,
+      "passenger_road_transport": 0,
+      "residential_building_services": 0,
+      "residential_other": 0,
+      "residual_agriculture_other": 0,
+      "residual_fugitives": 0,
+      "residual_ippu_other": 0,
+      "residual_lulucf_sink": 0,
+      "residual_waste": 0,
+      "transport_other": 0,
+      "water_waste_other": 0
     },
-    "external_commodity_growth_rates_pct_per_year": {
-      "electricity": 0
-    },
+    "external_commodity_growth_rates_pct_per_year": {},
     "milestone_multipliers_by_output": {
-      "residential_building_services": {
+      "cement_equivalent": {
         "2025": 1,
         "2030": 1,
         "2035": 1,
@@ -35,7 +50,7 @@
         "2045": 1,
         "2050": 1
       },
-      "passenger_road_transport": {
+      "commercial_other": {
         "2025": 1,
         "2030": 1,
         "2035": 1,
@@ -43,7 +58,7 @@
         "2045": 1,
         "2050": 1
       },
-      "freight_road_transport": {
+      "construction_other": {
         "2025": 1,
         "2030": 1,
         "2035": 1,
@@ -51,23 +66,7 @@
         "2045": 1,
         "2050": 1
       },
-      "low_temperature_heat": {
-        "2025": 1,
-        "2030": 1,
-        "2035": 1,
-        "2040": 1,
-        "2045": 1,
-        "2050": 1
-      },
-      "medium_temperature_heat": {
-        "2025": 1,
-        "2030": 1,
-        "2035": 1,
-        "2040": 1,
-        "2045": 1,
-        "2050": 1
-      },
-      "high_temperature_heat": {
+      "cropping_horticulture_output_bundle": {
         "2025": 1,
         "2030": 1,
         "2035": 1,
@@ -83,7 +82,47 @@
         "2045": 1,
         "2050": 1
       },
-      "cement_equivalent": {
+      "electricity": {
+        "2025": 1,
+        "2030": 1,
+        "2035": 1,
+        "2040": 1,
+        "2045": 1,
+        "2050": 1
+      },
+      "electricity_grid_losses_own_use": {
+        "2025": 1,
+        "2030": 1,
+        "2035": 1,
+        "2040": 1,
+        "2045": 1,
+        "2050": 1
+      },
+      "engineered_removals": {
+        "2025": 1,
+        "2030": 1,
+        "2035": 1,
+        "2040": 1,
+        "2045": 1,
+        "2050": 1
+      },
+      "freight_road_transport": {
+        "2025": 1,
+        "2030": 1,
+        "2035": 1,
+        "2040": 1,
+        "2045": 1,
+        "2050": 1
+      },
+      "high_temperature_heat": {
+        "2025": 1,
+        "2030": 1,
+        "2035": 1,
+        "2040": 1,
+        "2045": 1,
+        "2050": 1
+      },
+      "land_sequestration": {
         "2025": 1,
         "2030": 1,
         "2035": 1,
@@ -99,96 +138,63 @@
         "2045": 1,
         "2050": 1
       },
-      "cropping_horticulture_output_bundle": {
+      "low_temperature_heat": {
         "2025": 1,
         "2030": 1,
         "2035": 1,
         "2040": 1,
         "2045": 1,
         "2050": 1
-      }
-    },
-    "milestone_multipliers_by_external_commodity": {
-      "electricity": {
+      },
+      "manufacturing_other": {
         "2025": 1,
         "2030": 1,
         "2035": 1,
         "2040": 1,
         "2045": 1,
         "2050": 1
-      }
-    },
-    "provenance_note": "App-owned convenience preset. Not part of the research library evidence."
-  },
-  "simple_sector_growth_low": {
-    "label": "Simple sector growth - low",
-    "description": "A conservative growth preset for quick configuration setup.",
-    "annual_growth_rates_pct_per_year": {
-      "residential_building_services": 0.2,
-      "commercial_building_services": 0.4,
-      "passenger_road_transport": 0.3,
-      "freight_road_transport": 0.7,
-      "low_temperature_heat": 0.1,
-      "medium_temperature_heat": 0.1,
-      "high_temperature_heat": 0,
-      "crude_steel": 0,
-      "cement_equivalent": 0,
-      "livestock_output_bundle": 0,
-      "cropping_horticulture_output_bundle": 0.1
-    },
-    "external_commodity_growth_rates_pct_per_year": {
-      "electricity": 0
-    },
-    "milestone_multipliers_by_output": {
+      },
+      "medium_temperature_heat": {
+        "2025": 1,
+        "2030": 1,
+        "2035": 1,
+        "2040": 1,
+        "2045": 1,
+        "2050": 1
+      },
+      "mining_other": {
+        "2025": 1,
+        "2030": 1,
+        "2035": 1,
+        "2040": 1,
+        "2045": 1,
+        "2050": 1
+      },
+      "other_other": {
+        "2025": 1,
+        "2030": 1,
+        "2035": 1,
+        "2040": 1,
+        "2045": 1,
+        "2050": 1
+      },
+      "passenger_road_transport": {
+        "2025": 1,
+        "2030": 1,
+        "2035": 1,
+        "2040": 1,
+        "2045": 1,
+        "2050": 1
+      },
       "residential_building_services": {
         "2025": 1,
-        "2030": 1.01004008,
-        "2035": 1.020180963,
-        "2040": 1.030423662,
-        "2045": 1.040769198,
-        "2050": 1.051218604
+        "2030": 1,
+        "2035": 1,
+        "2040": 1,
+        "2045": 1,
+        "2050": 1
       },
-      "commercial_building_services": {
-        "2025": 1,
-        "2030": 1.020160641,
-        "2035": 1.040727734,
-        "2040": 1.061709473,
-        "2045": 1.083114216,
-        "2050": 1.104950494
-      },
-      "passenger_road_transport": {
-        "2025": 1,
-        "2030": 1.01509027,
-        "2035": 1.030408257,
-        "2040": 1.045957396,
-        "2045": 1.061741176,
-        "2050": 1.077763138
-      },
-      "freight_road_transport": {
-        "2025": 1,
-        "2030": 1.035493442,
-        "2035": 1.072246668,
-        "2040": 1.110304393,
-        "2045": 1.149712918,
-        "2050": 1.190520187
-      },
-      "low_temperature_heat": {
-        "2025": 1,
-        "2030": 1.00501001,
-        "2035": 1.01004512,
-        "2040": 1.015105456,
-        "2045": 1.020191145,
-        "2050": 1.025302313
-      },
-      "medium_temperature_heat": {
-        "2025": 1,
-        "2030": 1.00501001,
-        "2035": 1.01004512,
-        "2040": 1.015105456,
-        "2045": 1.020191145,
-        "2050": 1.025302313
-      },
-      "high_temperature_heat": {
+      "residential_other": {
         "2025": 1,
         "2030": 1,
         "2035": 1,
@@ -196,7 +202,7 @@
         "2045": 1,
         "2050": 1
       },
-      "crude_steel": {
+      "residual_agriculture_other": {
         "2025": 1,
         "2030": 1,
         "2035": 1,
@@ -204,7 +210,7 @@
         "2045": 1,
         "2050": 1
       },
-      "cement_equivalent": {
+      "residual_fugitives": {
         "2025": 1,
         "2030": 1,
         "2035": 1,
@@ -212,7 +218,7 @@
         "2045": 1,
         "2050": 1
       },
-      "livestock_output_bundle": {
+      "residual_ippu_other": {
         "2025": 1,
         "2030": 1,
         "2035": 1,
@@ -220,17 +226,31 @@
         "2045": 1,
         "2050": 1
       },
-      "cropping_horticulture_output_bundle": {
+      "residual_lulucf_sink": {
         "2025": 1,
-        "2030": 1.00501001,
-        "2035": 1.01004512,
-        "2040": 1.015105456,
-        "2045": 1.020191145,
-        "2050": 1.025302313
-      }
-    },
-    "milestone_multipliers_by_external_commodity": {
-      "electricity": {
+        "2030": 1,
+        "2035": 1,
+        "2040": 1,
+        "2045": 1,
+        "2050": 1
+      },
+      "residual_waste": {
+        "2025": 1,
+        "2030": 1,
+        "2035": 1,
+        "2040": 1,
+        "2045": 1,
+        "2050": 1
+      },
+      "transport_other": {
+        "2025": 1,
+        "2030": 1,
+        "2035": 1,
+        "2040": 1,
+        "2045": 1,
+        "2050": 1
+      },
+      "water_waste_other": {
         "2025": 1,
         "2030": 1,
         "2035": 1,
@@ -239,35 +259,44 @@
         "2050": 1
       }
     },
+    "milestone_multipliers_by_external_commodity": {},
     "provenance_note": "App-owned convenience preset. Not part of the research library evidence."
   },
   "simple_sector_growth_central": {
     "label": "Simple sector growth - central",
     "description": "Default built-in growth preset by sector or service for fast exploration. Values are modest and intentionally generic.",
     "annual_growth_rates_pct_per_year": {
-      "residential_building_services": 0.6,
+      "cement_equivalent": 0.3,
       "commercial_building_services": 0.9,
-      "passenger_road_transport": 0.8,
+      "commercial_other": 0.9,
+      "construction_other": 0,
+      "cropping_horticulture_output_bundle": 0.3,
+      "crude_steel": 0.4,
+      "electricity_grid_losses_own_use": 0.2,
       "freight_road_transport": 1.2,
+      "high_temperature_heat": 0.4,
+      "livestock_output_bundle": 0.2,
       "low_temperature_heat": 0.5,
       "medium_temperature_heat": 0.5,
-      "high_temperature_heat": 0.4,
-      "crude_steel": 0.4,
-      "cement_equivalent": 0.3,
-      "livestock_output_bundle": 0.2,
-      "cropping_horticulture_output_bundle": 0.3
+      "mining_other": 0,
+      "other_other": 0,
+      "passenger_road_transport": 0.8,
+      "residential_building_services": 0.6,
+      "residential_other": 0.6,
+      "residual_fugitives": 0,
+      "residual_lulucf_sink": 0,
+      "residual_waste": 0,
+      "water_waste_other": 0
     },
-    "external_commodity_growth_rates_pct_per_year": {
-      "electricity": 0.2
-    },
+    "external_commodity_growth_rates_pct_per_year": {},
     "milestone_multipliers_by_output": {
-      "residential_building_services": {
+      "cement_equivalent": {
         "2025": 1,
-        "2030": 1.030362166,
-        "2035": 1.061646194,
-        "2040": 1.093880073,
-        "2045": 1.127092642,
-        "2050": 1.161313616
+        "2030": 1.01509027,
+        "2035": 1.030408257,
+        "2040": 1.045957396,
+        "2045": 1.061741176,
+        "2050": 1.077763138
       },
       "commercial_building_services": {
         "2025": 1,
@@ -277,45 +306,29 @@
         "2045": 1.196253785,
         "2050": 1.25106293
       },
-      "passenger_road_transport": {
+      "commercial_other": {
         "2025": 1,
-        "2030": 1.040645141,
-        "2035": 1.082942308,
-        "2040": 1.126958651,
-        "2045": 1.172764043,
-        "2050": 1.220431203
+        "2030": 1.045817323,
+        "2035": 1.093733873,
+        "2040": 1.143845831,
+        "2045": 1.196253785,
+        "2050": 1.25106293
       },
-      "freight_road_transport": {
+      "construction_other": {
         "2025": 1,
-        "2030": 1.061457384,
-        "2035": 1.126691778,
-        "2040": 1.195935307,
-        "2045": 1.269434362,
-        "2050": 1.347450477
+        "2030": 1,
+        "2035": 1,
+        "2040": 1,
+        "2045": 1,
+        "2050": 1
       },
-      "low_temperature_heat": {
+      "cropping_horticulture_output_bundle": {
         "2025": 1,
-        "2030": 1.025251253,
-        "2035": 1.051140132,
-        "2040": 1.077682738,
-        "2045": 1.104895577,
-        "2050": 1.132795575
-      },
-      "medium_temperature_heat": {
-        "2025": 1,
-        "2030": 1.025251253,
-        "2035": 1.051140132,
-        "2040": 1.077682738,
-        "2045": 1.104895577,
-        "2050": 1.132795575
-      },
-      "high_temperature_heat": {
-        "2025": 1,
-        "2030": 1.020160641,
-        "2035": 1.040727734,
-        "2040": 1.061709473,
-        "2045": 1.083114216,
-        "2050": 1.104950494
+        "2030": 1.01509027,
+        "2035": 1.030408257,
+        "2040": 1.045957396,
+        "2045": 1.061741176,
+        "2050": 1.077763138
       },
       "crude_steel": {
         "2025": 1,
@@ -325,13 +338,29 @@
         "2045": 1.083114216,
         "2050": 1.104950494
       },
-      "cement_equivalent": {
+      "electricity_grid_losses_own_use": {
         "2025": 1,
-        "2030": 1.01509027,
-        "2035": 1.030408257,
-        "2040": 1.045957396,
-        "2045": 1.061741176,
-        "2050": 1.077763138
+        "2030": 1.01004008,
+        "2035": 1.020180963,
+        "2040": 1.030423662,
+        "2045": 1.040769198,
+        "2050": 1.051218604
+      },
+      "freight_road_transport": {
+        "2025": 1,
+        "2030": 1.061457384,
+        "2035": 1.126691778,
+        "2040": 1.195935307,
+        "2045": 1.269434362,
+        "2050": 1.347450477
+      },
+      "high_temperature_heat": {
+        "2025": 1,
+        "2030": 1.020160641,
+        "2035": 1.040727734,
+        "2040": 1.061709473,
+        "2045": 1.083114216,
+        "2050": 1.104950494
       },
       "livestock_output_bundle": {
         "2025": 1,
@@ -341,54 +370,165 @@
         "2045": 1.040769198,
         "2050": 1.051218604
       },
-      "cropping_horticulture_output_bundle": {
+      "low_temperature_heat": {
         "2025": 1,
-        "2030": 1.01509027,
-        "2035": 1.030408257,
-        "2040": 1.045957396,
-        "2045": 1.061741176,
-        "2050": 1.077763138
+        "2030": 1.025251253,
+        "2035": 1.051140132,
+        "2040": 1.077682738,
+        "2045": 1.104895577,
+        "2050": 1.132795575
+      },
+      "manufacturing_other": {
+        "2025": 1,
+        "2030": 1.021182812,
+        "2035": 1.042828798,
+        "2040": 1.064948364,
+        "2045": 1.087552152,
+        "2050": 1.110651055
+      },
+      "medium_temperature_heat": {
+        "2025": 1,
+        "2030": 1.025251253,
+        "2035": 1.051140132,
+        "2040": 1.077682738,
+        "2045": 1.104895577,
+        "2050": 1.132795575
+      },
+      "mining_other": {
+        "2025": 1,
+        "2030": 1,
+        "2035": 1,
+        "2040": 1,
+        "2045": 1,
+        "2050": 1
+      },
+      "other_other": {
+        "2025": 1,
+        "2030": 1,
+        "2035": 1,
+        "2040": 1,
+        "2045": 1,
+        "2050": 1
+      },
+      "passenger_road_transport": {
+        "2025": 1,
+        "2030": 1.040645141,
+        "2035": 1.082942308,
+        "2040": 1.126958651,
+        "2045": 1.172764043,
+        "2050": 1.220431203
+      },
+      "residential_building_services": {
+        "2025": 1,
+        "2030": 1.030362166,
+        "2035": 1.061646194,
+        "2040": 1.093880073,
+        "2045": 1.127092642,
+        "2050": 1.161313616
+      },
+      "residential_other": {
+        "2025": 1,
+        "2030": 1.030362166,
+        "2035": 1.061646194,
+        "2040": 1.093880073,
+        "2045": 1.127092642,
+        "2050": 1.161313616
+      },
+      "residual_agriculture_other": {
+        "2025": 1,
+        "2030": 1.012565175,
+        "2035": 1.02529461,
+        "2040": 1.038190529,
+        "2045": 1.051255187,
+        "2050": 1.064490871
+      },
+      "residual_fugitives": {
+        "2025": 1,
+        "2030": 1,
+        "2035": 1,
+        "2040": 1,
+        "2045": 1,
+        "2050": 1
+      },
+      "residual_ippu_other": {
+        "2025": 1,
+        "2030": 1.021182812,
+        "2035": 1.042828798,
+        "2040": 1.064948364,
+        "2045": 1.087552152,
+        "2050": 1.110651055
+      },
+      "residual_lulucf_sink": {
+        "2025": 1,
+        "2030": 1,
+        "2035": 1,
+        "2040": 1,
+        "2045": 1,
+        "2050": 1
+      },
+      "residual_waste": {
+        "2025": 1,
+        "2030": 1,
+        "2035": 1,
+        "2040": 1,
+        "2045": 1,
+        "2050": 1
+      },
+      "transport_other": {
+        "2025": 1,
+        "2030": 1.051051262,
+        "2035": 1.104817043,
+        "2040": 1.161446979,
+        "2045": 1.221099203,
+        "2050": 1.28394084
+      },
+      "water_waste_other": {
+        "2025": 1,
+        "2030": 1,
+        "2035": 1,
+        "2040": 1,
+        "2045": 1,
+        "2050": 1
       }
     },
-    "milestone_multipliers_by_external_commodity": {
-      "electricity": {
-        "2025": 1,
-        "2030": 1.01004008,
-        "2035": 1.020180963,
-        "2040": 1.030423662,
-        "2045": 1.040769198,
-        "2050": 1.051218604
-      }
-    },
+    "milestone_multipliers_by_external_commodity": {},
     "provenance_note": "App-owned convenience preset. Not part of the research library evidence."
   },
   "simple_sector_growth_high": {
     "label": "Simple sector growth - high",
     "description": "A stronger demand-growth preset for sensitivity testing.",
     "annual_growth_rates_pct_per_year": {
-      "residential_building_services": 1,
+      "cement_equivalent": 0.7,
       "commercial_building_services": 1.4,
-      "passenger_road_transport": 1.2,
+      "commercial_other": 1.4,
+      "construction_other": 0,
+      "cropping_horticulture_output_bundle": 0.6,
+      "crude_steel": 0.8,
+      "electricity_grid_losses_own_use": 0.5,
       "freight_road_transport": 1.7,
+      "high_temperature_heat": 0.8,
+      "livestock_output_bundle": 0.5,
       "low_temperature_heat": 0.9,
       "medium_temperature_heat": 0.9,
-      "high_temperature_heat": 0.8,
-      "crude_steel": 0.8,
-      "cement_equivalent": 0.7,
-      "livestock_output_bundle": 0.5,
-      "cropping_horticulture_output_bundle": 0.6
+      "mining_other": 0,
+      "other_other": 0,
+      "passenger_road_transport": 1.2,
+      "residential_building_services": 1,
+      "residential_other": 1,
+      "residual_fugitives": 0,
+      "residual_lulucf_sink": 0,
+      "residual_waste": 0,
+      "water_waste_other": 0
     },
-    "external_commodity_growth_rates_pct_per_year": {
-      "electricity": 0.5
-    },
+    "external_commodity_growth_rates_pct_per_year": {},
     "milestone_multipliers_by_output": {
-      "residential_building_services": {
+      "cement_equivalent": {
         "2025": 1,
-        "2030": 1.05101005,
-        "2035": 1.104622125,
-        "2040": 1.160968955,
-        "2045": 1.22019004,
-        "2050": 1.282431995
+        "2030": 1.035493442,
+        "2035": 1.072246668,
+        "2040": 1.110304393,
+        "2045": 1.149712918,
+        "2050": 1.190520187
       },
       "commercial_building_services": {
         "2025": 1,
@@ -398,45 +538,29 @@
         "2045": 1.320562924,
         "2050": 1.415627123
       },
-      "passenger_road_transport": {
+      "commercial_other": {
         "2025": 1,
-        "2030": 1.061457384,
-        "2035": 1.126691778,
-        "2040": 1.195935307,
-        "2045": 1.269434362,
-        "2050": 1.347450477
+        "2030": 1.071987633,
+        "2035": 1.149157484,
+        "2040": 1.231882611,
+        "2045": 1.320562924,
+        "2050": 1.415627123
       },
-      "freight_road_transport": {
+      "construction_other": {
         "2025": 1,
-        "2030": 1.087939549,
-        "2035": 1.183612462,
-        "2040": 1.287698808,
-        "2045": 1.400938461,
-        "2050": 1.524136357
+        "2030": 1,
+        "2035": 1,
+        "2040": 1,
+        "2045": 1,
+        "2050": 1
       },
-      "low_temperature_heat": {
+      "cropping_horticulture_output_bundle": {
         "2025": 1,
-        "2030": 1.045817323,
-        "2035": 1.093733873,
-        "2040": 1.143845831,
-        "2045": 1.196253785,
-        "2050": 1.25106293
-      },
-      "medium_temperature_heat": {
-        "2025": 1,
-        "2030": 1.045817323,
-        "2035": 1.093733873,
-        "2040": 1.143845831,
-        "2045": 1.196253785,
-        "2050": 1.25106293
-      },
-      "high_temperature_heat": {
-        "2025": 1,
-        "2030": 1.040645141,
-        "2035": 1.082942308,
-        "2040": 1.126958651,
-        "2045": 1.172764043,
-        "2050": 1.220431203
+        "2030": 1.030362166,
+        "2035": 1.061646194,
+        "2040": 1.093880073,
+        "2045": 1.127092642,
+        "2050": 1.161313616
       },
       "crude_steel": {
         "2025": 1,
@@ -446,13 +570,29 @@
         "2045": 1.172764043,
         "2050": 1.220431203
       },
-      "cement_equivalent": {
+      "electricity_grid_losses_own_use": {
         "2025": 1,
-        "2030": 1.035493442,
-        "2035": 1.072246668,
-        "2040": 1.110304393,
-        "2045": 1.149712918,
-        "2050": 1.190520187
+        "2030": 1.025251253,
+        "2035": 1.051140132,
+        "2040": 1.077682738,
+        "2045": 1.104895577,
+        "2050": 1.132795575
+      },
+      "freight_road_transport": {
+        "2025": 1,
+        "2030": 1.087939549,
+        "2035": 1.183612462,
+        "2040": 1.287698808,
+        "2045": 1.400938461,
+        "2050": 1.524136357
+      },
+      "high_temperature_heat": {
+        "2025": 1,
+        "2030": 1.040645141,
+        "2035": 1.082942308,
+        "2040": 1.126958651,
+        "2045": 1.172764043,
+        "2050": 1.220431203
       },
       "livestock_output_bundle": {
         "2025": 1,
@@ -462,25 +602,360 @@
         "2045": 1.104895577,
         "2050": 1.132795575
       },
+      "low_temperature_heat": {
+        "2025": 1,
+        "2030": 1.045817323,
+        "2035": 1.093733873,
+        "2040": 1.143845831,
+        "2045": 1.196253785,
+        "2050": 1.25106293
+      },
+      "manufacturing_other": {
+        "2025": 1,
+        "2030": 1.041683674,
+        "2035": 1.085119806,
+        "2040": 1.130382671,
+        "2045": 1.177549715,
+        "2050": 1.226701691
+      },
+      "medium_temperature_heat": {
+        "2025": 1,
+        "2030": 1.045817323,
+        "2035": 1.093733873,
+        "2040": 1.143845831,
+        "2045": 1.196253785,
+        "2050": 1.25106293
+      },
+      "mining_other": {
+        "2025": 1,
+        "2030": 1,
+        "2035": 1,
+        "2040": 1,
+        "2045": 1,
+        "2050": 1
+      },
+      "other_other": {
+        "2025": 1,
+        "2030": 1,
+        "2035": 1,
+        "2040": 1,
+        "2045": 1,
+        "2050": 1
+      },
+      "passenger_road_transport": {
+        "2025": 1,
+        "2030": 1.061457384,
+        "2035": 1.126691778,
+        "2040": 1.195935307,
+        "2045": 1.269434362,
+        "2050": 1.347450477
+      },
+      "residential_building_services": {
+        "2025": 1,
+        "2030": 1.05101005,
+        "2035": 1.104622125,
+        "2040": 1.160968955,
+        "2045": 1.22019004,
+        "2050": 1.282431995
+      },
+      "residential_other": {
+        "2025": 1,
+        "2030": 1.05101005,
+        "2035": 1.104622125,
+        "2040": 1.160968955,
+        "2045": 1.22019004,
+        "2050": 1.282431995
+      },
+      "residual_agriculture_other": {
+        "2025": 1,
+        "2030": 1.02780671,
+        "2035": 1.056393163,
+        "2040": 1.085781406,
+        "2045": 1.115994109,
+        "2050": 1.147054595
+      },
+      "residual_fugitives": {
+        "2025": 1,
+        "2030": 1,
+        "2035": 1,
+        "2040": 1,
+        "2045": 1,
+        "2050": 1
+      },
+      "residual_ippu_other": {
+        "2025": 1,
+        "2030": 1.041683674,
+        "2035": 1.085119806,
+        "2040": 1.130382671,
+        "2045": 1.177549715,
+        "2050": 1.226701691
+      },
+      "residual_lulucf_sink": {
+        "2025": 1,
+        "2030": 1,
+        "2035": 1,
+        "2040": 1,
+        "2045": 1,
+        "2050": 1
+      },
+      "residual_waste": {
+        "2025": 1,
+        "2030": 1,
+        "2035": 1,
+        "2040": 1,
+        "2045": 1,
+        "2050": 1
+      },
+      "transport_other": {
+        "2025": 1,
+        "2030": 1.074698466,
+        "2035": 1.15515212,
+        "2040": 1.241817058,
+        "2045": 1.335186412,
+        "2050": 1.435793417
+      },
+      "water_waste_other": {
+        "2025": 1,
+        "2030": 1,
+        "2035": 1,
+        "2040": 1,
+        "2045": 1,
+        "2050": 1
+      }
+    },
+    "milestone_multipliers_by_external_commodity": {},
+    "provenance_note": "App-owned convenience preset. Not part of the research library evidence."
+  },
+  "simple_sector_growth_low": {
+    "label": "Simple sector growth - low",
+    "description": "A conservative growth preset for quick configuration setup.",
+    "annual_growth_rates_pct_per_year": {
+      "cement_equivalent": 0,
+      "commercial_building_services": 0.4,
+      "commercial_other": 0.4,
+      "construction_other": 0,
+      "cropping_horticulture_output_bundle": 0.1,
+      "crude_steel": 0,
+      "electricity_grid_losses_own_use": 0,
+      "freight_road_transport": 0.7,
+      "high_temperature_heat": 0,
+      "livestock_output_bundle": 0,
+      "low_temperature_heat": 0.1,
+      "medium_temperature_heat": 0.1,
+      "mining_other": 0,
+      "other_other": 0,
+      "passenger_road_transport": 0.3,
+      "residential_building_services": 0.2,
+      "residential_other": 0.2,
+      "residual_fugitives": 0,
+      "residual_lulucf_sink": 0,
+      "residual_waste": 0,
+      "water_waste_other": 0
+    },
+    "external_commodity_growth_rates_pct_per_year": {},
+    "milestone_multipliers_by_output": {
+      "cement_equivalent": {
+        "2025": 1,
+        "2030": 1,
+        "2035": 1,
+        "2040": 1,
+        "2045": 1,
+        "2050": 1
+      },
+      "commercial_building_services": {
+        "2025": 1,
+        "2030": 1.020160641,
+        "2035": 1.040727734,
+        "2040": 1.061709473,
+        "2045": 1.083114216,
+        "2050": 1.104950494
+      },
+      "commercial_other": {
+        "2025": 1,
+        "2030": 1.020160641,
+        "2035": 1.040727734,
+        "2040": 1.061709473,
+        "2045": 1.083114216,
+        "2050": 1.104950494
+      },
+      "construction_other": {
+        "2025": 1,
+        "2030": 1,
+        "2035": 1,
+        "2040": 1,
+        "2045": 1,
+        "2050": 1
+      },
       "cropping_horticulture_output_bundle": {
         "2025": 1,
-        "2030": 1.030362166,
-        "2035": 1.061646194,
-        "2040": 1.093880073,
-        "2045": 1.127092642,
-        "2050": 1.161313616
-      }
-    },
-    "milestone_multipliers_by_external_commodity": {
-      "electricity": {
+        "2030": 1.00501001,
+        "2035": 1.01004512,
+        "2040": 1.015105456,
+        "2045": 1.020191145,
+        "2050": 1.025302313
+      },
+      "crude_steel": {
         "2025": 1,
-        "2030": 1.025251253,
-        "2035": 1.051140132,
-        "2040": 1.077682738,
-        "2045": 1.104895577,
-        "2050": 1.132795575
+        "2030": 1,
+        "2035": 1,
+        "2040": 1,
+        "2045": 1,
+        "2050": 1
+      },
+      "electricity_grid_losses_own_use": {
+        "2025": 1,
+        "2030": 1,
+        "2035": 1,
+        "2040": 1,
+        "2045": 1,
+        "2050": 1
+      },
+      "freight_road_transport": {
+        "2025": 1,
+        "2030": 1.035493442,
+        "2035": 1.072246668,
+        "2040": 1.110304393,
+        "2045": 1.149712918,
+        "2050": 1.190520187
+      },
+      "high_temperature_heat": {
+        "2025": 1,
+        "2030": 1,
+        "2035": 1,
+        "2040": 1,
+        "2045": 1,
+        "2050": 1
+      },
+      "livestock_output_bundle": {
+        "2025": 1,
+        "2030": 1,
+        "2035": 1,
+        "2040": 1,
+        "2045": 1,
+        "2050": 1
+      },
+      "low_temperature_heat": {
+        "2025": 1,
+        "2030": 1.00501001,
+        "2035": 1.01004512,
+        "2040": 1.015105456,
+        "2045": 1.020191145,
+        "2050": 1.025302313
+      },
+      "manufacturing_other": {
+        "2025": 1,
+        "2030": 1.002004004,
+        "2035": 1.004018048,
+        "2040": 1.006042182,
+        "2045": 1.008076458,
+        "2050": 1.010120925
+      },
+      "medium_temperature_heat": {
+        "2025": 1,
+        "2030": 1.00501001,
+        "2035": 1.01004512,
+        "2040": 1.015105456,
+        "2045": 1.020191145,
+        "2050": 1.025302313
+      },
+      "mining_other": {
+        "2025": 1,
+        "2030": 1,
+        "2035": 1,
+        "2040": 1,
+        "2045": 1,
+        "2050": 1
+      },
+      "other_other": {
+        "2025": 1,
+        "2030": 1,
+        "2035": 1,
+        "2040": 1,
+        "2045": 1,
+        "2050": 1
+      },
+      "passenger_road_transport": {
+        "2025": 1,
+        "2030": 1.01509027,
+        "2035": 1.030408257,
+        "2040": 1.045957396,
+        "2045": 1.061741176,
+        "2050": 1.077763138
+      },
+      "residential_building_services": {
+        "2025": 1,
+        "2030": 1.01004008,
+        "2035": 1.020180963,
+        "2040": 1.030423662,
+        "2045": 1.040769198,
+        "2050": 1.051218604
+      },
+      "residential_other": {
+        "2025": 1,
+        "2030": 1.01004008,
+        "2035": 1.020180963,
+        "2040": 1.030423662,
+        "2045": 1.040769198,
+        "2050": 1.051218604
+      },
+      "residual_agriculture_other": {
+        "2025": 1,
+        "2030": 1.002505005,
+        "2035": 1.00502256,
+        "2040": 1.007552728,
+        "2045": 1.010095573,
+        "2050": 1.012651157
+      },
+      "residual_fugitives": {
+        "2025": 1,
+        "2030": 1,
+        "2035": 1,
+        "2040": 1,
+        "2045": 1,
+        "2050": 1
+      },
+      "residual_ippu_other": {
+        "2025": 1,
+        "2030": 1.002004004,
+        "2035": 1.004018048,
+        "2040": 1.006042182,
+        "2045": 1.008076458,
+        "2050": 1.010120925
+      },
+      "residual_lulucf_sink": {
+        "2025": 1,
+        "2030": 1,
+        "2035": 1,
+        "2040": 1,
+        "2045": 1,
+        "2050": 1
+      },
+      "residual_waste": {
+        "2025": 1,
+        "2030": 1,
+        "2035": 1,
+        "2040": 1,
+        "2045": 1,
+        "2050": 1
+      },
+      "transport_other": {
+        "2025": 1,
+        "2030": 1.025291856,
+        "2035": 1.051327462,
+        "2040": 1.078130895,
+        "2045": 1.105727047,
+        "2050": 1.134141662
+      },
+      "water_waste_other": {
+        "2025": 1,
+        "2030": 1,
+        "2035": 1,
+        "2040": 1,
+        "2045": 1,
+        "2050": 1
       }
     },
+    "milestone_multipliers_by_external_commodity": {},
     "provenance_note": "App-owned convenience preset. Not part of the research library evidence."
   }
 }

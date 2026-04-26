@@ -335,25 +335,25 @@ export default function ModelFormulationPageContent({
       </section>
 
       <section className="configuration-panel">
-        <h2>How overlays are added after the LP</h2>
+        <h2>How residual stubs enter the LP</h2>
         <p>
-          Residual overlays are loaded from `overlays/residual_overlays.csv` and then used only for
-          2025 accounting closure. They are fixed layers for omitted sectors, not a second solve.
+          Residual stubs are loaded from library family directories. Their demand anchors,
+          incumbent state rows, commodity inputs, and emissions enter the same solve request as
+          the modeled segments.
         </p>
         <ul className="methods-list">
-          <li>They are fixed 2025 accounting layers.</li>
-          <li>They are diagnostic and presentation only.</li>
-          <li>They are not included in `buildSolveRequest.ts`.</li>
-          <li>They are not solved in `lpAdapter.ts`.</li>
+          <li>They use `families/*/demand.csv` demand rows.</li>
+          <li>They use one `Residual incumbent` family-state route.</li>
+          <li>Their inputs contribute to normal commodity balances.</li>
+          <li>Their emissions and costs report from solver rows, not overlay sidecars.</li>
         </ul>
 
         <div className="configuration-provenance-note">
-          <strong>Overlays are not part of the LP core.</strong>
+          <strong>Residual stubs are first-class family rows.</strong>
           <p>
-            The LP solves the explicit state rows only. Residual overlays are added after the LP so
-            `validation/baseline_commodity_balance.csv` and
-            `validation/baseline_emissions_balance.csv` can show how the packaged 2025 benchmark
-            closes once omitted sectors are layered back in.
+            The LP solves modeled families and residual families together. The validation tables
+            explain how those library-owned rows close the packaged 2025 commodity and emissions
+            benchmarks.
           </p>
         </div>
 
@@ -375,13 +375,19 @@ export default function ModelFormulationPageContent({
             </strong>
           </div>
           <div className="configuration-stat-card">
-            <span>Overlay commodity cost</span>
+            <span>Residual final electricity</span>
             <strong>
-              {formatNumber(model.overlaySummary.totalOverlayCommodityCostAudm2024, 1)} AUD M
+              {formatNumber(model.overlaySummary.residualFinalElectricityTwh ?? 0, 3)} TWh
             </strong>
           </div>
           <div className="configuration-stat-card">
-            <span>Carbon-billable overlay emissions</span>
+            <span>Grid losses and own-use</span>
+            <strong>
+              {formatNumber(model.overlaySummary.gridLossesOwnUseElectricityTwh ?? 0, 3)} TWh
+            </strong>
+          </div>
+          <div className="configuration-stat-card">
+            <span>Carbon-billable residual emissions</span>
             <strong>
               {formatNumber(model.overlaySummary.totalCarbonBillableEmissionsMtco2e, 1)} MtCO2e
             </strong>
@@ -397,7 +403,7 @@ export default function ModelFormulationPageContent({
         </div>
 
         <p>
-          Default-included residual components are the positive-emitting closure layers. The LULUCF
+          Default-included residual families are the positive-emitting closure rows. The LULUCF
           sink stays separate and optional by default because its accounting sign and treatment
           differ from the positive-emitting sector rows.
         </p>

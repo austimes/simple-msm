@@ -14,6 +14,8 @@ export default function RightSidebar() {
   const autonomousEfficiencyTracks = usePackageStore((s) => s.autonomousEfficiencyTracks);
   const efficiencyPackages = usePackageStore((s) => s.efficiencyPackages);
   const residualOverlays2025 = usePackageStore((s) => s.residualOverlays2025);
+  const systemStructureGroups = usePackageStore((s) => s.systemStructureGroups);
+  const systemStructureMembers = usePackageStore((s) => s.systemStructureMembers);
   const currentConfiguration = usePackageStore((s) => s.currentConfiguration);
   const toggleStateActive = usePackageStore((s) => s.toggleStateActive);
   const setAutonomousEfficiencyForOutput = usePackageStore((s) => s.setAutonomousEfficiencyForOutput);
@@ -55,8 +57,13 @@ export default function RightSidebar() {
   );
 
   const catalog = useMemo(
-    () => buildSystemStructureCatalog(rawCatalog, residualOverlays2025),
-    [rawCatalog, residualOverlays2025],
+    () => buildSystemStructureCatalog(
+      rawCatalog,
+      residualOverlays2025,
+      systemStructureGroups,
+      systemStructureMembers,
+    ),
+    [rawCatalog, residualOverlays2025, systemStructureGroups, systemStructureMembers],
   );
 
   const outputStatuses = useMemo(

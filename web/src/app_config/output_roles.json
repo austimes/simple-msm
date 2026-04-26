@@ -27,6 +27,34 @@
     ],
     "explanation_group": "buildings"
   },
+  "residential_other": {
+    "output_role": "required_service",
+    "display_label": "Residential other",
+    "display_group": "Buildings",
+    "display_group_order": 10,
+    "display_order": 90,
+    "participates_in_commodity_balance": false,
+    "demand_required": true,
+    "default_control_mode": "optimize",
+    "allowed_control_modes": [
+      "optimize"
+    ],
+    "explanation_group": "buildings"
+  },
+  "commercial_other": {
+    "output_role": "required_service",
+    "display_label": "Commercial other",
+    "display_group": "Buildings",
+    "display_group_order": 10,
+    "display_order": 100,
+    "participates_in_commodity_balance": false,
+    "demand_required": true,
+    "default_control_mode": "optimize",
+    "allowed_control_modes": [
+      "optimize"
+    ],
+    "explanation_group": "buildings"
+  },
   "passenger_road_transport": {
     "output_role": "required_service",
     "display_label": "Passenger road transport",
@@ -47,6 +75,20 @@
     "display_group": "Road transport",
     "display_group_order": 20,
     "display_order": 20,
+    "participates_in_commodity_balance": false,
+    "demand_required": true,
+    "default_control_mode": "optimize",
+    "allowed_control_modes": [
+      "optimize"
+    ],
+    "explanation_group": "road_transport"
+  },
+  "transport_other": {
+    "output_role": "required_service",
+    "display_label": "Transport other",
+    "display_group": "Road transport",
+    "display_group_order": 20,
+    "display_order": 90,
     "participates_in_commodity_balance": false,
     "demand_required": true,
     "default_control_mode": "optimize",
@@ -97,6 +139,34 @@
     ],
     "explanation_group": "industrial_heat"
   },
+  "manufacturing_other": {
+    "output_role": "required_service",
+    "display_label": "Manufacturing other",
+    "display_group": "Industrial production",
+    "display_group_order": 30,
+    "display_order": 90,
+    "participates_in_commodity_balance": false,
+    "demand_required": true,
+    "default_control_mode": "optimize",
+    "allowed_control_modes": [
+      "optimize"
+    ],
+    "explanation_group": "industrial_production"
+  },
+  "residual_ippu_other": {
+    "output_role": "required_service",
+    "display_label": "Residual IPPU other",
+    "display_group": "Industrial production",
+    "display_group_order": 30,
+    "display_order": 100,
+    "participates_in_commodity_balance": false,
+    "demand_required": true,
+    "default_control_mode": "optimize",
+    "allowed_control_modes": [
+      "optimize"
+    ],
+    "explanation_group": "industrial_production"
+  },
   "crude_steel": {
     "output_role": "required_service",
     "display_label": "Crude steel",
@@ -124,6 +194,48 @@
       "optimize"
     ],
     "explanation_group": "industry"
+  },
+  "electricity_grid_losses_own_use": {
+    "output_role": "required_service",
+    "display_label": "Electricity grid losses and own-use",
+    "display_group": "Energy supply",
+    "display_group_order": 40,
+    "display_order": 20,
+    "participates_in_commodity_balance": false,
+    "demand_required": true,
+    "default_control_mode": "optimize",
+    "allowed_control_modes": [
+      "optimize"
+    ],
+    "explanation_group": "energy_supply"
+  },
+  "mining_other": {
+    "output_role": "required_service",
+    "display_label": "Mining other",
+    "display_group": "Energy supply",
+    "display_group_order": 40,
+    "display_order": 90,
+    "participates_in_commodity_balance": false,
+    "demand_required": true,
+    "default_control_mode": "optimize",
+    "allowed_control_modes": [
+      "optimize"
+    ],
+    "explanation_group": "energy_supply"
+  },
+  "residual_fugitives": {
+    "output_role": "required_service",
+    "display_label": "Residual fugitive emissions",
+    "display_group": "Energy supply",
+    "display_group_order": 40,
+    "display_order": 100,
+    "participates_in_commodity_balance": false,
+    "demand_required": true,
+    "default_control_mode": "optimize",
+    "allowed_control_modes": [
+      "optimize"
+    ],
+    "explanation_group": "energy_supply"
   },
   "livestock_output_bundle": {
     "output_role": "required_service",
@@ -153,6 +265,20 @@
     ],
     "explanation_group": "agriculture"
   },
+  "residual_agriculture_other": {
+    "output_role": "required_service",
+    "display_label": "Residual agriculture other",
+    "display_group": "Agriculture",
+    "display_group_order": 50,
+    "display_order": 90,
+    "participates_in_commodity_balance": false,
+    "demand_required": true,
+    "default_control_mode": "optimize",
+    "allowed_control_modes": [
+      "optimize"
+    ],
+    "explanation_group": "agriculture"
+  },
   "electricity": {
     "output_role": "endogenous_supply_commodity",
     "display_label": "Electricity supply",
@@ -167,6 +293,20 @@
       "externalized"
     ],
     "explanation_group": "electricity"
+  },
+  "construction_other": {
+    "output_role": "required_service",
+    "display_label": "Construction other",
+    "display_group": "Construction",
+    "display_group_order": 60,
+    "display_order": 90,
+    "participates_in_commodity_balance": false,
+    "demand_required": true,
+    "default_control_mode": "optimize",
+    "allowed_control_modes": [
+      "optimize"
+    ],
+    "explanation_group": "construction"
   },
   "land_sequestration": {
     "output_role": "optional_activity",
@@ -195,5 +335,61 @@
       "optimize"
     ],
     "explanation_group": "removals"
+  },
+  "water_waste_other": {
+    "output_role": "required_service",
+    "display_label": "Water and waste other",
+    "display_group": "Water and waste",
+    "display_group_order": 70,
+    "display_order": 80,
+    "participates_in_commodity_balance": false,
+    "demand_required": true,
+    "default_control_mode": "optimize",
+    "allowed_control_modes": [
+      "optimize"
+    ],
+    "explanation_group": "water_waste"
+  },
+  "residual_waste": {
+    "output_role": "required_service",
+    "display_label": "Residual waste emissions",
+    "display_group": "Water and waste",
+    "display_group_order": 70,
+    "display_order": 90,
+    "participates_in_commodity_balance": false,
+    "demand_required": true,
+    "default_control_mode": "optimize",
+    "allowed_control_modes": [
+      "optimize"
+    ],
+    "explanation_group": "water_waste"
+  },
+  "other_other": {
+    "output_role": "required_service",
+    "display_label": "Other sectors residual",
+    "display_group": "Other sectors",
+    "display_group_order": 80,
+    "display_order": 90,
+    "participates_in_commodity_balance": false,
+    "demand_required": true,
+    "default_control_mode": "optimize",
+    "allowed_control_modes": [
+      "optimize"
+    ],
+    "explanation_group": "other_sectors"
+  },
+  "residual_lulucf_sink": {
+    "output_role": "required_service",
+    "display_label": "Residual LULUCF sink",
+    "display_group": "Removals and land",
+    "display_group_order": 90,
+    "display_order": 90,
+    "participates_in_commodity_balance": false,
+    "demand_required": true,
+    "default_control_mode": "optimize",
+    "allowed_control_modes": [
+      "optimize"
+    ],
+    "explanation_group": "removals_land"
   }
 }

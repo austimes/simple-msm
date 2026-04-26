@@ -330,11 +330,14 @@ export function buildGeneratedIncumbentBaseConfiguration(
     'appConfig' | 'sectorStates' | 'autonomousEfficiencyTracks' | 'efficiencyPackages' | 'residualOverlays2025'
   >,
 ): ConfigurationDocument {
-  const materializedFocus = materializeEfficiencyConfiguration(
-    materializeResidualOverlayConfiguration(
+  const focusWithResidualCompatibility = packageData.residualOverlays2025.length > 0
+    ? materializeResidualOverlayConfiguration(
       cloneConfiguration(focusConfiguration),
       packageData.residualOverlays2025,
-    ),
+    )
+    : cloneConfiguration(focusConfiguration);
+  const materializedFocus = materializeEfficiencyConfiguration(
+    focusWithResidualCompatibility,
     packageData.autonomousEfficiencyTracks,
     packageData.efficiencyPackages,
   );
@@ -367,12 +370,17 @@ export function buildGeneratedIncumbentBaseConfiguration(
       package_mode: 'off',
       package_ids: [],
     },
-    residual_overlays: buildGeneratedResidualControls(
+  };
+
+  if (packageData.residualOverlays2025.length > 0) {
+    generatedConfiguration.residual_overlays = buildGeneratedResidualControls(
       materializedFocus,
       serviceControls,
       packageData,
-    ),
-  };
+    );
+  } else {
+    delete generatedConfiguration.residual_overlays;
+  }
 
   delete generatedConfiguration.app_metadata;
 

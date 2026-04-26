@@ -57,14 +57,6 @@ describe('systemStructureModel', () => {
       package_mode: 'allow_list',
       package_ids: ['buildings__residential__thermal_shell_retrofit'],
     };
-    focus.residual_overlays = {
-      controls_by_overlay_id: {
-        residential_other: { included: false },
-        transport_other: { included: true },
-        construction_other: { included: false },
-        residual_lulucf_sink: { included: true },
-      },
-    };
 
     const generated = buildGeneratedIncumbentBaseConfiguration(focus, pkg);
 
@@ -96,9 +88,10 @@ describe('systemStructureModel', () => {
       package_mode: 'off',
       package_ids: [],
     });
+    assert.equal(generated.residual_overlays, undefined);
   });
 
-  test('generated incumbent base aligns residuals to enabled system groups and preserves explicit residual-only/net-sink controls', () => {
+  test('generated incumbent base treats residual families as normal service controls', () => {
     const focus = buildConfiguration(pkg.appConfig, {
       serviceControls: {
         passenger_road_transport: {
@@ -109,23 +102,28 @@ describe('systemStructureModel', () => {
           mode: 'optimize',
           active_state_ids: [],
         },
+        residential_other: {
+          mode: 'optimize',
+          active_state_ids: [],
+        },
+        transport_other: {
+          mode: 'optimize',
+          active_state_ids: ['transport_other__residual_incumbent'],
+        },
+        residual_lulucf_sink: {
+          mode: 'optimize',
+          active_state_ids: [],
+        },
       },
     });
-    focus.residual_overlays = {
-      controls_by_overlay_id: {
-        residential_other: { included: false },
-        transport_other: { included: true },
-        construction_other: { included: false },
-        residual_lulucf_sink: { included: true },
-      },
-    };
 
     const generated = buildGeneratedIncumbentBaseConfiguration(focus, pkg);
-    const controls = generated.residual_overlays?.controls_by_overlay_id ?? {};
 
-    assert.equal(controls.residential_other?.included, true);
-    assert.equal(controls.transport_other?.included, false);
-    assert.equal(controls.construction_other?.included, false);
-    assert.equal(controls.residual_lulucf_sink?.included, true);
+    assert.deepEqual(generated.service_controls.residential_other.active_state_ids, []);
+    assert.deepEqual(generated.service_controls.transport_other.active_state_ids, [
+      'transport_other__residual_incumbent',
+    ]);
+    assert.deepEqual(generated.service_controls.residual_lulucf_sink.active_state_ids, []);
+    assert.equal(generated.residual_overlays, undefined);
   });
 });

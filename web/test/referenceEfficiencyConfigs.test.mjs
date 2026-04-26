@@ -187,10 +187,25 @@ function stripScenarioIdentity(configuration) {
   return normalized;
 }
 
-function assertDemoControls(configuration, controls) {
+function assertDemoControls(configuration, controls, pkg) {
   for (const [outputId, control] of Object.entries(configuration.service_controls)) {
     const expected = controls[outputId];
     if (!expected) {
+      const familyMetadata = pkg.familyMetadata.find((family) => family.family_id === outputId);
+      if (familyMetadata?.family_resolution === 'residual_stub') {
+        assert.equal(control.mode, 'optimize', `${outputId} residual family should stay in optimize mode`);
+        if (outputId === 'residual_lulucf_sink') {
+          assert.deepEqual(control.active_state_ids, [], `${outputId} should remain optional by default`);
+        } else {
+          assert.deepEqual(
+            control.active_state_ids,
+            [`${outputId}__residual_incumbent`],
+            `${outputId} should keep its residual incumbent closure route`,
+          );
+        }
+        continue;
+      }
+
       assert.equal(control.mode, 'optimize', `${outputId} should stay in optimize mode when inactive`);
       assert.deepEqual(control.active_state_ids, [], `${outputId} should be inactive`);
       continue;
@@ -261,7 +276,7 @@ test('focused efficiency demos keep a tight sector scope and solve with only the
     assert.equal(configuration.efficiency_controls?.autonomous_mode, 'baseline');
     assert.equal(configuration.efficiency_controls?.package_mode, 'allow_list');
     assert.deepEqual(configuration.efficiency_controls?.package_ids, expectation.packageIds);
-    assertDemoControls(configuration, expectation.controls);
+    assertDemoControls(configuration, expectation.controls, pkg);
 
     const request = buildSolveRequest(pkg, configuration);
     assert.equal(request.configuration.efficiency?.autonomousMode, 'baseline');

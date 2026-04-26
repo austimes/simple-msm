@@ -1,0 +1,29 @@
+group_id,family_id,display_order,notes
+buildings,residential_building_services,10,Modeled residential building services.
+buildings,commercial_building_services,20,Modeled commercial building services.
+buildings,residential_other,90,Residual residential energy not represented by modeled building-service families.
+buildings,commercial_other,100,Residual commercial energy not represented by modeled building-service families.
+road_transport,passenger_road_transport,10,Modeled passenger road transport.
+road_transport,freight_road_transport,20,Modeled freight road transport.
+road_transport,transport_other,90,Residual transport energy outside modeled passenger and freight road families.
+industrial_production,low_temperature_heat,10,Modeled low-temperature industrial heat.
+industrial_production,medium_temperature_heat,20,Modeled medium-temperature industrial heat.
+industrial_production,high_temperature_heat,30,Modeled high-temperature industrial heat.
+industrial_production,crude_steel,40,Modeled crude steel production.
+industrial_production,cement_equivalent,50,Modeled cement-equivalent production.
+industrial_production,manufacturing_other,90,"Residual manufacturing energy outside explicit industrial heat, steel, and cement families."
+industrial_production,residual_ippu_other,100,Residual industrial-process emissions outside explicit steel and cement process states.
+energy_supply,electricity,10,Modeled electricity supply.
+energy_supply,electricity_grid_losses_own_use,20,Residual electricity losses and electricity-sector own-use demand.
+energy_supply,mining_other,90,Residual mining and energy-extraction final energy.
+energy_supply,residual_fugitives,100,"Residual fugitive coal, oil, and gas emissions."
+agriculture,livestock_output_bundle,10,Modeled livestock output bundle.
+agriculture,cropping_horticulture_output_bundle,20,Modeled cropping and horticulture output bundle.
+agriculture,residual_agriculture_other,90,Residual agriculture emissions outside current coarse output bundles.
+construction,construction_other,90,Residual construction final energy until explicit construction families are authored.
+water_waste,water_waste_other,80,Residual water-sector final energy.
+water_waste,residual_waste,90,Residual waste emissions.
+other_sectors,other_other,90,Residual final energy for remaining sectors.
+removals_land,land_sequestration,10,Modeled land sequestration placeholder.
+removals_land,engineered_removals,20,Modeled engineered removals placeholder.
+removals_land,residual_lulucf_sink,90,Optional residual LULUCF sink for national-total reconciliation.

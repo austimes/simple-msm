@@ -1,9 +1,10 @@
 /**
  * Package anchor parity and regression tests.
  *
- * Verifies that CSV-derived anchors from service_demand_anchors_2025.csv
- * match the hardcoded values in baseline_activity_anchors.json, and that
- * demand resolution produces correct 2025 values when using the merged anchors.
+ * Verifies that CSV-derived modeled-service anchors from
+ * service_demand_anchors_2025.csv match baseline_activity_anchors.json, and
+ * that legacy electricity-balance rows no longer create built-in external
+ * demand anchors.
  *
  * Run:  bunx tsx --test test/packageAnchorParity.test.mjs
  */
@@ -84,14 +85,6 @@ const EXPECTED_PARITY = {
   cropping_horticulture_output_bundle: 36576.29,
 };
 
-const EXPECTED_ELECTRICITY = {
-  key: 'electricity',
-  // CSV has the precise derived value; JSON has a rounded app-owned default.
-  // After the CSV-over-JSON merge, the CSV value wins.
-  csvValue: 144018720.570146,
-  jsonValue: 144018720,
-};
-
 // ---------------------------------------------------------------------------
 // 1. Parity tests — CSV-derived anchors match JSON values
 // ---------------------------------------------------------------------------
@@ -119,15 +112,9 @@ test('CSV-derived service demand anchors match JSON values exactly', () => {
   }
 });
 
-test('CSV-derived electricity anchor matches expected CSV value', () => {
-  const csvElectricity = csvAnchors[EXPECTED_ELECTRICITY.key];
-  const jsonElectricity = jsonAnchors[EXPECTED_ELECTRICITY.key];
-
-  assert.ok(csvElectricity, 'CSV electricity anchor missing');
-  assert.ok(jsonElectricity, 'JSON electricity anchor missing');
-
-  assert.equal(csvElectricity.value, EXPECTED_ELECTRICITY.csvValue);
-  assert.equal(jsonElectricity.value, EXPECTED_ELECTRICITY.jsonValue);
+test('legacy CSV electricity balance rows do not create built-in external demand anchors', () => {
+  assert.equal(csvAnchors.electricity, undefined);
+  assert.equal(jsonAnchors.electricity, undefined);
 });
 
 test('CSV-derived anchors preserve output_role from output_roles registry', () => {
@@ -138,16 +125,12 @@ test('CSV-derived anchors preserve output_role from output_roles registry', () =
       `${outputId}: output_role mismatch`,
     );
   }
-
-  assert.equal(csvAnchors.electricity.output_role, 'endogenous_supply_commodity');
 });
 
 test('CSV-derived anchors preserve anchor_kind correctly', () => {
   for (const [outputId] of Object.entries(EXPECTED_PARITY)) {
     assert.equal(csvAnchors[outputId].anchor_kind, 'service_demand', `${outputId} should be service_demand`);
   }
-
-  assert.equal(csvAnchors.electricity.anchor_kind, 'external_commodity_demand');
 });
 
 test('CSV-derived anchors preserve unit from CSV', () => {
@@ -158,8 +141,6 @@ test('CSV-derived anchors preserve unit from CSV', () => {
       `${outputId}: unit mismatch between CSV and JSON`,
     );
   }
-
-  assert.equal(csvAnchors.electricity.unit, jsonAnchors.electricity.unit);
 });
 
 test('informational CSV rows are not mapped to anchors', () => {
@@ -168,9 +149,9 @@ test('informational CSV rows are not mapped to anchors', () => {
   assert.equal(csvAnchors['electricity_total_output_benchmark'], undefined, 'electricity_output_benchmark should not produce an anchor');
 });
 
-test('CSV anchor count matches expected (11 services + 1 electricity)', () => {
+test('CSV anchor count matches expected modeled services only', () => {
   const csvKeys = Object.keys(csvAnchors);
-  assert.equal(csvKeys.length, 12, `expected 12 CSV-derived anchors, got ${csvKeys.length}: ${csvKeys.join(', ')}`);
+  assert.equal(csvKeys.length, 11, `expected 11 CSV-derived anchors, got ${csvKeys.length}: ${csvKeys.join(', ')}`);
 });
 
 test('JSON-only anchors (land_sequestration, engineered_removals) are preserved after merge', () => {
@@ -211,12 +192,7 @@ test('demand resolution produces correct 2025 service demands from CSV-derived a
     );
   }
 
-  // Electricity: the reference config's explicit external_commodity_anchors (144018720)
-  // takes precedence over the baseline anchor during demand resolution, so the resolved
-  // 2025 value matches the config's stored anchor, not the raw CSV value.
-  const electricityDemand2025 = resolved.external_commodity_demands?.electricity?.['2025'];
-  assert.equal(
-    electricityDemand2025, EXPECTED_ELECTRICITY.jsonValue,
-    `electricity: resolved 2025 external demand ${electricityDemand2025} !== expected ${EXPECTED_ELECTRICITY.jsonValue}`,
-  );
+  assert.equal(resolved.external_commodity_demands?.electricity, undefined);
+  assert.equal(resolved.service_demands.electricity_grid_losses_own_use?.['2025'], 1);
+  assert.equal(resolved.service_demands.commercial_other?.['2025'], 1);
 });

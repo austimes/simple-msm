@@ -1,11 +1,14 @@
 /**
- * Overlay aggregation and cross-checking utilities.
+ * Residual aggregation and cross-checking utilities.
  *
  * DIAGNOSTIC / PRESENTATION ONLY — nothing in this module should be imported
  * by buildSolveRequest.ts or any solver-facing code. These functions exist
  * solely for balance-sheet validation and UI display.
  */
-import type { ResidualOverlayRow } from './types.ts';
+import type { ResidualOverlayRow, SectorState } from './types.ts';
+
+export const GRID_LOSSES_OWN_USE_FAMILY_ID = 'electricity_grid_losses_own_use';
+export const RESIDUAL_LULUCF_SINK_FAMILY_ID = 'residual_lulucf_sink';
 
 export function getDefaultIncludedResidualOverlays(
   overlays: ResidualOverlayRow[],
@@ -21,6 +24,12 @@ export interface OverlayTotalsSummary {
   totalCarbonBillableEmissionsMtco2e: number;
   totalOverlayCommodityCostAudm2024: number;
   totalOverlayFixedCostAudm2024: number;
+  residualFinalElectricityTwh?: number;
+  gridLossesOwnUseElectricityTwh?: number;
+  includedResidualFamilyCount?: number;
+  energyResidualFamilyCount?: number;
+  nonEnergyResidualFamilyCount?: number;
+  sinkResidualFamilyCount?: number;
 }
 
 export function summarizeOverlayTotals(
@@ -71,5 +80,135 @@ export function summarizeOverlayTotals(
     totalCarbonBillableEmissionsMtco2e,
     totalOverlayCommodityCostAudm2024,
     totalOverlayFixedCostAudm2024,
+  };
+}
+
+function sumEmissionsMt(entries: SectorState['energy_emissions_by_pollutant']): number {
+  return entries.reduce((sum, entry) => sum + entry.value, 0) / 1_000_000;
+}
+
+function inputCoefficientToPj(coefficient: number, unit: string): number {
+  if (unit.startsWith('GJ/')) {
+    return coefficient / 1_000_000;
+  }
+  if (unit.startsWith('MWh/')) {
+    return coefficient * 0.0036 / 1000;
+  }
+  return 0;
+}
+
+function inputCoefficientToElectricityTwh(
+  commodityId: string,
+  coefficient: number,
+  unit: string,
+): number {
+  if (commodityId !== 'electricity' || !unit.startsWith('MWh/')) {
+    return 0;
+  }
+  return coefficient / 1_000_000;
+}
+
+function residualFamilyRows(sectorStates: SectorState[]): SectorState[] {
+  const rowsByFamily = new Map<string, SectorState>();
+
+  for (const row of sectorStates) {
+    if (row.family_resolution !== 'residual_stub' || row.year !== 2025) {
+      continue;
+    }
+    if (!rowsByFamily.has(row.family_id) || row.is_default_incumbent_2025) {
+      rowsByFamily.set(row.family_id, row);
+    }
+  }
+
+  return Array.from(rowsByFamily.values()).sort((left, right) =>
+    left.family_id.localeCompare(right.family_id),
+  );
+}
+
+function defaultIncludedResidualFamilyIds(rows: SectorState[]): Set<string> {
+  return new Set(
+    rows
+      .filter((row) => row.family_id !== RESIDUAL_LULUCF_SINK_FAMILY_ID)
+      .map((row) => row.family_id),
+  );
+}
+
+export function summarizeResidualFamilyTotals(
+  sectorStates: SectorState[],
+  includedFamilyIds?: Set<string>,
+): OverlayTotalsSummary {
+  const rows = residualFamilyRows(sectorStates);
+  const included = includedFamilyIds ?? defaultIncludedResidualFamilyIds(rows);
+
+  let totalResidualEnergyPj = 0;
+  let totalResidualEnergyEmissions = 0;
+  let totalResidualNonEnergyEmissions = 0;
+  let totalCarbonBillableEmissionsMtco2e = 0;
+  let residualFinalElectricityTwh = 0;
+  let gridLossesOwnUseElectricityTwh = 0;
+  let lulucfSinkMtco2e: number | null = null;
+  let energyResidualFamilyCount = 0;
+  let nonEnergyResidualFamilyCount = 0;
+  let sinkResidualFamilyCount = 0;
+
+  for (const row of rows) {
+    const inputPj = row.input_coefficients.reduce(
+      (sum, coefficient, index) => sum + inputCoefficientToPj(coefficient, row.input_units[index] ?? ''),
+      0,
+    );
+    const inputElectricityTwh = row.input_coefficients.reduce(
+      (sum, coefficient, index) => sum + inputCoefficientToElectricityTwh(
+        row.input_commodities[index] ?? '',
+        coefficient,
+        row.input_units[index] ?? '',
+      ),
+      0,
+    );
+    const energyEmissionsMt = sumEmissionsMt(row.energy_emissions_by_pollutant);
+    const processEmissionsMt = sumEmissionsMt(row.process_emissions_by_pollutant);
+
+    if (row.family_id === RESIDUAL_LULUCF_SINK_FAMILY_ID) {
+      lulucfSinkMtco2e = (lulucfSinkMtco2e ?? 0) + energyEmissionsMt + processEmissionsMt;
+      sinkResidualFamilyCount += 1;
+      continue;
+    }
+
+    if (!included.has(row.family_id)) {
+      continue;
+    }
+
+    if (row.family_id === GRID_LOSSES_OWN_USE_FAMILY_ID) {
+      gridLossesOwnUseElectricityTwh += inputElectricityTwh;
+    } else {
+      totalResidualEnergyPj += inputPj;
+      residualFinalElectricityTwh += inputElectricityTwh;
+    }
+
+    totalResidualEnergyEmissions += energyEmissionsMt;
+    totalResidualNonEnergyEmissions += processEmissionsMt;
+    totalCarbonBillableEmissionsMtco2e += energyEmissionsMt + processEmissionsMt;
+
+    if (inputPj > 0 && row.family_id !== GRID_LOSSES_OWN_USE_FAMILY_ID) {
+      energyResidualFamilyCount += 1;
+    }
+    if (processEmissionsMt > 0) {
+      nonEnergyResidualFamilyCount += 1;
+    }
+  }
+
+  return {
+    totalResidualEnergyPj,
+    totalResidualEnergyEmissions,
+    totalResidualNonEnergyEmissions,
+    lulucfSinkMtco2e,
+    totalCarbonBillableEmissionsMtco2e,
+    totalOverlayCommodityCostAudm2024: 0,
+    totalOverlayFixedCostAudm2024: 0,
+    residualFinalElectricityTwh,
+    gridLossesOwnUseElectricityTwh,
+    includedResidualFamilyCount: included.size,
+    energyResidualFamilyCount,
+    nonEnergyResidualFamilyCount,
+    sinkResidualFamilyCount,
   };
 }

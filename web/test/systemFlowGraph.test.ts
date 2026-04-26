@@ -237,6 +237,42 @@ test('buildSystemFlowGraphData sets solved input edge values to activity times c
   assertClose(edge.solvedValue, 200, 'electricity input edge');
 });
 
+test('buildSystemFlowGraphData carries library system grouping into layout segments', () => {
+  const request = buildElectricityRequest('optimize');
+  const result = solveWithLpAdapter(request);
+  const graph = buildSystemFlowGraphData(request, result, {
+    year: 2030,
+    systemStructureGroups: [
+      {
+        group_id: 'industrial_production',
+        group_label: 'Industrial production',
+        display_order: 30,
+        notes: '',
+      },
+    ],
+    systemStructureMembers: [
+      {
+        group_id: 'industrial_production',
+        family_id: 'process',
+        display_order: 10,
+        notes: '',
+      },
+    ],
+  });
+
+  const segment = graph.segments.find((entry) => entry.id === 'segment:end_use:process');
+  assert.equal(segment?.systemGroupId, 'industrial_production');
+  assert.equal(segment?.systemGroupLabel, 'Industrial production');
+
+  const layout = buildSystemFlowDiagramLayoutInput(graph, 'both');
+  const sectorNode = layout.nodes.find(
+    (node) => node.type === SYSTEM_FLOW_SECTOR_NODE_TYPE
+      && node.data.sectorId === 'industrial_production',
+  );
+  assert.equal(sectorNode?.data.sectorId, 'industrial_production');
+  assert.equal(sectorNode?.data.label, 'Industrial production');
+});
+
 test('endogenous electricity routes consuming edges through the electricity segment', () => {
   const request = buildElectricityRequest('optimize');
   const result = solveWithLpAdapter(request);

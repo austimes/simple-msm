@@ -72,8 +72,25 @@ test('sector trajectory library package structure is internally consistent', () 
   const sourceIds = new Set(parseCsv(readText('shared/source_ledger.csv')).map((row) => row.source_id));
   const assumptionIds = new Set(parseCsv(readText('shared/assumptions_ledger.csv')).map((row) => row.assumption_id));
   const demandCurveIds = new Set(parseCsv(readText('shared/demand_growth_curves.csv')).map((row) => row.demand_growth_curve_id));
+  const systemGroups = parseCsv(readText('shared/system_structure_groups.csv'));
+  const systemMembers = parseCsv(readText('shared/system_structure_members.csv'));
+  const systemGroupIds = new Set(systemGroups.map((row) => row.group_id));
 
-  assert.equal(families.length, 14);
+  assert.equal(families.length, 28);
+  assert.equal(
+    families.filter((family) => family.family_resolution === 'residual_stub').length,
+    14,
+  );
+  assert.equal(
+    families.filter((family) => family.family_resolution === 'modeled').length,
+    14,
+  );
+
+  const memberCountByFamily = new Map();
+  for (const member of systemMembers) {
+    assert.equal(systemGroupIds.has(member.group_id), true, `${member.family_id} system group must resolve`);
+    memberCountByFamily.set(member.family_id, (memberCountByFamily.get(member.family_id) ?? 0) + 1);
+  }
 
   let totalRows = 0;
   const stateIds = new Set();
@@ -81,6 +98,9 @@ test('sector trajectory library package structure is internally consistent', () 
   let efficiencyPackageRowCount = 0;
 
   for (const family of families) {
+    assert.equal(memberCountByFamily.get(family.family_id), 1, `${family.family_id} must have exactly one system group`);
+    assert.match(family.family_resolution, /^(modeled|residual_stub)$/);
+
     const familyDir = join(PACKAGE_ROOT, 'families', family.family_id);
     assert.equal(existsSync(join(familyDir, 'family_states.csv')), true, `${family.family_id} missing family_states.csv`);
     assert.equal(existsSync(join(familyDir, 'demand.csv')), true, `${family.family_id} missing demand.csv`);
@@ -243,15 +263,19 @@ test('sector trajectory library package structure is internally consistent', () 
     }
   }
 
-  assert.equal(totalRows, 228);
-  assert.equal(stateIds.size, 38);
+  assert.equal(totalRows, 312);
+  assert.equal(stateIds.size, 52);
   assert.ok(autonomousTrackRowCount > 0, 'expected at least one canonical autonomous efficiency track row');
   assert.ok(efficiencyPackageRowCount > 0, 'expected at least one canonical efficiency package row');
 
   const externalCommodityDemands = parseCsv(readText('shared/external_commodity_demands.csv'));
+  assert.equal(externalCommodityDemands.length, 0, 'built-in external commodity demand table should be parser-compatible but empty');
   for (const row of externalCommodityDemands) {
     assert.equal(demandCurveIds.has(row.demand_growth_curve_id), true, `external commodity ${row.commodity_id} demand curve must resolve`);
   }
+
+  const residualOverlays = parseCsv(readText('overlays/residual_overlays.csv'));
+  assert.equal(residualOverlays.length, 0, 'migrated residual overlays should not remain as overlay sidecar rows');
 });
 
 test('schema companions stay aligned with the authored CSV headers', () => {
