@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schema/role_decomposition_edges.schema.json",
+  "title": "Role decomposition edges",
+  "description": "Schema for shared/role_decomposition_edges.csv. Rows define child roles activated by a role_decomposition representation.",
+  "type": "object",
+  "required": [
+    "parent_representation_id",
+    "parent_role_id",
+    "child_role_id",
+    "edge_kind",
+    "is_required",
+    "display_order",
+    "coverage_notes"
+  ],
+  "properties": {
+    "parent_representation_id": {
+      "type": "string",
+      "description": "Representation option whose kind is role_decomposition."
+    },
+    "parent_role_id": {
+      "type": "string",
+      "description": "Role satisfied by the decomposition representation."
+    },
+    "child_role_id": {
+      "type": "string",
+      "description": "Child role activated when the parent representation is selected."
+    },
+    "edge_kind": {
+      "type": "string",
+      "enum": [
+        "required_child",
+        "optional_child"
+      ],
+      "description": "Whether the child role is required for coverage when the decomposition is selected."
+    },
+    "is_required": {
+      "type": "boolean",
+      "description": "True when the child role must be represented for this decomposition to cover the parent role."
+    },
+    "display_order": {
+      "type": "integer",
+      "description": "Stable ordering for decomposition children in documentation and user interfaces."
+    },
+    "coverage_notes": {
+      "type": "string",
+      "description": "Coverage notes explaining the child role relationship."
+    }
+  }
+}

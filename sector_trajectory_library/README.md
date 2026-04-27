@@ -19,9 +19,9 @@ It is designed to keep data, explanation, and validation together rather than sp
 
 ### Role topology preview
 
-ESRL 1.0 introduces role-first topology metadata beside the current family-scoped package. `shared/roles.csv` defines the initial top-level role coverage and does not carry reporting `sector` or `subsector` fields. `shared/reporting_allocations.csv` maps role activity to reporting labels such as sector and subsector.
+ESRL 1.0 introduces role-first topology metadata beside the current family-scoped package. `shared/roles.csv` defines the initial top-level role coverage and does not carry reporting `sector` or `subsector` fields. `shared/representations.csv` defines the default representation for each active role. `shared/role_decomposition_edges.csv` defines child-role activation for decomposition representations. `shared/reporting_allocations.csv` maps role activity to reporting labels such as sector and subsector.
 
-This is a pre-migration surface for the role-topology cutover. The current `families/` package remains the runtime source until later ESRL migration issues move authored data to role and method terminology.
+This is a pre-migration surface for the role-topology cutover. The current `families/` package remains the runtime source until later ESRL migration issues move authored data to role and method terminology. Once migrated, each `roles/<role_id>/` directory will own `methods.csv` and `method_years.csv` using the schema companions in `schema/methods.schema.json` and `schema/method_years.schema.json`.
 
 ### Family-scoped authoring
 
@@ -45,7 +45,11 @@ The `validation/` and `exports/legacy/` folders hold generated compatibility and
 
 - `shared/families.csv` — canonical family registry
 - `shared/roles.csv` — ESRL role-first top-level coverage
+- `shared/representations.csv` — default and optional representation choices for each role
+- `shared/role_decomposition_edges.csv` — child-role activation edges for decomposition representations
 - `shared/reporting_allocations.csv` — mappings from roles to reporting sectors, subsectors, and buckets
+- `roles/<role_id>/methods.csv` — target ESRL method registry for each migrated role
+- `roles/<role_id>/method_years.csv` — target ESRL numeric rows for each role method and milestone year
 - `families/<family_id>/family_states.csv` — authored state-year rows
 - `families/<family_id>/demand.csv` — family anchor and linked growth curve
 - `families/<family_id>/README.md` — family context and caveats

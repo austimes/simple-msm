@@ -74,6 +74,76 @@ const REPORTING_ALLOCATION_HEADERS = [
   'allocation_share',
   'notes',
 ];
+const REPRESENTATION_HEADERS = [
+  'representation_id',
+  'role_id',
+  'representation_kind',
+  'representation_label',
+  'description',
+  'is_default',
+  'direct_method_kind',
+  'notes',
+];
+const ROLE_DECOMPOSITION_EDGE_HEADERS = [
+  'parent_representation_id',
+  'parent_role_id',
+  'child_role_id',
+  'edge_kind',
+  'is_required',
+  'display_order',
+  'coverage_notes',
+];
+const METHODS_HEADERS = [
+  'role_id',
+  'representation_id',
+  'method_id',
+  'method_kind',
+  'method_label',
+  'method_description',
+  'is_residual',
+  'sort_order',
+  'source_ids',
+  'assumption_ids',
+  'evidence_summary',
+  'derivation_method',
+  'confidence_rating',
+  'review_notes',
+];
+const METHOD_YEARS_HEADERS = [
+  'role_id',
+  'representation_id',
+  'method_id',
+  'year',
+  'output_cost_per_unit',
+  'cost_basis_year',
+  'currency',
+  'cost_components_summary',
+  'input_commodities',
+  'input_coefficients',
+  'input_units',
+  'input_basis_notes',
+  'energy_emissions_by_pollutant',
+  'process_emissions_by_pollutant',
+  'emissions_units',
+  'emissions_boundary_notes',
+  'max_share',
+  'max_activity',
+  'min_share',
+  'rollout_limit_notes',
+  'availability_conditions',
+  'source_ids',
+  'assumption_ids',
+  'evidence_summary',
+  'derivation_method',
+  'confidence_rating',
+  'review_notes',
+  'candidate_expansion_pathway',
+  'times_or_vedalang_mapping_notes',
+  'would_expand_to_explicit_capacity',
+  'would_expand_to_process_chain',
+];
+const REPRESENTATION_KINDS = new Set(['pathway_bundle', 'technology_bundle', 'role_decomposition']);
+const METHOD_KINDS = new Set(['pathway', 'technology', 'residual']);
 const EXPECTED_TOPOLOGY_AREAS = new Set([
   'buildings',
   'transport',
@@ -130,6 +200,10 @@ function parseJsonArray(raw, label) {
   } catch (error) {
     assert.fail(`${label} should parse as JSON: ${error instanceof Error ? error.message : String(error)}`);
   }
+}
+
+function readJson(relativePath) {
+  return JSON.parse(readText(relativePath));
 }
 
 test('sector trajectory library package structure is internally consistent', () => {
@@ -380,6 +454,56 @@ test('ESRL role topology keeps physical roles separate from reporting labels', (
   }
 });
 
+test('ESRL representations define one default model choice per top-level role', () => {
+  const roles = parseCsv(readText('shared/roles.csv'));
+  const representations = parseCsv(readText('shared/representations.csv'));
+  const roleDecompositionEdges = parseCsv(readText('shared/role_decomposition_edges.csv'));
+  const roleById = new Map(roles.map((role) => [role.role_id, role]));
+  const representationById = new Map();
+  const defaultCountByRole = new Map();
+
+  assert.deepEqual(parseHeader('shared/representations.csv'), REPRESENTATION_HEADERS);
+  assert.deepEqual(parseHeader('shared/role_decomposition_edges.csv'), ROLE_DECOMPOSITION_EDGE_HEADERS);
+  assert.equal(representations.length, roles.length);
+
+  for (const representation of representations) {
+    const role = roleById.get(representation.role_id);
+    assert.ok(role, `${representation.representation_id} role_id must resolve to roles.csv`);
+    assert.equal(representationById.has(representation.representation_id), false, `${representation.representation_id} must be unique`);
+    assert.equal(REPRESENTATION_KINDS.has(representation.representation_kind), true, `${representation.representation_id} kind must be canonical`);
+    representationById.set(representation.representation_id, representation);
+
+    if (representation.is_default === 'true') {
+      defaultCountByRole.set(representation.role_id, (defaultCountByRole.get(representation.role_id) ?? 0) + 1);
+    } else {
+      assert.equal(representation.is_default, 'false', `${representation.representation_id} is_default must be true or false`);
+    }
+
+    if (representation.representation_kind === 'role_decomposition') {
+      assert.equal(representation.direct_method_kind, '', `${representation.representation_id} decomposition must not expose direct methods`);
+    } else {
+      assert.equal(METHOD_KINDS.has(representation.direct_method_kind), true, `${representation.representation_id} direct method kind must be canonical`);
+    }
+
+    if (role.role_kind === 'residual') {
+      assert.equal(representation.direct_method_kind, 'residual', `${representation.role_id} residual role should default to residual methods`);
+    }
+  }
+
+  for (const role of roles) {
+    assert.equal(defaultCountByRole.get(role.role_id), 1, `${role.role_id} must have exactly one default representation`);
+  }
+
+  for (const edge of roleDecompositionEdges) {
+    const parentRepresentation = representationById.get(edge.parent_representation_id);
+    assert.ok(parentRepresentation, `${edge.parent_representation_id} must resolve to representations.csv`);
+    assert.equal(parentRepresentation.representation_kind, 'role_decomposition', `${edge.parent_representation_id} must be a decomposition`);
+    assert.equal(edge.parent_role_id, parentRepresentation.role_id, `${edge.parent_representation_id} parent role must match representation role`);
+    assert.equal(roleById.has(edge.child_role_id), true, `${edge.child_role_id} must resolve to roles.csv`);
+    assert.match(edge.edge_kind, /^(required_child|optional_child)$/);
+  }
+});
+
 test('schema companions stay aligned with the authored CSV headers', () => {
   const familiesSchema = JSON.parse(readText('schema/families.schema.json'));
   assert.deepEqual(
@@ -408,4 +532,50 @@ test('schema companions stay aligned with the authored CSV headers', () => {
     EFFICIENCY_PACKAGE_HEADERS,
     'efficiency_packages.schema.json should declare the canonical header order exactly',
   );
+
+  const representationsSchema = readJson('schema/representations.schema.json');
+  assert.deepEqual(
+    Object.keys(representationsSchema.properties ?? {}),
+    REPRESENTATION_HEADERS,
+    'representations.schema.json should match shared/representations.csv header order exactly',
+  );
+  assert.deepEqual(
+    new Set(representationsSchema.properties.representation_kind.enum),
+    REPRESENTATION_KINDS,
+    'representations.schema.json should declare every canonical representation kind',
+  );
+
+  const roleDecompositionEdgesSchema = readJson('schema/role_decomposition_edges.schema.json');
+  assert.deepEqual(
+    Object.keys(roleDecompositionEdgesSchema.properties ?? {}),
+    ROLE_DECOMPOSITION_EDGE_HEADERS,
+    'role_decomposition_edges.schema.json should match shared/role_decomposition_edges.csv header order exactly',
+  );
+
+  const methodsSchema = readJson('schema/methods.schema.json');
+  assert.deepEqual(
+    Object.keys(methodsSchema.properties ?? {}),
+    METHODS_HEADERS,
+    'methods.schema.json should declare the canonical methods.csv header order exactly',
+  );
+  assert.deepEqual(
+    new Set(methodsSchema.properties.method_kind.enum),
+    METHOD_KINDS,
+    'methods.schema.json should declare every canonical method kind',
+  );
+
+  const methodYearsSchema = readJson('schema/method_years.schema.json');
+  assert.deepEqual(
+    Object.keys(methodYearsSchema.properties ?? {}),
+    METHOD_YEARS_HEADERS,
+    'method_years.schema.json should declare the canonical method_years.csv header order exactly',
+  );
+
+  const canonicalSchemaText = JSON.stringify({
+    representationsSchema,
+    roleDecompositionEdgesSchema,
+    methodsSchema,
+    methodYearsSchema,
+  });
+  assert.doesNotMatch(canonicalSchemaText, /\bfamily\b|family_id|\bstate\b|state_id/i);
 });

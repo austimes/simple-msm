@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schema/methods.schema.json",
+  "title": "Role methods",
+  "description": "Schema for roles/<role_id>/methods.csv. A method is one selectable option inside a direct representation bundle.",
+  "type": "object",
+  "required": [
+    "role_id",
+    "representation_id",
+    "method_id",
+    "method_kind",
+    "method_label",
+    "method_description",
+    "is_residual",
+    "sort_order",
+    "source_ids",
+    "assumption_ids",
+    "evidence_summary",
+    "derivation_method",
+    "confidence_rating",
+    "review_notes"
+  ],
+  "properties": {
+    "role_id": {
+      "type": "string",
+      "description": "Role satisfied by this method."
+    },
+    "representation_id": {
+      "type": "string",
+      "description": "Direct representation bundle that exposes this method."
+    },
+    "method_id": {
+      "type": "string",
+      "description": "Stable method identifier."
+    },
+    "method_kind": {
+      "type": "string",
+      "enum": [
+        "pathway",
+        "technology",
+        "residual"
+      ],
+      "description": "Method kind inside the direct representation bundle."
+    },
+    "method_label": {
+      "type": "string",
+      "description": "Human-readable method label."
+    },
+    "method_description": {
+      "type": "string",
+      "description": "Plain-language description of what this method represents."
+    },
+    "is_residual": {
+      "type": "boolean",
+      "description": "True when this method is explicit residual coverage."
+    },
+    "sort_order": {
+      "type": "integer",
+      "description": "Stable ordering for method presentation."
+    },
+    "source_ids": {
+      "type": "string",
+      "description": "JSON-encoded array of source IDs."
+    },
+    "assumption_ids": {
+      "type": "string",
+      "description": "JSON-encoded array of assumption IDs."
+    },
+    "evidence_summary": {
+      "type": "string",
+      "description": "Short summary of the evidence supporting this method."
+    },
+    "derivation_method": {
+      "type": "string",
+      "description": "Brief description of how this method was derived."
+    },
+    "confidence_rating": {
+      "type": "string",
+      "enum": [
+        "High",
+        "Medium",
+        "Low",
+        "Exploratory"
+      ],
+      "description": "Qualitative confidence class for this method."
+    },
+    "review_notes": {
+      "type": "string",
+      "description": "Reviewer caveats or quality notes for this method."
+    }
+  }
+}

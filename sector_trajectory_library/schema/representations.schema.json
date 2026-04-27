@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schema/representations.schema.json",
+  "title": "Role representations",
+  "description": "Schema for shared/representations.csv. A representation is the selected way an active role is modeled. Validation must enforce exactly one selected representation for each active role.",
+  "type": "object",
+  "required": [
+    "representation_id",
+    "role_id",
+    "representation_kind",
+    "representation_label",
+    "description",
+    "is_default",
+    "direct_method_kind",
+    "notes"
+  ],
+  "properties": {
+    "representation_id": {
+      "type": "string",
+      "description": "Stable identifier for this representation option."
+    },
+    "role_id": {
+      "type": "string",
+      "description": "Role represented by this option."
+    },
+    "representation_kind": {
+      "type": "string",
+      "enum": [
+        "pathway_bundle",
+        "technology_bundle",
+        "role_decomposition"
+      ],
+      "description": "Representation kind. Direct bundles expose methods. Decompositions activate child roles through role_decomposition_edges.csv."
+    },
+    "representation_label": {
+      "type": "string",
+      "description": "Human-readable label for this representation option."
+    },
+    "description": {
+      "type": "string",
+      "description": "Plain-language description of what this representation covers."
+    },
+    "is_default": {
+      "type": "boolean",
+      "description": "True when this is the default representation for the role. Validation must find exactly one default representation for every required role."
+    },
+    "direct_method_kind": {
+      "type": "string",
+      "enum": [
+        "",
+        "pathway",
+        "technology",
+        "residual"
+      ],
+      "description": "Expected method kind for direct bundles. Leave blank for role_decomposition because its child roles expose their own methods."
+    },
+    "notes": {
+      "type": "string",
+      "description": "Implementation or migration notes for this representation."
+    }
+  }
+}

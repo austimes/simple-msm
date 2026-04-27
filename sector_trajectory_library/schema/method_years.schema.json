@@ -1,0 +1,186 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schema/method_years.schema.json",
+  "title": "Method-year rows",
+  "description": "Schema for roles/<role_id>/method_years.csv. Method-year rows hold numeric inputs, outputs, costs, emissions, limits, evidence, assumptions, and validation notes for one method in one milestone year.",
+  "type": "object",
+  "required": [
+    "role_id",
+    "representation_id",
+    "method_id",
+    "year",
+    "output_cost_per_unit",
+    "cost_basis_year",
+    "currency",
+    "cost_components_summary",
+    "input_commodities",
+    "input_coefficients",
+    "input_units",
+    "input_basis_notes",
+    "energy_emissions_by_pollutant",
+    "process_emissions_by_pollutant",
+    "emissions_units",
+    "emissions_boundary_notes",
+    "max_share",
+    "max_activity",
+    "min_share",
+    "rollout_limit_notes",
+    "availability_conditions",
+    "source_ids",
+    "assumption_ids",
+    "evidence_summary",
+    "derivation_method",
+    "confidence_rating",
+    "review_notes",
+    "candidate_expansion_pathway",
+    "times_or_vedalang_mapping_notes",
+    "would_expand_to_explicit_capacity",
+    "would_expand_to_process_chain"
+  ],
+  "properties": {
+    "role_id": {
+      "type": "string",
+      "description": "Role satisfied by this method-year row."
+    },
+    "representation_id": {
+      "type": "string",
+      "description": "Direct representation bundle that exposes this method."
+    },
+    "method_id": {
+      "type": "string",
+      "description": "Method represented by this row."
+    },
+    "year": {
+      "type": "integer",
+      "minimum": 2025,
+      "maximum": 2050,
+      "description": "Milestone year represented by this row."
+    },
+    "output_cost_per_unit": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Real cost per output unit. Use null or a blank CSV cell when no defensible value is available."
+    },
+    "cost_basis_year": {
+      "type": "integer",
+      "description": "Base year used to normalize output_cost_per_unit into real terms."
+    },
+    "currency": {
+      "type": "string",
+      "description": "Currency or price-basis label for output_cost_per_unit."
+    },
+    "cost_components_summary": {
+      "type": "string",
+      "description": "Short note describing which cost components are included or excluded."
+    },
+    "input_commodities": {
+      "type": "string",
+      "description": "JSON-encoded array of input commodity identifiers."
+    },
+    "input_coefficients": {
+      "type": "string",
+      "description": "JSON-encoded array of per-unit input coefficients."
+    },
+    "input_units": {
+      "type": "string",
+      "description": "JSON-encoded array of coefficient units."
+    },
+    "input_basis_notes": {
+      "type": "string",
+      "description": "Notes on how the input coefficients were derived, normalized, or interpreted."
+    },
+    "energy_emissions_by_pollutant": {
+      "type": "string",
+      "description": "JSON-encoded array of pollutant and value objects for energy emissions."
+    },
+    "process_emissions_by_pollutant": {
+      "type": "string",
+      "description": "JSON-encoded array of pollutant and value objects for process emissions or removals."
+    },
+    "emissions_units": {
+      "type": "string",
+      "description": "Unit label applied to the emissions values."
+    },
+    "emissions_boundary_notes": {
+      "type": "string",
+      "description": "Boundary note explaining what emissions are included, excluded, or represented elsewhere."
+    },
+    "max_share": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Optional upper bound on the share of total role demand this method may satisfy in the given year."
+    },
+    "max_activity": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Optional absolute upper bound on activity or output in the given year."
+    },
+    "min_share": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Optional lower bound on the share of total role demand this method must satisfy in the given year."
+    },
+    "rollout_limit_notes": {
+      "type": "string",
+      "description": "Narrative explanation for any max_share, max_activity, or min_share limit."
+    },
+    "availability_conditions": {
+      "type": "string",
+      "description": "Text description of conditions that must hold for the method to be available or credible."
+    },
+    "source_ids": {
+      "type": "string",
+      "description": "JSON-encoded array of source IDs."
+    },
+    "assumption_ids": {
+      "type": "string",
+      "description": "JSON-encoded array of assumption IDs."
+    },
+    "evidence_summary": {
+      "type": "string",
+      "description": "Short summary of the evidence base supporting the row values."
+    },
+    "derivation_method": {
+      "type": "string",
+      "description": "Brief description of how the row was synthesized, scaled, interpolated, or calibrated from sources."
+    },
+    "confidence_rating": {
+      "type": "string",
+      "enum": [
+        "High",
+        "Medium",
+        "Low",
+        "Exploratory"
+      ],
+      "description": "Qualitative confidence class for the row."
+    },
+    "review_notes": {
+      "type": "string",
+      "description": "Reviewer caveats, unresolved questions, or quality flags."
+    },
+    "candidate_expansion_pathway": {
+      "type": "string",
+      "description": "Short note on how this reduced-form method could expand into a richer future model."
+    },
+    "times_or_vedalang_mapping_notes": {
+      "type": "string",
+      "description": "Notes on possible TIMES or VedaLang mapping, process-chain interpretation, or future model integration."
+    },
+    "would_expand_to_explicit_capacity": {
+      "type": "boolean",
+      "description": "Boolean flag indicating whether this method would likely expand into an explicit capacity-style representation."
+    },
+    "would_expand_to_process_chain": {
+      "type": "boolean",
+      "description": "Boolean flag indicating whether this method would likely expand into a more explicit process-chain representation."
+    }
+  }
+}
