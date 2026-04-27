@@ -1,6 +1,10 @@
 # simple-msm
 
-`simple-msm` exists to be the working home for a rapidly evolving, explainable trajectory library for meaningful parts of Australia's economy. The core product is the checked-in `sector_trajectory_library/`; the web app is intentionally thin and exists to make that library usable, explorable, and testable.
+`simple-msm` is library-first. It exists to design, develop, test, and repeatedly reshape a reusable, interchangeable library of components that represent pieces of Australia's energy and emissions system. The core product is the checked-in [`sector_trajectory_library/`](./sector_trajectory_library/README.md).
+
+The optimizer, CLI, and WebUI are deliberately thin harnesses around that library. They exist to exercise the package, make its results inspectable, and discover the machinery needed for explainable modelling workflows such as experiment sets, modelling to generate alternatives, and tracing results back to evidence, assumptions, and validation notes.
+
+There is no general backward-compatibility promise yet. Library schemas, package layout, CLI contracts, and UI-facing data shapes are expected to change quickly while the useful shape of the system is discovered through repeated use in anger.
 
 ## Quick Start
 
@@ -55,7 +59,7 @@ The canonical authored package is [`sector_trajectory_library/`](./sector_trajec
 - `overlays/` holds package-owned residual closure inputs.
 - `validation/` and `exports/legacy/` hold committed diagnostics and compatibility outputs.
 
-This shape should be treated as the current working structure, not a final settled data model. The trajectory library is still evolving, and the package layout will keep changing while the right authored form for explainable trajectories is being worked out.
+This shape should be treated as the current working structure, not a final settled data model. The trajectory library is still evolving, and the package layout will keep changing while the right authored form for explainable, interchangeable components is being worked out.
 
 ## Explainability And Validation Structure
 
@@ -80,6 +84,8 @@ That thin layer is there so you can:
 - inspect trajectories and families,
 - inspect cost and emissions outcomes,
 - test how assumptions change results,
+- run and compare experiment sets,
+- generate and inspect alternative model outcomes,
 - and trace results back to package evidence, assumptions, and family-local context.
 
 The app matters because it makes the library easier to use and interrogate, but it is not the primary reason this repository exists.
@@ -95,9 +101,10 @@ The app matters because it makes the library easier to use and interrogate, but 
 
 ## Current Status And Limits
 
-- The trajectory-library shape is still moving.
+- The trajectory-library shape is still moving, and incompatible changes are expected.
 - The current package layout is designed for active authoring, explainability, and validation rather than long-term final form.
-- `exports/legacy/` remains in the repo for compatibility with existing consumers and workflows.
+- `exports/legacy/` remains in the repo as a transitional bridge for current consumers and workflows, not as a promise that legacy formats will be preserved.
+- The CLI and WebUI contracts may change as the library design changes.
 - The web app is intentionally thin and should not be mistaken for the primary product.
 - The current repository is strongest as a working environment for developing the data structure, trajectories, justifications, and interactive testing loop together.
 

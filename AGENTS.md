@@ -2,6 +2,12 @@
 
 This project uses **bd** (beads) for issue tracking. Run `bd prime` for full workflow context.
 
+## Project Posture
+
+`simple-msm` is library-first. The main product is the reusable, interchangeable trajectory/component library for modelling pieces of Australia's energy and emissions system. The optimizer, CLI, and WebUI are deliberately thin harnesses around that library: they exist to exercise it, test it, explain its outputs, and discover the supporting machinery needed for workflows such as experiment sets, modelling to generate alternatives, and traceable result explanations.
+
+Do not treat the current library shape as stable. This repository is still discovering the right abstractions through repeated use in anger, so there is no general backward-compatibility promise for library schemas, package layout, CLI contracts, or UI-facing data shapes. Prefer clear, useful evolution over compatibility preservation unless a task explicitly says otherwise.
+
 ## Quick Reference
 
 ```bash
