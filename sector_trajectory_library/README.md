@@ -17,6 +17,12 @@ It is designed to keep data, explanation, and validation together rather than sp
 
 ## Core Modelling Conventions
 
+### Role topology preview
+
+ESRL 1.0 introduces role-first topology metadata beside the current family-scoped package. `shared/roles.csv` defines the initial top-level role coverage and does not carry reporting `sector` or `subsector` fields. `shared/reporting_allocations.csv` maps role activity to reporting labels such as sector and subsector.
+
+This is a pre-migration surface for the role-topology cutover. The current `families/` package remains the runtime source until later ESRL migration issues move authored data to role and method terminology.
+
 ### Family-scoped authoring
 
 Each `family_id` owns its state table, demand anchor, README, and validation note together in one folder. Shared ledgers, the family registry, and shared curve tables live under `shared/`.
@@ -38,6 +44,8 @@ The `validation/` and `exports/legacy/` folders hold generated compatibility and
 ## Package Layout
 
 - `shared/families.csv` — canonical family registry
+- `shared/roles.csv` — ESRL role-first top-level coverage
+- `shared/reporting_allocations.csv` — mappings from roles to reporting sectors, subsectors, and buckets
 - `families/<family_id>/family_states.csv` — authored state-year rows
 - `families/<family_id>/demand.csv` — family anchor and linked growth curve
 - `families/<family_id>/README.md` — family context and caveats

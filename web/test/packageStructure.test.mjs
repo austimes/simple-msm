@@ -49,6 +49,72 @@ const EFFICIENCY_PACKAGE_HEADERS = [
   'review_notes',
   'non_stacking_group',
 ];
+const ROLE_TOPOLOGY_HEADERS = [
+  'role_id',
+  'role_label',
+  'description',
+  'topology_area_id',
+  'topology_area_label',
+  'parent_role_id',
+  'role_kind',
+  'balance_type',
+  'output_unit',
+  'coverage_obligation',
+  'default_representation_kind',
+  'notes',
+];
+const REPORTING_ALLOCATION_HEADERS = [
+  'reporting_allocation_id',
+  'role_id',
+  'reporting_system',
+  'sector',
+  'subsector',
+  'reporting_bucket',
+  'allocation_basis',
+  'allocation_share',
+  'notes',
+];
+const EXPECTED_TOPOLOGY_AREAS = new Set([
+  'buildings',
+  'transport',
+  'industrial_heat_and_production',
+  'energy_supply',
+  'agriculture',
+  'construction',
+  'water_waste',
+  'other_residuals',
+  'removals_land',
+]);
+const EXPECTED_ROLE_IDS = new Set([
+  'deliver_residential_building_services',
+  'deliver_commercial_building_services',
+  'account_residual_residential_buildings',
+  'account_residual_commercial_buildings',
+  'deliver_passenger_road_transport',
+  'deliver_freight_road_transport',
+  'account_residual_transport',
+  'deliver_low_temperature_heat',
+  'deliver_medium_temperature_heat',
+  'deliver_high_temperature_heat',
+  'produce_crude_steel',
+  'produce_cement_equivalent',
+  'account_residual_manufacturing',
+  'account_residual_ippu',
+  'supply_electricity',
+  'account_electricity_grid_losses_own_use',
+  'account_residual_mining_energy',
+  'account_residual_fugitives',
+  'produce_livestock_output',
+  'produce_cropping_horticulture_output',
+  'account_residual_agriculture',
+  'account_residual_construction',
+  'account_residual_water_waste',
+  'account_residual_waste_emissions',
+  'account_residual_other_sectors',
+  'remove_co2_land_sequestration',
+  'remove_co2_engineered_removals',
+  'account_residual_lulucf_sink',
+]);
 
 function readText(relativePath) {
   return readFileSync(join(PACKAGE_ROOT, relativePath), 'utf8');
@@ -276,6 +342,42 @@ test('sector trajectory library package structure is internally consistent', () 
 
   const residualOverlays = parseCsv(readText('overlays/residual_overlays.csv'));
   assert.equal(residualOverlays.length, 0, 'migrated residual overlays should not remain as overlay sidecar rows');
+});
+
+test('ESRL role topology keeps physical roles separate from reporting labels', () => {
+  const roles = parseCsv(readText('shared/roles.csv'));
+  const reportingAllocations = parseCsv(readText('shared/reporting_allocations.csv'));
+
+  assert.deepEqual(parseHeader('shared/roles.csv'), ROLE_TOPOLOGY_HEADERS);
+  assert.deepEqual(parseHeader('shared/reporting_allocations.csv'), REPORTING_ALLOCATION_HEADERS);
+  assert.equal(ROLE_TOPOLOGY_HEADERS.includes('sector'), false);
+  assert.equal(ROLE_TOPOLOGY_HEADERS.includes('subsector'), false);
+
+  const roleIds = new Set(roles.map((role) => role.role_id));
+  const areaIds = new Set(roles.map((role) => role.topology_area_id));
+  const reportingRoleIds = new Set(reportingAllocations.map((allocation) => allocation.role_id));
+
+  assert.deepEqual(roleIds, EXPECTED_ROLE_IDS);
+  assert.deepEqual(areaIds, EXPECTED_TOPOLOGY_AREAS);
+  assert.equal(roles.length, 28);
+  assert.equal(reportingAllocations.length, roles.length);
+  assert.equal(roles.filter((role) => role.role_kind === 'residual').length, 14);
+  assert.equal(roles.filter((role) => role.coverage_obligation === 'explicit_residual_top_level').length, 14);
+
+  for (const role of roles) {
+    assert.equal(role.parent_role_id, '', `${role.role_id} should be an initial top-level role`);
+    assert.equal(role.default_representation_kind, 'pathway_bundle', `${role.role_id} should start as a direct bundle`);
+    assert.equal(reportingRoleIds.has(role.role_id), true, `${role.role_id} should have a reporting allocation`);
+  }
+
+  for (const allocation of reportingAllocations) {
+    assert.equal(roleIds.has(allocation.role_id), true, `${allocation.role_id} must resolve to roles.csv`);
+    assert.equal(allocation.reporting_system, 'phase1_package_accounting');
+    assert.equal(allocation.allocation_basis, 'role_activity');
+    assert.equal(Number(allocation.allocation_share), 1);
+    assert.notEqual(allocation.sector, '', `${allocation.role_id} must declare a reporting sector`);
+    assert.notEqual(allocation.subsector, '', `${allocation.role_id} must declare a reporting subsector`);
+  }
 });
 
 test('schema companions stay aligned with the authored CSV headers', () => {
