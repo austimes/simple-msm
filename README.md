@@ -48,6 +48,8 @@ That explainability layer is part of the product itself, not an optional documen
 
 ## What The Library Looks Like Today
 
+The ESRL 1.0 target ontology and package name are locked in [docs/plan/20260428-esrl-ontology-decision.md](./docs/plan/20260428-esrl-ontology-decision.md). The current package described below is the pre-migration working structure.
+
 The canonical authored package is [`sector_trajectory_library/`](./sector_trajectory_library/README.md).
 
 - `shared/families.csv` is the family registry that holds family-level metadata such as sector, region, output unit, and default incumbent state.
@@ -112,4 +114,5 @@ The app matters because it makes the library easier to use and interrogate, but 
 
 - [sector_trajectory_library/README.md](./sector_trajectory_library/README.md)
 - [web/README.md](./web/README.md)
+- [docs/plan/20260428-esrl-ontology-decision.md](./docs/plan/20260428-esrl-ontology-decision.md)
 - [docs/prd/phase1_sector_state_explorer_prd_v02.md](./docs/prd/phase1_sector_state_explorer_prd_v02.md)

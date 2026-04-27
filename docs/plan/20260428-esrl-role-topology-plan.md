@@ -4,6 +4,8 @@ Date: 2026-04-28
 
 Status: implementation plan for beads epics `simple-msm-esrl-1` and `simple-msm-esrl-2`
 
+Ontology decision: [20260428-esrl-ontology-decision.md](./20260428-esrl-ontology-decision.md)
+
 ## Purpose
 
 This plan records the target direction for the Energy System Representation Library (ESRL) work. It exists because the short bead descriptions are not enough context for implementers. The repository is library-first: the web app is a demonstration and validation layer around the library, not the product boundary.
