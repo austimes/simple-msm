@@ -179,6 +179,9 @@ const EXPECTED_ROLE_IDS = new Set([
   'deliver_medium_temperature_heat',
   'deliver_high_temperature_heat',
   'produce_crude_steel',
+  'produce_crude_steel_non_h2_dri_residual',
+  'produce_direct_reduced_iron',
+  'melt_refine_dri_crude_steel',
   'produce_cement_equivalent',
   'account_residual_manufacturing',
   'account_residual_ippu',
@@ -255,10 +258,10 @@ test('energy system representation library package structure is internally consi
   assert.deepEqual(parseHeader('shared/reporting_allocations.csv'), REPORTING_ALLOCATION_HEADERS);
   assert.deepEqual(parseHeader('validation/role_validation_summary.csv'), ROLE_VALIDATION_HEADERS);
   assert.deepEqual(roleIds, EXPECTED_ROLE_IDS);
-  assert.equal(roles.length, 28);
+  assert.equal(roles.length, 31);
   assert.equal(roles.filter((role) => role.role_kind === 'residual').length, 14);
   assert.equal(roles.filter((role) => role.coverage_obligation === 'explicit_residual_top_level').length, 14);
-  assert.equal(representations.length, roles.length);
+  assert.equal(representations.length, roles.length + 1);
   assert.equal(reportingAllocations.length, roles.length);
   assert.equal(roleValidationSummary.length, roles.length);
 
@@ -288,6 +291,59 @@ test('energy system representation library package structure is internally consi
     assert.equal(roleIds.has(edge.child_role_id), true, `${edge.child_role_id} must resolve to roles.csv`);
     assert.match(edge.edge_kind, /^(required_child|optional_child)$/);
   }
+
+  const crudeSteelRepresentations = representations.filter((representation) => representation.role_id === 'produce_crude_steel');
+  assert.deepEqual(
+    new Set(crudeSteelRepresentations.map((representation) => representation.representation_kind)),
+    new Set(['pathway_bundle', 'role_decomposition']),
+    'produce_crude_steel should expose aggregate and decomposed representations',
+  );
+  const crudeSteelDecomposition = representationById.get('produce_crude_steel__h2_dri_decomposition');
+  assert.ok(crudeSteelDecomposition, 'crude-steel decomposition representation must exist');
+  assert.equal(crudeSteelDecomposition.is_default, 'false', 'crude-steel decomposition should not replace the aggregate default');
+  const crudeSteelChildren = roleDecompositionEdges
+    .filter((edge) => edge.parent_representation_id === 'produce_crude_steel__h2_dri_decomposition')
+    .sort((left, right) => Number(left.display_order) - Number(right.display_order));
+  assert.deepEqual(
+    crudeSteelChildren.map((edge) => edge.child_role_id),
+    [
+      'produce_crude_steel_non_h2_dri_residual',
+      'produce_direct_reduced_iron',
+      'melt_refine_dri_crude_steel',
+    ],
+    'crude-steel decomposition should activate the non-H2 residual, DRI, and melt/refine children',
+  );
+  for (const edge of crudeSteelChildren) {
+    assert.equal(edge.edge_kind, 'required_child', `${edge.child_role_id} should be required`);
+    assert.equal(edge.is_required, 'true', `${edge.child_role_id} should be required`);
+    assert.equal(roleById.get(edge.child_role_id)?.parent_role_id, 'produce_crude_steel', `${edge.child_role_id} should point back to produce_crude_steel`);
+  }
+  assert.deepEqual(
+    new Set(parseCsv(readText('roles/produce_crude_steel_non_h2_dri_residual/methods.csv')).map((method) => method.method_id)),
+    new Set([
+      'steel__crude_steel_non_h2__bf_bof_conventional',
+      'steel__crude_steel_non_h2__scrap_eaf',
+      'steel__crude_steel_non_h2__bf_bof_ccs_transition',
+    ]),
+    'non-H2 residual child should preserve explicit non-H2 crude-steel coverage',
+  );
+  assert.deepEqual(
+    new Set(parseCsv(readText('roles/produce_direct_reduced_iron/methods.csv')).map((method) => method.method_id)),
+    new Set([
+      'steel__dri__h2_shaft_furnace',
+      'steel__dri__gas_shaft_furnace',
+      'steel__dri__imported_residual',
+    ]),
+    'DRI child should expose technology methods',
+  );
+  assert.deepEqual(
+    new Set(parseCsv(readText('roles/melt_refine_dri_crude_steel/methods.csv')).map((method) => method.method_id)),
+    new Set([
+      'steel__dri_melt_refine__eaf_finishing',
+      'steel__dri_melt_refine__electric_smelter',
+    ]),
+    'melt/refine child should expose finishing methods',
+  );
 
   const reportingRoleIds = new Set(reportingAllocations.map((allocation) => allocation.role_id));
   for (const allocation of reportingAllocations) {
@@ -391,8 +447,8 @@ test('energy system representation library package structure is internally consi
     }
   }
 
-  assert.equal(totalMethods, 52);
-  assert.equal(totalMethodYearRows, 312);
+  assert.equal(totalMethods, 60);
+  assert.equal(totalMethodYearRows, 360);
   assert.equal(autonomousTrackRowCount > 0, true, 'expected at least one autonomous efficiency track row');
   assert.equal(efficiencyPackageRowCount > 0, true, 'expected at least one efficiency package row');
 

@@ -6,10 +6,11 @@ The package keeps role data, explanation, evidence hooks, and validation materia
 
 ## What Is Included
 
-- 28 authored roles in `roles/<role_id>/`
-- 52 distinct methods
-- 312 method-year rows across milestone years 2025, 2030, 2035, 2040, 2045, and 2050
+- 31 authored roles in `roles/<role_id>/`
+- 60 distinct methods
+- 360 method-year rows across milestone years 2025, 2030, 2035, 2040, 2045, and 2050
 - Shared role topology, representation choices, reporting allocations, ledgers, commodity taxonomy, growth curves, price curves, carbon price curves, schemas, and validation diagnostics
+- A crude-steel role-decomposition pilot that keeps the aggregate pathway bundle available while testing a granular H2 DRI process-chain branch
 
 ## Core Modelling Conventions
 
@@ -28,6 +29,14 @@ Roles are the model-structure ontology. Reporting labels such as sector and subs
 - `role_decomposition`
 
 Every active role must have exactly one active representation. Direct bundle representations expose methods. Decomposition representations activate child roles through `shared/role_decomposition_edges.csv`.
+
+The current pilot is `produce_crude_steel`. Its default representation remains the aggregate `pathway_bundle`, while the optional `role_decomposition` representation activates:
+
+- `produce_crude_steel_non_h2_dri_residual`
+- `produce_direct_reduced_iron`
+- `melt_refine_dri_crude_steel`
+
+That pilot proves the package can keep complete crude-steel coverage without making every steel route process-chain detailed at once.
 
 ### Methods
 

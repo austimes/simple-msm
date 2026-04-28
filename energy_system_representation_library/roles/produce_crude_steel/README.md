@@ -13,6 +13,13 @@ This role covers `crude_steel` in sector `steel` / subsector `crude_steel` for r
 - Output quantity basis: One tonne of crude steel at plant gate, reduced-form national average route archetype.
 - Default incumbent method id: `steel__crude_steel__bf_bof_conventional`
 
+## Representation options
+
+- `produce_crude_steel__pathway_bundle` is the default aggregate pathway bundle and exposes the current BF-BOF, scrap EAF, CCS-influenced BF-BOF, and aggregate H2 DRI-electric methods.
+- `produce_crude_steel__h2_dri_decomposition` is an optional role decomposition. It deactivates the parent direct methods and activates the required child roles `produce_crude_steel_non_h2_dri_residual`, `produce_direct_reduced_iron`, and `melt_refine_dri_crude_steel`.
+
+The decomposition is a topology choice, not a method. It lets the package test a granular H2 DRI process-chain branch while the non-H2 crude-steel routes remain covered by an explicit aggregate child role.
+
 ## Method inventory
 
 - steel__crude_steel__bf_bof_ccs_transition — CCS-influenced BF-BOF steel
@@ -21,6 +28,8 @@ This role covers `crude_steel` in sector `steel` / subsector `crude_steel` for r
 - steel__crude_steel__scrap_eaf — Scrap EAF steel
 
 All method ids are authored across milestone years 2025, 2030, 2035, 2040, 2045, 2050.
+
+When the decomposition representation is selected, the parent method inventory is inactive and method selection moves to the child roles.
 
 ## Main sources used
 
