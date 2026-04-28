@@ -2,14 +2,14 @@
 
 ## What the role represents
 
-This role covers `electricity` in sector `electricity_supply` / subsector `grid_supply` for region `AUS`. The canonical balance type is `endogenous_supply_commodity`, with output measured in `MWh`. - **Output**: `electricity`
+This role covers `electricity` in sector `electricity_supply` / subsector `grid_supply` for region `AUS`. The canonical balance type is `commodity_supply`, with output measured in `MWh`. - **Output**: `electricity`
 - **Unit**: `MWh`
 - **Region in Phase 1**: `AUS`
 
-## Output/service definition
+## Role definition
 
-- Role id: `electricity`
-- Output/service name: `electricity`
+- Role id: `supply_electricity`
+- Balance type: `commodity_supply`
 - Output unit: `MWh`
 - Output quantity basis: One MWh of delivered grid electricity at national-average reduced-form system boundary.
 - Default incumbent method id: `electricity__grid_supply__incumbent_thermal_mix`

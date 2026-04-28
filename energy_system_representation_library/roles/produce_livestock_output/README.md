@@ -2,12 +2,12 @@
 
 ## What the role represents
 
-This role covers `livestock_output_bundle` in sector `agriculture` / subsector `livestock` for region `AUS`. The canonical balance type is `required_service`, with output measured in `A$m_output_2024`. Agriculture is represented using two coarse output bundles:
+This role covers `livestock_output_bundle` in sector `agriculture` / subsector `livestock` for region `AUS`. The canonical balance type is `service_demand`, with output measured in `A$m_output_2024`. Agriculture is represented using two coarse output bundles:
 
-## Output/service definition
+## Role definition
 
-- Role id: `livestock_output_bundle`
-- Output/service name: `livestock_output_bundle`
+- Role id: `produce_livestock_output`
+- Balance type: `service_demand`
 - Output unit: `A$m_output_2024`
 - Output quantity basis: One million 2024 Australian dollars of farm-gate output in the named coarse agricultural bundle.
 - Default incumbent method id: `agriculture__livestock__conventional`
@@ -50,7 +50,7 @@ The Phase 1 package keeps 2 method ids for this role so the explorer and solver 
 - Research note: see `docs/prd/20260420-agriculture-electricity-efficiency-research.md`.
 - This role is an explicit `no_material_v1` case in the canonical efficiency inventory.
 - Do not author `autonomous_efficiency_tracks.csv` or `efficiency_packages.csv` rows for this role in v1.
-- The limited direct-energy improvement that exists today remains bundled into `agriculture__livestock__mitigated` until the role is split into narrower livestock subfamilies.
+- The limited direct-energy improvement that exists today remains bundled into `agriculture__livestock__mitigated` until the role is split into narrower livestock roles.
 
 ## Expansion path
 

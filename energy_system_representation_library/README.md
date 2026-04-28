@@ -12,13 +12,17 @@ The package keeps role data, explanation, evidence hooks, and validation materia
 - Shared role topology, representation choices, reporting allocations, ledgers, commodity taxonomy, growth curves, price curves, carbon price curves, schemas, and validation diagnostics
 - A crude-steel role-decomposition pilot that keeps the aggregate pathway bundle available while testing a granular H2 DRI process-chain branch
 
-## Core Modelling Conventions
+## Public Ontology
 
 ### Roles
 
-A role is the system function being covered: produce, supply, deliver, remove, or account for something. `shared/roles.csv` is the role registry and topology surface. It defines each `role_id`, role kind, balance type, output unit, coverage obligation, and default representation kind.
+A role is the system function being covered: produce, supply, deliver, remove, or account for something. `shared/roles.csv` is the role registry and topology surface. It defines each `role_id`, label, description, topology area, parent role, role kind, balance type, output unit, coverage obligation, and default representation kind.
 
-Roles are the model-structure ontology. Reporting labels such as sector and subsector are kept out of role topology and live only in `shared/reporting_allocations.csv`.
+Roles are the model-structure ontology. Reporting labels such as sector and subsector are kept out of role topology and live only in `shared/reporting_allocations.csv`. A role can be a top-level coverage obligation or a child activated by a decomposition representation.
+
+### Role Topology
+
+The role topology records which coverage obligations exist and how decompositions activate child roles. A selected model structure must cover every required active role exactly once. Residual coverage is explicit: residual roles and residual methods are named rows, not hidden overlays.
 
 ### Representations
 
@@ -28,7 +32,7 @@ Roles are the model-structure ontology. Reporting labels such as sector and subs
 - `technology_bundle`
 - `role_decomposition`
 
-Every active role must have exactly one active representation. Direct bundle representations expose methods. Decomposition representations activate child roles through `shared/role_decomposition_edges.csv`.
+Every active role must have exactly one active representation. Direct bundle representations expose methods. Decomposition representations activate child roles through `shared/role_decomposition_edges.csv`. When a decomposition is selected, the parent role's direct methods are inactive and the child roles must each be represented in turn.
 
 The current pilot is `produce_crude_steel`. Its default representation remains the aggregate `pathway_bundle`, while the optional `role_decomposition` representation activates:
 
@@ -44,6 +48,10 @@ Each `roles/<role_id>/methods.csv` file lists the selectable methods for a direc
 
 Residual coverage is explicit. It is represented as residual roles and residual methods rather than hidden sidecars.
 
+### Reporting Allocations
+
+`shared/reporting_allocations.csv` maps role activity to external accounting contexts: sector, subsector, reporting bucket, reporting system, allocation basis, and allocation share. Reporting allocations explain how results should be grouped, but they do not create topology and cannot add or remove physical coverage.
+
 ### Demand And Efficiency
 
 Each role owns its demand anchor in `roles/<role_id>/demand.csv`. Shared growth curves live in `shared/demand_growth_curves.csv`.
@@ -53,7 +61,7 @@ Role-local efficiency artifacts live beside the methods they affect:
 - `roles/<role_id>/autonomous_efficiency_tracks.csv`
 - `roles/<role_id>/efficiency_packages.csv`
 
-Those files use `role_id` and `applicable_method_ids`; they do not retain the pre-ESRL family/state columns.
+Those files use `role_id` and `applicable_method_ids` so efficiency effects attach directly to canonical role methods.
 
 ## Package Layout
 
@@ -72,6 +80,14 @@ Those files use `role_id` and `applicable_method_ids`; they do not retain the pr
 
 ## Validation Structure
 
-Structural validation expects every role listed in `shared/roles.csv` to have a matching folder containing `methods.csv`, `method_years.csv`, `demand.csv`, `README.md`, and `validation.md`. Ledger validation expects every referenced source, assumption, and curve id to resolve in the shared package tables.
+Structural validation expects every role listed in `shared/roles.csv` to have a matching folder containing `methods.csv`, `method_years.csv`, `demand.csv`, `README.md`, and `validation.md`.
 
-The package intentionally does not retain a compatibility copy of the old family/state layout. Downstream consumers should load the role, representation, and method surfaces directly.
+The package structure test checks:
+
+- topology integrity: parent roles resolve, decomposition edges point at decomposition representations, required children point back to their parent role, and the role graph is acyclic;
+- representation exclusivity: every role has exactly one default representation, direct representations expose methods, decomposition representations expose child edges, and decomposition representations do not carry direct methods;
+- method-year completeness: every method resolves to a direct representation for the same role and has one row for each milestone year from 2025 through 2050;
+- reporting allocation resolution: every allocation resolves to a role, every role has reporting coverage, and allocation shares resolve to full coverage within each reporting system;
+- schema alignment: each JSON-schema companion exposes the same ordered fields as the authored CSV it documents.
+
+The package intentionally exposes only the role, representation, method, demand, efficiency, reporting, and ledger surfaces documented above. Downstream consumers should load those surfaces directly.

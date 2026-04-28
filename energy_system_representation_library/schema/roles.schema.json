@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "schema/roles.schema.json",
   "title": "Roles",
-  "description": "Schema for shared/roles.csv. Roles define the primary energy-system coverage obligations and topology positions.",
+  "description": "Schema for shared/roles.csv. Roles define the primary energy-system coverage obligations, topology positions, balance types, output units, residual coverage obligations, and default representation kinds.",
   "type": "object",
   "required": [
     "role_id",
@@ -41,19 +41,28 @@
     },
     "parent_role_id": {
       "type": "string",
-      "description": "Parent role identifier when this role is a child in a decomposition."
+      "description": "Parent role identifier when this role is activated by a decomposition representation; blank for top-level coverage obligations."
     },
     "role_kind": {
       "type": "string",
       "enum": [
         "modeled",
+        "removal",
         "residual"
       ],
-      "description": "Whether the role has modeled methods or represents explicit residual coverage."
+      "description": "Whether the role has modeled methods, represents explicit residual coverage, or is a carbon-removal role."
     },
     "balance_type": {
       "type": "string",
-      "description": "Balance or accounting requirement satisfied by the role."
+      "enum": [
+        "carbon_removal",
+        "commodity_supply",
+        "intermediate_conversion",
+        "intermediate_material",
+        "residual_accounting",
+        "service_demand"
+      ],
+      "description": "Balance or accounting requirement satisfied by the role, such as service demand, commodity supply, intermediate conversion, residual accounting, or carbon removal."
     },
     "output_unit": {
       "type": "string",
@@ -61,7 +70,12 @@
     },
     "coverage_obligation": {
       "type": "string",
-      "description": "Coverage obligation class."
+      "enum": [
+        "explicit_residual_top_level",
+        "required_decomposition_child",
+        "required_top_level"
+      ],
+      "description": "Coverage obligation class. Required top-level roles and explicit residual top-level roles are active unless scoped out; required decomposition children are active when their parent decomposition representation is selected."
     },
     "default_representation_kind": {
       "type": "string",
@@ -70,7 +84,7 @@
         "technology_bundle",
         "role_decomposition"
       ],
-      "description": "Initial default representation kind."
+      "description": "Kind of the default representation selected for this role before scenario-specific representation choices are applied."
     },
     "notes": {
       "type": "string",

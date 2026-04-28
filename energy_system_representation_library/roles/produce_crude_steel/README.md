@@ -2,13 +2,13 @@
 
 ## What the role represents
 
-This role covers `crude_steel` in sector `steel` / subsector `crude_steel` for region `AUS`. The canonical balance type is `required_service`, with output measured in `t_crude_steel`. - output: `crude_steel`
+This role covers `crude_steel` in sector `steel` / subsector `crude_steel` for region `AUS`. The canonical balance type is `service_demand`, with output measured in `t_crude_steel`. - output: `crude_steel`
 - unit: `t_crude_steel`
 
-## Output/service definition
+## Role definition
 
-- Role id: `crude_steel`
-- Output/service name: `crude_steel`
+- Role id: `produce_crude_steel`
+- Balance type: `service_demand`
 - Output unit: `t_crude_steel`
 - Output quantity basis: One tonne of crude steel at plant gate, reduced-form national average route archetype.
 - Default incumbent method id: `steel__crude_steel__bf_bof_conventional`

@@ -2,12 +2,12 @@
 
 ## What the role represents
 
-This role covers `residential_building_services` in sector `buildings` / subsector `residential` for region `AUS`. The canonical balance type is `required_service`, with output measured in `GJ_service_eq`. Buildings are represented as **aggregate service bundles** rather than explicit end-use processes.
+This role covers `residential_building_services` in sector `buildings` / subsector `residential` for region `AUS`. The canonical balance type is `service_demand`, with output measured in `GJ_service_eq`. Buildings are represented as **aggregate service bundles** rather than explicit end-use processes.
 
-## Output/service definition
+## Role definition
 
-- Role id: `residential_building_services`
-- Output/service name: `residential_building_services`
+- Role id: `deliver_residential_building_services`
+- Balance type: `service_demand`
 - Output unit: `GJ_service_eq`
 - Output quantity basis: Baseline-normalised building service bundle. One unit approximates the useful service delivered by one GJ of incumbent 2025 final-energy use in this subsector.
 - Default incumbent method id: `buildings__residential__incumbent_mixed_fuels`

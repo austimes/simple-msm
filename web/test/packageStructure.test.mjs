@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import test from 'node:test';
 import { parseCsv } from '../src/data/parseCsv.ts';
@@ -166,6 +166,20 @@ const ROLE_VALIDATION_HEADERS = [
 ];
 const REPRESENTATION_KINDS = new Set(['pathway_bundle', 'technology_bundle', 'role_decomposition']);
 const METHOD_KINDS = new Set(['pathway', 'technology', 'residual']);
+const ROLE_KINDS = new Set(['modeled', 'removal', 'residual']);
+const BALANCE_TYPES = new Set([
+  'carbon_removal',
+  'commodity_supply',
+  'intermediate_conversion',
+  'intermediate_material',
+  'residual_accounting',
+  'service_demand',
+]);
+const COVERAGE_OBLIGATIONS = new Set([
+  'explicit_residual_top_level',
+  'required_decomposition_child',
+  'required_top_level',
+]);
 const CONFIDENCE_RATINGS = new Set(['High', 'Medium', 'Low', 'Exploratory']);
 const EXPECTED_ROLE_IDS = new Set([
   'deliver_residential_building_services',
@@ -238,6 +252,40 @@ function assertMilestoneCoverage(rows, idKey, ownerId) {
   }
 }
 
+function assertUnique(rows, getKey, label) {
+  const seen = new Set();
+  for (const row of rows) {
+    const key = getKey(row);
+    assert.equal(seen.has(key), false, `${label} ${key} must be unique`);
+    seen.add(key);
+  }
+}
+
+function groupBy(rows, getKey) {
+  const grouped = new Map();
+  for (const row of rows) {
+    const key = getKey(row);
+    const group = grouped.get(key) ?? [];
+    group.push(row);
+    grouped.set(key, group);
+  }
+  return grouped;
+}
+
+function assertAcyclicRoleTopology(roles) {
+  const roleById = new Map(roles.map((role) => [role.role_id, role]));
+  for (const role of roles) {
+    const seen = new Set([role.role_id]);
+    let parentRoleId = role.parent_role_id;
+    while (parentRoleId) {
+      assert.equal(roleById.has(parentRoleId), true, `${role.role_id} parent ${parentRoleId} must resolve`);
+      assert.equal(seen.has(parentRoleId), false, `${role.role_id} parent chain must not contain a cycle through ${parentRoleId}`);
+      seen.add(parentRoleId);
+      parentRoleId = roleById.get(parentRoleId)?.parent_role_id ?? '';
+    }
+  }
+}
+
 test('energy system representation library package structure is internally consistent', () => {
   const roles = parseCsv(readText('shared/roles.csv'));
   const representations = parseCsv(readText('shared/representations.csv'));
@@ -250,6 +298,11 @@ test('energy system representation library package structure is internally consi
   const roleIds = new Set(roles.map((role) => role.role_id));
   const roleById = new Map(roles.map((role) => [role.role_id, role]));
   const representationById = new Map(representations.map((representation) => [representation.representation_id, representation]));
+  const edgesByParentRepresentation = groupBy(roleDecompositionEdges, (edge) => edge.parent_representation_id);
+  const requiredChildEdgesByRole = groupBy(
+    roleDecompositionEdges.filter((edge) => edge.is_required === 'true'),
+    (edge) => edge.child_role_id,
+  );
   const defaultCountByRole = new Map();
 
   assert.deepEqual(parseHeader('shared/roles.csv'), ROLE_HEADERS);
@@ -257,6 +310,11 @@ test('energy system representation library package structure is internally consi
   assert.deepEqual(parseHeader('shared/role_decomposition_edges.csv'), ROLE_DECOMPOSITION_EDGE_HEADERS);
   assert.deepEqual(parseHeader('shared/reporting_allocations.csv'), REPORTING_ALLOCATION_HEADERS);
   assert.deepEqual(parseHeader('validation/role_validation_summary.csv'), ROLE_VALIDATION_HEADERS);
+  assertUnique(roles, (role) => role.role_id, 'role_id');
+  assertUnique(representations, (representation) => representation.representation_id, 'representation_id');
+  assertUnique(roleDecompositionEdges, (edge) => `${edge.parent_representation_id}::${edge.child_role_id}`, 'role decomposition edge');
+  assertUnique(reportingAllocations, (allocation) => allocation.reporting_allocation_id, 'reporting_allocation_id');
+  assertUnique(roleValidationSummary, (summary) => summary.role_id, 'validation summary role_id');
   assert.deepEqual(roleIds, EXPECTED_ROLE_IDS);
   assert.equal(roles.length, 31);
   assert.equal(roles.filter((role) => role.role_kind === 'residual').length, 14);
@@ -264,19 +322,42 @@ test('energy system representation library package structure is internally consi
   assert.equal(representations.length, roles.length + 1);
   assert.equal(reportingAllocations.length, roles.length);
   assert.equal(roleValidationSummary.length, roles.length);
+  assertAcyclicRoleTopology(roles);
+
+  for (const role of roles) {
+    assert.equal(ROLE_KINDS.has(role.role_kind), true, `${role.role_id} kind must be canonical`);
+    assert.equal(BALANCE_TYPES.has(role.balance_type), true, `${role.role_id} balance type must be canonical`);
+    assert.equal(COVERAGE_OBLIGATIONS.has(role.coverage_obligation), true, `${role.role_id} coverage obligation must be canonical`);
+    if (role.coverage_obligation === 'required_decomposition_child') {
+      assert.notEqual(role.parent_role_id, '', `${role.role_id} decomposition child must name a parent role`);
+      assert.equal(requiredChildEdgesByRole.has(role.role_id), true, `${role.role_id} decomposition child must be activated by a required edge`);
+      assert.equal(requiredChildEdgesByRole.get(role.role_id)?.length, 1, `${role.role_id} decomposition child must have one required activation edge`);
+    } else {
+      assert.equal(role.parent_role_id, '', `${role.role_id} top-level role must not name a parent role`);
+    }
+  }
 
   for (const representation of representations) {
-    assert.equal(roleIds.has(representation.role_id), true, `${representation.representation_id} role must resolve`);
+    const role = roleById.get(representation.role_id);
+    assert.ok(role, `${representation.representation_id} role must resolve`);
     assert.equal(REPRESENTATION_KINDS.has(representation.representation_kind), true, `${representation.representation_id} kind must be canonical`);
     if (representation.is_default === 'true') {
       defaultCountByRole.set(representation.role_id, (defaultCountByRole.get(representation.role_id) ?? 0) + 1);
+      assert.equal(
+        representation.representation_kind,
+        role.default_representation_kind,
+        `${representation.representation_id} default kind must match roles.csv`,
+      );
     } else {
       assert.equal(representation.is_default, 'false', `${representation.representation_id} is_default must be true or false`);
     }
+    const decompositionEdges = edgesByParentRepresentation.get(representation.representation_id) ?? [];
     if (representation.representation_kind === 'role_decomposition') {
       assert.equal(representation.direct_method_kind, '', `${representation.representation_id} decomposition must not expose direct methods`);
+      assert.equal(decompositionEdges.length > 0, true, `${representation.representation_id} decomposition must activate child roles`);
     } else {
       assert.equal(METHOD_KINDS.has(representation.direct_method_kind), true, `${representation.representation_id} method kind must be canonical`);
+      assert.equal(decompositionEdges.length, 0, `${representation.representation_id} direct bundle must not activate child roles`);
     }
   }
   for (const role of roles) {
@@ -290,6 +371,9 @@ test('energy system representation library package structure is internally consi
     assert.equal(edge.parent_role_id, parentRepresentation.role_id, `${edge.parent_representation_id} parent role must match representation role`);
     assert.equal(roleIds.has(edge.child_role_id), true, `${edge.child_role_id} must resolve to roles.csv`);
     assert.match(edge.edge_kind, /^(required_child|optional_child)$/);
+    assert.equal(edge.is_required, edge.edge_kind === 'required_child' ? 'true' : 'false', `${edge.child_role_id} required flag must match edge kind`);
+    assert.notEqual(edge.parent_role_id, edge.child_role_id, `${edge.child_role_id} must not be its own parent`);
+    assert.equal(roleById.get(edge.child_role_id)?.parent_role_id, edge.parent_role_id, `${edge.child_role_id} must point back to ${edge.parent_role_id}`);
   }
 
   const crudeSteelRepresentations = representations.filter((representation) => representation.role_id === 'produce_crude_steel');
@@ -354,6 +438,11 @@ test('energy system representation library package structure is internally consi
     assert.notEqual(allocation.sector, '', `${allocation.role_id} must declare a reporting sector`);
     assert.notEqual(allocation.subsector, '', `${allocation.role_id} must declare a reporting subsector`);
   }
+  for (const [key, allocations] of groupBy(reportingAllocations, (allocation) => `${allocation.reporting_system}::${allocation.role_id}`)) {
+    const allocationShare = allocations.reduce((sum, allocation) => sum + Number(allocation.allocation_share), 0);
+    assert.equal(Number.isFinite(allocationShare), true, `${key} allocation share must be numeric`);
+    assert.equal(Math.abs(allocationShare - 1) < 1e-9, true, `${key} allocation share must resolve to 1`);
+  }
 
   let totalMethods = 0;
   let totalMethodYearRows = 0;
@@ -379,17 +468,25 @@ test('energy system representation library package structure is internally consi
     const methodYears = parseCsv(readText(`roles/${role.role_id}/method_years.csv`));
     const demandRows = parseCsv(readText(`roles/${role.role_id}/demand.csv`));
     const methodIds = new Set(methods.map((method) => method.method_id));
+    const methodByRepresentationAndId = new Map(methods.map((method) => [`${method.representation_id}::${method.method_id}`, method]));
     totalMethods += methods.length;
     totalMethodYearRows += methodYears.length;
 
+    assertUnique(methods, (method) => method.method_id, `${role.role_id} method_id`);
+    assertUnique(methodYears, (row) => `${row.representation_id}::${row.method_id}::${row.year}`, `${role.role_id} method-year`);
     assert.equal(methods.length > 0, true, `${role.role_id} must expose at least one method`);
+    assert.equal(methodYears.length, methods.length * MILESTONE_YEARS.length, `${role.role_id} must have one method-year row per method and milestone year`);
     assert.equal(demandRows.length, 1, `${role.role_id} should have exactly one demand row`);
     assert.equal(demandRows[0].role_id, role.role_id, `${role.role_id} demand role_id must match folder`);
     assert.equal(demandCurveIds.has(demandRows[0].demand_growth_curve_id), true, `${role.role_id} demand curve must resolve`);
 
     for (const method of methods) {
+      const methodRepresentation = representationById.get(method.representation_id);
       assert.equal(method.role_id, role.role_id, `${role.role_id}.${method.method_id} role_id must match folder`);
-      assert.equal(method.representation_id, defaultRepresentation.representation_id, `${role.role_id}.${method.method_id} representation must be default`);
+      assert.ok(methodRepresentation, `${role.role_id}.${method.method_id} representation must resolve`);
+      assert.equal(methodRepresentation.role_id, role.role_id, `${role.role_id}.${method.method_id} representation must belong to the same role`);
+      assert.notEqual(methodRepresentation.representation_kind, 'role_decomposition', `${role.role_id}.${method.method_id} representation must be direct`);
+      assert.equal(method.method_kind, methodRepresentation.direct_method_kind, `${role.role_id}.${method.method_id} kind must match representation`);
       assert.equal(METHOD_KINDS.has(method.method_kind), true, `${role.role_id}.${method.method_id} kind must be canonical`);
       assert.equal(CONFIDENCE_RATINGS.has(method.confidence_rating), true, `${role.role_id}.${method.method_id} confidence must be canonical`);
       assert.equal(Number.isInteger(Number(method.sort_order)), true, `${role.role_id}.${method.method_id} sort_order must be an integer`);
@@ -402,9 +499,18 @@ test('energy system representation library package structure is internally consi
     }
 
     for (const row of methodYears) {
+      const methodRepresentation = representationById.get(row.representation_id);
       assert.equal(row.role_id, role.role_id, `${role.role_id}.${row.method_id}.${row.year} role_id must match folder`);
-      assert.equal(row.representation_id, defaultRepresentation.representation_id, `${role.role_id}.${row.method_id}.${row.year} representation must be default`);
-      assert.equal(methodIds.has(row.method_id), true, `${role.role_id}.${row.method_id}.${row.year} method must resolve`);
+      assert.ok(methodRepresentation, `${role.role_id}.${row.method_id}.${row.year} representation must resolve`);
+      assert.equal(methodRepresentation.role_id, role.role_id, `${role.role_id}.${row.method_id}.${row.year} representation must belong to the same role`);
+      assert.notEqual(methodRepresentation.representation_kind, 'role_decomposition', `${role.role_id}.${row.method_id}.${row.year} representation must be direct`);
+      assert.equal(methodIds.has(row.method_id), true, `${role.role_id}.${row.method_id}.${row.year} method id must resolve`);
+      assert.equal(
+        methodByRepresentationAndId.has(`${row.representation_id}::${row.method_id}`),
+        true,
+        `${role.role_id}.${row.method_id}.${row.year} method representation must resolve`,
+      );
+      assert.equal(MILESTONE_YEARS.includes(row.year), true, `${role.role_id}.${row.method_id}.${row.year} year must be a milestone`);
       assert.equal(CONFIDENCE_RATINGS.has(row.confidence_rating), true, `${role.role_id}.${row.method_id}.${row.year} confidence must be canonical`);
       const inputCommodities = parseJsonArray(row.input_commodities, `${role.role_id}.${row.method_id}.${row.year}.input_commodities`);
       const inputCoefficients = parseJsonArray(row.input_coefficients, `${role.role_id}.${row.method_id}.${row.year}.input_coefficients`);
@@ -477,6 +583,40 @@ test('canonical ESRL package does not retain family/state file surfaces', () => 
   }
 });
 
+test('canonical ESRL documentation uses role-topology terminology', () => {
+  const roles = parseCsv(readText('shared/roles.csv'));
+  const roleIds = roles.map((role) => role.role_id);
+  const docPaths = [
+    'README.md',
+    ...readdirSync(join(PACKAGE_ROOT, 'schema'))
+      .filter((filename) => filename.endsWith('.schema.json'))
+      .map((filename) => `schema/${filename}`),
+    ...roleIds.flatMap((roleId) => [
+      `roles/${roleId}/README.md`,
+      `roles/${roleId}/validation.md`,
+    ]),
+  ];
+  const removedSemanticTerms = /family_id|state_id|family_states|sector_states|service_controls|active_state_ids|SectorState|state-year|state year|state rows|family rows|family artifacts|family\/state|subfamil(?:y|ies)/i;
+
+  for (const docPath of docPaths) {
+    const text = readText(docPath);
+    assert.doesNotMatch(text, removedSemanticTerms, `${docPath} should not use removed model-structure terminology`);
+  }
+
+  const packageReadme = readText('README.md');
+  assert.match(packageReadme, /A role is the system function being covered/);
+  assert.match(packageReadme, /Every active role must have exactly one active representation/);
+  assert.match(packageReadme, /Residual coverage is explicit/);
+  assert.match(packageReadme, /Reporting allocations explain how results should be grouped/);
+
+  for (const roleId of roleIds) {
+    const readme = readText(`roles/${roleId}/README.md`);
+    if (readme.includes('- Role id:')) {
+      assert.equal(readme.includes(`- Role id: \`${roleId}\``), true, `${roleId} README role id must match its folder`);
+    }
+  }
+});
+
 test('schema companions stay aligned with the authored CSV headers', () => {
   const schemaChecks = [
     ['schema/roles.schema.json', 'shared/roles.csv', ROLE_HEADERS],
@@ -500,6 +640,10 @@ test('schema companions stay aligned with the authored CSV headers', () => {
     );
   }
 
+  const rolesSchema = readJson('schema/roles.schema.json');
+  assert.deepEqual(new Set(rolesSchema.properties.role_kind.enum), ROLE_KINDS);
+  assert.deepEqual(new Set(rolesSchema.properties.balance_type.enum), BALANCE_TYPES);
+  assert.deepEqual(new Set(rolesSchema.properties.coverage_obligation.enum), COVERAGE_OBLIGATIONS);
   const representationsSchema = readJson('schema/representations.schema.json');
   assert.deepEqual(new Set(representationsSchema.properties.representation_kind.enum), REPRESENTATION_KINDS);
   const methodsSchema = readJson('schema/methods.schema.json');

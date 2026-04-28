@@ -106,7 +106,7 @@ The app matters because it makes the library easier to use and interrogate, but 
 
 - The representation-library shape is still moving, and incompatible changes are expected.
 - The current package layout is designed for active authoring, explainability, and validation rather than long-term final form.
-- The old family/state package layout has been removed as a canonical surface.
+- The previous package layout has been removed as a canonical surface.
 - The CLI and WebUI contracts may change as the library design changes.
 - The web app is intentionally thin and should not be mistaken for the primary product.
 - The current repository is strongest as a working environment for developing the data structure, methods, justifications, and interactive testing loop together.

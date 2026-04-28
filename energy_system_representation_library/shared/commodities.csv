@@ -1,5 +1,5 @@
 commodity_id,description,unit_convention,notes
-electricity,Grid electricity supplied by electricity-supply states.,GJ or MWh depending on row,"End-use rows treat electricity as a final-energy input; electricity-related emissions are represented by electricity-supply states, not end-use scope-2 coefficients."
+electricity,Grid electricity supplied by electricity-supply methods.,GJ or MWh depending on row,"End-use rows treat electricity as a final-energy input; electricity-related emissions are represented by electricity-supply methods, not end-use scope-2 coefficients."
 natural_gas,Pipeline natural gas final-energy input.,GJ,Direct combustion emissions use representative NGA factor.
 coal,Thermal or metallurgical coal input at reduced-form commodity level.,GJ,Used as a generic coal commodity in Phase 1; split into thermal/coking coal in Phase 2 if needed.
 refined_liquid_fuels,Aggregate petroleum products for transport and stationary liquid-fuel use.,GJ,"Combines petrol, diesel and similar refined liquid fuels at MVP level."
@@ -7,5 +7,5 @@ hydrogen,Low-carbon hydrogen final-energy or reductant input.,GJ,Direct combusti
 biomass,Solid/liquid biomass or alternative bioenergy fuel.,GJ,Biogenic CO2 not counted in direct CO2e field in Phase 1.
 scrap_steel,Ferrous scrap input for steelmaking.,t,Added beyond minimum commodity taxonomy because it is material to steel route choice.
 iron_ore,Iron ore / pellet / concentrate feedstock for primary steel routes.,t,Added beyond minimum commodity taxonomy because it is material to steel route choice.
-capture_service,CO2 transport/storage or equivalent capture service for CCS-enabled process states.,tCO2 stored,Separate from negative-emissions output states; included to preserve a clean upgrade path to explicit CCS infrastructure.
+capture_service,CO2 transport/storage or equivalent capture service for CCS-enabled process methods.,tCO2 stored,Separate from negative-emissions output methods; included to preserve a clean upgrade path to explicit CCS infrastructure.
 direct_reduced_iron,Intermediate direct reduced iron output consumed by decomposed crude-steel melt and refine roles.,t,Introduced for the crude-steel role-decomposition pilot; not an exogenous final-demand commodity.

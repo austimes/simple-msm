@@ -2,12 +2,12 @@
 
 ## What the role represents
 
-This role covers `freight_road_transport` in sector `road_transport` / subsector `freight_road` for region `AUS`. The canonical balance type is `required_service`, with output measured in `tkm`. Road transport is split into:
+This role covers `freight_road_transport` in sector `road_transport` / subsector `freight_road` for region `AUS`. The canonical balance type is `service_demand`, with output measured in `tkm`. Road transport is split into:
 
-## Output/service definition
+## Role definition
 
-- Role id: `freight_road_transport`
-- Output/service name: `freight_road_transport`
+- Role id: `deliver_freight_road_transport`
+- Balance type: `service_demand`
 - Output unit: `tkm`
 - Output quantity basis: One tkm of delivered road transport service at national-average reduced-form boundary.
 - Default incumbent method id: `road_transport__freight_road__diesel`

@@ -40,19 +40,19 @@
   "properties": {
     "role_id": {
       "type": "string",
-      "description": "Role satisfied by this method-year row."
+      "description": "Role satisfied by this method-year row. The value must match the role folder and resolve to shared/roles.csv."
     },
     "representation_id": {
       "type": "string",
-      "description": "Direct representation bundle that exposes this method."
+      "description": "Direct representation bundle that exposes this method. It must match the method's representation_id and must not be a role_decomposition."
     },
     "method_id": {
       "type": "string",
-      "description": "Method represented by this row."
+      "description": "Method represented by this row. Validation requires the method to resolve in roles/<role_id>/methods.csv."
     },
     "year": {
       "type": "integer",
-      "description": "Milestone year represented by this row."
+      "description": "Milestone year represented by this row. Each method must have exactly one row for each required milestone year."
     },
     "output_cost_per_unit": {
       "type": [

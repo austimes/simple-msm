@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "schema/methods.schema.json",
   "title": "Role methods",
-  "description": "Schema for roles/<role_id>/methods.csv. A method is one selectable option inside a direct representation bundle.",
+  "description": "Schema for roles/<role_id>/methods.csv. A method is one selectable option inside a direct representation bundle for the owning role.",
   "type": "object",
   "required": [
     "role_id",
@@ -23,11 +23,11 @@
   "properties": {
     "role_id": {
       "type": "string",
-      "description": "Role satisfied by this method."
+      "description": "Role satisfied by this method. The value must match the role folder and resolve to shared/roles.csv."
     },
     "representation_id": {
       "type": "string",
-      "description": "Direct representation bundle that exposes this method."
+      "description": "Direct representation bundle that exposes this method. The representation must resolve to shared/representations.csv, belong to the same role, and not be a role_decomposition."
     },
     "method_id": {
       "type": "string",
@@ -40,7 +40,7 @@
         "technology",
         "residual"
       ],
-      "description": "Method kind inside the direct representation bundle."
+      "description": "Method kind inside the direct representation bundle. Validation checks this against the representation direct_method_kind."
     },
     "method_label": {
       "type": "string",

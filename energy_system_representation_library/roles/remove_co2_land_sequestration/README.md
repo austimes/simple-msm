@@ -2,13 +2,13 @@
 
 ## What the role represents
 
-This role covers `land_sequestration` in sector `removals_negative_emissions` / subsector `land_sequestration` for region `AUS`. The canonical balance type is `required_service`, with output measured in `tCO2_removed`. - biological land sequestration
+This role covers `land_sequestration` in sector `removals_negative_emissions` / subsector `land_sequestration` for region `AUS`. The canonical balance type is `carbon_removal`, with output measured in `tCO2_removed`. - biological land sequestration
 - engineered removals (DACCS)
 
-## Output/service definition
+## Role definition
 
-- Role id: `land_sequestration`
-- Output/service name: `land_sequestration`
+- Role id: `remove_co2_land_sequestration`
+- Balance type: `carbon_removal`
 - Output unit: `tCO2_removed`
 - Output quantity basis: One tonne of CO2-equivalent durably removed from the atmosphere at the reduced-form sector boundary.
 - Default incumbent method id: `removals_negative_emissions__land_sequestration__biological_sink`

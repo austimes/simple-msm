@@ -2,12 +2,12 @@
 
 ## What the role represents
 
-This role covers `low_temperature_heat` in sector `generic_industrial_heat` / subsector `low_temperature_heat` for region `AUS`. The canonical balance type is `required_service`, with output measured in `GJ_useful_heat`. Generic industrial heat is split into three useful-heat service bands:
+This role covers `low_temperature_heat` in sector `generic_industrial_heat` / subsector `low_temperature_heat` for region `AUS`. The canonical balance type is `service_demand`, with output measured in `GJ_useful_heat`. Generic industrial heat is split into three useful-heat service bands:
 
-## Output/service definition
+## Role definition
 
-- Role id: `low_temperature_heat`
-- Output/service name: `low_temperature_heat`
+- Role id: `deliver_low_temperature_heat`
+- Balance type: `service_demand`
 - Output unit: `GJ_useful_heat`
 - Output quantity basis: One GJ of useful industrial heat delivered within the specified temperature band.
 - Default incumbent method id: `generic_industrial_heat__low_temperature_heat__fossil`

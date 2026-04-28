@@ -2,13 +2,13 @@
 
 ## What the role represents
 
-This role covers `cement_equivalent` in sector `cement_clinker` / subsector `cement_equivalent` for region `AUS`. The canonical balance type is `required_service`, with output measured in `t_cement_equivalent`. - output: `cement_equivalent`
+This role covers `cement_equivalent` in sector `cement_clinker` / subsector `cement_equivalent` for region `AUS`. The canonical balance type is `service_demand`, with output measured in `t_cement_equivalent`. - output: `cement_equivalent`
 - unit: `t_cement_equivalent`
 
-## Output/service definition
+## Role definition
 
-- Role id: `cement_equivalent`
-- Output/service name: `cement_equivalent`
+- Role id: `produce_cement_equivalent`
+- Balance type: `service_demand`
 - Output unit: `t_cement_equivalent`
 - Output quantity basis: One tonne of cement-equivalent product at plant gate, represented on a blended cement basis rather than pure clinker.
 - Default incumbent method id: `cement_clinker__cement_equivalent__conventional`

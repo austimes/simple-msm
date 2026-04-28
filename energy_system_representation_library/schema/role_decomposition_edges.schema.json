@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "schema/role_decomposition_edges.schema.json",
   "title": "Role decomposition edges",
-  "description": "Schema for shared/role_decomposition_edges.csv. Rows define child roles activated by a role_decomposition representation.",
+  "description": "Schema for shared/role_decomposition_edges.csv. Rows define child roles activated by a role_decomposition representation and are the canonical source for decomposition topology.",
   "type": "object",
   "required": [
     "parent_representation_id",
@@ -16,15 +16,15 @@
   "properties": {
     "parent_representation_id": {
       "type": "string",
-      "description": "Representation option whose kind is role_decomposition."
+      "description": "Representation option whose kind is role_decomposition. Direct bundle representations must not have edge rows."
     },
     "parent_role_id": {
       "type": "string",
-      "description": "Role satisfied by the decomposition representation."
+      "description": "Role satisfied by the decomposition representation and recorded as the parent of each child role."
     },
     "child_role_id": {
       "type": "string",
-      "description": "Child role activated when the parent representation is selected."
+      "description": "Child role activated when the parent representation is selected. Required child roles must resolve to roles.csv and point back to parent_role_id."
     },
     "edge_kind": {
       "type": "string",

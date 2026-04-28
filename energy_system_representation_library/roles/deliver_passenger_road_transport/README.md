@@ -2,12 +2,12 @@
 
 ## What the role represents
 
-This role covers `passenger_road_transport` in sector `road_transport` / subsector `passenger_road` for region `AUS`. The canonical balance type is `required_service`, with output measured in `pkm`. Road transport is split into:
+This role covers `passenger_road_transport` in sector `road_transport` / subsector `passenger_road` for region `AUS`. The canonical balance type is `service_demand`, with output measured in `pkm`. Road transport is split into:
 
-## Output/service definition
+## Role definition
 
-- Role id: `passenger_road_transport`
-- Output/service name: `passenger_road_transport`
+- Role id: `deliver_passenger_road_transport`
+- Balance type: `service_demand`
 - Output unit: `pkm`
 - Output quantity basis: One pkm of delivered road transport service at national-average reduced-form boundary.
 - Default incumbent method id: `road_transport__passenger_road__ice_fleet`

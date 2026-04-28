@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "schema/reporting_allocations.schema.json",
   "title": "Reporting allocations",
-  "description": "Schema for shared/reporting_allocations.csv. Reporting allocations map role activity to external accounting labels without defining topology.",
+  "description": "Schema for shared/reporting_allocations.csv. Reporting allocations map role activity to external accounting labels without defining physical topology or coverage obligations.",
   "type": "object",
   "required": [
     "reporting_allocation_id",
@@ -22,7 +22,7 @@
     },
     "role_id": {
       "type": "string",
-      "description": "Role whose activity is allocated."
+      "description": "Role whose activity is allocated. Validation must resolve this role_id against shared/roles.csv."
     },
     "reporting_system": {
       "type": "string",
@@ -46,7 +46,7 @@
     },
     "allocation_share": {
       "type": "number",
-      "description": "Share of role activity allocated to this reporting row."
+      "description": "Share of role activity allocated to this reporting row. Shares for a role within a reporting system must resolve to full reporting coverage."
     },
     "notes": {
       "type": "string",

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "schema/representations.schema.json",
   "title": "Role representations",
-  "description": "Schema for shared/representations.csv. A representation is the selected way an active role is modeled. Validation must enforce exactly one selected representation for each active role.",
+  "description": "Schema for shared/representations.csv. A representation is one available way to model an active role. Validation must enforce exactly one selected representation for each active role.",
   "type": "object",
   "required": [
     "representation_id",
@@ -30,7 +30,7 @@
         "technology_bundle",
         "role_decomposition"
       ],
-      "description": "Representation kind. Direct bundles expose methods. Decompositions activate child roles through role_decomposition_edges.csv."
+      "description": "Representation kind. Pathway and technology bundles are direct representations that expose methods. Role decompositions activate child roles through role_decomposition_edges.csv and do not expose direct methods."
     },
     "representation_label": {
       "type": "string",
@@ -42,7 +42,7 @@
     },
     "is_default": {
       "type": "boolean",
-      "description": "True when this is the default representation for the role. Validation must find exactly one default representation for every required role."
+      "description": "True when this is the default representation for the role. Validation must find exactly one default representation for every role."
     },
     "direct_method_kind": {
       "type": "string",
@@ -52,7 +52,7 @@
         "technology",
         "residual"
       ],
-      "description": "Expected method kind for direct bundles. Leave blank for role_decomposition because its child roles expose their own methods."
+      "description": "Expected method kind for direct bundles. Leave blank for role_decomposition because parent direct methods are inactive and child roles expose their own methods."
     },
     "notes": {
       "type": "string",
