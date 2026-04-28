@@ -1,2 +1,0 @@
-family_id,anchor_year,anchor_value,unit,demand_growth_curve_id,anchor_status,source_family,coverage_note,notes
-construction_other,2025,1,residual_activity,simple_sector_growth_central__construction_other,derived_residual_stub,Migrated residual calibration layer,Construction other uses a residual_activity anchor of 1; quantities live on the residual incumbent state.,Growth proxy: flat where evidence is weak. Confidence: low.

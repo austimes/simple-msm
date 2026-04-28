@@ -1,8 +1,8 @@
 # Web App
 
-`web/` is the thin front end for the trajectory library in `simple-msm`. It loads the checked-in `sector_trajectory_library/`, restores one active configuration document, builds a normalized solve request, and runs the LP solve in-browser so the package can be explored, optimized, and explained interactively.
+`web/` is the thin front end for the representation library in `simple-msm`. ESRL 2 work is cutting it over to the checked-in `energy_system_representation_library/`, restoring one active configuration document, building a normalized solve request, and running the LP solve in-browser so the package can be explored, optimized, and explained interactively.
 
-The app is a usability layer around the trajectory library rather than the primary product. Its job is to make the package easier to interrogate, test, and communicate.
+The app is a usability layer around the representation library rather than the primary product. Its job is to make the package easier to interrogate, test, and communicate.
 
 ## Configuration Model
 

@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schema/roles.schema.json",
+  "title": "Roles",
+  "description": "Schema for shared/roles.csv. Roles define the primary energy-system coverage obligations and topology positions.",
+  "type": "object",
+  "required": [
+    "role_id",
+    "role_label",
+    "description",
+    "topology_area_id",
+    "topology_area_label",
+    "parent_role_id",
+    "role_kind",
+    "balance_type",
+    "output_unit",
+    "coverage_obligation",
+    "default_representation_kind",
+    "notes"
+  ],
+  "properties": {
+    "role_id": {
+      "type": "string",
+      "description": "Stable role identifier."
+    },
+    "role_label": {
+      "type": "string",
+      "description": "Human-readable role label."
+    },
+    "description": {
+      "type": "string",
+      "description": "Plain-language role description."
+    },
+    "topology_area_id": {
+      "type": "string",
+      "description": "Top-level topology area identifier."
+    },
+    "topology_area_label": {
+      "type": "string",
+      "description": "Human-readable topology area label."
+    },
+    "parent_role_id": {
+      "type": "string",
+      "description": "Parent role identifier when this role is a child in a decomposition."
+    },
+    "role_kind": {
+      "type": "string",
+      "enum": [
+        "modeled",
+        "residual"
+      ],
+      "description": "Whether the role has modeled methods or represents explicit residual coverage."
+    },
+    "balance_type": {
+      "type": "string",
+      "description": "Balance or accounting requirement satisfied by the role."
+    },
+    "output_unit": {
+      "type": "string",
+      "description": "Output or accounting unit for role activity."
+    },
+    "coverage_obligation": {
+      "type": "string",
+      "description": "Coverage obligation class."
+    },
+    "default_representation_kind": {
+      "type": "string",
+      "enum": [
+        "pathway_bundle",
+        "technology_bundle",
+        "role_decomposition"
+      ],
+      "description": "Initial default representation kind."
+    },
+    "notes": {
+      "type": "string",
+      "description": "Role notes."
+    }
+  }
+}

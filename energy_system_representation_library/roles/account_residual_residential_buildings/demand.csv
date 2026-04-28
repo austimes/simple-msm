@@ -1,0 +1,2 @@
+role_id,anchor_year,anchor_value,unit,demand_growth_curve_id,anchor_status,source_role,coverage_note,notes
+account_residual_residential_buildings,2025,1,residual_activity,simple_role_growth_central__account_residual_residential_buildings,derived_residual_stub,Migrated residual calibration layer,Residential other uses a residual_activity anchor of 1; quantities live on the residual incumbent method.,Growth proxy: residential_building_services. Confidence: low.

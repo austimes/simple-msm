@@ -1,0 +1,11 @@
+official_category,official_mtco2e_2025,explicit_model_mtco2e_2025,residual_energy_role_mtco2e_2025,residual_nonenergy_role_mtco2e_2025,balanced_total_mtco2e_2025,difference_to_official_mtco2e_2025,note
+Energy – Electricity,149.8,149.8,0.0,0.0,149.8,-0.000117,Closed directly by the 2025 incumbent supply_electricity intensity and generation benchmark.
+Energy – Stationary energy excluding electricity,95.6,50.087,45.513,0.0,95.6,0.0,Residual energy closure is now carried by residual role method emissions fields.
+Energy – Transport,98.7,87.043,11.657,0.0,98.7,0.0,Residual transport closure is now carried by residual role method inputs and emissions fields.
+Energy – Fugitive emissions,46.3,0.0,0.0,46.3,46.3,0.0,Residual fugitive emissions are now carried by the account_residual_fugitives role method.
+Industrial processes and product use,30.0,7.931,0.0,22.069,30.0,0.0,Explicit steel/cement process emissions plus account_residual_ippu role method emissions.
+Agriculture,79.7,75.134,0.0,4.566,79.7,0.0,Explicit coarse agriculture process emissions plus account_residual_agriculture role method emissions.
+Waste,13.8,0.0,0.0,13.8,13.8,0.0,Residual waste emissions are now carried by the account_residual_waste_emissions role method.
+"Land Use, Land Use Change and Forestry",-73.7,0.0,0.0,-73.7,-73.7,0.0,Optional account_residual_lulucf_sink role method for national-total reconciliation.
+Positive-emitting sectors total (excludes LULUCF),513.9,369.996,57.169,86.735,513.9,-0.000117,Best like-for-like closure row for positive-emitting sectors.
+National Inventory Total (net),440.2,369.996,57.169,13.035,440.2,-0.000117,Net total shown only when the optional account_residual_lulucf_sink role is included.

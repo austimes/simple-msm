@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schema/demand.schema.json",
+  "title": "Role demand anchors",
+  "description": "Schema for roles/<role_id>/demand.csv. Demand rows define a role anchor and linked shared growth curve.",
+  "type": "object",
+  "required": [
+    "role_id",
+    "anchor_year",
+    "anchor_value",
+    "unit",
+    "demand_growth_curve_id",
+    "anchor_status",
+    "source_role",
+    "coverage_note",
+    "notes"
+  ],
+  "properties": {
+    "role_id": {
+      "type": "string",
+      "description": "Role that owns this demand anchor."
+    },
+    "anchor_year": {
+      "type": "integer",
+      "description": "Anchor year."
+    },
+    "anchor_value": {
+      "type": "number",
+      "description": "Anchor quantity."
+    },
+    "unit": {
+      "type": "string",
+      "description": "Demand unit."
+    },
+    "demand_growth_curve_id": {
+      "type": "string",
+      "description": "Shared demand growth curve identifier."
+    },
+    "anchor_status": {
+      "type": "string",
+      "description": "Anchor status."
+    },
+    "source_role": {
+      "type": "string",
+      "description": "Source role or source context for the anchor."
+    },
+    "coverage_note": {
+      "type": "string",
+      "description": "Coverage note."
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional notes."
+    }
+  }
+}

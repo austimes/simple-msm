@@ -20,7 +20,7 @@ interface JsonSchemaDocument {
   properties?: Record<string, JsonSchemaProperty>;
 }
 
-const PACKAGE_IMPORT_PREFIX = '../../../sector_trajectory_library/';
+const PACKAGE_IMPORT_PREFIX = '../../../energy_system_representation_library/';
 
 function titleizeSegment(value: string): string {
   return value
@@ -86,7 +86,7 @@ function toAssumptionLedgerEntry(row: Record<string, string>): AssumptionLedgerE
 function toSchemaInfo(raw: string | undefined, warnings: string[]): PackageSchemaInfo | null {
   const document = parseOptionalJsonObject<JsonSchemaDocument>(
     raw,
-    'schema/family_states.schema.json',
+    'schema/method_years.schema.json',
     warnings,
   );
 
@@ -106,7 +106,7 @@ function toSchemaInfo(raw: string | undefined, warnings: string[]): PackageSchem
     }));
 
   return {
-    title: document.title ?? 'Sector states schema',
+    title: document.title ?? 'Method-year rows schema',
     description: document.description ?? '',
     requiredFields,
     propertyCount: fields.length,
@@ -135,11 +135,11 @@ export function buildPackageEnrichment(textFiles: Record<string, string>): Packa
   const warnings: string[] = [];
   const sectorDerivations = Object.fromEntries(
     Object.entries(textFiles)
-      .filter(([path]) => path.startsWith('families/') && path.endsWith('/README.md'))
+      .filter(([path]) => path.startsWith('roles/') && path.endsWith('/README.md'))
       .map(([path, content]) => {
         const doc = toCompanionDoc(path, content);
-        const familyId = path.split('/')[1] ?? doc.key;
-        return [familyId, { ...doc, key: familyId }];
+        const roleId = path.split('/')[1] ?? doc.key;
+        return [roleId, { ...doc, key: roleId }];
       }),
   );
 
@@ -157,7 +157,7 @@ export function buildPackageEnrichment(textFiles: Record<string, string>): Packa
     assumptionsLedger: textFiles['shared/assumptions_ledger.csv']
       ? parseCsv(textFiles['shared/assumptions_ledger.csv']).map(toAssumptionLedgerEntry)
       : [],
-    sectorStatesSchema: toSchemaInfo(textFiles['schema/family_states.schema.json'], warnings),
+    sectorStatesSchema: toSchemaInfo(textFiles['schema/method_years.schema.json'], warnings),
     sectorDerivations,
   };
 }

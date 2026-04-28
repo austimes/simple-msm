@@ -1,0 +1,184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schema/method_years.schema.json",
+  "title": "Method-year rows",
+  "description": "Schema for roles/<role_id>/method_years.csv. Method-year rows hold numeric inputs, outputs, costs, emissions, limits, evidence, assumptions, and validation notes for one method in one milestone year.",
+  "type": "object",
+  "required": [
+    "role_id",
+    "representation_id",
+    "method_id",
+    "year",
+    "output_cost_per_unit",
+    "cost_basis_year",
+    "currency",
+    "cost_components_summary",
+    "input_commodities",
+    "input_coefficients",
+    "input_units",
+    "input_basis_notes",
+    "energy_emissions_by_pollutant",
+    "process_emissions_by_pollutant",
+    "emissions_units",
+    "emissions_boundary_notes",
+    "max_share",
+    "max_activity",
+    "min_share",
+    "rollout_limit_notes",
+    "availability_conditions",
+    "source_ids",
+    "assumption_ids",
+    "evidence_summary",
+    "derivation_method",
+    "confidence_rating",
+    "review_notes",
+    "candidate_expansion_pathway",
+    "times_or_vedalang_mapping_notes",
+    "would_expand_to_explicit_capacity",
+    "would_expand_to_process_chain"
+  ],
+  "properties": {
+    "role_id": {
+      "type": "string",
+      "description": "Role satisfied by this method-year row."
+    },
+    "representation_id": {
+      "type": "string",
+      "description": "Direct representation bundle that exposes this method."
+    },
+    "method_id": {
+      "type": "string",
+      "description": "Method represented by this row."
+    },
+    "year": {
+      "type": "integer",
+      "description": "Milestone year represented by this row."
+    },
+    "output_cost_per_unit": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Real cost per output unit."
+    },
+    "cost_basis_year": {
+      "type": "integer",
+      "description": "Base year used to normalize output_cost_per_unit into real terms."
+    },
+    "currency": {
+      "type": "string",
+      "description": "Field currency in roles/<role_id>/method_years.csv."
+    },
+    "cost_components_summary": {
+      "type": "string",
+      "description": "Field cost_components_summary in roles/<role_id>/method_years.csv."
+    },
+    "input_commodities": {
+      "type": "string",
+      "description": "Field input_commodities in roles/<role_id>/method_years.csv."
+    },
+    "input_coefficients": {
+      "type": "string",
+      "description": "Field input_coefficients in roles/<role_id>/method_years.csv."
+    },
+    "input_units": {
+      "type": "string",
+      "description": "Field input_units in roles/<role_id>/method_years.csv."
+    },
+    "input_basis_notes": {
+      "type": "string",
+      "description": "Field input_basis_notes in roles/<role_id>/method_years.csv."
+    },
+    "energy_emissions_by_pollutant": {
+      "type": "string",
+      "description": "Field energy_emissions_by_pollutant in roles/<role_id>/method_years.csv."
+    },
+    "process_emissions_by_pollutant": {
+      "type": "string",
+      "description": "Field process_emissions_by_pollutant in roles/<role_id>/method_years.csv."
+    },
+    "emissions_units": {
+      "type": "string",
+      "description": "Field emissions_units in roles/<role_id>/method_years.csv."
+    },
+    "emissions_boundary_notes": {
+      "type": "string",
+      "description": "Field emissions_boundary_notes in roles/<role_id>/method_years.csv."
+    },
+    "max_share": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Optional upper bound on role demand share."
+    },
+    "max_activity": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Optional absolute upper bound on activity or output."
+    },
+    "min_share": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Optional lower bound on role demand share."
+    },
+    "rollout_limit_notes": {
+      "type": "string",
+      "description": "Field rollout_limit_notes in roles/<role_id>/method_years.csv."
+    },
+    "availability_conditions": {
+      "type": "string",
+      "description": "Field availability_conditions in roles/<role_id>/method_years.csv."
+    },
+    "source_ids": {
+      "type": "string",
+      "description": "Field source_ids in roles/<role_id>/method_years.csv."
+    },
+    "assumption_ids": {
+      "type": "string",
+      "description": "Field assumption_ids in roles/<role_id>/method_years.csv."
+    },
+    "evidence_summary": {
+      "type": "string",
+      "description": "Field evidence_summary in roles/<role_id>/method_years.csv."
+    },
+    "derivation_method": {
+      "type": "string",
+      "description": "Field derivation_method in roles/<role_id>/method_years.csv."
+    },
+    "confidence_rating": {
+      "type": "string",
+      "enum": [
+        "High",
+        "Medium",
+        "Low",
+        "Exploratory"
+      ],
+      "description": "Qualitative confidence class."
+    },
+    "review_notes": {
+      "type": "string",
+      "description": "Field review_notes in roles/<role_id>/method_years.csv."
+    },
+    "candidate_expansion_pathway": {
+      "type": "string",
+      "description": "Field candidate_expansion_pathway in roles/<role_id>/method_years.csv."
+    },
+    "times_or_vedalang_mapping_notes": {
+      "type": "string",
+      "description": "Field times_or_vedalang_mapping_notes in roles/<role_id>/method_years.csv."
+    },
+    "would_expand_to_explicit_capacity": {
+      "type": "boolean",
+      "description": "Whether this method would likely expand into explicit capacity representation."
+    },
+    "would_expand_to_process_chain": {
+      "type": "boolean",
+      "description": "Whether this method would likely expand into a more explicit process-chain representation."
+    }
+  }
+}

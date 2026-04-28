@@ -13,8 +13,8 @@ export default function MethodsSchemaSummaryCard({
       <h2>Row schema guidance</h2>
       <p>
         The packaged library includes a JSON schema for{' '}
-        <code>families/&lt;family_id&gt;/family_states.csv</code>.
-        This card keeps the field-count summary in the app now that the dedicated State Schema page
+        <code>roles/&lt;role_id&gt;/method_years.csv</code>.
+        This card keeps the field-count summary in the app now that the dedicated schema page
         has been removed.
       </p>
       <div className="configuration-stat-grid">

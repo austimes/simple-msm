@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schema/autonomous_efficiency_tracks.schema.json",
+  "title": "Autonomous efficiency tracks",
+  "description": "Schema for rows in roles/<role_id>/autonomous_efficiency_tracks.csv. Each row describes role-local exogenous efficiency drift that applies automatically to explicit base methods in one milestone year.",
+  "type": "object",
+  "required": [
+    "role_id",
+    "track_id",
+    "year",
+    "track_label",
+    "track_description",
+    "applicable_method_ids",
+    "affected_input_commodities",
+    "input_multipliers",
+    "delta_output_cost_per_unit",
+    "cost_basis_year",
+    "currency",
+    "source_ids",
+    "assumption_ids",
+    "evidence_summary",
+    "derivation_method",
+    "confidence_rating",
+    "double_counting_guardrail",
+    "review_notes"
+  ],
+  "properties": {
+    "role_id": {
+      "type": "string",
+      "description": "Role that owns this autonomous efficiency track."
+    },
+    "track_id": {
+      "type": "string",
+      "description": "Stable role-local identifier for the autonomous efficiency track."
+    },
+    "year": {
+      "type": "integer",
+      "description": "Milestone year represented by this row."
+    },
+    "track_label": {
+      "type": "string",
+      "description": "Human-readable track label."
+    },
+    "track_description": {
+      "type": "string",
+      "description": "Plain-language description of the autonomous drift."
+    },
+    "applicable_method_ids": {
+      "type": "string",
+      "description": "JSON-encoded array of explicit method_id values that the track may modify."
+    },
+    "affected_input_commodities": {
+      "type": "string",
+      "description": "JSON-encoded array of affected commodity identifiers."
+    },
+    "input_multipliers": {
+      "type": "string",
+      "description": "JSON-encoded array of numeric multipliers aligned with affected_input_commodities."
+    },
+    "delta_output_cost_per_unit": {
+      "type": "number",
+      "description": "Additive change to output_cost_per_unit relative to the base method in the same role and year."
+    },
+    "cost_basis_year": {
+      "type": "integer",
+      "description": "Base year used to normalize delta_output_cost_per_unit."
+    },
+    "currency": {
+      "type": "string",
+      "description": "Currency or price basis label."
+    },
+    "source_ids": {
+      "type": "string",
+      "description": "JSON-encoded array of source IDs."
+    },
+    "assumption_ids": {
+      "type": "string",
+      "description": "JSON-encoded array of assumption IDs."
+    },
+    "evidence_summary": {
+      "type": "string",
+      "description": "Short summary of the evidence base."
+    },
+    "derivation_method": {
+      "type": "string",
+      "description": "Brief note on how the row was derived, scaled, or interpolated."
+    },
+    "confidence_rating": {
+      "type": "string",
+      "enum": [
+        "High",
+        "Medium",
+        "Low",
+        "Exploratory"
+      ],
+      "description": "Qualitative confidence class."
+    },
+    "double_counting_guardrail": {
+      "type": "string",
+      "description": "Explicit note describing how double counting is avoided."
+    },
+    "review_notes": {
+      "type": "string",
+      "description": "Reviewer caveats or quality flags."
+    }
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schema/reporting_allocations.schema.json",
+  "title": "Reporting allocations",
+  "description": "Schema for shared/reporting_allocations.csv. Reporting allocations map role activity to external accounting labels without defining topology.",
+  "type": "object",
+  "required": [
+    "reporting_allocation_id",
+    "role_id",
+    "reporting_system",
+    "sector",
+    "subsector",
+    "reporting_bucket",
+    "allocation_basis",
+    "allocation_share",
+    "notes"
+  ],
+  "properties": {
+    "reporting_allocation_id": {
+      "type": "string",
+      "description": "Stable reporting allocation identifier."
+    },
+    "role_id": {
+      "type": "string",
+      "description": "Role whose activity is allocated."
+    },
+    "reporting_system": {
+      "type": "string",
+      "description": "Reporting system or accounting context."
+    },
+    "sector": {
+      "type": "string",
+      "description": "Reporting sector label."
+    },
+    "subsector": {
+      "type": "string",
+      "description": "Reporting subsector label."
+    },
+    "reporting_bucket": {
+      "type": "string",
+      "description": "Reporting bucket label."
+    },
+    "allocation_basis": {
+      "type": "string",
+      "description": "Basis used to allocate role activity."
+    },
+    "allocation_share": {
+      "type": "number",
+      "description": "Share of role activity allocated to this reporting row."
+    },
+    "notes": {
+      "type": "string",
+      "description": "Allocation notes."
+    }
+  }
+}

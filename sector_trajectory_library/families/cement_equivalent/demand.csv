@@ -1,2 +1,0 @@
-family_id,anchor_year,anchor_value,unit,demand_growth_curve_id,anchor_status,source_family,coverage_note,notes
-cement_equivalent,2025,9600000.0,t_cement_equivalent,simple_sector_growth_central__cement_equivalent,synthetic_inherited,Phase 1 reference scenario v0.2,Inherited cement-equivalent output anchor from the Phase 1 calibration build.,Migrated from the Phase 1 anchor table without changing the baseline value.
