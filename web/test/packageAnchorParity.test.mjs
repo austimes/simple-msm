@@ -1,18 +1,16 @@
 /**
  * Package anchor parity and regression tests.
  *
- * Verifies that CSV-derived modeled-service anchors from
- * service_demand_anchors_2025.csv match baseline_activity_anchors.json, and
- * that legacy electricity-balance rows no longer create built-in external
- * demand anchors.
+ * Verifies that role-demand anchors loaded from the canonical ESRL package
+ * preserve the current app harness anchor values and do not create a built-in
+ * external electricity demand anchor.
  *
  * Run:  bunx tsx --test test/packageAnchorParity.test.mjs
  */
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
-import { parseCsv } from '../src/data/parseCsv.ts';
-import { deriveBaselineAnchorsFromPackage } from '../src/data/packageAnchorMapping.ts';
+import { loadPackage } from '../src/data/packageLoader.ts';
 import { resolveConfigurationDocument } from '../src/data/demandResolution.ts';
 
 // --- Data loading ---
@@ -22,52 +20,10 @@ function readJson(relativePath) {
   return JSON.parse(readFileSync(url, 'utf8'));
 }
 
-function readText(relativePath) {
-  const url = new URL(relativePath, import.meta.url);
-  return readFileSync(url, 'utf8');
-}
-
-function parseNum(raw) {
-  if (!raw) return null;
-  const n = Number(raw);
-  return Number.isFinite(n) ? n : null;
-}
-
-function toServiceDemandAnchorRow(row) {
-  return {
-    anchor_type: row['anchor_type'],
-    service_or_output_name: row['service_or_output_name'],
-    default_2025_state_id: row['default_2025_state_id'],
-    default_2025_state_option_code: row['default_2025_state_option_code'],
-    default_2025_state_option_label: row['default_2025_state_option_label'],
-    quantity_2025: parseNum(row['quantity_2025']),
-    unit: row['unit'],
-    anchor_status: row['anchor_status'],
-    source_family: row['source_family'],
-    coverage_note: row['coverage_note'],
-    implied_gross_input_energy_pj_if_default: parseNum(row['implied_gross_input_energy_pj_if_default']),
-    implied_benchmark_final_energy_pj_if_default: parseNum(row['implied_benchmark_final_energy_pj_if_default']),
-    implied_energy_emissions_mtco2e_if_default: parseNum(row['implied_energy_emissions_mtco2e_if_default']),
-    implied_process_emissions_mtco2e_if_default: parseNum(row['implied_process_emissions_mtco2e_if_default']),
-    implied_total_emissions_mtco2e_if_default: parseNum(row['implied_total_emissions_mtco2e_if_default']),
-  };
-}
-
-function loadAppConfig() {
-  return {
-    output_roles: readJson('../public/app_config/output_roles.json'),
-    baseline_activity_anchors: readJson('../public/app_config/baseline_activity_anchors.json'),
-    demand_growth_presets: readJson('../public/app_config/demand_growth_presets.json'),
-    commodity_price_presets: readJson('../public/app_config/commodity_price_presets.json'),
-    explanation_tag_rules: readJson('../public/app_config/explanation_tag_rules.json'),
-  };
-}
-
+const pkg = loadPackage();
 const jsonAnchors = readJson('../public/app_config/baseline_activity_anchors.json');
-const outputRoles = readJson('../public/app_config/output_roles.json');
-const anchorCsvText = readText('../../sector_trajectory_library/exports/legacy/service_demand_anchors_2025.csv');
-const anchorRows = parseCsv(anchorCsvText).map(toServiceDemandAnchorRow);
-const csvAnchors = deriveBaselineAnchorsFromPackage(anchorRows, outputRoles);
+const packageAnchors = pkg.appConfig.baseline_activity_anchors;
+const outputRoles = pkg.appConfig.output_roles;
 
 // --- Expected parity values from the issue spec ---
 
@@ -89,74 +45,73 @@ const EXPECTED_PARITY = {
 // 1. Parity tests — CSV-derived anchors match JSON values
 // ---------------------------------------------------------------------------
 
-test('CSV-derived service demand anchors match JSON values exactly', () => {
+test('canonical role-demand anchors match current JSON values exactly', () => {
   for (const [outputId, expectedValue] of Object.entries(EXPECTED_PARITY)) {
-    const csvAnchor = csvAnchors[outputId];
+    const packageAnchor = packageAnchors[outputId];
     const jsonAnchor = jsonAnchors[outputId];
 
-    assert.ok(csvAnchor, `CSV anchor missing for ${outputId}`);
+    assert.ok(packageAnchor, `package anchor missing for ${outputId}`);
     assert.ok(jsonAnchor, `JSON anchor missing for ${outputId}`);
 
     assert.equal(
-      csvAnchor.value, expectedValue,
-      `${outputId}: CSV value ${csvAnchor.value} !== expected ${expectedValue}`,
+      packageAnchor.value, expectedValue,
+      `${outputId}: package value ${packageAnchor.value} !== expected ${expectedValue}`,
     );
     assert.equal(
       jsonAnchor.value, expectedValue,
       `${outputId}: JSON value ${jsonAnchor.value} !== expected ${expectedValue}`,
     );
     assert.equal(
-      csvAnchor.value, jsonAnchor.value,
-      `${outputId}: CSV value ${csvAnchor.value} !== JSON value ${jsonAnchor.value}`,
+      packageAnchor.value, jsonAnchor.value,
+      `${outputId}: package value ${packageAnchor.value} !== JSON value ${jsonAnchor.value}`,
     );
   }
 });
 
-test('legacy CSV electricity balance rows do not create built-in external demand anchors', () => {
-  assert.equal(csvAnchors.electricity, undefined);
+test('canonical electricity role does not create a built-in external demand anchor', () => {
+  assert.equal(packageAnchors.electricity, undefined);
   assert.equal(jsonAnchors.electricity, undefined);
 });
 
-test('CSV-derived anchors preserve output_role from output_roles registry', () => {
+test('canonical anchors preserve output_role from output_roles registry', () => {
   for (const [outputId] of Object.entries(EXPECTED_PARITY)) {
     assert.equal(
-      csvAnchors[outputId].output_role,
+      packageAnchors[outputId].output_role,
       outputRoles[outputId].output_role,
       `${outputId}: output_role mismatch`,
     );
   }
 });
 
-test('CSV-derived anchors preserve anchor_kind correctly', () => {
+test('canonical anchors preserve anchor_kind correctly', () => {
   for (const [outputId] of Object.entries(EXPECTED_PARITY)) {
-    assert.equal(csvAnchors[outputId].anchor_kind, 'service_demand', `${outputId} should be service_demand`);
+    assert.equal(packageAnchors[outputId].anchor_kind, 'service_demand', `${outputId} should be service_demand`);
   }
 });
 
-test('CSV-derived anchors preserve unit from CSV', () => {
+test('canonical anchors preserve unit from JSON', () => {
   for (const [outputId] of Object.entries(EXPECTED_PARITY)) {
     assert.equal(
-      csvAnchors[outputId].unit,
+      packageAnchors[outputId].unit,
       jsonAnchors[outputId].unit,
       `${outputId}: unit mismatch between CSV and JSON`,
     );
   }
 });
 
-test('informational CSV rows are not mapped to anchors', () => {
-  // derived_explicit_electricity_load and electricity_output_benchmark are informational
-  assert.equal(csvAnchors['electricity_explicit_load'], undefined, 'derived_explicit_electricity_load should not produce an anchor');
-  assert.equal(csvAnchors['electricity_total_output_benchmark'], undefined, 'electricity_output_benchmark should not produce an anchor');
+test('informational validation rows are not mapped to anchors', () => {
+  assert.equal(packageAnchors['electricity_explicit_load'], undefined, 'derived electricity load should not produce an anchor');
+  assert.equal(packageAnchors['electricity_total_output_benchmark'], undefined, 'electricity benchmark should not produce an anchor');
 });
 
-test('CSV anchor count matches expected modeled services only', () => {
-  const csvKeys = Object.keys(csvAnchors);
-  assert.equal(csvKeys.length, 11, `expected 11 CSV-derived anchors, got ${csvKeys.length}: ${csvKeys.join(', ')}`);
+test('package exposes all expected modeled-service anchors', () => {
+  for (const outputId of Object.keys(EXPECTED_PARITY)) {
+    assert.ok(packageAnchors[outputId], `${outputId} should have an anchor`);
+  }
 });
 
 test('JSON-only anchors (land_sequestration, engineered_removals) are preserved after merge', () => {
-  // Simulate the merge logic from packageLoader.ts
-  const merged = { ...jsonAnchors, ...csvAnchors };
+  const merged = { ...jsonAnchors, ...packageAnchors };
 
   assert.ok(merged.land_sequestration, 'land_sequestration should be preserved from JSON');
   assert.equal(merged.land_sequestration.value, 0);
@@ -171,17 +126,9 @@ test('JSON-only anchors (land_sequestration, engineered_removals) are preserved 
 // 2. Demand resolution test — 2025 service demands match anchor values
 // ---------------------------------------------------------------------------
 
-test('demand resolution produces correct 2025 service demands from CSV-derived anchors', () => {
-  const appConfig = loadAppConfig();
-
-  // Merge CSV-derived anchors over JSON (same as packageLoader.ts)
-  appConfig.baseline_activity_anchors = {
-    ...appConfig.baseline_activity_anchors,
-    ...csvAnchors,
-  };
-
+test('demand resolution produces correct 2025 service demands from canonical anchors', () => {
   const referenceConfiguration = readJson('../src/configurations/reference-baseline.json');
-  const resolved = resolveConfigurationDocument(referenceConfiguration, appConfig, 'parity test');
+  const resolved = resolveConfigurationDocument(referenceConfiguration, pkg.appConfig, 'parity test');
 
   // 2025 service demands should match anchor values exactly
   for (const [outputId, expectedValue] of Object.entries(EXPECTED_PARITY)) {

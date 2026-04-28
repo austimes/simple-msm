@@ -142,6 +142,7 @@ export function buildPackageEnrichment(textFiles: Record<string, string>): Packa
         return [roleId, { ...doc, key: roleId }];
       }),
   );
+  const methodYearsSchema = toSchemaInfo(textFiles['schema/method_years.schema.json'], warnings);
 
   return {
     availablePaths: Object.keys(textFiles).sort((left, right) => left.localeCompare(right)),
@@ -157,7 +158,9 @@ export function buildPackageEnrichment(textFiles: Record<string, string>): Packa
     assumptionsLedger: textFiles['shared/assumptions_ledger.csv']
       ? parseCsv(textFiles['shared/assumptions_ledger.csv']).map(toAssumptionLedgerEntry)
       : [],
-    sectorStatesSchema: toSchemaInfo(textFiles['schema/method_years.schema.json'], warnings),
+    methodYearsSchema,
+    roleReadmes: sectorDerivations,
+    sectorStatesSchema: methodYearsSchema,
     sectorDerivations,
   };
 }

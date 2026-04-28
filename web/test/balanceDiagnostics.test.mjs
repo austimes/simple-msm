@@ -9,50 +9,21 @@
  */
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { readFileSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
-import { parseCsv } from '../src/data/parseCsv.ts';
 import { summarizeResidualFamilyTotals } from '../src/data/balanceDiagnostics.ts';
 import { loadPkg } from './solverTestUtils.mjs';
 
-function readText(relativePath) {
-  const url = new URL(relativePath, import.meta.url);
-  return readFileSync(url, 'utf8');
-}
-
-function parseNum(raw) {
-  if (!raw) return null;
-  const n = Number(raw);
-  return Number.isFinite(n) ? n : null;
-}
-
-const OVERLAYS = '../../sector_trajectory_library/overlays';
-const VALIDATION = '../../sector_trajectory_library/validation';
-
-const overlayRows = parseCsv(readText(`${OVERLAYS}/residual_overlays.csv`));
-const commodityBalanceRows = parseCsv(readText(`${VALIDATION}/baseline_commodity_balance.csv`));
-const emissionsBalanceRows = parseCsv(readText(`${VALIDATION}/baseline_emissions_balance.csv`));
 const pkg = loadPkg();
+const overlayRows = pkg.residualOverlays2025;
+const commodityBalanceRows = pkg.commodityBalance2025;
+const emissionsBalanceRows = pkg.emissionsBalance2025;
 const residualFamilyRows = pkg.sectorStates.filter(
   (row) => row.family_resolution === 'residual_stub' && row.year === 2025,
 );
 const residualFamilyIds = new Set(residualFamilyRows.map((row) => row.family_id));
 const totals = summarizeResidualFamilyTotals(pkg.sectorStates);
 
-function listFamilyDirectories() {
-  const root = new URL('../../sector_trajectory_library/families', import.meta.url);
-  return readdirSync(root).filter((entry) => {
-    try {
-      readFileSync(join(root.pathname, entry, 'family_states.csv'), 'utf8');
-      return true;
-    } catch {
-      return false;
-    }
-  });
-}
-
 describe('Residual family migration', () => {
-  it('residual_overlays.csv is retained as a header-only compatibility table', () => {
+  it('residual overlays are removed from the canonical web package load', () => {
     assert.equal(overlayRows.length, 0);
   });
 
@@ -64,13 +35,13 @@ describe('Residual family migration', () => {
     }
   });
 
-  it('every residual family directory has demand, validation, and documentation companions', () => {
-    const familyDirs = new Set(listFamilyDirectories());
-    for (const familyId of residualFamilyIds) {
-      assert.ok(familyDirs.has(familyId), `missing residual family directory ${familyId}`);
-      for (const filename of ['demand.csv', 'family_states.csv', 'README.md', 'validation.md']) {
-        const path = new URL(`../../sector_trajectory_library/families/${familyId}/${filename}`, import.meta.url);
-        assert.ok(readFileSync(path, 'utf8').length > 0, `${familyId}/${filename} should not be empty`);
+  it('every residual role has demand, validation, and documentation companions', () => {
+    const availablePaths = new Set(pkg.enrichment.availablePaths);
+    const residualRoleIds = new Set(residualFamilyRows.map((row) => row.role_id));
+    for (const roleId of residualRoleIds) {
+      for (const filename of ['demand.csv', 'method_years.csv', 'README.md', 'validation.md']) {
+        const path = `roles/${roleId}/${filename}`;
+        assert.ok(availablePaths.has(path), `${path} should be loaded`);
       }
     }
   });
@@ -126,18 +97,18 @@ describe('Residual family aggregation totals', () => {
 
 describe('Diagnostic table cross-checks', () => {
   it('baseline_commodity_balance total row difference_to_benchmark_pj_2025 is 0', () => {
-    const totalRow = commodityBalanceRows.find((r) => r['commodity'] === 'total');
+    const totalRow = commodityBalanceRows.find((r) => r.commodity === 'total');
     assert.ok(totalRow, 'Expected a "total" row in baseline_commodity_balance.csv');
-    const diff = parseNum(totalRow['difference_to_benchmark_pj_2025']);
+    const diff = totalRow.difference_to_benchmark_pj_2025;
     assert.equal(diff, 0.0, `Expected difference 0, got ${diff}`);
   });
 
   it('baseline_emissions_balance positive-sectors row difference is about 0', () => {
     const positiveRow = emissionsBalanceRows.find((r) =>
-      r['official_category']?.startsWith('Positive-emitting'),
+      r.official_category?.startsWith('Positive-emitting'),
     );
     assert.ok(positiveRow, 'Expected a positive-emitting sectors total row');
-    const diff = parseNum(positiveRow['difference_to_official_mtco2e_2025']);
+    const diff = positiveRow.difference_to_official_mtco2e_2025;
     assert.ok(
       diff !== null && Math.abs(diff) < 0.01,
       `Expected difference about 0, got ${diff}`,

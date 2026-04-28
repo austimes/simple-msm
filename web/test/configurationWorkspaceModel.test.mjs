@@ -28,9 +28,9 @@ describe('buildStateCatalog', () => {
     assert.deepEqual(
       passengerRoad.states.map((state) => state.stateLabel),
       [
-        'Incumbent | ice fleet',
-        'Ambition 1 | hybrid transition',
-        'Ambition 2 | bev',
+        'ICE-dominated passenger road fleet',
+        'Hybrid-heavy passenger road fleet',
+        'Battery-electric passenger road fleet',
       ],
     );
   });

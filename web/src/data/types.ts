@@ -5,6 +5,20 @@ export interface EmissionEntry {
 
 export type OutputRole = 'required_service' | 'endogenous_supply_commodity' | 'optional_activity';
 export type FamilyResolution = 'modeled' | 'residual_stub';
+export type RoleKind = 'modeled' | 'removal' | 'residual';
+export type BalanceType =
+  | 'carbon_removal'
+  | 'commodity_supply'
+  | 'intermediate_conversion'
+  | 'intermediate_material'
+  | 'residual_accounting'
+  | 'service_demand';
+export type CoverageObligation =
+  | 'explicit_residual_top_level'
+  | 'required_decomposition_child'
+  | 'required_top_level';
+export type RepresentationKind = 'pathway_bundle' | 'technology_bundle' | 'role_decomposition';
+export type MethodKind = 'pathway' | 'technology' | 'residual';
 
 export type ConfigurationControlMode =
   | 'optimize'
@@ -271,6 +285,8 @@ export interface PackageEnrichment {
   uncertaintyConfidence: string;
   sourceLedger: SourceLedgerEntry[];
   assumptionsLedger: AssumptionLedgerEntry[];
+  methodYearsSchema: PackageSchemaInfo | null;
+  roleReadmes: Record<string, PackageCompanionDoc>;
   sectorStatesSchema: PackageSchemaInfo | null;
   sectorDerivations: Record<string, PackageCompanionDoc>;
 }
@@ -280,11 +296,13 @@ export type EfficiencyPackageClassification =
   | 'operational_efficiency_overlay';
 
 export interface AutonomousEfficiencyTrack {
+  role_id: string;
   family_id: string;
   track_id: string;
   year: number;
   track_label: string;
   track_description: string;
+  applicable_method_ids: string[];
   applicable_state_ids: string[];
   affected_input_commodities: string[];
   input_multipliers: number[];
@@ -301,12 +319,14 @@ export interface AutonomousEfficiencyTrack {
 }
 
 export interface EfficiencyPackage {
+  role_id: string;
   family_id: string;
   package_id: string;
   year: number;
   package_label: string;
   package_description: string;
   classification: EfficiencyPackageClassification;
+  applicable_method_ids: string[];
   applicable_state_ids: string[];
   affected_input_commodities: string[];
   input_multipliers: number[];
@@ -325,6 +345,14 @@ export interface EfficiencyPackage {
 }
 
 export interface SectorState {
+  role_id: string;
+  representation_id: string;
+  method_id: string;
+  method_kind: MethodKind;
+  method_label: string;
+  method_description: string;
+  role_kind: RoleKind;
+  balance_type: BalanceType;
   family_id: string;
   family_resolution: FamilyResolution;
   coverage_scope_id: string;
@@ -380,6 +408,117 @@ export interface SectorState {
   balance_tuning_flag: boolean;
   balance_tuning_note: string;
   benchmark_balance_note: string;
+}
+
+export interface RoleMetadata {
+  role_id: string;
+  role_label: string;
+  description: string;
+  topology_area_id: string;
+  topology_area_label: string;
+  parent_role_id: string | null;
+  role_kind: RoleKind;
+  balance_type: BalanceType;
+  output_unit: string;
+  coverage_obligation: CoverageObligation;
+  default_representation_kind: RepresentationKind;
+  notes: string;
+}
+
+export interface RoleRepresentation {
+  representation_id: string;
+  role_id: string;
+  representation_kind: RepresentationKind;
+  representation_label: string;
+  description: string;
+  is_default: boolean;
+  direct_method_kind: MethodKind | null;
+  notes: string;
+}
+
+export interface RoleDecompositionEdge {
+  parent_representation_id: string;
+  parent_role_id: string;
+  child_role_id: string;
+  edge_kind: 'required_child' | 'optional_child';
+  is_required: boolean;
+  display_order: number;
+  coverage_notes: string;
+}
+
+export interface ReportingAllocation {
+  reporting_allocation_id: string;
+  role_id: string;
+  reporting_system: string;
+  sector: string;
+  subsector: string;
+  reporting_bucket: string;
+  allocation_basis: string;
+  allocation_share: number;
+  notes: string;
+}
+
+export interface Method {
+  role_id: string;
+  representation_id: string;
+  method_id: string;
+  method_kind: MethodKind;
+  method_label: string;
+  method_description: string;
+  is_residual: boolean;
+  sort_order: number;
+  source_ids: string[];
+  assumption_ids: string[];
+  evidence_summary: string;
+  derivation_method: string;
+  confidence_rating: string;
+  review_notes: string;
+}
+
+export interface MethodYear {
+  role_id: string;
+  representation_id: string;
+  method_id: string;
+  year: number;
+  output_cost_per_unit: number | null;
+  cost_basis_year: number | null;
+  currency: string;
+  cost_components_summary: string;
+  input_commodities: string[];
+  input_coefficients: number[];
+  input_units: string[];
+  input_basis_notes: string;
+  energy_emissions_by_pollutant: EmissionEntry[];
+  process_emissions_by_pollutant: EmissionEntry[];
+  emissions_units: string;
+  emissions_boundary_notes: string;
+  max_share: number | null;
+  max_activity: number | null;
+  min_share: number | null;
+  rollout_limit_notes: string;
+  availability_conditions: string;
+  source_ids: string[];
+  assumption_ids: string[];
+  evidence_summary: string;
+  derivation_method: string;
+  confidence_rating: string;
+  review_notes: string;
+  candidate_expansion_pathway: string;
+  times_or_vedalang_mapping_notes: string;
+  would_expand_to_explicit_capacity: boolean;
+  would_expand_to_process_chain: boolean;
+}
+
+export interface RoleDemand {
+  role_id: string;
+  anchor_year: number;
+  anchor_value: number;
+  unit: string;
+  demand_growth_curve_id: string;
+  anchor_status: string;
+  source_role: string;
+  coverage_note: string;
+  notes: string;
 }
 
 export type ServiceDemandAnchorType =
@@ -470,6 +609,13 @@ export interface EmissionsBalance2025Row {
 }
 
 export interface PackageData {
+  roleMetadata: RoleMetadata[];
+  representations: RoleRepresentation[];
+  roleDecompositionEdges: RoleDecompositionEdge[];
+  reportingAllocations: ReportingAllocation[];
+  methods: Method[];
+  methodYears: MethodYear[];
+  roleDemands: RoleDemand[];
   familyMetadata: FamilyMetadata[];
   systemStructureGroups: SystemStructureGroupRow[];
   systemStructureMembers: SystemStructureMemberRow[];

@@ -1055,10 +1055,10 @@ test('buildPathwayChartCards orders package pathways by metadata and prefers sta
   assert.deepEqual(
     steelCard.outputChart.series.map((series) => series.label),
     [
-      'Incumbent | bf bof conventional',
-      'Ambition 1 | scrap eaf',
-      'Ambition 2 | bf bof ccs transition',
-      'Ambition 3 | h2 dri electric',
+      'Conventional BF-BOF steel',
+      'Scrap EAF steel',
+      'CCS-influenced BF-BOF steel',
+      'Hydrogen DRI-electric steel',
     ],
   );
   assert.deepEqual(

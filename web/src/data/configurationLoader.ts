@@ -272,8 +272,8 @@ export function loadBuiltinConfigurations(): ConfigurationDocument[] {
 export const BROWSER_USER_CONFIG_STORAGE_KEY = 'simple-msm.user-configurations.v1';
 
 // Bundled user configs loaded at build time (for production / static builds)
-const userConfigModules =
-  (() => {
+const userConfigModules = await (
+  async () => {
     const fileSystemModules = loadConfigurationModulesFromFileSystem(
       '../configurations/user',
       '/src/configurations/user',
@@ -283,15 +283,27 @@ const userConfigModules =
     }
 
     try {
-      return import.meta.glob<string>('/src/configurations/user/*.json', {
-        eager: true,
+      const lazyModules = import.meta.glob<string>('/src/configurations/user/*.json', {
         import: 'default',
         query: '?raw',
       });
+      const entries = await Promise.all(
+        Object.entries(lazyModules).map(async ([key, loader]) => {
+          try {
+            return [key, await loader()] as const;
+          } catch {
+            return null;
+          }
+        }),
+      );
+      return Object.fromEntries(
+        entries.filter((entry): entry is readonly [string, string] => entry != null),
+      );
     } catch {
       return fileSystemModules;
     }
-  })();
+  }
+)();
 
 function getBrowserStorage(): BrowserStorageLike | null {
   if (typeof window === 'undefined') {

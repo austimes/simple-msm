@@ -72,6 +72,12 @@ export const COMMODITY_METADATA: Record<string, CommodityMetadata> = {
     kind: 'material',
     canonicalUnit: 't',
   },
+  direct_reduced_iron: {
+    id: 'direct_reduced_iron',
+    label: 'Direct reduced iron',
+    kind: 'material',
+    canonicalUnit: 't',
+  },
   capture_service: {
     id: 'capture_service',
     label: 'Capture service',

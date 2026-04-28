@@ -3,12 +3,12 @@ import test from 'node:test';
 import { loadEfficiencyArtifacts } from '../src/data/packageLoader.ts';
 
 const AUTONOMOUS_HEADER = [
-  'family_id',
+  'role_id',
   'track_id',
   'year',
   'track_label',
   'track_description',
-  'applicable_state_ids',
+  'applicable_method_ids',
   'affected_input_commodities',
   'input_multipliers',
   'delta_output_cost_per_unit',
@@ -24,13 +24,13 @@ const AUTONOMOUS_HEADER = [
 ].join(',');
 
 const PACKAGE_HEADER = [
-  'family_id',
+  'role_id',
   'package_id',
   'year',
   'package_label',
   'package_description',
   'classification',
-  'applicable_state_ids',
+  'applicable_method_ids',
   'affected_input_commodities',
   'input_multipliers',
   'delta_output_cost_per_unit',
@@ -55,22 +55,25 @@ test('efficiency artifact loader parses valid rows and fails fast on bad applica
   const context = {
     sourceIds: new Set(['S001']),
     assumptionIds: new Set(['A001']),
-    stateIdsByFamilyId: new Map([
-      ['test_family', new Set(['baseline_state', 'retrofit_state'])],
+    methodIdsByRoleId: new Map([
+      ['test_role', new Set(['baseline_method', 'retrofit_method'])],
+    ]),
+    compatibilityByRoleId: new Map([
+      ['test_role', { legacyOutputId: 'test_output', reportingAllocation: null, defaultMethodId: 'baseline_method' }],
     ]),
   };
 
   const valid = loadEfficiencyArtifacts(
     {
-      'families/test_family/autonomous_efficiency_tracks.csv': [
+      'roles/test_role/autonomous_efficiency_tracks.csv': [
         AUTONOMOUS_HEADER,
         [
-          'test_family',
+          'test_role',
           'background_drift',
           '2030',
           'Background drift',
           'Slow background gains.',
-          csvCell('["baseline_state"]'),
+          csvCell('["baseline_method"]'),
           csvCell('["electricity"]'),
           csvCell('[0.98]'),
           '-0.5',
@@ -85,16 +88,16 @@ test('efficiency artifact loader parses valid rows and fails fast on bad applica
           'Reviewer note',
         ].join(','),
       ].join('\n'),
-      'families/test_family/efficiency_packages.csv': [
+      'roles/test_role/efficiency_packages.csv': [
         PACKAGE_HEADER,
         [
-          'test_family',
+          'test_role',
           'motor_retrofit',
           '2035',
           'Motor retrofit',
           'Upgrade motors and drives.',
           'pure_efficiency_overlay',
-          csvCell('["baseline_state","retrofit_state"]'),
+          csvCell('["baseline_method","retrofit_method"]'),
           csvCell('["electricity"]'),
           csvCell('[0.9]'),
           '1.2',
@@ -116,24 +119,27 @@ test('efficiency artifact loader parses valid rows and fails fast on bad applica
   );
 
   assert.equal(valid.autonomousEfficiencyTracks.length, 1);
-  assert.deepEqual(valid.autonomousEfficiencyTracks[0].applicable_state_ids, ['baseline_state']);
+  assert.deepEqual(valid.autonomousEfficiencyTracks[0].applicable_method_ids, ['baseline_method']);
+  assert.deepEqual(valid.autonomousEfficiencyTracks[0].applicable_state_ids, ['baseline_method']);
+  assert.equal(valid.autonomousEfficiencyTracks[0].family_id, 'test_output');
   assert.equal(valid.autonomousEfficiencyTracks[0].year, 2030);
   assert.equal(valid.efficiencyPackages.length, 1);
   assert.equal(valid.efficiencyPackages[0].classification, 'pure_efficiency_overlay');
-  assert.deepEqual(valid.efficiencyPackages[0].applicable_state_ids, ['baseline_state', 'retrofit_state']);
+  assert.deepEqual(valid.efficiencyPackages[0].applicable_method_ids, ['baseline_method', 'retrofit_method']);
+  assert.deepEqual(valid.efficiencyPackages[0].applicable_state_ids, ['baseline_method', 'retrofit_method']);
 
   assert.throws(
     () => loadEfficiencyArtifacts(
       {
-        'families/test_family/autonomous_efficiency_tracks.csv': [
+        'roles/test_role/autonomous_efficiency_tracks.csv': [
           AUTONOMOUS_HEADER,
           [
-            'test_family',
+            'test_role',
             'broken_track',
             '2030',
             'Broken track',
             'Bad applicability.',
-            csvCell('["missing_state"]'),
+            csvCell('["missing_method"]'),
             csvCell('["electricity"]'),
             csvCell('[0.98]'),
             '-0.5',
@@ -151,6 +157,6 @@ test('efficiency artifact loader parses valid rows and fails fast on bad applica
       },
       context,
     ),
-    /Unknown state_id/, 
+    /Unknown method_id/,
   );
 });
