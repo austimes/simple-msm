@@ -53,6 +53,7 @@ The canonical authored package is [`energy_system_representation_library/`](./en
 - `shared/roles.csv` is the role registry and topology surface.
 - `shared/representations.csv` defines the default and optional ways each role can be modelled.
 - `shared/role_decomposition_edges.csv` defines child-role activation for decomposition representations.
+- The current crude-steel pilot keeps `produce_crude_steel` available as an aggregate pathway bundle while adding an optional decomposition into non-H2 residual coverage, DRI production, and DRI melt/refine child roles.
 - `shared/reporting_allocations.csv` maps role activity to reporting sectors, subsectors, and buckets without defining physical topology.
 - `roles/<role_id>/methods.csv` lists selectable methods for direct role representations.
 - `roles/<role_id>/method_years.csv` stores the numeric method-year rows for cost, inputs, emissions, rollout limits, evidence, assumptions, and validation notes.

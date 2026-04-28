@@ -1,0 +1,2 @@
+role_id,anchor_year,anchor_value,unit,demand_growth_curve_id,anchor_status,source_role,coverage_note,notes
+melt_refine_dri_crude_steel,2025,0,t_crude_steel,simple_role_growth_central__melt_refine_dri_crude_steel,derived_intermediate_pilot,produce_crude_steel__h2_dri_decomposition,Melt/refine activity is induced by decomposed DRI crude-steel production rather than direct top-level demand.,Zero direct anchor prevents this intermediate role from becoming a top-level exogenous demand before topology solving exists.

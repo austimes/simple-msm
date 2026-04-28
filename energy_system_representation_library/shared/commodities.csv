@@ -8,3 +8,4 @@ biomass,Solid/liquid biomass or alternative bioenergy fuel.,GJ,Biogenic CO2 not 
 scrap_steel,Ferrous scrap input for steelmaking.,t,Added beyond minimum commodity taxonomy because it is material to steel route choice.
 iron_ore,Iron ore / pellet / concentrate feedstock for primary steel routes.,t,Added beyond minimum commodity taxonomy because it is material to steel route choice.
 capture_service,CO2 transport/storage or equivalent capture service for CCS-enabled process states.,tCO2 stored,Separate from negative-emissions output states; included to preserve a clean upgrade path to explicit CCS infrastructure.
+direct_reduced_iron,Intermediate direct reduced iron output consumed by decomposed crude-steel melt and refine roles.,t,Introduced for the crude-steel role-decomposition pilot; not an exogenous final-demand commodity.

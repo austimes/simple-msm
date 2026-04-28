@@ -16,6 +16,13 @@
 - Baseline validation outputs must include this role in the 2025 package checks whenever it contributes activity, commodity use, emissions, or electricity demand.
 - Any balance notes embedded in the role rows must remain visible in the generated validation summary.
 
+## Representation checks
+
+- `produce_crude_steel__pathway_bundle` must remain the default aggregate representation.
+- `produce_crude_steel__h2_dri_decomposition` must remain a non-default `role_decomposition` representation with no direct methods on the parent role.
+- The decomposition must activate `produce_crude_steel_non_h2_dri_residual`, `produce_direct_reduced_iron`, and `melt_refine_dri_crude_steel` as required child roles.
+- The child roles must carry complete milestone-year method data so crude-steel coverage is preserved when the decomposition is selected.
+
 ## Validation tolerances
 
 - Activity anchor reproduction within 0.5%.
