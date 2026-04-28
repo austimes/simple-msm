@@ -1,6 +1,6 @@
 # simple-msm
 
-`simple-msm` is library-first. It exists to design, develop, test, and repeatedly reshape a reusable, interchangeable library of components that represent pieces of Australia's energy and emissions system. The core product is the checked-in [`sector_trajectory_library/`](./sector_trajectory_library/README.md).
+`simple-msm` is library-first. It exists to design, develop, test, and repeatedly reshape a reusable, interchangeable library of components that represent pieces of Australia's energy and emissions system. The core product is the checked-in [`energy_system_representation_library/`](./energy_system_representation_library/README.md).
 
 The optimizer, CLI, and WebUI are deliberately thin harnesses around that library. They exist to exercise the package, make its results inspectable, and discover the machinery needed for explainable modelling workflows such as experiment sets, modelling to generate alternatives, and tracing results back to evidence, assumptions, and validation notes.
 
@@ -24,23 +24,23 @@ bun run msm prime reference-baseline
 
 ## Why This Exists
 
-The repository is where we work out what a useful family of sector trajectories should look like for Australia, how those trajectories should be structured, and how they should be justified.
+The repository is where we work out what a useful role-topology library should look like for Australia, how those roles and methods should be structured, and how they should be justified.
 
-Each `family_id` is meant to represent the meaningful options available for some part of Australia's economy: a sector, subsector, or narrower economic slice that has real energy and emissions trade-offs. Each trajectory within a family expresses some combination of cost intensity, emissions intensity, energy intensity, and rollout or availability limits over time.
+Each `role_id` represents a function the system must produce, supply, deliver, remove, or account for. Each method within a direct representation expresses some combination of cost intensity, emissions intensity, energy intensity, and rollout or availability limits over time.
 
-The point is not only to sketch curves. It is to build a populated data model that can hold the trajectories, the reasoning behind them, the evidence that supports them, and the caveats that should travel with them.
+The point is not only to sketch curves. It is to build a populated data model that can hold the methods, the reasoning behind them, the evidence that supports them, and the caveats that should travel with them.
 
 ## What The Repository Is For
 
-This is not just a curve store. It is a place to turn trajectories into explainable model ingredients.
+This is not just a curve store. It is a place to turn methods into explainable model ingredients.
 
-For any given trajectory family, the repository should make it possible to answer:
+For any given role, the repository should make it possible to answer:
 
-- how the curve was assembled,
-- what evidence supports it,
-- what assumptions it relies on,
-- what limits constrain it,
-- how important it is in the broader model,
+- how the method-year rows were assembled,
+- what evidence supports them,
+- what assumptions they rely on,
+- what limits constrain them,
+- how important the role is in the broader model,
 - how confident we are in it,
 - and how it should be validated, challenged, or revised.
 
@@ -48,47 +48,47 @@ That explainability layer is part of the product itself, not an optional documen
 
 ## What The Library Looks Like Today
 
-The ESRL 1.0 target ontology and package name are locked in [docs/plan/20260428-esrl-ontology-decision.md](./docs/plan/20260428-esrl-ontology-decision.md). The current package described below is the pre-migration working structure.
+The canonical authored package is [`energy_system_representation_library/`](./energy_system_representation_library/README.md).
 
-The canonical authored package is [`sector_trajectory_library/`](./sector_trajectory_library/README.md).
+- `shared/roles.csv` is the role registry and topology surface.
+- `shared/representations.csv` defines the default and optional ways each role can be modelled.
+- `shared/role_decomposition_edges.csv` defines child-role activation for decomposition representations.
+- `shared/reporting_allocations.csv` maps role activity to reporting sectors, subsectors, and buckets without defining physical topology.
+- `roles/<role_id>/methods.csv` lists selectable methods for direct role representations.
+- `roles/<role_id>/method_years.csv` stores the numeric method-year rows for cost, inputs, emissions, rollout limits, evidence, assumptions, and validation notes.
+- `roles/<role_id>/demand.csv`, `README.md`, and `validation.md` keep role-local anchors, context, and validation expectations beside the data.
+- `shared/` holds ledgers, owners, commodities, growth curves, price curves, carbon price curves, topology, representation, and reporting tables.
+- `schema/` holds JSON-schema companions for the authored CSV surfaces.
+- `validation/` holds committed diagnostics using role/method terminology.
 
-- `shared/families.csv` is the family registry that holds family-level metadata such as sector, region, output unit, and default incumbent state.
-- `families/<family_id>/family_states.csv` is the current authored state-year trajectory table for that family.
-- `families/<family_id>/demand.csv` stores the family demand anchor and linked shared growth curve.
-- `families/<family_id>/README.md` and `families/<family_id>/validation.md` keep family-local context and validation expectations beside the data.
-- `shared/` holds the shared ledgers, commodity taxonomy, growth curves, price curves, carbon price curves, owner assignments, and external commodity demand tables.
-- `schema/` holds JSON-schema companions for the family registry and family-state rows.
-- `overlays/` holds package-owned residual closure inputs.
-- `validation/` and `exports/legacy/` hold committed diagnostics and compatibility outputs.
-
-This shape should be treated as the current working structure, not a final settled data model. The trajectory library is still evolving, and the package layout will keep changing while the right authored form for explainable, interchangeable components is being worked out.
+This shape should be treated as the current working structure, not a final settled data model. The representation library is still evolving, and the package layout will keep changing while the right authored form for explainable, interchangeable components is being worked out.
 
 ## Explainability And Validation Structure
 
 The current package already carries the main explainability and validation scaffolding the project needs.
 
-- `shared/source_ledger.csv` records the source families that justify the trajectories.
+- `shared/source_ledger.csv` records the sources that justify the methods.
 - `shared/assumptions_ledger.csv` records explicit assumptions that should stay attached to the data.
-- Family-local `README.md` files explain what each family represents and why it is shaped the way it is.
-- Family-local `validation.md` files record what should be checked, challenged, or watched for that family.
-- `family_states.csv` embeds the evidence and assumption ids, plus rollout and availability notes, directly in the state rows.
+- Role-local `README.md` files explain what each role represents and why its method set is shaped the way it is.
+- Role-local `validation.md` files record what should be checked, challenged, or watched for that role.
+- `method_years.csv` embeds the evidence and assumption ids, plus rollout and availability notes, directly in the method-year rows.
 - `validation/` contains package-level diagnostics that help test whether the current library behaves coherently.
 
-The intent is for the trajectory library to keep data, explanation, and validation close together rather than separating the curves from the reasons they exist.
+The intent is for the representation library to keep data, explanation, and validation close together rather than separating the curves from the reasons they exist.
 
 ## Thin Usability Layer
 
-[`web/`](./web/README.md) is the thin usability, optimization, and explainability layer around the package. It loads the checked-in `sector_trajectory_library/`, turns the current configuration into a normalized solve request, and runs the solve in-browser.
+[`web/`](./web/README.md) is the thin usability, optimization, and explainability layer around the package. ESRL 2 work is responsible for cutting that layer over to the canonical role, representation, and method surfaces.
 
 That thin layer is there so you can:
 
 - get the app running quickly,
-- inspect trajectories and families,
+- inspect roles and methods,
 - inspect cost and emissions outcomes,
 - test how assumptions change results,
 - run and compare experiment sets,
 - generate and inspect alternative model outcomes,
-- and trace results back to package evidence, assumptions, and family-local context.
+- and trace results back to package evidence, assumptions, and role-local context.
 
 The app matters because it makes the library easier to use and interrogate, but it is not the primary reason this repository exists.
 
@@ -96,23 +96,23 @@ The app matters because it makes the library easier to use and interrogate, but 
 
 ```text
 .
-├── sector_trajectory_library/  # Canonical authored trajectory package
-├── web/                        # Thin interaction layer for explore / solve / explain workflows
-└── docs/prd/                   # Historical PRD and product notes
+├── energy_system_representation_library/  # Canonical authored representation package
+├── web/                                   # Thin interaction layer for explore / solve / explain workflows
+└── docs/                                  # Historical PRDs plus current implementation plans
 ```
 
 ## Current Status And Limits
 
-- The trajectory-library shape is still moving, and incompatible changes are expected.
+- The representation-library shape is still moving, and incompatible changes are expected.
 - The current package layout is designed for active authoring, explainability, and validation rather than long-term final form.
-- `exports/legacy/` remains in the repo as a transitional bridge for current consumers and workflows, not as a promise that legacy formats will be preserved.
+- The old family/state package layout has been removed as a canonical surface.
 - The CLI and WebUI contracts may change as the library design changes.
 - The web app is intentionally thin and should not be mistaken for the primary product.
-- The current repository is strongest as a working environment for developing the data structure, trajectories, justifications, and interactive testing loop together.
+- The current repository is strongest as a working environment for developing the data structure, methods, justifications, and interactive testing loop together.
 
 ## Further Reading
 
-- [sector_trajectory_library/README.md](./sector_trajectory_library/README.md)
+- [energy_system_representation_library/README.md](./energy_system_representation_library/README.md)
 - [web/README.md](./web/README.md)
 - [docs/plan/20260428-esrl-ontology-decision.md](./docs/plan/20260428-esrl-ontology-decision.md)
 - [docs/prd/phase1_sector_state_explorer_prd_v02.md](./docs/prd/phase1_sector_state_explorer_prd_v02.md)

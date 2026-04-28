@@ -1,0 +1,2 @@
+role_id,anchor_year,anchor_value,unit,demand_growth_curve_id,anchor_status,source_role,coverage_note,notes
+account_residual_mining_energy,2025,1,residual_activity,simple_role_growth_central__account_residual_mining_energy,derived_residual_stub,Migrated residual calibration layer,Mining other uses a residual_activity anchor of 1; quantities live on the residual incumbent method.,Growth proxy: flat where evidence is weak. Confidence: low.

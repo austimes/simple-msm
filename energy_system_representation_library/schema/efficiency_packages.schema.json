@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schema/efficiency_packages.schema.json",
+  "title": "Efficiency packages",
+  "description": "Schema for rows in roles/<role_id>/efficiency_packages.csv. Each row describes a role-local selectable efficiency package for one milestone year.",
+  "type": "object",
+  "required": [
+    "role_id",
+    "package_id",
+    "year",
+    "package_label",
+    "package_description",
+    "classification",
+    "applicable_method_ids",
+    "affected_input_commodities",
+    "input_multipliers",
+    "delta_output_cost_per_unit",
+    "cost_basis_year",
+    "currency",
+    "max_share",
+    "rollout_limit_notes",
+    "source_ids",
+    "assumption_ids",
+    "evidence_summary",
+    "derivation_method",
+    "confidence_rating",
+    "review_notes"
+  ],
+  "properties": {
+    "role_id": {
+      "type": "string",
+      "description": "Role that owns this efficiency package."
+    },
+    "package_id": {
+      "type": "string",
+      "description": "Stable role-local identifier for the efficiency package."
+    },
+    "year": {
+      "type": "integer",
+      "description": "Milestone year represented by this row."
+    },
+    "package_label": {
+      "type": "string",
+      "description": "Human-readable package label."
+    },
+    "package_description": {
+      "type": "string",
+      "description": "Plain-language description of the package and what it changes."
+    },
+    "classification": {
+      "type": "string",
+      "enum": [
+        "pure_efficiency_overlay",
+        "operational_efficiency_overlay"
+      ],
+      "description": "Package class."
+    },
+    "applicable_method_ids": {
+      "type": "string",
+      "description": "JSON-encoded array of explicit method_id values that the package may modify."
+    },
+    "affected_input_commodities": {
+      "type": "string",
+      "description": "JSON-encoded array of affected commodity identifiers."
+    },
+    "input_multipliers": {
+      "type": "string",
+      "description": "JSON-encoded array of numeric multipliers aligned with affected_input_commodities."
+    },
+    "delta_output_cost_per_unit": {
+      "type": "number",
+      "description": "Additive change to output_cost_per_unit relative to the base method in the same role and year."
+    },
+    "cost_basis_year": {
+      "type": "integer",
+      "description": "Base year used to normalize delta_output_cost_per_unit."
+    },
+    "currency": {
+      "type": "string",
+      "description": "Currency or price basis label."
+    },
+    "max_share": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Optional upper bound on the share of applicable activity this package may reach."
+    },
+    "rollout_limit_notes": {
+      "type": "string",
+      "description": "Narrative explanation for rollout, adoption, or eligibility limits."
+    },
+    "source_ids": {
+      "type": "string",
+      "description": "JSON-encoded array of source IDs."
+    },
+    "assumption_ids": {
+      "type": "string",
+      "description": "JSON-encoded array of assumption IDs."
+    },
+    "evidence_summary": {
+      "type": "string",
+      "description": "Short summary of the evidence base."
+    },
+    "derivation_method": {
+      "type": "string",
+      "description": "Brief note on how the row was derived, scaled, or interpolated."
+    },
+    "confidence_rating": {
+      "type": "string",
+      "enum": [
+        "High",
+        "Medium",
+        "Low",
+        "Exploratory"
+      ],
+      "description": "Qualitative confidence class."
+    },
+    "review_notes": {
+      "type": "string",
+      "description": "Reviewer caveats or quality flags."
+    },
+    "non_stacking_group": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Optional role-local group used to prevent overlapping packages from stacking on the same activity slice."
+    }
+  }
+}

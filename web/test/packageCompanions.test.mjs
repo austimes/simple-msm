@@ -20,7 +20,7 @@ test('optional companions can be absent without blocking package enrichment', ()
 test('optional companions are parsed into enrichment data when they are present', () => {
   const enrichment = buildPackageEnrichment({
     'README.md': '# Package README\n\n## What is included\n\nCore rows only.',
-    'families/steel/README.md': '# Steel family\n\n## What the family represents\n\nSteel needs an explicit hard-to-abate route.',
+    'roles/produce_steel/README.md': '# Produce steel\n\n## What the role represents\n\nSteel needs an explicit hard-to-abate route.',
     'shared/source_ledger.csv': [
       'source_id,citation,publication_date,institution,url_or_document_location,parameters_informed,quality_authority_notes',
       'S001,Official baseline,2025,Authority,example.com,Calibration,Primary source',
@@ -29,14 +29,14 @@ test('optional companions are parsed into enrichment data when they are present'
       'assumption_id,assumption_statement,rationale,affected_sectors_parameters,sensitivity_importance,proposed_validation_route',
       'A001,Keep baseline aligned,Staggered official releases,All sectors,High,Refresh next year',
     ].join('\n'),
-    'schema/family_states.schema.json': JSON.stringify({
-      title: 'Family states schema',
-      description: 'Schema for sector rows.',
-      required: ['family_id', 'source_ids'],
+    'schema/method_years.schema.json': JSON.stringify({
+      title: 'Method-year rows schema',
+      description: 'Schema for method-year rows.',
+      required: ['role_id', 'source_ids'],
       properties: {
-        family_id: {
+        role_id: {
           type: 'string',
-          description: 'Family id.',
+          description: 'Role id.',
         },
         source_ids: {
           type: 'string',
@@ -56,20 +56,20 @@ test('optional companions are parsed into enrichment data when they are present'
   assert.equal(enrichment.sectorStatesSchema?.requiredFields.includes('source_ids'), true);
   assert.deepEqual(
     enrichment.sectorStatesSchema?.fields.map((field) => field.name),
-    ['family_id', 'source_ids'],
+    ['role_id', 'source_ids'],
   );
-  assert.equal(enrichment.sectorStatesSchema?.fields[0].description, 'Family id.');
+  assert.equal(enrichment.sectorStatesSchema?.fields[0].description, 'Role id.');
   assert.equal(
     enrichment.sectorStatesSchema?.fields[1].description,
     'JSON-encoded source IDs.',
   );
-  assert.equal(enrichment.sectorDerivations.steel.title, 'Steel family');
+  assert.equal(enrichment.sectorDerivations.produce_steel.title, 'Produce steel');
   assert.deepEqual(enrichment.warnings, []);
 });
 
 test('normalizePackageTextFiles strips the package import prefix from glob keys', () => {
   const normalized = normalizePackageTextFiles({
-    '../../../sector_trajectory_library/shared/source_ledger.csv': 'x',
+    '../../../energy_system_representation_library/shared/source_ledger.csv': 'x',
   });
 
   assert.deepEqual(normalized, {

@@ -1,0 +1,7 @@
+row_id,quantity_2025,unit,note
+explicit_modelled_end_use_electricity,139.901279,TWh,Electricity consumed directly by explicit modeled services under the default 2025 method selection.
+residual_role_final_electricity_omitted_sectors,101.598721,TWh,Omitted-sector final electricity demand now represented by residual role method inputs.
+official_final_electricity_benchmark,241.5,TWh,Official final electricity consumption benchmark used in the balance-ready pack.
+electricity_grid_losses_own_use,42.42,TWh,Residual role demand consuming electricity through normal commodity input semantics.
+residual_role_generation_closure,144.018721,TWh,Residual role electricity demand from omitted-sector final electricity plus grid losses and own-use.
+official_total_generation_benchmark,283.92,TWh,Official total electricity generation benchmark used for 2025 closure.

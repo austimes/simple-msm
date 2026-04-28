@@ -10,9 +10,9 @@ test('Methods schema summary renders counts without a dedicated State Schema lin
     <MemoryRouter>
       <MethodsSchemaSummaryCard
         schemaInfo={{
-          title: 'Sector states schema',
+          title: 'Methods schema',
           description: 'Schema for rows.',
-          requiredFields: ['sector', 'state_id'],
+          requiredFields: ['role_id', 'method_id'],
           propertyCount: 37,
           fields: [],
         }}
@@ -22,7 +22,7 @@ test('Methods schema summary renders counts without a dedicated State Schema lin
 
   assert.match(html, /Schema fields/);
   assert.match(html, /Required fields/);
-  assert.match(html, /dedicated State Schema page has been removed/);
+  assert.match(html, /dedicated schema page has been removed/);
   assert.doesNotMatch(html, /href="\/state-schema"/);
   assert.doesNotMatch(html, /Why it matters here/);
 });

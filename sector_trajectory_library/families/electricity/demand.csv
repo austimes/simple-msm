@@ -1,2 +1,0 @@
-family_id,anchor_year,anchor_value,unit,demand_growth_curve_id,anchor_status,source_family,coverage_note,notes
-electricity,2025,0,MWh,flat_2025__electricity,synthetic_migrated,Migrated family default,Migrated from the Phase 1 package without changing anchor semantics.,For supply families this is the current packaged activity benchmark rather than an exogenous service-demand anchor.

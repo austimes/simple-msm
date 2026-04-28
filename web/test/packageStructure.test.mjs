@@ -4,52 +4,9 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { parseCsv } from '../src/data/parseCsv.ts';
 
-const PACKAGE_ROOT = join(import.meta.dirname, '../../sector_trajectory_library');
+const PACKAGE_ROOT = join(import.meta.dirname, '../../energy_system_representation_library');
 const MILESTONE_YEARS = ['2025', '2030', '2035', '2040', '2045', '2050'];
-const AUTONOMOUS_EFFICIENCY_HEADERS = [
-  'family_id',
-  'track_id',
-  'year',
-  'track_label',
-  'track_description',
-  'applicable_state_ids',
-  'affected_input_commodities',
-  'input_multipliers',
-  'delta_output_cost_per_unit',
-  'cost_basis_year',
-  'currency',
-  'source_ids',
-  'assumption_ids',
-  'evidence_summary',
-  'derivation_method',
-  'confidence_rating',
-  'double_counting_guardrail',
-  'review_notes',
-];
-const EFFICIENCY_PACKAGE_HEADERS = [
-  'family_id',
-  'package_id',
-  'year',
-  'package_label',
-  'package_description',
-  'classification',
-  'applicable_state_ids',
-  'affected_input_commodities',
-  'input_multipliers',
-  'delta_output_cost_per_unit',
-  'cost_basis_year',
-  'currency',
-  'max_share',
-  'rollout_limit_notes',
-  'source_ids',
-  'assumption_ids',
-  'evidence_summary',
-  'derivation_method',
-  'confidence_rating',
-  'review_notes',
-  'non_stacking_group',
-];
-const ROLE_TOPOLOGY_HEADERS = [
+const ROLE_HEADERS = [
   'role_id',
   'role_label',
   'description',
@@ -93,7 +50,7 @@ const ROLE_DECOMPOSITION_EDGE_HEADERS = [
   'display_order',
   'coverage_notes',
 ];
-const METHODS_HEADERS = [
+const METHOD_HEADERS = [
   'role_id',
   'representation_id',
   'method_id',
@@ -109,7 +66,7 @@ const METHODS_HEADERS = [
   'confidence_rating',
   'review_notes',
 ];
-const METHOD_YEARS_HEADERS = [
+const METHOD_YEAR_HEADERS = [
   'role_id',
   'representation_id',
   'method_id',
@@ -142,19 +99,74 @@ const METHOD_YEARS_HEADERS = [
   'would_expand_to_explicit_capacity',
   'would_expand_to_process_chain',
 ];
+const DEMAND_HEADERS = [
+  'role_id',
+  'anchor_year',
+  'anchor_value',
+  'unit',
+  'demand_growth_curve_id',
+  'anchor_status',
+  'source_role',
+  'coverage_note',
+  'notes',
+];
+const AUTONOMOUS_EFFICIENCY_HEADERS = [
+  'role_id',
+  'track_id',
+  'year',
+  'track_label',
+  'track_description',
+  'applicable_method_ids',
+  'affected_input_commodities',
+  'input_multipliers',
+  'delta_output_cost_per_unit',
+  'cost_basis_year',
+  'currency',
+  'source_ids',
+  'assumption_ids',
+  'evidence_summary',
+  'derivation_method',
+  'confidence_rating',
+  'double_counting_guardrail',
+  'review_notes',
+];
+const EFFICIENCY_PACKAGE_HEADERS = [
+  'role_id',
+  'package_id',
+  'year',
+  'package_label',
+  'package_description',
+  'classification',
+  'applicable_method_ids',
+  'affected_input_commodities',
+  'input_multipliers',
+  'delta_output_cost_per_unit',
+  'cost_basis_year',
+  'currency',
+  'max_share',
+  'rollout_limit_notes',
+  'source_ids',
+  'assumption_ids',
+  'evidence_summary',
+  'derivation_method',
+  'confidence_rating',
+  'review_notes',
+  'non_stacking_group',
+];
+const ROLE_VALIDATION_HEADERS = [
+  'role_id',
+  'method_count',
+  'method_year_row_count',
+  'default_method_id',
+  'anchor_year',
+  'anchor_value',
+  'anchor_unit',
+  'validation_status',
+  'notes',
+];
 const REPRESENTATION_KINDS = new Set(['pathway_bundle', 'technology_bundle', 'role_decomposition']);
 const METHOD_KINDS = new Set(['pathway', 'technology', 'residual']);
-const EXPECTED_TOPOLOGY_AREAS = new Set([
-  'buildings',
-  'transport',
-  'industrial_heat_and_production',
-  'energy_supply',
-  'agriculture',
-  'construction',
-  'water_waste',
-  'other_residuals',
-  'removals_land',
-]);
+const CONFIDENCE_RATINGS = new Set(['High', 'Medium', 'Low', 'Exploratory']);
 const EXPECTED_ROLE_IDS = new Set([
   'deliver_residential_building_services',
   'deliver_commercial_building_services',
@@ -190,6 +202,10 @@ function readText(relativePath) {
   return readFileSync(join(PACKAGE_ROOT, relativePath), 'utf8');
 }
 
+function readJson(relativePath) {
+  return JSON.parse(readText(relativePath));
+}
+
 function parseHeader(relativePath) {
   return readText(relativePath).split(/\r?\n/, 1)[0].split(',');
 }
@@ -202,294 +218,64 @@ function parseJsonArray(raw, label) {
   }
 }
 
-function readJson(relativePath) {
-  return JSON.parse(readText(relativePath));
+function assertResolvesJsonIds(raw, allowedIds, label) {
+  for (const id of parseJsonArray(raw, label)) {
+    assert.equal(allowedIds.has(id), true, `${label} id ${id} must resolve`);
+  }
 }
 
-test('sector trajectory library package structure is internally consistent', () => {
-  const families = parseCsv(readText('shared/families.csv'));
-  const owners = new Set(parseCsv(readText('shared/owners.csv')).map((row) => row.owner_id));
-  const sourceIds = new Set(parseCsv(readText('shared/source_ledger.csv')).map((row) => row.source_id));
-  const assumptionIds = new Set(parseCsv(readText('shared/assumptions_ledger.csv')).map((row) => row.assumption_id));
-  const demandCurveIds = new Set(parseCsv(readText('shared/demand_growth_curves.csv')).map((row) => row.demand_growth_curve_id));
-  const systemGroups = parseCsv(readText('shared/system_structure_groups.csv'));
-  const systemMembers = parseCsv(readText('shared/system_structure_members.csv'));
-  const systemGroupIds = new Set(systemGroups.map((row) => row.group_id));
-
-  assert.equal(families.length, 28);
-  assert.equal(
-    families.filter((family) => family.family_resolution === 'residual_stub').length,
-    14,
-  );
-  assert.equal(
-    families.filter((family) => family.family_resolution === 'modeled').length,
-    14,
-  );
-
-  const memberCountByFamily = new Map();
-  for (const member of systemMembers) {
-    assert.equal(systemGroupIds.has(member.group_id), true, `${member.family_id} system group must resolve`);
-    memberCountByFamily.set(member.family_id, (memberCountByFamily.get(member.family_id) ?? 0) + 1);
+function assertMilestoneCoverage(rows, idKey, ownerId) {
+  const ids = new Set(rows.map((row) => row[idKey]));
+  for (const id of ids) {
+    const years = rows
+      .filter((row) => row[idKey] === id)
+      .map((row) => row.year)
+      .sort((left, right) => Number(left) - Number(right));
+    assert.deepEqual(years, MILESTONE_YEARS, `${ownerId}.${id} must cover every milestone year`);
   }
+}
 
-  let totalRows = 0;
-  const stateIds = new Set();
-  let autonomousTrackRowCount = 0;
-  let efficiencyPackageRowCount = 0;
-
-  for (const family of families) {
-    assert.equal(memberCountByFamily.get(family.family_id), 1, `${family.family_id} must have exactly one system group`);
-    assert.match(family.family_resolution, /^(modeled|residual_stub)$/);
-
-    const familyDir = join(PACKAGE_ROOT, 'families', family.family_id);
-    assert.equal(existsSync(join(familyDir, 'family_states.csv')), true, `${family.family_id} missing family_states.csv`);
-    assert.equal(existsSync(join(familyDir, 'demand.csv')), true, `${family.family_id} missing demand.csv`);
-    assert.equal(existsSync(join(familyDir, 'README.md')), true, `${family.family_id} missing README.md`);
-    assert.equal(existsSync(join(familyDir, 'validation.md')), true, `${family.family_id} missing validation.md`);
-
-    assert.equal(owners.has(family.maintainer_owner_id), true, `${family.family_id} maintainer owner must resolve`);
-    assert.equal(owners.has(family.review_owner_id), true, `${family.family_id} review owner must resolve`);
-
-    const rows = parseCsv(readText(`families/${family.family_id}/family_states.csv`));
-    const demandRows = parseCsv(readText(`families/${family.family_id}/demand.csv`));
-    assert.equal(demandRows.length, 1, `${family.family_id} should have exactly one demand row`);
-    assert.equal(demandCurveIds.has(demandRows[0].demand_growth_curve_id), true, `${family.family_id} demand curve must resolve`);
-
-    totalRows += rows.length;
-    const familyStateIds = new Set(rows.map((row) => row.state_id));
-    assert.equal(familyStateIds.has(family.default_incumbent_state_id), true, `${family.family_id} default incumbent state must exist`);
-
-    for (const row of rows) {
-      assert.equal(row.family_id, family.family_id, `${family.family_id} rows must keep the correct family_id`);
-      stateIds.add(row.state_id);
-
-      const sourceArray = parseJsonArray(row.source_ids, `${family.family_id}.${row.state_id}.source_ids`);
-      const assumptionArray = parseJsonArray(row.assumption_ids, `${family.family_id}.${row.state_id}.assumption_ids`);
-      const inputCommodities = parseJsonArray(row.input_commodities, `${family.family_id}.${row.state_id}.input_commodities`);
-      const inputCoefficients = parseJsonArray(row.input_coefficients, `${family.family_id}.${row.state_id}.input_coefficients`);
-      const inputUnits = parseJsonArray(row.input_units, `${family.family_id}.${row.state_id}.input_units`);
-      parseJsonArray(row.energy_emissions_by_pollutant, `${family.family_id}.${row.state_id}.energy_emissions_by_pollutant`);
-      parseJsonArray(row.process_emissions_by_pollutant, `${family.family_id}.${row.state_id}.process_emissions_by_pollutant`);
-
-      assert.equal(inputCommodities.length, inputCoefficients.length, `${family.family_id}.${row.state_id} input arrays must align`);
-      assert.equal(inputCommodities.length, inputUnits.length, `${family.family_id}.${row.state_id} input arrays must align`);
-
-      for (const sourceId of sourceArray) {
-        assert.equal(sourceIds.has(sourceId), true, `${family.family_id}.${row.state_id} source ${sourceId} must resolve`);
-      }
-      for (const assumptionId of assumptionArray) {
-        assert.equal(assumptionIds.has(assumptionId), true, `${family.family_id}.${row.state_id} assumption ${assumptionId} must resolve`);
-      }
-    }
-
-    for (const stateId of familyStateIds) {
-      const years = rows
-        .filter((row) => row.state_id === stateId)
-        .map((row) => row.year)
-        .sort((left, right) => Number(left) - Number(right));
-      assert.deepEqual(years, MILESTONE_YEARS, `${family.family_id}.${stateId} must cover every milestone year`);
-    }
-
-    const autonomousPath = join(familyDir, 'autonomous_efficiency_tracks.csv');
-    if (existsSync(autonomousPath)) {
-      assert.deepEqual(
-        parseHeader(`families/${family.family_id}/autonomous_efficiency_tracks.csv`),
-        AUTONOMOUS_EFFICIENCY_HEADERS,
-        `${family.family_id} autonomous_efficiency_tracks.csv should use the canonical header order`,
-      );
-
-      const trackRows = parseCsv(readText(`families/${family.family_id}/autonomous_efficiency_tracks.csv`));
-      autonomousTrackRowCount += trackRows.length;
-      const trackIds = new Set(trackRows.map((row) => row.track_id));
-
-      for (const row of trackRows) {
-        assert.equal(row.family_id, family.family_id, `${family.family_id} track rows must keep the correct family_id`);
-
-        const applicableStateIds = parseJsonArray(
-          row.applicable_state_ids,
-          `${family.family_id}.${row.track_id}.applicable_state_ids`,
-        );
-        const sourceArray = parseJsonArray(row.source_ids, `${family.family_id}.${row.track_id}.source_ids`);
-        const assumptionArray = parseJsonArray(row.assumption_ids, `${family.family_id}.${row.track_id}.assumption_ids`);
-        const affectedInputCommodities = parseJsonArray(
-          row.affected_input_commodities,
-          `${family.family_id}.${row.track_id}.affected_input_commodities`,
-        );
-        const inputMultipliers = parseJsonArray(
-          row.input_multipliers,
-          `${family.family_id}.${row.track_id}.input_multipliers`,
-        );
-
-        assert.equal(
-          affectedInputCommodities.length,
-          inputMultipliers.length,
-          `${family.family_id}.${row.track_id} input arrays must align`,
-        );
-
-        for (const stateId of applicableStateIds) {
-          assert.equal(familyStateIds.has(stateId), true, `${family.family_id}.${row.track_id} state ${stateId} must resolve`);
-        }
-        for (const sourceId of sourceArray) {
-          assert.equal(sourceIds.has(sourceId), true, `${family.family_id}.${row.track_id} source ${sourceId} must resolve`);
-        }
-        for (const assumptionId of assumptionArray) {
-          assert.equal(assumptionIds.has(assumptionId), true, `${family.family_id}.${row.track_id} assumption ${assumptionId} must resolve`);
-        }
-      }
-
-      for (const trackId of trackIds) {
-        const years = trackRows
-          .filter((row) => row.track_id === trackId)
-          .map((row) => row.year)
-          .sort((left, right) => Number(left) - Number(right));
-        assert.deepEqual(years, MILESTONE_YEARS, `${family.family_id}.${trackId} must cover every milestone year`);
-      }
-    }
-
-    const packagesPath = join(familyDir, 'efficiency_packages.csv');
-    if (existsSync(packagesPath)) {
-      assert.deepEqual(
-        parseHeader(`families/${family.family_id}/efficiency_packages.csv`),
-        EFFICIENCY_PACKAGE_HEADERS,
-        `${family.family_id} efficiency_packages.csv should use the canonical header order`,
-      );
-
-      const packageRows = parseCsv(readText(`families/${family.family_id}/efficiency_packages.csv`));
-      efficiencyPackageRowCount += packageRows.length;
-      const packageIds = new Set(packageRows.map((row) => row.package_id));
-
-      for (const row of packageRows) {
-        assert.equal(row.family_id, family.family_id, `${family.family_id} package rows must keep the correct family_id`);
-
-        const applicableStateIds = parseJsonArray(
-          row.applicable_state_ids,
-          `${family.family_id}.${row.package_id}.applicable_state_ids`,
-        );
-        const sourceArray = parseJsonArray(row.source_ids, `${family.family_id}.${row.package_id}.source_ids`);
-        const assumptionArray = parseJsonArray(row.assumption_ids, `${family.family_id}.${row.package_id}.assumption_ids`);
-        const affectedInputCommodities = parseJsonArray(
-          row.affected_input_commodities,
-          `${family.family_id}.${row.package_id}.affected_input_commodities`,
-        );
-        const inputMultipliers = parseJsonArray(
-          row.input_multipliers,
-          `${family.family_id}.${row.package_id}.input_multipliers`,
-        );
-
-        assert.equal(
-          affectedInputCommodities.length,
-          inputMultipliers.length,
-          `${family.family_id}.${row.package_id} input arrays must align`,
-        );
-
-        for (const stateId of applicableStateIds) {
-          assert.equal(familyStateIds.has(stateId), true, `${family.family_id}.${row.package_id} state ${stateId} must resolve`);
-        }
-        for (const sourceId of sourceArray) {
-          assert.equal(sourceIds.has(sourceId), true, `${family.family_id}.${row.package_id} source ${sourceId} must resolve`);
-        }
-        for (const assumptionId of assumptionArray) {
-          assert.equal(assumptionIds.has(assumptionId), true, `${family.family_id}.${row.package_id} assumption ${assumptionId} must resolve`);
-        }
-      }
-
-      for (const packageId of packageIds) {
-        const years = packageRows
-          .filter((row) => row.package_id === packageId)
-          .map((row) => row.year)
-          .sort((left, right) => Number(left) - Number(right));
-        assert.deepEqual(years, MILESTONE_YEARS, `${family.family_id}.${packageId} must cover every milestone year`);
-      }
-    }
-  }
-
-  assert.equal(totalRows, 312);
-  assert.equal(stateIds.size, 52);
-  assert.ok(autonomousTrackRowCount > 0, 'expected at least one canonical autonomous efficiency track row');
-  assert.ok(efficiencyPackageRowCount > 0, 'expected at least one canonical efficiency package row');
-
-  const externalCommodityDemands = parseCsv(readText('shared/external_commodity_demands.csv'));
-  assert.equal(externalCommodityDemands.length, 0, 'built-in external commodity demand table should be parser-compatible but empty');
-  for (const row of externalCommodityDemands) {
-    assert.equal(demandCurveIds.has(row.demand_growth_curve_id), true, `external commodity ${row.commodity_id} demand curve must resolve`);
-  }
-
-  const residualOverlays = parseCsv(readText('overlays/residual_overlays.csv'));
-  assert.equal(residualOverlays.length, 0, 'migrated residual overlays should not remain as overlay sidecar rows');
-});
-
-test('ESRL role topology keeps physical roles separate from reporting labels', () => {
-  const roles = parseCsv(readText('shared/roles.csv'));
-  const reportingAllocations = parseCsv(readText('shared/reporting_allocations.csv'));
-
-  assert.deepEqual(parseHeader('shared/roles.csv'), ROLE_TOPOLOGY_HEADERS);
-  assert.deepEqual(parseHeader('shared/reporting_allocations.csv'), REPORTING_ALLOCATION_HEADERS);
-  assert.equal(ROLE_TOPOLOGY_HEADERS.includes('sector'), false);
-  assert.equal(ROLE_TOPOLOGY_HEADERS.includes('subsector'), false);
-
-  const roleIds = new Set(roles.map((role) => role.role_id));
-  const areaIds = new Set(roles.map((role) => role.topology_area_id));
-  const reportingRoleIds = new Set(reportingAllocations.map((allocation) => allocation.role_id));
-
-  assert.deepEqual(roleIds, EXPECTED_ROLE_IDS);
-  assert.deepEqual(areaIds, EXPECTED_TOPOLOGY_AREAS);
-  assert.equal(roles.length, 28);
-  assert.equal(reportingAllocations.length, roles.length);
-  assert.equal(roles.filter((role) => role.role_kind === 'residual').length, 14);
-  assert.equal(roles.filter((role) => role.coverage_obligation === 'explicit_residual_top_level').length, 14);
-
-  for (const role of roles) {
-    assert.equal(role.parent_role_id, '', `${role.role_id} should be an initial top-level role`);
-    assert.equal(role.default_representation_kind, 'pathway_bundle', `${role.role_id} should start as a direct bundle`);
-    assert.equal(reportingRoleIds.has(role.role_id), true, `${role.role_id} should have a reporting allocation`);
-  }
-
-  for (const allocation of reportingAllocations) {
-    assert.equal(roleIds.has(allocation.role_id), true, `${allocation.role_id} must resolve to roles.csv`);
-    assert.equal(allocation.reporting_system, 'phase1_package_accounting');
-    assert.equal(allocation.allocation_basis, 'role_activity');
-    assert.equal(Number(allocation.allocation_share), 1);
-    assert.notEqual(allocation.sector, '', `${allocation.role_id} must declare a reporting sector`);
-    assert.notEqual(allocation.subsector, '', `${allocation.role_id} must declare a reporting subsector`);
-  }
-});
-
-test('ESRL representations define one default model choice per top-level role', () => {
+test('energy system representation library package structure is internally consistent', () => {
   const roles = parseCsv(readText('shared/roles.csv'));
   const representations = parseCsv(readText('shared/representations.csv'));
   const roleDecompositionEdges = parseCsv(readText('shared/role_decomposition_edges.csv'));
+  const reportingAllocations = parseCsv(readText('shared/reporting_allocations.csv'));
+  const roleValidationSummary = parseCsv(readText('validation/role_validation_summary.csv'));
+  const sourceIds = new Set(parseCsv(readText('shared/source_ledger.csv')).map((row) => row.source_id));
+  const assumptionIds = new Set(parseCsv(readText('shared/assumptions_ledger.csv')).map((row) => row.assumption_id));
+  const demandCurveIds = new Set(parseCsv(readText('shared/demand_growth_curves.csv')).map((row) => row.demand_growth_curve_id));
+  const roleIds = new Set(roles.map((role) => role.role_id));
   const roleById = new Map(roles.map((role) => [role.role_id, role]));
-  const representationById = new Map();
+  const representationById = new Map(representations.map((representation) => [representation.representation_id, representation]));
   const defaultCountByRole = new Map();
 
+  assert.deepEqual(parseHeader('shared/roles.csv'), ROLE_HEADERS);
   assert.deepEqual(parseHeader('shared/representations.csv'), REPRESENTATION_HEADERS);
   assert.deepEqual(parseHeader('shared/role_decomposition_edges.csv'), ROLE_DECOMPOSITION_EDGE_HEADERS);
+  assert.deepEqual(parseHeader('shared/reporting_allocations.csv'), REPORTING_ALLOCATION_HEADERS);
+  assert.deepEqual(parseHeader('validation/role_validation_summary.csv'), ROLE_VALIDATION_HEADERS);
+  assert.deepEqual(roleIds, EXPECTED_ROLE_IDS);
+  assert.equal(roles.length, 28);
+  assert.equal(roles.filter((role) => role.role_kind === 'residual').length, 14);
+  assert.equal(roles.filter((role) => role.coverage_obligation === 'explicit_residual_top_level').length, 14);
   assert.equal(representations.length, roles.length);
+  assert.equal(reportingAllocations.length, roles.length);
+  assert.equal(roleValidationSummary.length, roles.length);
 
   for (const representation of representations) {
-    const role = roleById.get(representation.role_id);
-    assert.ok(role, `${representation.representation_id} role_id must resolve to roles.csv`);
-    assert.equal(representationById.has(representation.representation_id), false, `${representation.representation_id} must be unique`);
+    assert.equal(roleIds.has(representation.role_id), true, `${representation.representation_id} role must resolve`);
     assert.equal(REPRESENTATION_KINDS.has(representation.representation_kind), true, `${representation.representation_id} kind must be canonical`);
-    representationById.set(representation.representation_id, representation);
-
     if (representation.is_default === 'true') {
       defaultCountByRole.set(representation.role_id, (defaultCountByRole.get(representation.role_id) ?? 0) + 1);
     } else {
       assert.equal(representation.is_default, 'false', `${representation.representation_id} is_default must be true or false`);
     }
-
     if (representation.representation_kind === 'role_decomposition') {
       assert.equal(representation.direct_method_kind, '', `${representation.representation_id} decomposition must not expose direct methods`);
     } else {
-      assert.equal(METHOD_KINDS.has(representation.direct_method_kind), true, `${representation.representation_id} direct method kind must be canonical`);
-    }
-
-    if (role.role_kind === 'residual') {
-      assert.equal(representation.direct_method_kind, 'residual', `${representation.role_id} residual role should default to residual methods`);
+      assert.equal(METHOD_KINDS.has(representation.direct_method_kind), true, `${representation.representation_id} method kind must be canonical`);
     }
   }
-
   for (const role of roles) {
     assert.equal(defaultCountByRole.get(role.role_id), 1, `${role.role_id} must have exactly one default representation`);
   }
@@ -499,83 +285,172 @@ test('ESRL representations define one default model choice per top-level role', 
     assert.ok(parentRepresentation, `${edge.parent_representation_id} must resolve to representations.csv`);
     assert.equal(parentRepresentation.representation_kind, 'role_decomposition', `${edge.parent_representation_id} must be a decomposition`);
     assert.equal(edge.parent_role_id, parentRepresentation.role_id, `${edge.parent_representation_id} parent role must match representation role`);
-    assert.equal(roleById.has(edge.child_role_id), true, `${edge.child_role_id} must resolve to roles.csv`);
+    assert.equal(roleIds.has(edge.child_role_id), true, `${edge.child_role_id} must resolve to roles.csv`);
     assert.match(edge.edge_kind, /^(required_child|optional_child)$/);
+  }
+
+  const reportingRoleIds = new Set(reportingAllocations.map((allocation) => allocation.role_id));
+  for (const allocation of reportingAllocations) {
+    assert.equal(roleIds.has(allocation.role_id), true, `${allocation.role_id} reporting allocation must resolve`);
+    assert.equal(allocation.reporting_system, 'phase1_package_accounting');
+    assert.equal(allocation.allocation_basis, 'role_activity');
+    assert.equal(Number(allocation.allocation_share), 1);
+    assert.notEqual(allocation.sector, '', `${allocation.role_id} must declare a reporting sector`);
+    assert.notEqual(allocation.subsector, '', `${allocation.role_id} must declare a reporting subsector`);
+  }
+
+  let totalMethods = 0;
+  let totalMethodYearRows = 0;
+  let autonomousTrackRowCount = 0;
+  let efficiencyPackageRowCount = 0;
+
+  for (const role of roles) {
+    assert.equal(reportingRoleIds.has(role.role_id), true, `${role.role_id} should have a reporting allocation`);
+
+    const roleDir = join(PACKAGE_ROOT, 'roles', role.role_id);
+    for (const filename of ['methods.csv', 'method_years.csv', 'demand.csv', 'README.md', 'validation.md']) {
+      assert.equal(existsSync(join(roleDir, filename)), true, `${role.role_id} missing ${filename}`);
+    }
+
+    assert.deepEqual(parseHeader(`roles/${role.role_id}/methods.csv`), METHOD_HEADERS);
+    assert.deepEqual(parseHeader(`roles/${role.role_id}/method_years.csv`), METHOD_YEAR_HEADERS);
+    assert.deepEqual(parseHeader(`roles/${role.role_id}/demand.csv`), DEMAND_HEADERS);
+
+    const defaultRepresentation = representations.find((representation) => representation.role_id === role.role_id && representation.is_default === 'true');
+    assert.ok(defaultRepresentation, `${role.role_id} must have a default representation`);
+
+    const methods = parseCsv(readText(`roles/${role.role_id}/methods.csv`));
+    const methodYears = parseCsv(readText(`roles/${role.role_id}/method_years.csv`));
+    const demandRows = parseCsv(readText(`roles/${role.role_id}/demand.csv`));
+    const methodIds = new Set(methods.map((method) => method.method_id));
+    totalMethods += methods.length;
+    totalMethodYearRows += methodYears.length;
+
+    assert.equal(methods.length > 0, true, `${role.role_id} must expose at least one method`);
+    assert.equal(demandRows.length, 1, `${role.role_id} should have exactly one demand row`);
+    assert.equal(demandRows[0].role_id, role.role_id, `${role.role_id} demand role_id must match folder`);
+    assert.equal(demandCurveIds.has(demandRows[0].demand_growth_curve_id), true, `${role.role_id} demand curve must resolve`);
+
+    for (const method of methods) {
+      assert.equal(method.role_id, role.role_id, `${role.role_id}.${method.method_id} role_id must match folder`);
+      assert.equal(method.representation_id, defaultRepresentation.representation_id, `${role.role_id}.${method.method_id} representation must be default`);
+      assert.equal(METHOD_KINDS.has(method.method_kind), true, `${role.role_id}.${method.method_id} kind must be canonical`);
+      assert.equal(CONFIDENCE_RATINGS.has(method.confidence_rating), true, `${role.role_id}.${method.method_id} confidence must be canonical`);
+      assert.equal(Number.isInteger(Number(method.sort_order)), true, `${role.role_id}.${method.method_id} sort_order must be an integer`);
+      assertResolvesJsonIds(method.source_ids, sourceIds, `${role.role_id}.${method.method_id}.source_ids`);
+      assertResolvesJsonIds(method.assumption_ids, assumptionIds, `${role.role_id}.${method.method_id}.assumption_ids`);
+      if (role.role_kind === 'residual') {
+        assert.equal(method.method_kind, 'residual', `${role.role_id} residual roles should expose residual methods`);
+        assert.equal(method.is_residual, 'true', `${role.role_id}.${method.method_id} residual flag must be true`);
+      }
+    }
+
+    for (const row of methodYears) {
+      assert.equal(row.role_id, role.role_id, `${role.role_id}.${row.method_id}.${row.year} role_id must match folder`);
+      assert.equal(row.representation_id, defaultRepresentation.representation_id, `${role.role_id}.${row.method_id}.${row.year} representation must be default`);
+      assert.equal(methodIds.has(row.method_id), true, `${role.role_id}.${row.method_id}.${row.year} method must resolve`);
+      assert.equal(CONFIDENCE_RATINGS.has(row.confidence_rating), true, `${role.role_id}.${row.method_id}.${row.year} confidence must be canonical`);
+      const inputCommodities = parseJsonArray(row.input_commodities, `${role.role_id}.${row.method_id}.${row.year}.input_commodities`);
+      const inputCoefficients = parseJsonArray(row.input_coefficients, `${role.role_id}.${row.method_id}.${row.year}.input_coefficients`);
+      const inputUnits = parseJsonArray(row.input_units, `${role.role_id}.${row.method_id}.${row.year}.input_units`);
+      parseJsonArray(row.energy_emissions_by_pollutant, `${role.role_id}.${row.method_id}.${row.year}.energy_emissions_by_pollutant`);
+      parseJsonArray(row.process_emissions_by_pollutant, `${role.role_id}.${row.method_id}.${row.year}.process_emissions_by_pollutant`);
+      assert.equal(inputCommodities.length, inputCoefficients.length, `${role.role_id}.${row.method_id}.${row.year} input arrays must align`);
+      assert.equal(inputCommodities.length, inputUnits.length, `${role.role_id}.${row.method_id}.${row.year} input arrays must align`);
+      assertResolvesJsonIds(row.source_ids, sourceIds, `${role.role_id}.${row.method_id}.${row.year}.source_ids`);
+      assertResolvesJsonIds(row.assumption_ids, assumptionIds, `${role.role_id}.${row.method_id}.${row.year}.assumption_ids`);
+    }
+    assertMilestoneCoverage(methodYears, 'method_id', role.role_id);
+
+    const autonomousPath = join(roleDir, 'autonomous_efficiency_tracks.csv');
+    if (existsSync(autonomousPath)) {
+      assert.deepEqual(parseHeader(`roles/${role.role_id}/autonomous_efficiency_tracks.csv`), AUTONOMOUS_EFFICIENCY_HEADERS);
+      const rows = parseCsv(readText(`roles/${role.role_id}/autonomous_efficiency_tracks.csv`));
+      autonomousTrackRowCount += rows.length;
+      for (const row of rows) {
+        assert.equal(row.role_id, role.role_id, `${role.role_id}.${row.track_id} role_id must match folder`);
+        assertResolvesJsonIds(row.applicable_method_ids, methodIds, `${role.role_id}.${row.track_id}.applicable_method_ids`);
+        assertResolvesJsonIds(row.source_ids, sourceIds, `${role.role_id}.${row.track_id}.source_ids`);
+        assertResolvesJsonIds(row.assumption_ids, assumptionIds, `${role.role_id}.${row.track_id}.assumption_ids`);
+      }
+      assertMilestoneCoverage(rows, 'track_id', role.role_id);
+    }
+
+    const packagesPath = join(roleDir, 'efficiency_packages.csv');
+    if (existsSync(packagesPath)) {
+      assert.deepEqual(parseHeader(`roles/${role.role_id}/efficiency_packages.csv`), EFFICIENCY_PACKAGE_HEADERS);
+      const rows = parseCsv(readText(`roles/${role.role_id}/efficiency_packages.csv`));
+      efficiencyPackageRowCount += rows.length;
+      for (const row of rows) {
+        assert.equal(row.role_id, role.role_id, `${role.role_id}.${row.package_id} role_id must match folder`);
+        assertResolvesJsonIds(row.applicable_method_ids, methodIds, `${role.role_id}.${row.package_id}.applicable_method_ids`);
+        assertResolvesJsonIds(row.source_ids, sourceIds, `${role.role_id}.${row.package_id}.source_ids`);
+        assertResolvesJsonIds(row.assumption_ids, assumptionIds, `${role.role_id}.${row.package_id}.assumption_ids`);
+      }
+      assertMilestoneCoverage(rows, 'package_id', role.role_id);
+    }
+  }
+
+  assert.equal(totalMethods, 52);
+  assert.equal(totalMethodYearRows, 312);
+  assert.equal(autonomousTrackRowCount > 0, true, 'expected at least one autonomous efficiency track row');
+  assert.equal(efficiencyPackageRowCount > 0, true, 'expected at least one efficiency package row');
+
+  const validationByRole = new Map(roleValidationSummary.map((row) => [row.role_id, row]));
+  for (const role of roles) {
+    const summary = validationByRole.get(role.role_id);
+    assert.ok(summary, `${role.role_id} must have validation summary row`);
+    assert.equal(roleById.has(summary.role_id), true, `${summary.role_id} validation summary must resolve`);
+  }
+});
+
+test('canonical ESRL package does not retain family/state file surfaces', () => {
+  for (const removedPath of [
+    'shared/families.csv',
+    'shared/system_structure_groups.csv',
+    'shared/system_structure_members.csv',
+    'shared/external_commodity_demands.csv',
+    'schema/families.schema.json',
+    'schema/family_states.schema.json',
+    'schema/overlays.schema.json',
+    'families',
+    'overlays',
+    'exports',
+  ]) {
+    assert.equal(existsSync(join(PACKAGE_ROOT, removedPath)), false, `${removedPath} should not remain in the canonical package`);
   }
 });
 
 test('schema companions stay aligned with the authored CSV headers', () => {
-  const familiesSchema = JSON.parse(readText('schema/families.schema.json'));
-  assert.deepEqual(
-    Object.keys(familiesSchema.properties ?? {}),
-    parseHeader('shared/families.csv'),
-    'families.schema.json should match shared/families.csv header order exactly',
-  );
+  const schemaChecks = [
+    ['schema/roles.schema.json', 'shared/roles.csv', ROLE_HEADERS],
+    ['schema/reporting_allocations.schema.json', 'shared/reporting_allocations.csv', REPORTING_ALLOCATION_HEADERS],
+    ['schema/representations.schema.json', 'shared/representations.csv', REPRESENTATION_HEADERS],
+    ['schema/role_decomposition_edges.schema.json', 'shared/role_decomposition_edges.csv', ROLE_DECOMPOSITION_EDGE_HEADERS],
+    ['schema/methods.schema.json', 'roles/supply_electricity/methods.csv', METHOD_HEADERS],
+    ['schema/method_years.schema.json', 'roles/supply_electricity/method_years.csv', METHOD_YEAR_HEADERS],
+    ['schema/demand.schema.json', 'roles/supply_electricity/demand.csv', DEMAND_HEADERS],
+    ['schema/autonomous_efficiency_tracks.schema.json', 'roles/produce_crude_steel/autonomous_efficiency_tracks.csv', AUTONOMOUS_EFFICIENCY_HEADERS],
+    ['schema/efficiency_packages.schema.json', 'roles/produce_crude_steel/efficiency_packages.csv', EFFICIENCY_PACKAGE_HEADERS],
+  ];
 
-  const familyStatesSchema = JSON.parse(readText('schema/family_states.schema.json'));
-  assert.deepEqual(
-    Object.keys(familyStatesSchema.properties ?? {}),
-    parseHeader('families/electricity/family_states.csv'),
-    'family_states.schema.json should match family_states.csv header order exactly',
-  );
-
-  const autonomousEfficiencySchema = JSON.parse(readText('schema/autonomous_efficiency_tracks.schema.json'));
-  assert.deepEqual(
-    Object.keys(autonomousEfficiencySchema.properties ?? {}),
-    AUTONOMOUS_EFFICIENCY_HEADERS,
-    'autonomous_efficiency_tracks.schema.json should declare the canonical header order exactly',
-  );
-
-  const efficiencyPackagesSchema = JSON.parse(readText('schema/efficiency_packages.schema.json'));
-  assert.deepEqual(
-    Object.keys(efficiencyPackagesSchema.properties ?? {}),
-    EFFICIENCY_PACKAGE_HEADERS,
-    'efficiency_packages.schema.json should declare the canonical header order exactly',
-  );
+  for (const [schemaPath, csvPath, expectedHeaders] of schemaChecks) {
+    const schema = readJson(schemaPath);
+    assert.deepEqual(parseHeader(csvPath), expectedHeaders, `${csvPath} should use expected header order`);
+    assert.deepEqual(
+      Object.keys(schema.properties ?? {}),
+      expectedHeaders,
+      `${schemaPath} should match ${csvPath} header order exactly`,
+    );
+  }
 
   const representationsSchema = readJson('schema/representations.schema.json');
-  assert.deepEqual(
-    Object.keys(representationsSchema.properties ?? {}),
-    REPRESENTATION_HEADERS,
-    'representations.schema.json should match shared/representations.csv header order exactly',
-  );
-  assert.deepEqual(
-    new Set(representationsSchema.properties.representation_kind.enum),
-    REPRESENTATION_KINDS,
-    'representations.schema.json should declare every canonical representation kind',
-  );
-
-  const roleDecompositionEdgesSchema = readJson('schema/role_decomposition_edges.schema.json');
-  assert.deepEqual(
-    Object.keys(roleDecompositionEdgesSchema.properties ?? {}),
-    ROLE_DECOMPOSITION_EDGE_HEADERS,
-    'role_decomposition_edges.schema.json should match shared/role_decomposition_edges.csv header order exactly',
-  );
-
+  assert.deepEqual(new Set(representationsSchema.properties.representation_kind.enum), REPRESENTATION_KINDS);
   const methodsSchema = readJson('schema/methods.schema.json');
-  assert.deepEqual(
-    Object.keys(methodsSchema.properties ?? {}),
-    METHODS_HEADERS,
-    'methods.schema.json should declare the canonical methods.csv header order exactly',
-  );
-  assert.deepEqual(
-    new Set(methodsSchema.properties.method_kind.enum),
-    METHOD_KINDS,
-    'methods.schema.json should declare every canonical method kind',
-  );
+  assert.deepEqual(new Set(methodsSchema.properties.method_kind.enum), METHOD_KINDS);
 
-  const methodYearsSchema = readJson('schema/method_years.schema.json');
-  assert.deepEqual(
-    Object.keys(methodYearsSchema.properties ?? {}),
-    METHOD_YEARS_HEADERS,
-    'method_years.schema.json should declare the canonical method_years.csv header order exactly',
-  );
-
-  const canonicalSchemaText = JSON.stringify({
-    representationsSchema,
-    roleDecompositionEdgesSchema,
-    methodsSchema,
-    methodYearsSchema,
-  });
+  const canonicalSchemaText = JSON.stringify(Object.fromEntries(
+    schemaChecks.map(([schemaPath]) => [schemaPath, readJson(schemaPath)]),
+  ));
   assert.doesNotMatch(canonicalSchemaText, /\bfamily\b|family_id|\bstate\b|state_id/i);
 });
