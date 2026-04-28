@@ -33,6 +33,13 @@
       },
       "minItems": 1
     },
+    "representation_by_role": {
+      "type": "object",
+      "description": "Selected representation_id by canonical role_id. Omitted roles use their authored default representation.",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
     "service_controls": {
       "type": "object",
       "description": "One control block per service_or_output_name.",

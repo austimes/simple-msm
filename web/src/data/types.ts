@@ -113,6 +113,7 @@ export interface ConfigurationDocument {
   name: string;
   description?: string;
   years: ConfigurationYear[];
+  representation_by_role?: Record<string, string>;
   service_controls: Record<string, ConfigurationServiceControl>;
   service_demands: Record<string, ConfigurationYearValueTable>;
   demand_generation: ConfigurationDemandGeneration;
@@ -507,6 +508,23 @@ export interface MethodYear {
   times_or_vedalang_mapping_notes: string;
   would_expand_to_explicit_capacity: boolean;
   would_expand_to_process_chain: boolean;
+}
+
+export interface ResolvedActiveRole {
+  roleId: string;
+  representationId: string;
+  representationKind: RepresentationKind;
+  activeMethodIds: string[];
+  activeChildRoleIds: string[];
+}
+
+export interface ResolvedActiveRoleStructure {
+  activeRoleIds: string[];
+  inactiveRoleIds: string[];
+  activeRepresentationByRole: Record<string, string>;
+  activeMethodIdsByRole: Record<string, string[]>;
+  activeMethodKeys: Set<string>;
+  roles: ResolvedActiveRole[];
 }
 
 export interface RoleDemand {

@@ -1,5 +1,8 @@
 import type { PackageData, ConfigurationDocument } from '../data/types.ts';
 import {
+  resolveActiveSectorStatesForConfiguration,
+} from '../data/roleTopologyResolver.ts';
+import {
   SOLVER_CONTRACT_VERSION,
   type NormalizedSolverRow,
   type ResolvedConfigurationForSolve,
@@ -16,6 +19,17 @@ import {
 } from './solveRequestModel.ts';
 
 export { normalizeSolverRows, resolveConfigurationForSolve } from './solveRequestModel.ts';
+
+type SolvePackageData = Pick<PackageData, 'sectorStates' | 'appConfig'>
+  & Partial<Pick<
+    PackageData,
+    | 'autonomousEfficiencyTracks'
+    | 'efficiencyPackages'
+    | 'roleMetadata'
+    | 'representations'
+    | 'roleDecompositionEdges'
+    | 'methods'
+  >>;
 
 function resolveObjectiveCostMetadata(
   rows: NormalizedSolverRow[],
@@ -195,20 +209,20 @@ export function collectOutputIdsForSelection(
 }
 
 export function buildSolveRequest(
-  pkg: Pick<PackageData, 'sectorStates' | 'appConfig'>
-    & Partial<Pick<PackageData, 'autonomousEfficiencyTracks' | 'efficiencyPackages'>>,
+  pkg: SolvePackageData,
   configuration: ConfigurationDocument,
 ): SolveRequest {
+  const sectorStates = resolveActiveSectorStatesForConfiguration(pkg, configuration);
   const resolvedConfiguration = resolveConfigurationForSolve(
     configuration,
     pkg.appConfig,
-    pkg.sectorStates,
+    sectorStates,
     {
       autonomousEfficiencyTracks: pkg.autonomousEfficiencyTracks,
       efficiencyPackages: pkg.efficiencyPackages,
     },
   );
-  const allRows = normalizeSolverRows(pkg, resolvedConfiguration.efficiency);
+  const allRows = normalizeSolverRows({ ...pkg, sectorStates }, resolvedConfiguration.efficiency);
   const expandedConfiguration = expandActiveStateIdsForDerivedRows(allRows, resolvedConfiguration);
 
   const includedOutputIds = deriveIncludedOutputIds(allRows, expandedConfiguration, pkg.appConfig);

@@ -1,4 +1,5 @@
 import { derivePathwayStateIds } from '../data/pathwaySemantics.ts';
+import { resolveActiveSectorStatesForConfiguration } from '../data/roleTopologyResolver.ts';
 import type {
   AppConfigRegistry,
   OutputRole,
@@ -271,14 +272,27 @@ export function deriveOutputRunStatuses(
 }
 
 export function deriveOutputRunStatusesForConfiguration(
-  pkg: Pick<PackageData, 'sectorStates' | 'appConfig' | 'autonomousEfficiencyTracks' | 'efficiencyPackages'>,
+  pkg: Pick<
+    PackageData,
+    | 'sectorStates'
+    | 'appConfig'
+    | 'autonomousEfficiencyTracks'
+    | 'efficiencyPackages'
+  > & Partial<Pick<
+    PackageData,
+    | 'roleMetadata'
+    | 'representations'
+    | 'roleDecompositionEdges'
+    | 'methods'
+  >>,
   configuration: ConfigurationDocument,
 ): Record<string, DerivedOutputRunStatus> {
-  const rows = normalizeSolverRows(pkg);
+  const sectorStates = resolveActiveSectorStatesForConfiguration(pkg, configuration);
+  const rows = normalizeSolverRows({ ...pkg, sectorStates });
   const resolvedConfiguration = resolveConfigurationForSolve(
     configuration,
     pkg.appConfig,
-    pkg.sectorStates,
+    sectorStates,
     {
       autonomousEfficiencyTracks: pkg.autonomousEfficiencyTracks,
       efficiencyPackages: pkg.efficiencyPackages,
