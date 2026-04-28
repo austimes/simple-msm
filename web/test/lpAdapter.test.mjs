@@ -8,8 +8,13 @@ function createRow({
   outputId,
   year,
   stateId,
+  roleId = outputId,
+  representationId = `${roleId}__bundle`,
+  methodId = stateId,
+  balanceType = 'service_demand',
   cost,
   outputRole = 'required_service',
+  outputUnit = 'unit',
   inputs = [],
   maxShare = null,
   minShare = null,
@@ -18,6 +23,10 @@ function createRow({
 }) {
   return {
     rowId,
+    roleId,
+    representationId,
+    methodId,
+    balanceType,
     outputId,
     outputRole,
     outputLabel: outputId,
@@ -27,7 +36,7 @@ function createRow({
     sector: 'test',
     subsector: 'test',
     region: 'national',
-    outputUnit: 'unit',
+    outputUnit,
     conversionCostPerUnit: cost,
     inputs,
     directEmissions: [],
@@ -516,6 +525,240 @@ test('externalized electricity bypasses supply states and prices electricity exo
   assert.equal(electricitySummary?.balanceGap, null);
   assertClose(electricitySummary?.pricedExogenousDemand, 50, 'externalized exogenous purchases');
   assertClose(electricitySummary?.averageSupplyCost, 4, 'externalized electricity price');
+});
+
+function createDecomposedSteelRequest(overrides = {}) {
+  const rows = [
+    createRow({
+      rowId: 'non_h2::2030',
+      roleId: 'produce_crude_steel_non_h2_dri_residual',
+      outputId: 'produce_crude_steel_non_h2_dri_residual',
+      outputRole: 'optional_activity',
+      outputUnit: 't_crude_steel',
+      balanceType: 'service_demand',
+      year: 2030,
+      stateId: 'non_h2',
+      cost: 5,
+      maxShare: 0.5,
+    }),
+    createRow({
+      rowId: 'dri_h2::2030',
+      roleId: 'produce_direct_reduced_iron',
+      outputId: 'produce_direct_reduced_iron',
+      outputRole: 'optional_activity',
+      outputUnit: 't_dri',
+      balanceType: 'intermediate_material',
+      year: 2030,
+      stateId: 'dri_h2',
+      cost: 1,
+    }),
+    createRow({
+      rowId: 'dri_finish::2030',
+      roleId: 'melt_refine_dri_crude_steel',
+      outputId: 'melt_refine_dri_crude_steel',
+      outputRole: 'optional_activity',
+      outputUnit: 't_crude_steel',
+      balanceType: 'intermediate_conversion',
+      year: 2030,
+      stateId: 'dri_finish',
+      cost: 1,
+      maxShare: 0.5,
+      inputs: [
+        {
+          commodityId: 'direct_reduced_iron',
+          coefficient: 0.95,
+          unit: 't/t_crude_steel',
+        },
+      ],
+    }),
+  ];
+
+  return {
+    contractVersion: SOLVER_CONTRACT_VERSION,
+    requestId: 'lp-adapter-decomposed-steel',
+    rows: overrides.rows ?? rows,
+    configuration: {
+      name: 'Decomposed steel regression',
+      description: null,
+      years: [2030],
+      controlsByOutput: {
+        crude_steel: {
+          2030: {
+            mode: 'optimize',
+            activeStateIds: null,
+            targetValue: null,
+          },
+        },
+        produce_crude_steel_non_h2_dri_residual: {
+          2030: {
+            mode: 'optimize',
+            activeStateIds: null,
+            targetValue: null,
+          },
+        },
+        produce_direct_reduced_iron: {
+          2030: {
+            mode: 'optimize',
+            activeStateIds: null,
+            targetValue: null,
+          },
+        },
+        melt_refine_dri_crude_steel: {
+          2030: {
+            mode: 'optimize',
+            activeStateIds: null,
+            targetValue: null,
+          },
+        },
+        ...(overrides.controlsByOutput ?? {}),
+      },
+      serviceDemandByOutput: {
+        crude_steel: { 2030: 100 },
+      },
+      externalCommodityDemandByCommodity: {},
+      commodityPriceByCommodity: {
+        direct_reduced_iron: {
+          unit: 'AUD/t',
+          valuesByYear: { 2030: 999 },
+        },
+      },
+      carbonPriceByYear: { 2030: 0 },
+      options: {
+        respectMaxShare: true,
+        respectMaxActivity: true,
+        softConstraints: false,
+        shareSmoothing: {
+          enabled: false,
+          maxDeltaPp: null,
+        },
+      },
+      ...(overrides.configuration ?? {}),
+    },
+    roleTopology: {
+      activeRoleIds: [
+        'produce_crude_steel',
+        'produce_crude_steel_non_h2_dri_residual',
+        'produce_direct_reduced_iron',
+        'melt_refine_dri_crude_steel',
+      ],
+      activeRepresentationByRole: {
+        produce_crude_steel: 'produce_crude_steel__h2_dri_decomposition',
+        produce_crude_steel_non_h2_dri_residual: 'produce_crude_steel_non_h2_dri_residual__pathway_bundle',
+        produce_direct_reduced_iron: 'produce_direct_reduced_iron__technology_bundle',
+        melt_refine_dri_crude_steel: 'melt_refine_dri_crude_steel__technology_bundle',
+      },
+      rolesById: {
+        produce_crude_steel: {
+          roleId: 'produce_crude_steel',
+          outputId: 'crude_steel',
+          roleLabel: 'Crude steel',
+          balanceType: 'service_demand',
+          outputUnit: 't_crude_steel',
+          parentRoleId: null,
+        },
+        produce_crude_steel_non_h2_dri_residual: {
+          roleId: 'produce_crude_steel_non_h2_dri_residual',
+          outputId: 'produce_crude_steel_non_h2_dri_residual',
+          roleLabel: 'Non-H2 DRI crude steel residual',
+          balanceType: 'service_demand',
+          outputUnit: 't_crude_steel',
+          parentRoleId: 'produce_crude_steel',
+        },
+        produce_direct_reduced_iron: {
+          roleId: 'produce_direct_reduced_iron',
+          outputId: 'produce_direct_reduced_iron',
+          roleLabel: 'Direct reduced iron',
+          balanceType: 'intermediate_material',
+          outputUnit: 't_dri',
+          parentRoleId: 'produce_crude_steel',
+        },
+        melt_refine_dri_crude_steel: {
+          roleId: 'melt_refine_dri_crude_steel',
+          outputId: 'melt_refine_dri_crude_steel',
+          roleLabel: 'DRI melt/refine',
+          balanceType: 'intermediate_conversion',
+          outputUnit: 't_crude_steel',
+          parentRoleId: 'produce_crude_steel',
+        },
+      },
+      decompositions: [
+        {
+          parentRoleId: 'produce_crude_steel',
+          parentOutputId: 'crude_steel',
+          childRoleIds: [
+            'produce_crude_steel_non_h2_dri_residual',
+            'produce_direct_reduced_iron',
+            'melt_refine_dri_crude_steel',
+          ],
+        },
+      ],
+      intermediateCommodityByRole: {
+        produce_direct_reduced_iron: 'direct_reduced_iron',
+      },
+    },
+  };
+}
+
+test('decomposed role topology balances parent steel demand and intermediate DRI', () => {
+  const result = solveWithLpAdapter(createDecomposedSteelRequest());
+  const variables = getVariableMap(result);
+  const driBalance = result.reporting.commodityBalances.find(
+    (summary) => summary.commodityId === 'direct_reduced_iron' && summary.year === 2030,
+  );
+
+  assert.equal(result.status, 'solved');
+  assert.equal(result.raw.solutionStatus, 'optimal');
+  assertClose(variables.get('activity:non_h2::2030'), 50, 'non-H2 residual child steel activity');
+  assertClose(variables.get('activity:dri_finish::2030'), 50, 'DRI finishing child steel activity');
+  assertClose(variables.get('activity:dri_h2::2030'), 47.5, 'DRI production activity');
+  assert.equal(driBalance?.mode, 'endogenous');
+  assertClose(driBalance?.supply, 47.5, 'DRI supply');
+  assertClose(driBalance?.modeledDemand, 47.5, 'DRI modeled demand');
+  assertClose(driBalance?.balanceGap, 0, 'DRI balance gap');
+  assertClose(result.raw.objectiveValue, 347.5, 'intermediate DRI is balanced rather than priced exogenously');
+});
+
+test('decomposed role topology reports missing child-role parent coverage', () => {
+  const request = createDecomposedSteelRequest({
+    rows: [
+      createRow({
+        rowId: 'non_h2::2030',
+        roleId: 'produce_crude_steel_non_h2_dri_residual',
+        outputId: 'produce_crude_steel_non_h2_dri_residual',
+        outputRole: 'optional_activity',
+        outputUnit: 't_crude_steel',
+        balanceType: 'service_demand',
+        year: 2030,
+        stateId: 'non_h2',
+        cost: 5,
+        maxShare: 0.4,
+      }),
+    ],
+  });
+  const result = solveWithLpAdapter(request);
+
+  assert.equal(result.status, 'error');
+  assert.equal(
+    findDiagnostic(result, 'decomposition_child_coverage_shortfall', 'crude_steel')?.reason,
+    'decomposition_coverage_conflict',
+  );
+});
+
+test('decomposed role topology reports missing intermediate material coverage', () => {
+  const request = createDecomposedSteelRequest({
+    rows: createDecomposedSteelRequest().rows.map((row) => (
+      row.roleId === 'produce_direct_reduced_iron'
+        ? { ...row, bounds: { ...row.bounds, maxActivity: 10 } }
+        : row
+    )),
+  });
+  const result = solveWithLpAdapter(request);
+
+  assert.equal(result.status, 'error');
+  assert.equal(
+    findDiagnostic(result, 'intermediate_material_shortfall', 'direct_reduced_iron')?.reason,
+    'commodity_balance_conflict',
+  );
 });
 
 test('infeasible runs report deterministic service-year and electricity diagnostics', () => {

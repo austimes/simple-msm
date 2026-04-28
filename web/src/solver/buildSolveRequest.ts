@@ -1,6 +1,14 @@
-import type { PackageData, ConfigurationDocument } from '../data/types.ts';
+import type {
+  ConfigurationDocument,
+  PackageData,
+  ResolvedActiveRoleStructure,
+  RoleMetadata,
+  SectorState,
+} from '../data/types.ts';
 import {
-  resolveActiveSectorStatesForConfiguration,
+  filterSectorStatesByActiveRoleStructure,
+  hasRoleTopologyInputs,
+  resolveActiveRoleStructure,
 } from '../data/roleTopologyResolver.ts';
 import {
   SOLVER_CONTRACT_VERSION,
@@ -8,6 +16,7 @@ import {
   type ResolvedConfigurationForSolve,
   type ResolvedSolveControl,
   type SolveObjectiveCostMetadata,
+  type SolveRoleTopology,
   type SolveRequest,
 } from './contract.ts';
 import {
@@ -30,6 +39,94 @@ type SolvePackageData = Pick<PackageData, 'sectorStates' | 'appConfig'>
     | 'roleDecompositionEdges'
     | 'methods'
   >>;
+
+function collectOutputIdByRoleId(sectorStates: SectorState[]): Map<string, string> {
+  const outputIdByRoleId = new Map<string, string>();
+
+  for (const row of sectorStates) {
+    if (!outputIdByRoleId.has(row.role_id)) {
+      outputIdByRoleId.set(row.role_id, row.service_or_output_name);
+    }
+  }
+
+  return outputIdByRoleId;
+}
+
+function stripLeadingRoleVerb(roleId: string): string | null {
+  const match = /^(produce|supply|deliver|remove|account)_(.+)$/.exec(roleId);
+  return match?.[2] ?? null;
+}
+
+function inferIntermediateCommodityId(
+  role: RoleMetadata,
+  outputIdByRoleId: Map<string, string>,
+  activeRows: SectorState[],
+): string | null {
+  if (role.balance_type !== 'intermediate_material') {
+    return null;
+  }
+
+  const activeInputCommodityIds = new Set(activeRows.flatMap((row) => row.input_commodities));
+  const candidates = [
+    outputIdByRoleId.get(role.role_id),
+    stripLeadingRoleVerb(role.role_id),
+    role.role_id,
+  ].filter((candidate): candidate is string => !!candidate);
+
+  return candidates.find((candidate) => activeInputCommodityIds.has(candidate))
+    ?? candidates.find((candidate) => candidate !== role.role_id)
+    ?? null;
+}
+
+function buildRoleTopologyForSolve(
+  pkg: SolvePackageData & Required<Pick<
+    PackageData,
+    'roleMetadata'
+  >>,
+  activeStructure: ResolvedActiveRoleStructure,
+  activeSectorStates: SectorState[],
+): SolveRoleTopology {
+  const outputIdByRoleId = collectOutputIdByRoleId(pkg.sectorStates);
+  const rolesById = pkg.roleMetadata.reduce<SolveRoleTopology['rolesById']>((resolved, role) => {
+    resolved[role.role_id] = {
+      roleId: role.role_id,
+      outputId: outputIdByRoleId.get(role.role_id) ?? role.role_id,
+      roleLabel: role.role_label,
+      balanceType: role.balance_type,
+      outputUnit: role.output_unit,
+      parentRoleId: role.parent_role_id,
+    };
+    return resolved;
+  }, {});
+  const roleById = new Map(pkg.roleMetadata.map((role) => [role.role_id, role]));
+  const intermediateCommodityByRole: Record<string, string> = {};
+
+  for (const roleId of activeStructure.activeRoleIds) {
+    const role = roleById.get(roleId);
+    if (!role) {
+      continue;
+    }
+
+    const commodityId = inferIntermediateCommodityId(role, outputIdByRoleId, activeSectorStates);
+    if (commodityId) {
+      intermediateCommodityByRole[roleId] = commodityId;
+    }
+  }
+
+  return {
+    activeRoleIds: activeStructure.activeRoleIds,
+    activeRepresentationByRole: activeStructure.activeRepresentationByRole,
+    rolesById,
+    decompositions: activeStructure.roles
+      .filter((role) => role.representationKind === 'role_decomposition')
+      .map((role) => ({
+        parentRoleId: role.roleId,
+        parentOutputId: rolesById[role.roleId]?.outputId ?? role.roleId,
+        childRoleIds: role.activeChildRoleIds,
+      })),
+    intermediateCommodityByRole,
+  };
+}
 
 function resolveObjectiveCostMetadata(
   rows: NormalizedSolverRow[],
@@ -212,7 +309,19 @@ export function buildSolveRequest(
   pkg: SolvePackageData,
   configuration: ConfigurationDocument,
 ): SolveRequest {
-  const sectorStates = resolveActiveSectorStatesForConfiguration(pkg, configuration);
+  const activeRoleStructure = hasRoleTopologyInputs(pkg)
+    ? resolveActiveRoleStructure(pkg, configuration)
+    : null;
+  if (
+    !activeRoleStructure
+    && configuration.representation_by_role
+    && Object.keys(configuration.representation_by_role).length > 0
+  ) {
+    throw new Error('Cannot resolve representation_by_role without role topology package data.');
+  }
+  const sectorStates = activeRoleStructure
+    ? filterSectorStatesByActiveRoleStructure(pkg.sectorStates, activeRoleStructure)
+    : pkg.sectorStates;
   const resolvedConfiguration = resolveConfigurationForSolve(
     configuration,
     pkg.appConfig,
@@ -224,8 +333,14 @@ export function buildSolveRequest(
   );
   const allRows = normalizeSolverRows({ ...pkg, sectorStates }, resolvedConfiguration.efficiency);
   const expandedConfiguration = expandActiveStateIdsForDerivedRows(allRows, resolvedConfiguration);
+  const roleTopology = activeRoleStructure && hasRoleTopologyInputs(pkg)
+    ? buildRoleTopologyForSolve(pkg, activeRoleStructure, sectorStates)
+    : undefined;
 
   const includedOutputIds = deriveIncludedOutputIds(allRows, expandedConfiguration, pkg.appConfig);
+  for (const decomposition of roleTopology?.decompositions ?? []) {
+    includedOutputIds.add(decomposition.parentOutputId);
+  }
   const filtered = filterSolveRequestForOutputs(
     allRows,
     expandedConfiguration,
@@ -242,5 +357,6 @@ export function buildSolveRequest(
     rows: filtered.rows,
     configuration: filtered.configuration,
     objectiveCost: resolveObjectiveCostMetadata(filtered.rows),
+    roleTopology,
   };
 }

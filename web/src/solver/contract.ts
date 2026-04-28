@@ -1,4 +1,5 @@
 import type {
+  BalanceType,
   ConfigurationAutonomousEfficiencyMode,
   ConfigurationControlMode,
   ConfigurationEfficiencyPackageMode,
@@ -15,6 +16,8 @@ export type SolveDiagnosticReason =
   | 'share_exhaustion'
   | 'activity_exhaustion'
   | 'inactive_states'
+  | 'commodity_balance_conflict'
+  | 'decomposition_coverage_conflict'
   | 'electricity_balance_conflict';
 // `configuration_lp` is an internal artifact label, so it can move with the solver
 // contract when the broader terminology cleanup reaches this boundary.
@@ -61,6 +64,10 @@ export interface NormalizedSolverRowProvenance {
 
 export interface NormalizedSolverRow {
   rowId: string;
+  roleId?: string;
+  representationId?: string;
+  methodId?: string;
+  balanceType?: BalanceType;
   outputId: string;
   outputRole: OutputRole;
   outputLabel: string;
@@ -134,12 +141,36 @@ export interface SolveObjectiveCostMetadata {
   costBasisYear: number | null;
 }
 
+export interface SolveRoleTopologyRole {
+  roleId: string;
+  outputId: string;
+  roleLabel: string;
+  balanceType: BalanceType;
+  outputUnit: string;
+  parentRoleId: string | null;
+}
+
+export interface SolveRoleTopologyDecomposition {
+  parentRoleId: string;
+  parentOutputId: string;
+  childRoleIds: string[];
+}
+
+export interface SolveRoleTopology {
+  activeRoleIds: string[];
+  activeRepresentationByRole: Record<string, string>;
+  rolesById: Record<string, SolveRoleTopologyRole>;
+  decompositions: SolveRoleTopologyDecomposition[];
+  intermediateCommodityByRole: Record<string, string>;
+}
+
 export interface SolveRequest {
   contractVersion: SolverContractVersion;
   requestId: string;
   rows: NormalizedSolverRow[];
   configuration: ResolvedConfigurationForSolve;
   objectiveCost?: SolveObjectiveCostMetadata;
+  roleTopology?: SolveRoleTopology;
 }
 
 export interface SolveDiagnostic {

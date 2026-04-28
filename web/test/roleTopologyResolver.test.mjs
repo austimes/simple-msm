@@ -6,6 +6,7 @@ import {
   resolveActiveRoleStructure,
 } from '../src/data/roleTopologyResolver.ts';
 import { buildSolveRequest } from '../src/solver/buildSolveRequest.ts';
+import { solveWithLpAdapter } from '../src/solver/lpAdapter.ts';
 
 function cloneConfiguration(configuration, overrides = {}) {
   return {
@@ -106,6 +107,25 @@ test('buildSolveRequest filters rows through the selected role representation st
   assert.equal(decomposedRequest.rows.some((row) => row.stateId === 'steel__crude_steel__h2_dri_electric'), false);
   assert.ok(decomposedRequest.rows.some((row) => row.outputId === 'produce_direct_reduced_iron'));
   assert.ok(decomposedRequest.rows.some((row) => row.outputId === 'melt_refine_dri_crude_steel'));
+  assert.ok(decomposedRequest.configuration.serviceDemandByOutput.crude_steel);
+  assert.equal(decomposedRequest.roleTopology?.decompositions.length, 1);
+});
+
+test('decomposed crude-steel pilot solves with balanced intermediate DRI', () => {
+  const pkg = loadPackage();
+  const decomposed = cloneConfiguration(pkg.defaultConfiguration, {
+    representation_by_role: {
+      produce_crude_steel: 'produce_crude_steel__h2_dri_decomposition',
+    },
+  });
+  const result = solveWithLpAdapter(buildSolveRequest(pkg, decomposed));
+  const driBalances = result.reporting.commodityBalances.filter((summary) =>
+    summary.commodityId === 'direct_reduced_iron',
+  );
+
+  assert.equal(result.status, 'solved');
+  assert.ok(driBalances.some((summary) => summary.supply > 0));
+  assert.ok(driBalances.every((summary) => Math.abs(summary.balanceGap ?? 0) < 0.02));
 });
 
 test('resolver rejects double coverage, inactive required roles, and missing representation selections', () => {

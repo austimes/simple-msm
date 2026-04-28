@@ -45,11 +45,23 @@ interface RequiredServiceGroup {
 }
 
 interface SupplyCommodityGroup {
+  balanceKind: 'supply_commodity' | 'intermediate_material';
   commodityId: string;
   commodityLabel: string;
   year: number;
   control: ResolvedSolveControl;
   externalDemand: number;
+  rows: NormalizedSolverRow[];
+}
+
+interface DecomposedServiceGroup {
+  parentRoleId: string;
+  outputId: string;
+  outputLabel: string;
+  outputUnit: string;
+  year: number;
+  demand: number;
+  childRoleIds: string[];
   rows: NormalizedSolverRow[];
 }
 
@@ -125,6 +137,7 @@ interface ConfigurationLpBuild {
   hasUnmodeledFeatures: boolean;
   activeRows: NormalizedSolverRow[];
   requiredServiceGroups: RequiredServiceGroup[];
+  decomposedServiceGroups: DecomposedServiceGroup[];
   supplyGroups: SupplyCommodityGroup[];
   optionalActivityGroups: OptionalActivityGroup[];
   balancedCommodityKeys: Set<string>;
@@ -472,6 +485,21 @@ function collectRequiredServiceGroups(request: SolveRequest): RequiredServiceGro
   });
 }
 
+function requireResolvedControl(
+  request: SolveRequest,
+  outputId: string,
+  year: number,
+  label: string,
+): ResolvedSolveControl {
+  const control = request.configuration.controlsByOutput[outputId]?.[yearKey(year)];
+
+  if (!control) {
+    throw new Error(`Missing resolved control for ${label} ${JSON.stringify(outputId)} in ${year}.`);
+  }
+
+  return control;
+}
+
 function collectSupplyCommodityGroups(request: SolveRequest): SupplyCommodityGroup[] {
   const groups = new Map<string, SupplyCommodityGroup>();
 
@@ -497,6 +525,7 @@ function collectSupplyCommodityGroups(request: SolveRequest): SupplyCommodityGro
     }
 
     groups.set(key, {
+      balanceKind: 'supply_commodity',
       commodityId: row.outputId,
       commodityLabel: row.outputLabel,
       year: row.year,
@@ -515,11 +544,124 @@ function collectSupplyCommodityGroups(request: SolveRequest): SupplyCommodityGro
   });
 }
 
+function collectIntermediateMaterialGroups(request: SolveRequest): SupplyCommodityGroup[] {
+  const roleTopology = request.roleTopology;
+  if (!roleTopology) {
+    return [];
+  }
+
+  const groups = new Map<string, SupplyCommodityGroup>();
+  const activeRoleIds = new Set(roleTopology.activeRoleIds);
+
+  for (const roleId of activeRoleIds) {
+    const role = roleTopology.rolesById[roleId];
+    if (role?.balanceType !== 'intermediate_material') {
+      continue;
+    }
+
+    const commodityId = roleTopology.intermediateCommodityByRole[roleId];
+    if (!commodityId) {
+      continue;
+    }
+
+    for (const row of request.rows) {
+      if (row.roleId !== roleId) {
+        continue;
+      }
+
+      const key = commodityYearKey(commodityId, row.year);
+      const existing = groups.get(key);
+
+      if (existing) {
+        existing.rows.push(row);
+        continue;
+      }
+
+      groups.set(key, {
+        balanceKind: 'intermediate_material',
+        commodityId,
+        commodityLabel: role.roleLabel,
+        year: row.year,
+        control: requireResolvedControl(request, role.outputId, row.year, 'intermediate material'),
+        externalDemand: 0,
+        rows: [row],
+      });
+    }
+  }
+
+  return Array.from(groups.values()).sort((left, right) => {
+    if (left.year !== right.year) {
+      return left.year - right.year;
+    }
+
+    return left.commodityId.localeCompare(right.commodityId);
+  });
+}
+
+function rowCanSatisfyDecomposedParent(
+  row: NormalizedSolverRow,
+  parent: { outputUnit: string },
+): boolean {
+  if (row.outputUnit !== parent.outputUnit) {
+    return false;
+  }
+
+  return row.balanceType === 'service_demand'
+    || row.balanceType === 'intermediate_conversion'
+    || row.balanceType === 'residual_accounting';
+}
+
+function collectDecomposedServiceGroups(request: SolveRequest): DecomposedServiceGroup[] {
+  const roleTopology = request.roleTopology;
+  if (!roleTopology) {
+    return [];
+  }
+
+  const groups: DecomposedServiceGroup[] = [];
+
+  for (const decomposition of roleTopology.decompositions) {
+    const parent = roleTopology.rolesById[decomposition.parentRoleId];
+    if (!parent || (parent.balanceType !== 'service_demand' && parent.balanceType !== 'residual_accounting')) {
+      continue;
+    }
+
+    const childRoleIds = new Set(decomposition.childRoleIds);
+    for (const year of request.configuration.years) {
+      const demand = request.configuration.serviceDemandByOutput[parent.outputId]?.[yearKey(year)] ?? 0;
+      const rows = request.rows.filter((row) =>
+        row.year === year
+        && typeof row.roleId === 'string'
+        && childRoleIds.has(row.roleId)
+        && rowCanSatisfyDecomposedParent(row, parent),
+      );
+
+      groups.push({
+        parentRoleId: decomposition.parentRoleId,
+        outputId: parent.outputId,
+        outputLabel: parent.roleLabel,
+        outputUnit: parent.outputUnit,
+        year,
+        demand,
+        childRoleIds: decomposition.childRoleIds,
+        rows,
+      });
+    }
+  }
+
+  return groups.sort((left, right) => {
+    if (left.year !== right.year) {
+      return left.year - right.year;
+    }
+
+    return left.outputId.localeCompare(right.outputId);
+  });
+}
+
 function collectOptionalActivityGroups(request: SolveRequest): OptionalActivityGroup[] {
   const groups = new Map<string, OptionalActivityGroup>();
 
   for (const row of request.rows) {
-    if (row.outputRole !== 'optional_activity') {
+    if (row.outputRole !== 'optional_activity' || row.balanceType === 'intermediate_material') {
       continue;
     }
 
@@ -797,6 +939,58 @@ function buildRowShareProfiles(
     });
 }
 
+function buildDecomposedRowShareProfiles(
+  group: DecomposedServiceGroup,
+  request: SolveRequest,
+  commodityId?: string,
+): RowShareProfile[] {
+  const rowsByOutput = group.rows.reduce<Map<string, NormalizedSolverRow[]>>((result, row) => {
+    const rows = result.get(row.outputId) ?? [];
+    rows.push(row);
+    result.set(row.outputId, rows);
+    return result;
+  }, new Map());
+
+  return [...group.rows]
+    .sort((left, right) => left.stateLabel.localeCompare(right.stateLabel))
+    .map((row) => {
+      const outputRows = rowsByOutput.get(row.outputId) ?? [row];
+      const control = requireResolvedControl(request, row.outputId, row.year, 'decomposition child');
+      const pathwayStateIds = derivePathwayStateIds(
+        outputRows.map((candidate) => candidate.stateId),
+        control,
+      );
+      const inactive = !new Set(pathwayStateIds.activeStateIds).has(row.stateId);
+      const rawMaxShare = row.bounds.maxShare == null ? null : clampShare(row.bounds.maxShare);
+      const maxShareLimit = request.configuration.options.respectMaxShare ? rawMaxShare : null;
+      const maxActivityLimit = request.configuration.options.respectMaxActivity ? row.bounds.maxActivity : null;
+      const upperShareIgnoringActivity = inactive
+        ? 0
+        : maxShareLimit == null
+          ? 1
+          : maxShareLimit;
+      const upperShareFromActivity = inactive || group.demand <= SHARE_TOLERANCE || maxActivityLimit == null
+        ? 1
+        : Math.max(0, maxActivityLimit / group.demand);
+      const upperShare = inactive
+        ? 0
+        : clampShare(Math.min(upperShareIgnoringActivity, upperShareFromActivity));
+
+      return {
+        row,
+        active: !inactive,
+        lowerShare: inactive || group.demand <= SHARE_TOLERANCE ? 0 : Math.max(0, row.bounds.minShare ?? 0),
+        upperShare,
+        upperShareIgnoringActivity,
+        rawMaxShare,
+        effectiveMaxShare: rawMaxShare,
+        maxShareLimit,
+        maxActivityLimit,
+        commodityCoefficient: commodityId ? sumInputCoefficient(row, commodityId) : 0,
+      } satisfies RowShareProfile;
+    });
+}
+
 function sumShares(profiles: RowShareProfile[], field: 'lowerShare' | 'upperShare' | 'upperShareIgnoringActivity'): number {
   return profiles.reduce((total, profile) => total + profile[field], 0);
 }
@@ -859,6 +1053,64 @@ function estimateMinimumCommodityDemandForGroup(
   }, 0);
 }
 
+function estimateMinimumCommodityDemandForDecomposedGroup(
+  group: DecomposedServiceGroup,
+  request: SolveRequest,
+  commodityId: string,
+): number | null {
+  if (group.demand <= SHARE_TOLERANCE) {
+    return 0;
+  }
+
+  const profiles = buildDecomposedRowShareProfiles(group, request, commodityId);
+  const activeProfiles = profiles.filter((profile) => profile.active);
+  if (activeProfiles.length === 0) {
+    return null;
+  }
+
+  const lowerTotal = sumShares(activeProfiles, 'lowerShare');
+  const upperTotal = sumShares(activeProfiles, 'upperShare');
+  if (lowerTotal > 1 + SHARE_TOLERANCE || upperTotal < 1 - SHARE_TOLERANCE) {
+    return null;
+  }
+
+  const allocations = new Map<string, number>();
+  for (const profile of activeProfiles) {
+    allocations.set(profile.row.rowId, profile.lowerShare);
+  }
+
+  let remainingShare = 1 - lowerTotal;
+  for (const profile of [...activeProfiles].sort((left, right) => {
+    if (left.commodityCoefficient !== right.commodityCoefficient) {
+      return left.commodityCoefficient - right.commodityCoefficient;
+    }
+
+    return left.row.stateLabel.localeCompare(right.row.stateLabel);
+  })) {
+    if (remainingShare <= SHARE_TOLERANCE) {
+      break;
+    }
+
+    const currentShare = allocations.get(profile.row.rowId) ?? 0;
+    const extraCapacity = profile.upperShare - currentShare;
+    if (extraCapacity <= SHARE_TOLERANCE) {
+      continue;
+    }
+
+    const addedShare = Math.min(remainingShare, extraCapacity);
+    allocations.set(profile.row.rowId, currentShare + addedShare);
+    remainingShare -= addedShare;
+  }
+
+  if (remainingShare > SHARE_TOLERANCE) {
+    return null;
+  }
+
+  return group.demand * activeProfiles.reduce((total, profile) => {
+    return total + (allocations.get(profile.row.rowId) ?? 0) * profile.commodityCoefficient;
+  }, 0);
+}
+
 function estimateMinimumCommodityDemand(
   build: ConfigurationLpBuild,
   commodityId: string,
@@ -872,6 +1124,24 @@ function estimateMinimumCommodityDemand(
     }
 
     const groupDemand = estimateMinimumCommodityDemandForGroup(group, build.request, commodityId);
+    if (groupDemand == null) {
+      const touchesCommodity = group.rows.some((row) => sumInputCoefficient(row, commodityId) !== 0);
+      if (touchesCommodity) {
+        return null;
+      }
+
+      continue;
+    }
+
+    total += groupDemand;
+  }
+
+  for (const group of build.decomposedServiceGroups) {
+    if (group.year !== year) {
+      continue;
+    }
+
+    const groupDemand = estimateMinimumCommodityDemandForDecomposedGroup(group, build.request, commodityId);
     if (groupDemand == null) {
       const touchesCommodity = group.rows.some((row) => sumInputCoefficient(row, commodityId) !== 0);
       if (touchesCommodity) {
@@ -1007,6 +1277,94 @@ function buildRequiredServiceInfeasibilityDiagnostics(build: ConfigurationLpBuil
   return diagnostics;
 }
 
+function buildDecomposedServiceInfeasibilityDiagnostics(build: ConfigurationLpBuild): SolveDiagnostic[] {
+  const diagnostics: SolveDiagnostic[] = [];
+
+  for (const group of build.decomposedServiceGroups) {
+    if (group.demand <= SHARE_TOLERANCE) {
+      continue;
+    }
+
+    const profiles = buildDecomposedRowShareProfiles(group, build.request);
+    const activeProfiles = profiles.filter((profile) => profile.active);
+    const inactiveProfiles = profiles.filter((profile) => !profile.active);
+
+    if (group.rows.length === 0 || activeProfiles.length === 0) {
+      diagnostics.push({
+        code: 'decomposition_child_coverage_missing',
+        severity: 'error',
+        reason: 'decomposition_coverage_conflict',
+        message: `${group.outputLabel} in ${group.year} has positive demand but no active child-role rows can satisfy the decomposition.`,
+        ...buildConstraintContext(group.outputId, group.year),
+        relatedConstraintIds: inactiveProfiles.map((profile) => stateConstraintId('inactive', profile.row)),
+        suggestion: 'Activate or author at least one child role that produces the parent role output.',
+      });
+      continue;
+    }
+
+    const lowerTotal = sumShares(activeProfiles, 'lowerShare');
+    if (lowerTotal > 1 + SHARE_TOLERANCE) {
+      diagnostics.push({
+        code: 'decomposition_child_min_share_exhaustion',
+        severity: 'error',
+        reason: 'share_exhaustion',
+        message: `${group.outputLabel} in ${group.year} requires at least ${sharePercent(lowerTotal)} of parent demand once child-role minimum shares are applied.`,
+        ...buildConstraintContext(group.outputId, group.year),
+        relatedConstraintIds: activeProfiles
+          .filter((profile) => profile.lowerShare > SHARE_TOLERANCE)
+          .map((profile) => stateConstraintId('min_share', profile.row)),
+        suggestion: 'Lower one or more child-role minimum-share bounds so the total minimum share is at most 100%.',
+      });
+    }
+
+    const upperTotal = sumShares(activeProfiles, 'upperShare');
+    if (upperTotal < 1 - SHARE_TOLERANCE) {
+      const upperIgnoringActivityTotal = sumShares(activeProfiles, 'upperShareIgnoringActivity');
+      const upperWithInactiveChildren = sumShares(profiles, 'upperShareIgnoringActivity');
+
+      if (inactiveProfiles.length > 0 && upperWithInactiveChildren >= 1 - SHARE_TOLERANCE) {
+        diagnostics.push({
+          code: 'decomposition_child_inactive_coverage',
+          severity: 'error',
+          reason: 'inactive_states',
+          message: `${group.outputLabel} in ${group.year} would have enough child-role coverage if inactive child methods were activated.`,
+          ...buildConstraintContext(group.outputId, group.year),
+          relatedConstraintIds: inactiveProfiles.map((profile) => stateConstraintId('inactive', profile.row)),
+          suggestion: 'Activate one or more inactive child-role methods for this decomposition.',
+        });
+      }
+
+      if (upperIgnoringActivityTotal < 1 - SHARE_TOLERANCE) {
+        diagnostics.push({
+          code: 'decomposition_child_coverage_shortfall',
+          severity: 'error',
+          reason: 'decomposition_coverage_conflict',
+          message: `${group.outputLabel} in ${group.year} can cover at most ${sharePercent(upperIgnoringActivityTotal)} of parent demand under the current child-role max-share bounds.`,
+          ...buildConstraintContext(group.outputId, group.year),
+          relatedConstraintIds: activeProfiles
+            .filter((profile) => profile.maxShareLimit != null)
+            .map((profile) => stateConstraintId('max_share', profile.row)),
+          suggestion: 'Raise child-role max-share caps or add more eligible child methods to cover the parent demand.',
+        });
+      } else {
+        diagnostics.push({
+          code: 'decomposition_child_activity_shortfall',
+          severity: 'error',
+          reason: 'activity_exhaustion',
+          message: `${group.outputLabel} in ${group.year} can supply at most ${formatNumber(upperTotal * group.demand)} units after child-role max-activity caps, below the required ${formatNumber(group.demand)}.`,
+          ...buildConstraintContext(group.outputId, group.year),
+          relatedConstraintIds: activeProfiles
+            .filter((profile) => profile.maxActivityLimit != null)
+            .map((profile) => stateConstraintId('max_activity', profile.row)),
+          suggestion: 'Increase child-role max activity, activate more child methods, or lower parent demand for this year.',
+        });
+      }
+    }
+  }
+
+  return diagnostics;
+}
+
 function buildSupplyCommodityInfeasibilityDiagnostics(build: ConfigurationLpBuild): SolveDiagnostic[] {
   const diagnostics: SolveDiagnostic[] = [];
 
@@ -1034,11 +1392,24 @@ function buildSupplyCommodityInfeasibilityDiagnostics(build: ConfigurationLpBuil
     );
     const activeProfiles = profiles.filter((profile) => profile.active);
     const inactiveProfiles = profiles.filter((profile) => !profile.active);
+    const inactiveSupplyCode = group.balanceKind === 'intermediate_material'
+      ? 'intermediate_material_inactive_supply'
+      : group.commodityId === 'electricity'
+        ? 'electricity_balance_inactive_supply'
+        : 'commodity_balance_inactive_supply';
+    const shortfallCode = group.balanceKind === 'intermediate_material'
+      ? 'intermediate_material_shortfall'
+      : group.commodityId === 'electricity'
+        ? 'electricity_balance_shortfall'
+        : 'commodity_balance_shortfall';
+    const shortfallReason = group.commodityId === 'electricity'
+      ? 'electricity_balance_conflict'
+      : 'commodity_balance_conflict';
 
     if (group.control.mode === 'optimize') {
       if (activeProfiles.length === 0) {
         diagnostics.push({
-          code: 'supply_states_inactive',
+          code: group.balanceKind === 'intermediate_material' ? inactiveSupplyCode : 'supply_states_inactive',
           severity: 'error',
           reason: 'inactive_states',
           message: `${group.commodityLabel} in ${group.year} is required, but every supply state is inactive.`,
@@ -1089,7 +1460,7 @@ function buildSupplyCommodityInfeasibilityDiagnostics(build: ConfigurationLpBuil
         && maximumSupplyIfActivated + SHARE_TOLERANCE >= minimumRequiredSupply
       ) {
         diagnostics.push({
-          code: 'electricity_balance_inactive_supply',
+          code: inactiveSupplyCode,
           severity: 'error',
           reason: 'inactive_states',
           message: `${group.commodityLabel} in ${group.year} would meet the minimum required ${formatNumber(minimumRequiredSupply)} units if inactive supply states were activated.`,
@@ -1100,9 +1471,9 @@ function buildSupplyCommodityInfeasibilityDiagnostics(build: ConfigurationLpBuil
       }
 
       diagnostics.push({
-        code: 'electricity_balance_shortfall',
+        code: shortfallCode,
         severity: 'error',
-        reason: 'electricity_balance_conflict',
+        reason: shortfallReason,
         message: `${group.commodityLabel} in ${group.year} needs at least ${formatNumber(minimumRequiredSupply)} units to cover modeled and external demand, but the active supply states can provide at most ${formatNumber(maximumSupply)}.`,
         ...buildConstraintContext(group.commodityId, group.year),
         relatedConstraintIds: [commodityBalanceConstraintId(group.commodityId, group.year)],
@@ -1156,11 +1527,25 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
   const diagnostics: SolveDiagnostic[] = [];
   const notes: string[] = [];
   const requiredServiceGroups = collectRequiredServiceGroups(request);
-  const supplyGroups = collectSupplyCommodityGroups(request);
+  const decomposedServiceGroups = collectDecomposedServiceGroups(request);
+  const supplyGroups = [
+    ...collectSupplyCommodityGroups(request),
+    ...collectIntermediateMaterialGroups(request),
+  ].sort((left, right) => {
+    if (left.year !== right.year) {
+      return left.year - right.year;
+    }
+
+    return left.commodityId.localeCompare(right.commodityId);
+  });
   const optionalActivityGroups = collectOptionalActivityGroups(request);
   const activityScale = resolveActivityScale(request);
 
-  if (requiredServiceGroups.length === 0 && optionalActivityGroups.length === 0) {
+  if (
+    requiredServiceGroups.length === 0
+    && decomposedServiceGroups.length === 0
+    && optionalActivityGroups.length === 0
+  ) {
     throw new Error('Solve request does not include any required-service or optional-activity rows to optimize.');
   }
 
@@ -1216,6 +1601,7 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
       hasUnmodeledFeatures,
       activeRows,
       requiredServiceGroups,
+      decomposedServiceGroups,
       supplyGroups,
       optionalActivityGroups,
       balancedCommodityKeys,
@@ -1382,6 +1768,87 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
           message: `${packageGroup.baseStateLabel} efficiency packages in non-stacking group ${packageGroup.nonStackingGroup} stay within their shared cap for ${group.outputLabel} in ${group.year}.`,
         },
       );
+    }
+  }
+
+  for (const group of decomposedServiceGroups) {
+    const demandId = demandConstraintId(group.outputId, group.year);
+
+    trackConstraint(
+      constraints,
+      trackedConstraints,
+      demandId,
+      scaleConstraintBounds({ equal: group.demand }, activityScale),
+      {
+        kind: 'service_demand',
+        outputId: group.outputId,
+        outputLabel: group.outputLabel,
+        year: group.year,
+        message: `Meet decomposed parent demand for ${group.outputLabel} in ${group.year}.`,
+      },
+    );
+
+    for (const row of group.rows) {
+      const variableId = activityVariableId(row);
+      setVariableConstraintCoefficient(variables, variableId, demandId, 1);
+
+      const control = requireResolvedControl(request, row.outputId, row.year, 'decomposition child');
+
+      if (row.bounds.minShare != null) {
+        addConstraint(
+          constraints,
+          trackedConstraints,
+          variables,
+          variableId,
+          stateConstraintId('min_share', row),
+          scaleConstraintBounds({ min: row.bounds.minShare * group.demand }, activityScale),
+          {
+            kind: 'min_share',
+            outputId: group.outputId,
+            outputLabel: group.outputLabel,
+            year: group.year,
+            stateId: row.stateId,
+            stateLabel: row.stateLabel,
+            rowId: row.rowId,
+            mode: control.mode,
+            message: `${row.stateLabel} keeps at least its minimum child-role share for ${group.outputLabel} in ${group.year}.`,
+          },
+        );
+      }
+
+      const maxShareLimit = row.bounds.maxShare == null ? null : clampShare(row.bounds.maxShare);
+      if (request.configuration.options.respectMaxShare && maxShareLimit != null) {
+        const constraintId = stateConstraintId('max_share', row);
+        addConstraint(
+          constraints,
+          trackedConstraints,
+          variables,
+          variableId,
+          constraintId,
+          scaleConstraintBounds({ max: maxShareLimit * group.demand }, activityScale),
+          {
+            kind: 'max_share',
+            outputId: group.outputId,
+            outputLabel: group.outputLabel,
+            year: group.year,
+            stateId: row.stateId,
+            stateLabel: row.stateLabel,
+            rowId: row.rowId,
+            mode: control.mode,
+            message: `${row.stateLabel} stays within its child-role max share for ${group.outputLabel} in ${group.year}.`,
+          },
+        );
+
+        if (softConstraintPenaltyPerUnit != null) {
+          softenTrackedConstraint(
+            variables,
+            trackedConstraints,
+            softConstraintVariableIds,
+            constraintId,
+            softConstraintPenaltyPerUnit,
+          );
+        }
+      }
     }
   }
 
@@ -1657,13 +2124,13 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
   const externalizedSupplyGroupCount = supplyGroups.length - endogenousSupplyGroupCount;
 
   notes.push(
-    `Built a generic LP over ${requiredServiceGroups.length} required-service groups, ${optionalActivityGroups.length} optional-activity groups, ${endogenousSupplyGroupCount} endogenous-supply groups, ${activeRows.length} activity variables, and ${softConstraintCount} soft-slack variables.`,
+    `Built a generic LP over ${requiredServiceGroups.length} required-service groups, ${decomposedServiceGroups.length} decomposed-service groups, ${optionalActivityGroups.length} optional-activity groups, ${endogenousSupplyGroupCount} endogenous-supply groups, ${activeRows.length} activity variables, and ${softConstraintCount} soft-slack variables.`,
   );
   notes.push(
     'Objective coefficients combine row conversion cost, exogenously priced non-balanced commodity inputs, and direct-emissions carbon cost using the resolved configuration tables.',
   );
   notes.push(
-    `Electricity-style supply commodities enforce balance when they stay in-model; ${externalizedSupplyGroupCount} supply-year groups are externalized and fixed to zero activity.`,
+    `Supply and intermediate commodities enforce balance when they stay in-model; ${externalizedSupplyGroupCount} supply-year groups are externalized and fixed to zero activity.`,
   );
   if (activityScale > 1) {
     notes.push(
@@ -1690,6 +2157,7 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
     hasUnmodeledFeatures,
     activeRows,
     requiredServiceGroups,
+    decomposedServiceGroups,
     supplyGroups,
     optionalActivityGroups,
     balancedCommodityKeys,
@@ -1702,6 +2170,7 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
 function buildInfeasibilityDiagnostics(build: ConfigurationLpBuild): SolveDiagnostic[] {
   return dedupeAndSortDiagnostics([
     ...buildRequiredServiceInfeasibilityDiagnostics(build),
+    ...buildDecomposedServiceInfeasibilityDiagnostics(build),
     ...buildSupplyCommodityInfeasibilityDiagnostics(build),
   ]);
 }
@@ -2094,7 +2563,17 @@ export function inspectConfigurationLpBuild(request: SolveRequest) {
       activeStateIds: group.control.activeStateIds,
       rowCount: group.rows.length,
     })),
+    decomposedServiceGroups: build.decomposedServiceGroups.map((group) => ({
+      parentRoleId: group.parentRoleId,
+      outputId: group.outputId,
+      outputLabel: group.outputLabel,
+      year: group.year,
+      demand: group.demand,
+      childRoleIds: group.childRoleIds,
+      rowCount: group.rows.length,
+    })),
     supplyGroups: build.supplyGroups.map((group) => ({
+      balanceKind: group.balanceKind,
       commodityId: group.commodityId,
       commodityLabel: group.commodityLabel,
       year: group.year,

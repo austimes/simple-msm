@@ -252,6 +252,10 @@ function buildBaseNormalizedRow(
 
   return {
     rowId: stateYearKey(row.state_id, row.year),
+    roleId: row.role_id,
+    representationId: row.representation_id,
+    methodId: row.method_id,
+    balanceType: row.balance_type,
     outputId: row.service_or_output_name,
     outputRole: outputMetadata.output_role,
     outputLabel: outputMetadata.display_label,
