@@ -27,6 +27,21 @@ function listJsonFiles(relativeDir) {
     .map((name) => `${relativeDir}/${name}`);
 }
 
+function listFilesRecursive(absoluteDir, relativeDir) {
+  return readdirSync(absoluteDir, { withFileTypes: true })
+    .flatMap((entry) => {
+      const childRelativePath = `${relativeDir}/${entry.name}`;
+      const childAbsolutePath = join(absoluteDir, entry.name);
+
+      if (entry.isDirectory()) {
+        return listFilesRecursive(childAbsolutePath, childRelativePath);
+      }
+
+      return [childRelativePath];
+    })
+    .sort();
+}
+
 function collectStringValues(value, path = '$') {
   if (typeof value === 'string') {
     return [[path, value]];
@@ -81,6 +96,36 @@ test('web app role-growth presets do not retain sector-growth aliases', () => {
   assert.ok(presetIds.includes('simple_role_growth_high'));
   assert.ok(presetIds.includes('simple_role_growth_low'));
   assert.equal(presetIds.some((id) => id.startsWith('simple_sector_growth_')), false);
+});
+
+test('active web loaders only target canonical ESRL package assets', () => {
+  const activeSourceFiles = [
+    ...listFilesRecursive(join(PROJECT_ROOT, 'src'), 'src')
+      .filter((relativePath) => /\.(mjs|ts|tsx)$/.test(relativePath)),
+    'vite.config.ts',
+  ];
+  const retiredReferences = [
+    'sector_trajectory_library',
+    'family_validation_summary.csv',
+  ];
+  const failures = [];
+
+  for (const relativePath of activeSourceFiles) {
+    const text = readText(relativePath);
+
+    for (const reference of retiredReferences) {
+      if (text.includes(reference)) {
+        failures.push(`${relativePath}: ${reference}`);
+      }
+    }
+  }
+
+  const manifest = readJson('../energy_system_representation_library/manifest.json');
+  const manifestFiles = new Set(manifest.files);
+
+  assert.equal(manifestFiles.has('validation/role_validation_summary.csv'), true);
+  assert.equal(manifestFiles.has('validation/family_validation_summary.csv'), false);
+  assert.deepEqual(failures, []);
 });
 
 test('crude steel aggregate and decomposed built-ins solve and expose comparable runs', () => {
