@@ -66,7 +66,7 @@ describe('modelFormulationModel', () => {
     assert.match(model.objectiveExample.note, /double counting/i);
   });
 
-  test('summarizes residual families as first-class LP inputs', () => {
+  test('summarizes residual roles as first-class LP inputs', () => {
     const fixture = loadFormulationFixtureData();
     const model = buildModelFormulationViewModel(fixture);
 
@@ -76,11 +76,11 @@ describe('modelFormulationModel', () => {
     assert.ok((model.overlaySummary.gridLossesOwnUseElectricityTwh ?? 0) > 40);
 
     const residualMapping = model.sourceMapping.find(
-      (row) => row.source === 'residual-stub families',
+      (row) => row.source === 'residual roles',
     );
 
-    assert.ok(residualMapping, 'expected residual family source mapping row');
+    assert.ok(residualMapping, 'expected residual role source mapping row');
     assert.match(residualMapping.mapsTo, /LP activity variables/i);
-    assert.match(residualMapping.howItEnters, /same family\/state\/demand path/i);
+    assert.match(residualMapping.howItEnters, /same role\/method\/demand path/i);
   });
 });

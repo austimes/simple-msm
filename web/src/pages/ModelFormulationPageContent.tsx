@@ -72,7 +72,7 @@ export default function ModelFormulationPageContent({
       <section className="configuration-panel">
         <h2>Solve pipeline</h2>
         <p>
-          The app moves from packaged state rows to a normalized request, then solves the LP, then
+          The app moves from packaged method rows to a normalized request, then solves the LP, then
           layers the 2025 residual accounting closure back on afterward.
         </p>
         <div className="model-formulation-pipeline">
@@ -314,7 +314,7 @@ export default function ModelFormulationPageContent({
         <h2>Source mapping</h2>
         <p>
           This table ties the page back to the exact package files and app registries that shape the
-          LP. It is the shortest route from `shared/families.csv`, `families/*/family_states.csv`,
+          LP. It is the shortest route from `shared/roles.csv`, `roles/*/method_years.csv`,
           and the active JSON configuration to the symbols and equations above.
         </p>
 
@@ -337,21 +337,21 @@ export default function ModelFormulationPageContent({
       <section className="configuration-panel">
         <h2>How residual stubs enter the LP</h2>
         <p>
-          Residual stubs are loaded from library family directories. Their demand anchors,
-          incumbent state rows, commodity inputs, and emissions enter the same solve request as
-          the modeled segments.
+          Residual roles are loaded from library role directories. Their demand anchors,
+          incumbent methods, commodity inputs, and emissions enter the same solve request as
+          the modeled roles.
         </p>
         <ul className="methods-list">
-          <li>They use `families/*/demand.csv` demand rows.</li>
-          <li>They use one `Residual incumbent` family-state route.</li>
+          <li>They use `roles/*/demand.csv` demand rows.</li>
+          <li>They use one `Residual incumbent` method.</li>
           <li>Their inputs contribute to normal commodity balances.</li>
           <li>Their emissions and costs report from solver rows, not overlay sidecars.</li>
         </ul>
 
         <div className="configuration-provenance-note">
-          <strong>Residual stubs are first-class family rows.</strong>
+          <strong>Residual stubs are first-class role methods.</strong>
           <p>
-            The LP solves modeled families and residual families together. The validation tables
+            The LP solves modeled roles and residual roles together. The validation tables
             explain how those library-owned rows close the packaged 2025 commodity and emissions
             benchmarks.
           </p>
@@ -403,7 +403,7 @@ export default function ModelFormulationPageContent({
         </div>
 
         <p>
-          Default-included residual families are the positive-emitting closure rows. The LULUCF
+          Default-included residual roles are the positive-emitting closure rows. The LULUCF
           sink stays separate and optional by default because its accounting sign and treatment
           differ from the positive-emitting sector rows.
         </p>

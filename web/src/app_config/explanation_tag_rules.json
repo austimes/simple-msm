@@ -9,7 +9,7 @@
   },
   "efficiency_improvement": {
     "label": "Efficiency improvement",
-    "description": "Tag when total energy input per unit of output falls against the reference state.",
+    "description": "Tag when total energy input per unit of output falls against the reference method.",
     "comparison_basis": "mixed",
     "derived_signals": ["total_energy_input_per_output_down"],
     "metadata_signals": ["output_unit_consistent_with_reference"],
@@ -49,15 +49,15 @@
   },
   "clinker_reduction_or_material_substitution": {
     "label": "Clinker reduction / material substitution",
-    "description": "Tag cement states that cut process emissions through lower-clinker or substitute-material pathways.",
+    "description": "Tag cement methods that cut process emissions through lower-clinker or substitute-material pathways.",
     "comparison_basis": "mixed",
     "derived_signals": ["cement_process_emissions_down"],
-    "metadata_signals": ["state_label_or_description_mentions:clinker", "state_label_or_description_mentions:substitution"],
+    "metadata_signals": ["method_label_or_description_mentions:clinker", "method_label_or_description_mentions:substitution"],
     "applies_to_outputs": ["cement_equivalent"]
   },
   "scrap_eaf_shift": {
     "label": "Scrap-EAF shift",
-    "description": "Tag steel states that rely more on electricity and scrap steel and less on coal and iron ore.",
+    "description": "Tag steel methods that rely more on electricity and scrap steel and less on coal and iron ore.",
     "comparison_basis": "coefficient_delta",
     "positive_input_commodities": ["electricity", "scrap_steel"],
     "negative_input_commodities": ["coal", "iron_ore"],
@@ -65,7 +65,7 @@
   },
   "removals": {
     "label": "Removals",
-    "description": "Tag states whose primary output is a removals service rather than a demanded end-use service.",
+    "description": "Tag methods whose primary output is a removals service rather than a demanded end-use service.",
     "comparison_basis": "metadata_signal",
     "metadata_signals": ["explanation_group:removals"],
     "applies_to_output_roles": ["required_service"]
@@ -74,7 +74,7 @@
     "label": "Incumbent lock-in",
     "description": "Tag incumbent or fossil-heavy pathways that remain selected despite lower-emissions alternatives.",
     "comparison_basis": "metadata_signal",
-    "metadata_signals": ["state_id_contains:incumbent", "state_label_contains:Incumbent", "state_label_contains:fossil"],
+    "metadata_signals": ["method_id_contains:incumbent", "method_label_contains:Incumbent", "method_label_contains:fossil"],
     "applies_to_output_roles": ["required_service", "endogenous_supply_commodity"]
   },
   "rollout_cap_binding": {
@@ -86,7 +86,7 @@
   },
   "exploratory_dependence": {
     "label": "Exploratory dependence",
-    "description": "Tag states that rely on low-confidence or exploratory evidence ratings.",
+    "description": "Tag methods that rely on low-confidence or exploratory evidence ratings.",
     "comparison_basis": "metadata_signal",
     "metadata_signals": ["confidence_rating:low", "confidence_rating:exploratory"],
     "applies_to_output_roles": ["required_service", "endogenous_supply_commodity"]

@@ -21,7 +21,7 @@
     "anchor_year": 2025,
     "value": 1,
     "unit": "residual_activity",
-    "provenance_note": "Migrated residual calibration layer — Commercial other uses a residual_activity anchor of 1; quantities live on the residual incumbent state."
+    "provenance_note": "Migrated residual calibration layer — Commercial other uses a residual_activity anchor of 1; quantities live on the residual incumbent method."
   },
   "construction_other": {
     "output_role": "required_service",
@@ -29,7 +29,7 @@
     "anchor_year": 2025,
     "value": 1,
     "unit": "residual_activity",
-    "provenance_note": "Migrated residual calibration layer — Construction other uses a residual_activity anchor of 1; quantities live on the residual incumbent state."
+    "provenance_note": "Migrated residual calibration layer — Construction other uses a residual_activity anchor of 1; quantities live on the residual incumbent method."
   },
   "cropping_horticulture_output_bundle": {
     "output_role": "required_service",
@@ -53,7 +53,7 @@
     "anchor_year": 2025,
     "value": 1,
     "unit": "residual_activity",
-    "provenance_note": "Migrated residual calibration layer — Electricity grid losses and own-use uses a residual_activity anchor of 1; quantities live on the residual incumbent state."
+    "provenance_note": "Migrated residual calibration layer — Electricity grid losses and own-use uses a residual_activity anchor of 1; quantities live on the residual incumbent method."
   },
   "engineered_removals": {
     "output_role": "required_service",
@@ -61,7 +61,7 @@
     "anchor_year": 2025,
     "value": 0,
     "unit": "tCO2_removed",
-    "provenance_note": "Migrated family default — Migrated from the Phase 1 package without changing anchor semantics."
+    "provenance_note": "Migrated role default — Migrated from the Phase 1 package without changing anchor semantics."
   },
   "freight_road_transport": {
     "output_role": "required_service",
@@ -85,7 +85,7 @@
     "anchor_year": 2025,
     "value": 0,
     "unit": "tCO2_removed",
-    "provenance_note": "Migrated family default — Migrated from the Phase 1 package without changing anchor semantics."
+    "provenance_note": "Migrated role default — Migrated from the Phase 1 package without changing anchor semantics."
   },
   "livestock_output_bundle": {
     "output_role": "required_service",
@@ -109,7 +109,7 @@
     "anchor_year": 2025,
     "value": 1,
     "unit": "residual_activity",
-    "provenance_note": "Migrated residual calibration layer — Manufacturing other uses a residual_activity anchor of 1; quantities live on the residual incumbent state."
+    "provenance_note": "Migrated residual calibration layer — Manufacturing other uses a residual_activity anchor of 1; quantities live on the residual incumbent method."
   },
   "medium_temperature_heat": {
     "output_role": "required_service",
@@ -125,7 +125,7 @@
     "anchor_year": 2025,
     "value": 1,
     "unit": "residual_activity",
-    "provenance_note": "Migrated residual calibration layer — Mining other uses a residual_activity anchor of 1; quantities live on the residual incumbent state."
+    "provenance_note": "Migrated residual calibration layer — Mining other uses a residual_activity anchor of 1; quantities live on the residual incumbent method."
   },
   "other_other": {
     "output_role": "required_service",
@@ -133,7 +133,7 @@
     "anchor_year": 2025,
     "value": 1,
     "unit": "residual_activity",
-    "provenance_note": "Migrated residual calibration layer — Other sectors residual uses a residual_activity anchor of 1; quantities live on the residual incumbent state."
+    "provenance_note": "Migrated residual calibration layer — Other sectors residual uses a residual_activity anchor of 1; quantities live on the residual incumbent method."
   },
   "passenger_road_transport": {
     "output_role": "required_service",
@@ -157,7 +157,7 @@
     "anchor_year": 2025,
     "value": 1,
     "unit": "residual_activity",
-    "provenance_note": "Migrated residual calibration layer — Residential other uses a residual_activity anchor of 1; quantities live on the residual incumbent state."
+    "provenance_note": "Migrated residual calibration layer — Residential other uses a residual_activity anchor of 1; quantities live on the residual incumbent method."
   },
   "residual_agriculture_other": {
     "output_role": "required_service",
@@ -165,7 +165,7 @@
     "anchor_year": 2025,
     "value": 1,
     "unit": "residual_activity",
-    "provenance_note": "Migrated residual calibration layer — Residual agriculture other uses a residual_activity anchor of 1; quantities live on the residual incumbent state."
+    "provenance_note": "Migrated residual calibration layer — Residual agriculture other uses a residual_activity anchor of 1; quantities live on the residual incumbent method."
   },
   "residual_fugitives": {
     "output_role": "required_service",
@@ -173,7 +173,7 @@
     "anchor_year": 2025,
     "value": 1,
     "unit": "residual_activity",
-    "provenance_note": "Migrated residual calibration layer — Residual fugitive emissions uses a residual_activity anchor of 1; quantities live on the residual incumbent state."
+    "provenance_note": "Migrated residual calibration layer — Residual fugitive emissions uses a residual_activity anchor of 1; quantities live on the residual incumbent method."
   },
   "residual_ippu_other": {
     "output_role": "required_service",
@@ -181,7 +181,7 @@
     "anchor_year": 2025,
     "value": 1,
     "unit": "residual_activity",
-    "provenance_note": "Migrated residual calibration layer — Residual IPPU other uses a residual_activity anchor of 1; quantities live on the residual incumbent state."
+    "provenance_note": "Migrated residual calibration layer — Residual IPPU other uses a residual_activity anchor of 1; quantities live on the residual incumbent method."
   },
   "residual_lulucf_sink": {
     "output_role": "required_service",
@@ -189,7 +189,7 @@
     "anchor_year": 2025,
     "value": 1,
     "unit": "residual_activity",
-    "provenance_note": "Migrated residual calibration layer — Residual LULUCF sink uses a residual_activity anchor of 1; quantities live on the residual incumbent state."
+    "provenance_note": "Migrated residual calibration layer — Residual LULUCF sink uses a residual_activity anchor of 1; quantities live on the residual incumbent method."
   },
   "residual_waste": {
     "output_role": "required_service",
@@ -197,7 +197,7 @@
     "anchor_year": 2025,
     "value": 1,
     "unit": "residual_activity",
-    "provenance_note": "Migrated residual calibration layer — Residual waste emissions uses a residual_activity anchor of 1; quantities live on the residual incumbent state."
+    "provenance_note": "Migrated residual calibration layer — Residual waste emissions uses a residual_activity anchor of 1; quantities live on the residual incumbent method."
   },
   "transport_other": {
     "output_role": "required_service",
@@ -205,7 +205,7 @@
     "anchor_year": 2025,
     "value": 1,
     "unit": "residual_activity",
-    "provenance_note": "Migrated residual calibration layer — Transport other uses a residual_activity anchor of 1; quantities live on the residual incumbent state."
+    "provenance_note": "Migrated residual calibration layer — Transport other uses a residual_activity anchor of 1; quantities live on the residual incumbent method."
   },
   "water_waste_other": {
     "output_role": "required_service",
@@ -213,6 +213,6 @@
     "anchor_year": 2025,
     "value": 1,
     "unit": "residual_activity",
-    "provenance_note": "Migrated residual calibration layer — Water and waste other uses a residual_activity anchor of 1; quantities live on the residual incumbent state."
+    "provenance_note": "Migrated residual calibration layer — Water and waste other uses a residual_activity anchor of 1; quantities live on the residual incumbent method."
   }
 }

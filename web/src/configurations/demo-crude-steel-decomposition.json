@@ -1,6 +1,6 @@
 {
-  "name": "Demo — industrial heat efficiency",
-  "description": "Industrial heat plus endogenous electricity, with fossil, electrified, and low-carbon-fuel heat methods open so the retrofit packages stay distinguishable from route changes.",
+  "name": "Demo crude steel decomposition",
+  "description": "Crude steel validation case with endogenous electricity and the H2-DRI role decomposition active, so aggregate pathway and decomposed representation results can be compared.",
   "years": [
     2025,
     2030,
@@ -33,7 +33,7 @@
     "deliver_residential_building_services": "deliver_residential_building_services__pathway_bundle",
     "produce_cement_equivalent": "produce_cement_equivalent__pathway_bundle",
     "produce_cropping_horticulture_output": "produce_cropping_horticulture_output__pathway_bundle",
-    "produce_crude_steel": "produce_crude_steel__pathway_bundle",
+    "produce_crude_steel": "produce_crude_steel__h2_dri_decomposition",
     "produce_livestock_output": "produce_livestock_output__pathway_bundle",
     "remove_co2_engineered_removals": "remove_co2_engineered_removals__pathway_bundle",
     "remove_co2_land_sequestration": "remove_co2_land_sequestration__pathway_bundle",
@@ -124,75 +124,92 @@
     },
     "deliver_commercial_building_services": {
       "mode": "optimize",
-      "active_method_ids": []
+      "active_method_ids": [
+        "buildings__commercial__incumbent_mixed_fuels"
+      ]
     },
     "deliver_freight_road_transport": {
       "mode": "optimize",
-      "active_method_ids": []
+      "active_method_ids": [
+        "road_transport__freight_road__diesel"
+      ]
     },
     "deliver_high_temperature_heat": {
       "mode": "optimize",
       "active_method_ids": [
-        "generic_industrial_heat__high_temperature_heat__fossil",
-        "generic_industrial_heat__high_temperature_heat__electrified",
-        "generic_industrial_heat__high_temperature_heat__low_carbon_fuels"
+        "generic_industrial_heat__high_temperature_heat__fossil"
       ]
     },
     "deliver_low_temperature_heat": {
       "mode": "optimize",
       "active_method_ids": [
-        "generic_industrial_heat__low_temperature_heat__fossil",
-        "generic_industrial_heat__low_temperature_heat__electrified",
-        "generic_industrial_heat__low_temperature_heat__low_carbon_fuels"
+        "generic_industrial_heat__low_temperature_heat__fossil"
       ]
     },
     "deliver_medium_temperature_heat": {
       "mode": "optimize",
       "active_method_ids": [
-        "generic_industrial_heat__medium_temperature_heat__fossil",
-        "generic_industrial_heat__medium_temperature_heat__electrified",
-        "generic_industrial_heat__medium_temperature_heat__low_carbon_fuels"
+        "generic_industrial_heat__medium_temperature_heat__fossil"
       ]
     },
     "deliver_passenger_road_transport": {
       "mode": "optimize",
-      "active_method_ids": []
+      "active_method_ids": [
+        "road_transport__passenger_road__ice_fleet"
+      ]
     },
     "deliver_residential_building_services": {
       "mode": "optimize",
-      "active_method_ids": []
+      "active_method_ids": [
+        "buildings__residential__incumbent_mixed_fuels"
+      ]
     },
     "produce_cement_equivalent": {
       "mode": "optimize",
-      "active_method_ids": []
+      "active_method_ids": [
+        "cement_clinker__cement_equivalent__conventional"
+      ]
     },
     "produce_cropping_horticulture_output": {
       "mode": "optimize",
-      "active_method_ids": []
+      "active_method_ids": [
+        "agriculture__cropping_horticulture__conventional"
+      ]
     },
     "produce_crude_steel": {
-      "mode": "optimize",
-      "active_method_ids": []
+      "mode": "optimize"
     },
     "produce_livestock_output": {
       "mode": "optimize",
-      "active_method_ids": []
+      "active_method_ids": [
+        "agriculture__livestock__conventional"
+      ]
     },
     "remove_co2_engineered_removals": {
       "mode": "optimize",
-      "active_method_ids": []
+      "active_method_ids": null
     },
     "remove_co2_land_sequestration": {
       "mode": "optimize",
-      "active_method_ids": []
+      "active_method_ids": null
     },
     "supply_electricity": {
       "mode": "optimize",
       "active_method_ids": [
-        "electricity__grid_supply__incumbent_thermal_mix",
-        "electricity__grid_supply__policy_frontier",
-        "electricity__grid_supply__deep_clean_firmed"
+        "electricity__grid_supply__incumbent_thermal_mix"
       ]
+    },
+    "produce_crude_steel_non_h2_dri_residual": {
+      "mode": "optimize",
+      "active_method_ids": null
+    },
+    "produce_direct_reduced_iron": {
+      "mode": "optimize",
+      "active_method_ids": null
+    },
+    "melt_refine_dri_crude_steel": {
+      "mode": "optimize",
+      "active_method_ids": null
     }
   },
   "service_demands": {
@@ -462,35 +479,29 @@
   },
   "carbon_price": {
     "2025": 30,
-    "2030": 35,
-    "2035": 40,
-    "2040": 45,
-    "2045": 47,
-    "2050": 50
+    "2030": 45,
+    "2035": 60,
+    "2040": 75,
+    "2045": 90,
+    "2050": 100
   },
   "efficiency_controls": {
     "autonomous_mode": "baseline",
-    "package_mode": "allow_list",
-    "package_ids": [
-      "electricity__grid_supply__thermal_auxiliary_load_tuning",
-      "industrial_heat__high_temperature__combustion_heat_recovery",
-      "industrial_heat__high_temperature__controls_tuning",
-      "industrial_heat__low_temperature__controls_tuning",
-      "industrial_heat__low_temperature__thermal_system_retrofit",
-      "industrial_heat__medium_temperature__controls_tuning",
-      "industrial_heat__medium_temperature__thermal_system_retrofit"
-    ]
+    "package_mode": "off",
+    "package_ids": []
   },
   "solver_options": {
     "respect_max_share": true,
     "respect_max_activity": true,
     "soft_constraints": false,
     "share_smoothing": {
-      "enabled": false
+      "enabled": false,
+      "max_delta_pp": 20,
+      "notes": "Generic rollout proxy. Because the current method_years.csv rows do not contain numeric uptake-rate fields, max share change per milestone period is the simple app-level uptake limiter."
     }
   },
   "app_metadata": {
-    "id": "demo-industrial-heat-efficiency",
+    "id": "demo-crude-steel-decomposition",
     "readonly": true
   }
 }

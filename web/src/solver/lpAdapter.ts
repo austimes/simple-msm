@@ -1205,10 +1205,10 @@ function buildRequiredServiceInfeasibilityDiagnostics(build: ConfigurationLpBuil
         code: 'service_states_inactive',
         severity: 'error',
         reason: 'inactive_states',
-        message: `${group.outputLabel} in ${group.year} has positive demand but every available state is inactive.`,
+        message: `${group.outputLabel} in ${group.year} has positive demand but every available method is inactive.`,
         ...buildConstraintContext(group.outputId, group.year),
         relatedConstraintIds: inactiveProfiles.map((profile) => stateConstraintId('inactive', profile.row)),
-        suggestion: 'Activate at least one state for this service-year or drop the demand to zero.',
+        suggestion: 'Activate at least one method for this service-year or drop the demand to zero.',
       });
       continue;
     }
@@ -1238,10 +1238,10 @@ function buildRequiredServiceInfeasibilityDiagnostics(build: ConfigurationLpBuil
           code: 'service_inactive_states_exhausted',
           severity: 'error',
           reason: 'inactive_states',
-          message: `${group.outputLabel} in ${group.year} would have enough eligible share if inactive states were activated.`,
+          message: `${group.outputLabel} in ${group.year} would have enough eligible share if inactive methods were activated.`,
           ...buildConstraintContext(group.outputId, group.year),
           relatedConstraintIds: inactiveProfiles.map((profile) => stateConstraintId('inactive', profile.row)),
-          suggestion: 'Activate one or more inactive states for this service-year.',
+          suggestion: 'Activate one or more inactive methods for this service-year.',
         });
       }
 
@@ -1255,7 +1255,7 @@ function buildRequiredServiceInfeasibilityDiagnostics(build: ConfigurationLpBuil
           relatedConstraintIds: activeProfiles
             .filter((profile) => profile.maxShareLimit != null)
             .map((profile) => stateConstraintId('max_share', profile.row)),
-          suggestion: 'Raise one or more max-share caps or add more eligible states to cover the remaining demand.',
+          suggestion: 'Raise one or more max-share caps or add more eligible methods to cover the remaining demand.',
         });
       } else {
         diagnostics.push({
@@ -1267,7 +1267,7 @@ function buildRequiredServiceInfeasibilityDiagnostics(build: ConfigurationLpBuil
           relatedConstraintIds: activeProfiles
             .filter((profile) => profile.maxActivityLimit != null)
             .map((profile) => stateConstraintId('max_activity', profile.row)),
-          suggestion: 'Increase max activity, activate more states, or lower demand for this service-year.',
+          suggestion: 'Increase max activity, activate more methods, or lower demand for this service-year.',
         });
       }
     }
@@ -1412,10 +1412,10 @@ function buildSupplyCommodityInfeasibilityDiagnostics(build: ConfigurationLpBuil
           code: group.balanceKind === 'intermediate_material' ? inactiveSupplyCode : 'supply_states_inactive',
           severity: 'error',
           reason: 'inactive_states',
-          message: `${group.commodityLabel} in ${group.year} is required, but every supply state is inactive.`,
+          message: `${group.commodityLabel} in ${group.year} is required, but every supply method is inactive.`,
           ...buildConstraintContext(group.commodityId, group.year),
           relatedConstraintIds: inactiveProfiles.map((profile) => stateConstraintId('inactive', profile.row)),
-          suggestion: 'Activate at least one supply state or externalize the commodity for this year.',
+          suggestion: 'Activate at least one supply method or externalize the commodity for this year.',
         });
         continue;
       }
@@ -1463,10 +1463,10 @@ function buildSupplyCommodityInfeasibilityDiagnostics(build: ConfigurationLpBuil
           code: inactiveSupplyCode,
           severity: 'error',
           reason: 'inactive_states',
-          message: `${group.commodityLabel} in ${group.year} would meet the minimum required ${formatNumber(minimumRequiredSupply)} units if inactive supply states were activated.`,
+          message: `${group.commodityLabel} in ${group.year} would meet the minimum required ${formatNumber(minimumRequiredSupply)} units if inactive supply methods were activated.`,
           ...buildConstraintContext(group.commodityId, group.year),
           relatedConstraintIds: inactiveProfiles.map((profile) => stateConstraintId('inactive', profile.row)),
-          suggestion: 'Activate one or more inactive supply states or externalize the commodity for this year.',
+          suggestion: 'Activate one or more inactive supply methods or externalize the commodity for this year.',
         });
       }
 
@@ -1474,10 +1474,10 @@ function buildSupplyCommodityInfeasibilityDiagnostics(build: ConfigurationLpBuil
         code: shortfallCode,
         severity: 'error',
         reason: shortfallReason,
-        message: `${group.commodityLabel} in ${group.year} needs at least ${formatNumber(minimumRequiredSupply)} units to cover modeled and external demand, but the active supply states can provide at most ${formatNumber(maximumSupply)}.`,
+        message: `${group.commodityLabel} in ${group.year} needs at least ${formatNumber(minimumRequiredSupply)} units to cover modeled and external demand, but the active supply methods can provide at most ${formatNumber(maximumSupply)}.`,
         ...buildConstraintContext(group.commodityId, group.year),
         relatedConstraintIds: [commodityBalanceConstraintId(group.commodityId, group.year)],
-        suggestion: 'Raise supply max activity, relax exact supply controls, activate supply states, or externalize the commodity for this year.',
+        suggestion: 'Raise supply max activity, relax exact supply controls, activate supply methods, or externalize the commodity for this year.',
       });
     }
   }
@@ -2249,7 +2249,7 @@ function buildSoftConstraintDiagnostics(
       ...buildConstraintContext(violation.outputId, violation.year, violation.stateId, violation.rowId),
       relatedConstraintIds: [violation.constraintId],
       suggestion: violation.kind === 'max_share'
-        ? 'Raise the max-share cap, add more eligible states, or switch back to hard constraints once the diagnosis is complete.'
+        ? 'Raise the max-share cap, add more eligible methods, or switch back to hard constraints once the diagnosis is complete.'
         : 'Raise the max-activity cap, add more supply options, or switch back to hard constraints once the diagnosis is complete.',
     });
   }

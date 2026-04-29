@@ -150,10 +150,10 @@ export const MODEL_FORMULATION_PREFERRED_OBJECTIVE_ROW_ID =
 
 export const MODEL_FORMULATION_PIPELINE_STEPS: ModelFormulationPipelineStep[] = [
   {
-    title: '1. State library rows',
+    title: '1. Method-year rows',
     summary:
-      'Load family-scoped state-year rows with output units, non-commodity conversion costs, commodity-input coefficients, direct emissions, and rollout bounds.',
-    artifacts: ['shared/families.csv', 'families/*/family_states.csv'],
+      'Load role-scoped method-year rows with output units, non-commodity conversion costs, commodity-input coefficients, direct emissions, and rollout bounds.',
+    artifacts: ['shared/roles.csv', 'roles/*/method_years.csv'],
   },
   {
     title: '2. Configuration resolution',
@@ -176,17 +176,17 @@ export const MODEL_FORMULATION_PIPELINE_STEPS: ModelFormulationPipelineStep[] = 
   {
     title: '4. LP solve',
     summary:
-      'Minimize total modeled cost subject to service-demand equalities, commodity balances, state activation, and share/activity bounds.',
+      'Minimize total modeled cost subject to service-demand equalities, commodity balances, method activation, and share/activity bounds.',
     artifacts: ['lpAdapter.ts'],
   },
   {
-    title: '5. Residual family closure',
+    title: '5. Residual role closure',
     summary:
-      'Residual stubs enter as ordinary required-service family rows, so omitted-sector demand, inputs, and emissions flow through the same LP and reporting path as modeled families.',
+      'Residual roles enter as ordinary required-service method rows, so omitted-sector demand, inputs, and emissions flow through the same LP and reporting path as modeled roles.',
     artifacts: [
-      'families/*/demand.csv',
-      'families/*/family_states.csv',
-      'shared/system_structure_members.csv',
+      'roles/*/demand.csv',
+      'roles/*/method_years.csv',
+      'shared/roles.csv',
       'validation/baseline_commodity_balance.csv',
       'validation/baseline_emissions_balance.csv',
     ],
@@ -230,7 +230,7 @@ export const MODEL_FORMULATION_SERVICE_DEMAND_EQUATIONS: ModelFormulationEquatio
   },
   {
     title: 'Activity / activation',
-    body: 'x_r <= maxActivity_r\nx_r = 0 for inactive states\nx_r = 0 for externalized supply states',
+    body: 'x_r <= maxActivity_r\nx_r = 0 for inactive methods\nx_r = 0 for externalized supply methods',
   },
 ];
 
@@ -247,16 +247,16 @@ export const MODEL_FORMULATION_COMMODITY_BALANCE_EQUATIONS: ModelFormulationEqua
 
 export const MODEL_FORMULATION_SOURCE_MAPPING: ModelFormulationSourceMappingRow[] = [
   {
-    source: 'shared/families.csv + families/*/family_states.csv',
+    source: 'shared/roles.csv + roles/*/method_years.csv',
     mapsTo: 'row activities, coefficients, emissions, min_share, max_share, max_activity',
     howItEnters:
-      'Joined and normalized into solver rows so each state-year becomes one LP activity variable.',
+      'Joined and normalized into solver rows so each method-year becomes one LP activity variable.',
   },
   {
-    source: 'families/*/demand.csv + shared/external_commodity_demands.csv',
+    source: 'roles/*/demand.csv',
     mapsTo: '2025 anchors',
     howItEnters:
-      'Family demand rows provide anchor values when demand tables are generated from anchor-year starting points. External commodity demand remains parser-compatible but is empty for the built-in baseline.',
+      'Role demand rows provide anchor values when demand tables are generated from anchor-year starting points.',
   },
   {
     source: 'shared/demand_growth_curves.csv + currentConfiguration.demand_generation',
@@ -277,28 +277,28 @@ export const MODEL_FORMULATION_SOURCE_MAPPING: ModelFormulationSourceMappingRow[
       'Resolve the direct-emissions carbon-price path used in the row objective.',
   },
   {
-    source: 'output_roles.json + service_controls',
-    mapsTo: 'output role, control mode, active-state filtering',
+    source: 'output_roles.json + role_controls',
+    mapsTo: 'output role, control mode, active-method filtering',
     howItEnters:
       'Determine whether rows behave as required services, endogenous supply commodities, or optional activities, then apply control-mode filtering.',
   },
   {
-    source: 'residual-stub families',
+    source: 'residual roles',
     mapsTo: 'ordinary LP activity variables',
     howItEnters:
-      'Load through the same family/state/demand path as modeled segments, then contribute normal commodity inputs, emissions, costs, and route shares.',
+      'Load through the same role/method/demand path as modeled roles, then contribute normal commodity inputs, emissions, costs, and route shares.',
   },
   {
     source: 'validation/baseline_commodity_balance.csv + validation/baseline_emissions_balance.csv',
     mapsTo: '2025 closure diagnostics',
     howItEnters:
-      'Provide the benchmark tables used to explain how modeled rows plus residual-family rows close the 2025 package balances.',
+      'Provide the benchmark tables used to explain how modeled rows plus residual-role rows close the 2025 package balances.',
   },
 ];
 
 export const MODEL_FORMULATION_CAVEATS: string[] = [
   'Share smoothing exists in the configuration but is not yet enforced in the LP core.',
-  'Residual stubs are coarse calibration families; they are first-class LP rows, not optimisable technology representations.',
+  'Residual roles are coarse calibration coverage entries; they are first-class LP rows, not optimisable technology representations.',
   'Soft constraints only relax max_share and max_activity.',
 ];
 
@@ -630,7 +630,7 @@ function buildStats(
 ): ModelFormulationStat[] {
   return [
     {
-      label: 'Packaged state-year rows',
+      label: 'Packaged method-year rows',
       value: formatCompactNumber(normalizedRows.length),
     },
     {
@@ -642,7 +642,7 @@ function buildStats(
       value: request ? formatCompactNumber(request.rows.length) : 'Unavailable',
     },
     {
-      label: 'Default-included residual families',
+      label: 'Default-included residual roles',
       value: formatCompactNumber(overlaySummary.includedOverlayCount),
     },
     {
@@ -717,7 +717,7 @@ export function buildModelFormulationViewModel({
   return {
     title: 'Model Formulation',
     intro: [
-      'This page explains the current LP core the app solves, how configuration inputs are resolved before solve, and how residual stubs enter through the same family rows as modeled segments.',
+      'This page explains the current LP core the app solves, how configuration inputs are resolved before solve, and how residual roles enter through the same method rows as modeled roles.',
       'It is a read-only explainer of the model wiring used in the current app, not a second configuration workspace.',
     ],
     stats: buildStats(normalizedRows, overlaySummary, request),

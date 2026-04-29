@@ -121,7 +121,7 @@ export default function WorkspaceSolveFailureReport({ failure }: { failure: Conf
                     {[
                       diagnostic.outputId ? `output ${diagnostic.outputId}` : null,
                       diagnostic.year != null ? `year ${diagnostic.year}` : null,
-                      diagnostic.stateId ? `state ${diagnostic.stateId}` : null,
+                      diagnostic.stateId ? `method ${diagnostic.stateId}` : null,
                       diagnostic.reason ? `reason ${formatSolveStatus(diagnostic.reason)}` : null,
                     ].filter(Boolean).join(' • ')}
                   </p>

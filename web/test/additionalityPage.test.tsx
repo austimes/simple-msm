@@ -85,7 +85,7 @@ describe('AdditionalityPage', () => {
     assert.match(html, />Re-calculate</);
   });
 
-  test('renders the empty state when no state deltas remain after validation', () => {
+  test('renders the empty state when no method deltas remain after validation', () => {
     const html = renderToStaticMarkup(
       <AdditionalityPageView
         {...buildProps({
@@ -101,7 +101,7 @@ describe('AdditionalityPage', () => {
     );
 
     assert.match(html, /No attributable differences/);
-    assert.match(html, /no supported state, efficiency-package, or autonomous-efficiency atoms differ/i);
+    assert.match(html, /no supported method, efficiency-package, or autonomous-efficiency atoms differ/i);
     assert.match(html, />Re-calculate</);
   });
 

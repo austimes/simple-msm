@@ -19,7 +19,7 @@ export function deriveBaselineAnchorsFromPackage(
         provenance_note: `${row.source_family} — ${row.coverage_note}`,
       };
     }
-    // Skip legacy electricity balance rows; built-in electricity closure now comes from
+    // Skip superseded electricity balance rows; built-in electricity closure now comes from
     // modeled demand plus first-class residual families.
   }
 

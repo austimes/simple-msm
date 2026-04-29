@@ -81,11 +81,11 @@ export default function BaselineClosureDiagnosticsCard() {
       <h2>Baseline closure diagnostics (2025)</h2>
       <p>
         {hasOverlayRows
-          ? 'These residual overlay layers account for parts of the economy not explicitly modeled as optimizable sector states. They are fixed 2025 accounting entries used for balance-sheet closure only.'
-          : 'Residual closure is represented by first-class residual family rows. Those rows carry demand, commodity inputs, and emissions through the same solve path as modeled segments.'}
+          ? 'These residual overlay layers account for parts of the economy not explicitly modeled as optimizable role methods. They are fixed 2025 accounting entries used for balance-sheet closure only.'
+          : 'Residual closure is represented by first-class residual role methods. Those rows carry demand, commodity inputs, and emissions through the same solve path as modeled roles.'}
       </p>
 
-      <h3>{hasOverlayRows ? AGGREGATED_RESIDUAL_OVERLAY_LABEL : 'Residual family closure'}</h3>
+      <h3>{hasOverlayRows ? AGGREGATED_RESIDUAL_OVERLAY_LABEL : 'Residual role closure'}</h3>
       <div className="library-mini-table">
         <div className="library-mini-table-row library-mini-table-row--header">
           <span>Residual component</span>
