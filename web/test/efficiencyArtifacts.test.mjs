@@ -58,8 +58,8 @@ test('efficiency artifact loader parses valid rows and fails fast on bad applica
     methodIdsByRoleId: new Map([
       ['test_role', new Set(['baseline_method', 'retrofit_method'])],
     ]),
-    compatibilityByRoleId: new Map([
-      ['test_role', { legacyOutputId: 'test_output', reportingAllocation: null, defaultMethodId: 'baseline_method' }],
+    appProjectionByRoleId: new Map([
+      ['test_role', { appOutputId: 'test_output', reportingAllocation: null, defaultMethodId: 'baseline_method' }],
     ]),
   };
 

@@ -60,7 +60,7 @@ const axisPercentFormatter = new Intl.NumberFormat('en-AU', {
 const EFFICIENCY_APPLICABILITY_OPTIONS = [
   { value: 'with_applicable_artifacts', label: 'Explicit artifacts apply' },
   { value: 'embedded_in_state', label: 'Embodied efficiency in pathway choice' },
-  { value: 'no_family_artifacts', label: 'No authored family artifacts' },
+  { value: 'no_family_artifacts', label: 'No authored role artifacts' },
 ] as const;
 
 const EFFICIENCY_ARTIFACT_TYPE_OPTIONS = [
@@ -274,7 +274,7 @@ function FamilyAutonomousTrackCard({
 
       <div className="library-tag-groups">
         <div>
-          <span className="library-tag-group-title">Applicable states</span>
+          <span className="library-tag-group-title">Applicable methods</span>
           <div className="library-tag-list">
             {resolveStateLabels(track.applicableStateIds, stateLabelById).map((label) => (
               <span key={`${track.trackId}:${label}`} className="library-tag">
@@ -343,7 +343,7 @@ function FamilyEfficiencyPackageCard({
 
       <div className="library-tag-groups">
         <div>
-          <span className="library-tag-group-title">Applicable states</span>
+          <span className="library-tag-group-title">Applicable methods</span>
           <div className="library-tag-list">
             {resolveStateLabels(pkg.applicableStateIds, stateLabelById).map((label) => (
               <span key={`${pkg.packageId}:${label}`} className="library-tag">
@@ -792,8 +792,8 @@ export default function LibraryPage() {
     <div className="page page--library">
       <h1>Library</h1>
       <p>
-        Compare sector-state trajectories over time, then drill into the notes, assumptions,
-        sources, and input coefficient curves behind each available state for the selected subsector.
+        Compare method trajectories over time, then drill into the notes, assumptions,
+        sources, and input coefficient curves behind each available method for the selected subsector.
       </p>
 
       <div className={`library-sidebar-layout${sidebarCollapsed ? ' library-sidebar-layout--collapsed' : ''}`}>
@@ -863,7 +863,7 @@ export default function LibraryPage() {
                 <input
                   value={filters.search}
                   onChange={(event) => setLibraryFilters({ search: event.target.value })}
-                  placeholder="State label, efficiency artifact, notes, source ID"
+                  placeholder="Method label, efficiency artifact, notes, source ID"
                 />
               </label>
 
@@ -933,7 +933,7 @@ export default function LibraryPage() {
                   value={filters.efficiencyApplicability}
                   onChange={(event) => setLibraryFilters({ efficiencyApplicability: event.target.value })}
                 >
-                  <option value="">All states</option>
+                  <option value="">All methods</option>
                   {EFFICIENCY_APPLICABILITY_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
@@ -966,10 +966,10 @@ export default function LibraryPage() {
               <section className="configuration-panel library-state-selector-panel">
                 <div className="library-panel-heading">
                   <div>
-                    <h2>State highlight</h2>
+                    <h2>Method highlight</h2>
                     <p>Choose one trajectory here to emphasize it across the charts, comparison matrix, detail pane, and coefficient facets.</p>
                   </div>
-                  <span className="library-count-pill">{trajectorySelectionItems.length} states</span>
+                  <span className="library-count-pill">{trajectorySelectionItems.length} methods</span>
                 </div>
 
                 <div className="library-state-selector-grid">
@@ -996,7 +996,7 @@ export default function LibraryPage() {
                   <div className="library-panel-heading">
                     <div>
                       <h2>Cost trajectory</h2>
-                      <p>Conversion cost per output unit over time for each available state.</p>
+                      <p>Conversion cost per output unit over time for each available method.</p>
                     </div>
                   </div>
                   <LineChart
@@ -1034,7 +1034,7 @@ export default function LibraryPage() {
                   <div className="library-panel-heading">
                     <div>
                       <h2>Max share</h2>
-                      <p>Upper share envelope by state trajectory.</p>
+                      <p>Upper share envelope by method trajectory.</p>
                     </div>
                   </div>
                   <LineChart
@@ -1072,7 +1072,7 @@ export default function LibraryPage() {
                   <div className="library-panel-heading">
                     <div>
                       <h2>Input coefficient trajectories</h2>
-                      <p>Shared plot of input coefficients across the visible states, using the same highlight treatment as the charts above.</p>
+                      <p>Shared plot of input coefficients across the visible methods, using the same highlight treatment as the charts above.</p>
                     </div>
                   </div>
 
@@ -1114,7 +1114,7 @@ export default function LibraryPage() {
                       ) : null}
 
                       <p className="library-inline-note">
-                        State colors match the shared highlight selector and the charts above.
+                        Method colors match the shared highlight selector and the charts above.
                         {coefficientChart.commodityStyles.length > 1 ? ' Line styles distinguish input commodities.' : ''}{' '}
                         {coefficientChart.units.length > 1
                           ? `Coefficient units overlaid here: ${coefficientChart.units.map((unit) => formatUnitLabel(unit)).join(', ')}.`
@@ -1122,7 +1122,7 @@ export default function LibraryPage() {
                       </p>
                     </>
                   ) : (
-                    <p className="library-inline-note">No explicit input coefficient trajectories are packaged for the visible states.</p>
+                    <p className="library-inline-note">No explicit input coefficient trajectories are packaged for the visible methods.</p>
                   )}
                 </article>
               </section>
@@ -1132,19 +1132,19 @@ export default function LibraryPage() {
                   <div>
                     <h2>Trajectory comparison matrix</h2>
                     <p>
-                      Rows are grouped by trajectory. Use the shared state list to drive the
+                      Rows are grouped by trajectory. Use the shared method list to drive the
                       chart highlight, or click any metric row to focus the detail pane on that
-                      state trajectory.
+                      method trajectory.
                     </p>
                   </div>
-                  <span className="library-count-pill">{visibleTrajectories.length} states</span>
+                  <span className="library-count-pill">{visibleTrajectories.length} methods</span>
                 </div>
 
                 <div className="library-comparison-shell">
                   <table className="library-comparison-table">
                     <thead>
                       <tr>
-                        <th>State</th>
+                        <th>Method</th>
                         <th>Metric</th>
                         {visibleYears.map((year) => (
                           <th key={year}>{year}</th>
@@ -1199,7 +1199,7 @@ export default function LibraryPage() {
                       </div>
                       <dl className="library-detail-summary">
                         <div>
-                          <dt>State ID</dt>
+                          <dt>Method ID</dt>
                           <dd>{selectedTrajectory.stateId}</dd>
                         </div>
                         <div>
@@ -1243,7 +1243,7 @@ export default function LibraryPage() {
                         <p className="library-inline-note">
                           Autonomous efficiency tracks plus pure and operational efficiency packages
                           come from the canonical package inventory. Embodied efficiency in pathway
-                          choice stays attached to the pathway state itself so Library and Explorer
+                          choice stays attached to the pathway method itself so Library and Explorer
                           use the same taxonomy.
                         </p>
 
@@ -1283,7 +1283,7 @@ export default function LibraryPage() {
                         ) : (
                           <p className="library-inline-note">
                             No autonomous efficiency tracks, pure efficiency packages, or
-                            operational efficiency packages are authored for this family in the
+                            operational efficiency packages are authored for this role in the
                             canonical package inventory.
                           </p>
                         )}
@@ -1431,7 +1431,7 @@ export default function LibraryPage() {
                 ) : (
                   <div className="library-empty-state">
                     <h3>No trajectory selected</h3>
-                    <p>Choose a subsector with visible states to populate the detail view.</p>
+                    <p>Choose a subsector with visible methods to populate the detail view.</p>
                   </div>
                 )}
               </article>

@@ -1,6 +1,6 @@
 {
   "name": "Reference baseline",
-  "description": "Full-model reference case with endogenous electricity and first-class residual families, residual families included, incumbent/default route scope, baseline autonomous efficiency, and packages off.",
+  "description": "Full-model reference case with endogenous electricity and first-class residual roles, residual roles included, incumbent/default method scope, baseline autonomous efficiency, and packages off.",
   "years": [
     2025,
     2030,
@@ -408,7 +408,7 @@
   "demand_generation": {
     "mode": "anchor_plus_preset",
     "anchor_year": 2025,
-    "preset_id": "simple_sector_growth_central",
+    "preset_id": "simple_role_growth_central",
     "service_anchors": {
       "residential_building_services": 477000000,
       "commercial_building_services": 314000000,
@@ -488,7 +488,7 @@
     "share_smoothing": {
       "enabled": false,
       "max_delta_pp": 20,
-      "notes": "Generic rollout proxy. Because the current sector_states.csv does not contain numeric uptake-rate fields, max share change per milestone period is the simple app-level uptake limiter."
+      "notes": "Generic rollout proxy. Because the current method_years.csv rows do not contain numeric uptake-rate fields, max share change per milestone period is the simple app-level uptake limiter."
     }
   },
   "app_metadata": {

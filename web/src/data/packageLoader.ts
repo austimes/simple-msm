@@ -69,8 +69,8 @@ interface CarbonPriceCurveRow {
   values_by_year: Record<string, number>;
 }
 
-interface RoleCompatibilityInfo {
-  legacyOutputId: string;
+interface RoleAppProjection {
+  appOutputId: string;
   reportingAllocation: ReportingAllocation | null;
   defaultMethodId: string;
 }
@@ -79,7 +79,7 @@ interface EfficiencyArtifactValidationContext {
   sourceIds: Set<string>;
   assumptionIds: Set<string>;
   methodIdsByRoleId: Map<string, Set<string>>;
-  compatibilityByRoleId: Map<string, RoleCompatibilityInfo>;
+  appProjectionByRoleId: Map<string, RoleAppProjection>;
 }
 
 interface NodeDirectoryEntryLike {
@@ -631,16 +631,16 @@ function buildDefaultMethodIdByRoleId(methods: Method[]): Map<string, string> {
   return result;
 }
 
-function buildCompatibilityInfo(
+function buildRoleAppProjection(
   roles: RoleMetadata[],
   methods: Method[],
   reportingAllocations: ReportingAllocation[],
   appConfig: AppConfigRegistry,
-): Map<string, RoleCompatibilityInfo> {
+): Map<string, RoleAppProjection> {
   const defaultMethodIdByRoleId = buildDefaultMethodIdByRoleId(methods);
   const allocationByRoleId = new Map(reportingAllocations.map((allocation) => [allocation.role_id, allocation]));
   const knownOutputIds = new Set(Object.keys(appConfig.output_roles));
-  const result = new Map<string, RoleCompatibilityInfo>();
+  const result = new Map<string, RoleAppProjection>();
 
   for (const role of roles) {
     const reportingAllocation = allocationByRoleId.get(role.role_id) ?? null;
@@ -655,10 +655,10 @@ function buildCompatibilityInfo(
           normalizeLookupCandidate(reportingAllocation?.reporting_bucket),
           role.role_id,
         ];
-    const legacyOutputId = candidates.find((candidate) => candidate && knownOutputIds.has(candidate)) ?? role.role_id;
+    const appOutputId = candidates.find((candidate) => candidate && knownOutputIds.has(candidate)) ?? role.role_id;
 
     result.set(role.role_id, {
-      legacyOutputId,
+      appOutputId,
       reportingAllocation,
       defaultMethodId,
     });
@@ -758,11 +758,11 @@ function buildSystemStructureGroups(roles: RoleMetadata[]): SystemStructureGroup
 
 function buildSystemStructureMembers(
   roles: RoleMetadata[],
-  compatibilityByRoleId: Map<string, RoleCompatibilityInfo>,
+  appProjectionByRoleId: Map<string, RoleAppProjection>,
 ): SystemStructureMemberRow[] {
   return roles.map((role, index) => ({
     group_id: role.topology_area_id,
-    family_id: compatibilityByRoleId.get(role.role_id)?.legacyOutputId ?? role.role_id,
+    family_id: appProjectionByRoleId.get(role.role_id)?.appOutputId ?? role.role_id,
     display_order: index * 10 + 10,
     notes: '',
   }));
@@ -770,22 +770,22 @@ function buildSystemStructureMembers(
 
 function buildFamilyMetadata(
   roles: RoleMetadata[],
-  compatibilityByRoleId: Map<string, RoleCompatibilityInfo>,
+  appProjectionByRoleId: Map<string, RoleAppProjection>,
 ): FamilyMetadata[] {
   return roles.map((role) => {
-    const compatibility = compatibilityByRoleId.get(role.role_id);
-    const reporting = compatibility?.reportingAllocation;
-    const legacyOutputId = compatibility?.legacyOutputId ?? role.role_id;
+    const projection = appProjectionByRoleId.get(role.role_id);
+    const reporting = projection?.reportingAllocation;
+    const appOutputId = projection?.appOutputId ?? role.role_id;
     return {
-      family_id: legacyOutputId,
+      family_id: appOutputId,
       sector: reporting?.sector ?? role.topology_area_id,
-      subsector: reporting?.subsector ?? legacyOutputId,
-      service_or_output_name: legacyOutputId,
+      subsector: reporting?.subsector ?? appOutputId,
+      service_or_output_name: appOutputId,
       region: 'Australia',
       output_role: outputRoleFromRole(role),
       output_unit: role.output_unit,
       output_quantity_basis: role.description,
-      default_incumbent_state_id: compatibility?.defaultMethodId ?? '',
+      default_incumbent_state_id: projection?.defaultMethodId ?? '',
       maintainer_owner_id: '',
       review_owner_id: '',
       family_status: 'canonical_role',
@@ -806,7 +806,7 @@ function buildSectorStateRows(
   methodYears: MethodYear[],
   rolesById: Map<string, RoleMetadata>,
   methodsByRoleAndId: Map<string, Method>,
-  compatibilityByRoleId: Map<string, RoleCompatibilityInfo>,
+  appProjectionByRoleId: Map<string, RoleAppProjection>,
 ): SectorState[] {
   return methodYears.map((row) => {
     const role = rolesById.get(row.role_id);
@@ -815,9 +815,9 @@ function buildSectorStateRows(
       throw new Error(`Cannot build app row for ${row.role_id}::${row.representation_id}::${row.method_id}`);
     }
 
-    const compatibility = compatibilityByRoleId.get(row.role_id);
-    const reporting = compatibility?.reportingAllocation;
-    const legacyOutputId = compatibility?.legacyOutputId ?? row.role_id;
+    const projection = appProjectionByRoleId.get(row.role_id);
+    const reporting = projection?.reportingAllocation;
+    const appOutputId = projection?.appOutputId ?? row.role_id;
     const optionCode = methodOptionCode(method);
     const energyCo2e = row.energy_emissions_by_pollutant.find((entry) => entry.pollutant === 'CO2e')?.value ?? null;
     const processCo2e = row.process_emissions_by_pollutant.find((entry) => entry.pollutant === 'CO2e')?.value ?? null;
@@ -829,13 +829,13 @@ function buildSectorStateRows(
       method_description: method.method_description,
       role_kind: role.role_kind,
       balance_type: role.balance_type,
-      family_id: legacyOutputId,
+      family_id: appOutputId,
       family_resolution: familyResolutionFromRole(role),
       coverage_scope_id: row.role_id,
       coverage_scope_label: role.role_label,
       sector: reporting?.sector ?? role.topology_area_id,
-      subsector: reporting?.subsector ?? legacyOutputId,
-      service_or_output_name: legacyOutputId,
+      subsector: reporting?.subsector ?? appOutputId,
+      service_or_output_name: appOutputId,
       region: 'Australia',
       state_id: row.method_id,
       state_label: method.method_label,
@@ -847,9 +847,9 @@ function buildSectorStateRows(
       state_stage_family: method.method_kind,
       state_stage_rank: method.sort_order,
       state_stage_code: method.method_kind,
-      state_sort_key: `${legacyOutputId}:${String(method.sort_order).padStart(3, '0')}:${row.method_id}`,
+      state_sort_key: `${appOutputId}:${String(method.sort_order).padStart(3, '0')}:${row.method_id}`,
       state_label_standardized: method.method_label,
-      is_default_incumbent_2025: row.year === 2025 && row.method_id === compatibility?.defaultMethodId,
+      is_default_incumbent_2025: row.year === 2025 && row.method_id === projection?.defaultMethodId,
       state_option_rank: method.sort_order,
       state_option_code: optionCode,
       state_option_label: optionCode,
@@ -950,7 +950,7 @@ function toAutonomousEfficiencyTrack(
     context,
   );
 
-  const family_id = context.compatibilityByRoleId.get(role_id)?.legacyOutputId ?? role_id;
+  const family_id = context.appProjectionByRoleId.get(role_id)?.appOutputId ?? role_id;
   return {
     role_id,
     family_id,
@@ -1042,7 +1042,7 @@ function toEfficiencyPackage(
     context,
   );
 
-  const family_id = context.compatibilityByRoleId.get(role_id)?.legacyOutputId ?? role_id;
+  const family_id = context.appProjectionByRoleId.get(role_id)?.appOutputId ?? role_id;
   return {
     role_id,
     family_id,
@@ -1117,7 +1117,7 @@ function buildBaselineAnchors(
   roles: RoleMetadata[],
   roleDemands: RoleDemand[],
   appConfig: AppConfigRegistry,
-  compatibilityByRoleId: Map<string, RoleCompatibilityInfo>,
+  appProjectionByRoleId: Map<string, RoleAppProjection>,
 ): Record<string, BaselineActivityAnchor> {
   const anchors: Record<string, BaselineActivityAnchor> = {};
   const roleDemandById = new Map(roleDemands.map((row) => [row.role_id, row]));
@@ -1133,7 +1133,7 @@ function buildBaselineAnchors(
       continue;
     }
 
-    const outputId = compatibilityByRoleId.get(role.role_id)?.legacyOutputId ?? role.role_id;
+    const outputId = appProjectionByRoleId.get(role.role_id)?.appOutputId ?? role.role_id;
     anchors[outputId] = {
       output_role: (appConfig.output_roles[outputId]?.output_role ?? outputRole) as BaselineActivityAnchor['output_role'],
       anchor_kind: 'service_demand',
@@ -1194,7 +1194,7 @@ function normalizePresetDescription(description: string): string {
 
 function buildDemandGrowthPresets(
   rows: DemandGrowthCurveRow[],
-  compatibilityByRoleId: Map<string, RoleCompatibilityInfo>,
+  appProjectionByRoleId: Map<string, RoleAppProjection>,
 ): Record<string, DemandGrowthPreset> {
   const presets: Record<string, DemandGrowthPreset> = {};
 
@@ -1214,7 +1214,7 @@ function buildDemandGrowthPresets(
 
     const rate = inferConstantGrowthRatePctPerYear(row.values_by_year);
     if (parsedId.roleId) {
-      const outputId = compatibilityByRoleId.get(parsedId.roleId)?.legacyOutputId ?? parsedId.roleId;
+      const outputId = appProjectionByRoleId.get(parsedId.roleId)?.appOutputId ?? parsedId.roleId;
       preset.milestone_multipliers_by_output![outputId] = row.values_by_year;
       if (rate != null) {
         preset.annual_growth_rates_pct_per_year[outputId] = rate;
@@ -1222,13 +1222,6 @@ function buildDemandGrowthPresets(
     }
 
     presets[presetId] = preset;
-  }
-
-  for (const [presetId, preset] of Object.entries({ ...presets })) {
-    const legacyPresetId = presetId.replace(/^simple_role_growth_/, 'simple_sector_growth_');
-    if (legacyPresetId !== presetId && !presets[legacyPresetId]) {
-      presets[legacyPresetId] = preset;
-    }
   }
 
   return presets;
@@ -1274,13 +1267,13 @@ function buildCarbonPricePresets(
 function buildOutputRoles(
   appConfig: AppConfigRegistry,
   roles: RoleMetadata[],
-  compatibilityByRoleId: Map<string, RoleCompatibilityInfo>,
+  appProjectionByRoleId: Map<string, RoleAppProjection>,
 ): AppConfigRegistry['output_roles'] {
   const outputRoles = { ...appConfig.output_roles };
 
   for (const role of roles) {
-    const compatibility = compatibilityByRoleId.get(role.role_id);
-    const outputId = compatibility?.legacyOutputId ?? role.role_id;
+    const projection = appProjectionByRoleId.get(role.role_id);
+    const outputId = projection?.appOutputId ?? role.role_id;
     if (outputRoles[outputId]) {
       continue;
     }
@@ -1307,10 +1300,10 @@ function buildOutputRoles(
 
 function toServiceDemandAnchorRow(
   row: Record<string, string>,
-  compatibilityByRoleId: Map<string, RoleCompatibilityInfo>,
+  appProjectionByRoleId: Map<string, RoleAppProjection>,
 ): ServiceDemandAnchorRow {
   const roleId = row['role_id'];
-  const outputId = compatibilityByRoleId.get(roleId)?.legacyOutputId ?? roleId;
+  const outputId = appProjectionByRoleId.get(roleId)?.appOutputId ?? roleId;
   return {
     anchor_type: row['row_type'] as ServiceDemandAnchorType,
     service_or_output_name: outputId,
@@ -1438,19 +1431,19 @@ export function loadPackage(): PackageData {
     return result;
   }, new Map<string, Set<string>>());
 
-  const compatibilityByRoleId = buildCompatibilityInfo(
+  const appProjectionByRoleId = buildRoleAppProjection(
     roleMetadata,
     methods,
     reportingAllocations,
     appConfig,
   );
-  appConfig.output_roles = buildOutputRoles(appConfig, roleMetadata, compatibilityByRoleId);
+  appConfig.output_roles = buildOutputRoles(appConfig, roleMetadata, appProjectionByRoleId);
 
   const methodYears = listPackageFiles('roles/', '/method_years.csv').flatMap((path) =>
     parseCsv(requirePackageFile(path)).map((row) => toMethodYear(path, row)),
   );
   validateMethodYearReferences(methodYears, methodsByRoleAndId, sourceIds, assumptionIds);
-  const sectorStates = buildSectorStateRows(methodYears, rolesById, methodsByRoleAndId, compatibilityByRoleId);
+  const sectorStates = buildSectorStateRows(methodYears, rolesById, methodsByRoleAndId, appProjectionByRoleId);
 
   const roleDemands = listPackageFiles('roles/', '/demand.csv').map((path) => {
     const rows = parseCsv(requirePackageFile(path));
@@ -1464,9 +1457,9 @@ export function loadPackage(): PackageData {
     roleMetadata,
     roleDemands,
     appConfig,
-    compatibilityByRoleId,
+    appProjectionByRoleId,
   );
-  appConfig.demand_growth_presets = buildDemandGrowthPresets(demandGrowthCurves, compatibilityByRoleId);
+  appConfig.demand_growth_presets = buildDemandGrowthPresets(demandGrowthCurves, appProjectionByRoleId);
   appConfig.commodity_price_presets = buildCommodityPricePresets(commodityPriceCurves);
   appConfig.carbon_price_presets = buildCarbonPricePresets(carbonPriceCurves);
 
@@ -1474,12 +1467,12 @@ export function loadPackage(): PackageData {
     sourceIds,
     assumptionIds,
     methodIdsByRoleId,
-    compatibilityByRoleId,
+    appProjectionByRoleId,
   });
 
   const serviceDemandAnchors2025 = parseCsv(
     requirePackageFile('validation/baseline_activity_balance.csv'),
-  ).map((row) => toServiceDemandAnchorRow(row, compatibilityByRoleId));
+  ).map((row) => toServiceDemandAnchorRow(row, appProjectionByRoleId));
   const residualOverlays2025: ResidualOverlayRow[] = [];
   const commodityBalance2025 = parseCsv(
     requirePackageFile('validation/baseline_commodity_balance.csv'),
@@ -1506,9 +1499,9 @@ export function loadPackage(): PackageData {
     methods,
     methodYears,
     roleDemands,
-    familyMetadata: buildFamilyMetadata(roleMetadata, compatibilityByRoleId),
+    familyMetadata: buildFamilyMetadata(roleMetadata, appProjectionByRoleId),
     systemStructureGroups: buildSystemStructureGroups(roleMetadata),
-    systemStructureMembers: buildSystemStructureMembers(roleMetadata, compatibilityByRoleId),
+    systemStructureMembers: buildSystemStructureMembers(roleMetadata, appProjectionByRoleId),
     sectorStates,
     autonomousEfficiencyTracks,
     efficiencyPackages,

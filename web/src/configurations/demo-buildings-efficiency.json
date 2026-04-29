@@ -1,6 +1,6 @@
 {
   "name": "Demo — buildings efficiency",
-  "description": "Buildings plus endogenous electricity, with residential and commercial retrofit packages limited to the building transition states that illustrate embodied-versus-portable efficiency.",
+  "description": "Buildings plus endogenous electricity, with residential and commercial retrofit packages limited to the building transition methods that illustrate embodied-versus-portable efficiency.",
   "years": [
     2025,
     2030,
@@ -396,7 +396,7 @@
   "demand_generation": {
     "mode": "anchor_plus_preset",
     "anchor_year": 2025,
-    "preset_id": "simple_sector_growth_central",
+    "preset_id": "simple_role_growth_central",
     "service_anchors": {
       "residential_building_services": 477000000,
       "commercial_building_services": 314000000,

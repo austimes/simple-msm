@@ -269,7 +269,7 @@ describe('appUiStore route persistence', () => {
 
     assertMatchesBoth(
       htmls,
-      /methods-tab methods-tab--active[^>]*>State evidence browser</,
+      /methods-tab methods-tab--active[^>]*>Method evidence browser</,
     );
     assertMatchesBoth(htmls, new RegExp(`value="${escapeForRegex(searchToken)}"`));
     assertMatchesBoth(

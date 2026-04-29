@@ -69,7 +69,7 @@ function formatAction(action: AdditionalityAtomAction): string {
 function formatAtomKind(kind: AdditionalityAtomKind): string {
   switch (kind) {
     case 'state':
-      return 'State';
+      return 'Method';
     case 'efficiency_package':
       return 'Efficiency package';
     case 'autonomous_efficiency':
@@ -86,7 +86,7 @@ function formatAtomCategory(category: AdditionalityAtomCategory): string {
     case 'fuel_switching':
       return 'Fuel switching';
     case 'other_state_change':
-      return 'Other state change';
+      return 'Other method change';
     default:
       return category;
   }
@@ -110,7 +110,7 @@ function buildStatusLine(analysisState: AdditionalityAnalysisState): string {
     case 'validation':
       return `${analysisState.validationIssues.length} unsupported differences block this pair.`;
     case 'empty':
-      return 'No attributable state, efficiency package, or autonomous efficiency differences were found.';
+      return 'No attributable method, efficiency package, or autonomous efficiency differences were found.';
     case 'partial':
       return analysisState.error
         ?? 'Analysis stopped early because the remaining candidate solves failed.';
@@ -232,7 +232,7 @@ function AdditionalityScenarioPanel({
         <div className="additionality-inline-panel">
           <h3>No attributable differences</h3>
           <p>
-            The selected pair passes validation, but no supported state,
+            The selected pair passes validation, but no supported method,
             efficiency-package, or autonomous-efficiency atoms differ.
           </p>
         </div>

@@ -262,9 +262,9 @@
     "milestone_multipliers_by_external_commodity": {},
     "provenance_note": "App-owned convenience preset. Not part of the research library evidence."
   },
-  "simple_sector_growth_central": {
-    "label": "Simple sector growth - central",
-    "description": "Default built-in growth preset by sector or service for fast exploration. Values are modest and intentionally generic.",
+  "simple_role_growth_central": {
+    "label": "Simple role growth - central",
+    "description": "Default built-in growth preset by role or service for fast exploration. Values are modest and intentionally generic.",
     "annual_growth_rates_pct_per_year": {
       "cement_equivalent": 0.3,
       "commercial_building_services": 0.9,
@@ -494,8 +494,8 @@
     "milestone_multipliers_by_external_commodity": {},
     "provenance_note": "App-owned convenience preset. Not part of the research library evidence."
   },
-  "simple_sector_growth_high": {
-    "label": "Simple sector growth - high",
+  "simple_role_growth_high": {
+    "label": "Simple role growth - high",
     "description": "A stronger demand-growth preset for sensitivity testing.",
     "annual_growth_rates_pct_per_year": {
       "cement_equivalent": 0.7,
@@ -726,8 +726,8 @@
     "milestone_multipliers_by_external_commodity": {},
     "provenance_note": "App-owned convenience preset. Not part of the research library evidence."
   },
-  "simple_sector_growth_low": {
-    "label": "Simple sector growth - low",
+  "simple_role_growth_low": {
+    "label": "Simple role growth - low",
     "description": "A conservative growth preset for quick configuration setup.",
     "annual_growth_rates_pct_per_year": {
       "cement_equivalent": 0,

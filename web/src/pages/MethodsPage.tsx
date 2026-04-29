@@ -24,7 +24,7 @@ const tabLabels: Record<MethodsTab, string> = {
   conventions: 'Modeling conventions',
   confidence: 'Confidence overview',
   phase2: 'Phase 2 caveats',
-  evidence: 'State evidence browser',
+  evidence: 'Method evidence browser',
 };
 
 function cleanInlineMarkdown(text: string): string {
@@ -316,7 +316,7 @@ export default function MethodsPage() {
   }, [confidenceCounts]);
 
   const optionalCompanionCount = useMemo(() => {
-    return enrichment.availablePaths.filter((path) => path !== 'exports/legacy/sector_state_curves_balanced.csv').length;
+    return enrichment.availablePaths.length;
   }, [enrichment.availablePaths]);
 
   return (
@@ -339,7 +339,7 @@ export default function MethodsPage() {
             ))
           ) : (
             <p className="methods-lead-paragraph">
-              The explorer can still run from the main sector-state table alone, even when package-level
+              The explorer can still run from the canonical method-year rows alone, even when package-level
               companion notes are absent.
             </p>
           )}
@@ -355,11 +355,11 @@ export default function MethodsPage() {
           <h2>Coverage at a glance</h2>
           <div className="configuration-stat-grid">
             <div className="configuration-stat-card">
-              <span>State-year rows</span>
+              <span>Method-year rows</span>
               <strong>{sectorStates.length}</strong>
             </div>
             <div className="configuration-stat-card">
-              <span>State families</span>
+              <span>Method trajectories</span>
               <strong>{families.length}</strong>
             </div>
             <div className="configuration-stat-card">
@@ -609,8 +609,8 @@ export default function MethodsPage() {
             <section className="methods-content-card">
               <div className="library-panel-heading">
                 <div>
-                  <h2>State evidence browser</h2>
-                  <p>Filter the state families by sector, confidence, or the raw evidence text.</p>
+                  <h2>Method evidence browser</h2>
+                  <p>Filter the method trajectories by sector, confidence, or the raw evidence text.</p>
                 </div>
               </div>
 
@@ -725,7 +725,7 @@ export default function MethodsPage() {
               })}
               {evidenceFamilies.length === 0 ? (
                 <article className="methods-evidence-card methods-evidence-card--empty">
-                  <h3>No state families match the current evidence filters.</h3>
+                  <h3>No method trajectories match the current evidence filters.</h3>
                   <p>Clear the browser filters to inspect the full embedded trust dataset.</p>
                 </article>
               ) : null}

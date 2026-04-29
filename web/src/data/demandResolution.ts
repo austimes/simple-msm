@@ -160,8 +160,8 @@ function assertCompatibleResolvedTables(
   label: string,
 ): void {
   for (const [id, table] of Object.entries(rawTables ?? {})) {
-    // Skip IDs that demand generation does not resolve (e.g. optional_activity
-    // outputs that appear in legacy service_demands but are not demand_required).
+    // Skip IDs that demand generation does not resolve, such as optional_activity
+    // outputs that are not demand_required.
     if (!(id in resolvedTables)) {
       continue;
     }

@@ -1,6 +1,6 @@
 {
   "name": "Demo — heavy industry efficiency",
-  "description": "Steel and cement plus endogenous electricity, combining the accepted heavy-industry efficiency packages while leaving route-shift states open only where they clarify what remains embodied in pathway choice.",
+  "description": "Steel and cement plus endogenous electricity, combining the accepted heavy-industry efficiency packages while leaving route-shift methods open only where they clarify what remains embodied in pathway choice.",
   "years": [
     2025,
     2030,
@@ -397,7 +397,7 @@
   "demand_generation": {
     "mode": "anchor_plus_preset",
     "anchor_year": 2025,
-    "preset_id": "simple_sector_growth_central",
+    "preset_id": "simple_role_growth_central",
     "service_anchors": {
       "residential_building_services": 477000000,
       "commercial_building_services": 314000000,
