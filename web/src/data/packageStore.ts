@@ -50,6 +50,7 @@ interface PackageStore extends PackageData {
   setCommodityPriceLevel: (commodityId: string, level: PriceLevel) => void;
   setCarbonPricePreset: (presetId: string) => void;
   toggleStateActive: (outputId: string, stateId: string) => void;
+  setRoleRepresentation: (roleId: string, representationId: string) => void;
   setOutputControlMode: (outputId: string, mode: ConfigurationControlMode) => void;
   setAutonomousEfficiencyForOutput: (outputId: string, mode: 'baseline' | 'off') => void;
   setEfficiencyPackageEnabled: (packageId: string, enabled: boolean) => void;
@@ -374,6 +375,14 @@ export const usePackageStore = create<PackageStore>((set, get) => {
       nextConfiguration.service_controls[outputId] = {
         ...existing,
         active_state_ids: activeStateIds.length === allStateIds.length ? null : activeStateIds,
+      };
+      commitConfigurationEdit(nextConfiguration);
+    },
+    setRoleRepresentation: (roleId, representationId) => {
+      const nextConfiguration = cloneConfiguration(get().currentConfiguration);
+      nextConfiguration.representation_by_role = {
+        ...(nextConfiguration.representation_by_role ?? {}),
+        [roleId]: representationId,
       };
       commitConfigurationEdit(nextConfiguration);
     },

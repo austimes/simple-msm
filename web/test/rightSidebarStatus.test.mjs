@@ -16,7 +16,7 @@ function readJson(relativePath) {
 }
 
 describe('getRightSidebarStatusPresentation', () => {
-  test('distinguishes active routes, dependency inclusion, and excluded outputs in buildings-only runs', () => {
+  test('distinguishes active methods, dependency inclusion, and excluded roles in buildings-only runs', () => {
     const configuration = readJson('../src/configurations/demo-buildings-efficiency.json');
     const statuses = deriveOutputRunStatusesForConfiguration(pkg, configuration);
 
@@ -37,7 +37,7 @@ describe('getRightSidebarStatusPresentation', () => {
     assert.ok(
       electricity.badges.some((badge) => badge.label === 'Endogenous supply in this run'),
     );
-    // Electricity has mode=optimize with all states active, so it's directly active
+    // Electricity has mode=optimize with all methods active, so it's directly active
     assert.ok(
       electricity.badges.some((badge) => badge.label === 'Active in this run'),
     );
@@ -46,11 +46,11 @@ describe('getRightSidebarStatusPresentation', () => {
     );
     assert.equal(passengerRoad.isDisabled, true);
     assert.equal(passengerRoad.isDimmed, true);
-    assert.match(electricity.detail, /active routes/i);
+    assert.match(electricity.detail, /active methods/i);
     assert.match(passengerRoad.detail, /excluded/i);
   });
 
-  test('shows disabled output as excluded from run when all routes deactivated', () => {
+  test('shows disabled role as excluded from run when all methods are deactivated', () => {
     const configuration = buildConfiguration(pkg.appConfig, {
       name: 'Passenger transport fully disabled',
       serviceControls: {
@@ -70,7 +70,7 @@ describe('getRightSidebarStatusPresentation', () => {
     assert.equal(passengerRoad.isDimmed, true);
   });
 
-  test('greys out route status for externalized supply dependencies', () => {
+  test('greys out method status for externalized supply dependencies', () => {
     const configuration = readJson('../src/configurations/demo-buildings-efficiency.json');
     configuration.service_controls.electricity = { mode: 'externalized' };
     const statuses = deriveOutputRunStatusesForConfiguration(pkg, configuration);
@@ -83,20 +83,20 @@ describe('getRightSidebarStatusPresentation', () => {
       electricity.badges.some((badge) => badge.label === 'Auto-included dependency'),
     );
     assert.ok(
-      electricity.badges.every((badge) => !/enabled route/i.test(badge.label)),
+      electricity.badges.every((badge) => !/enabled method/i.test(badge.label)),
     );
     assert.equal(electricity.isDisabled, true);
     assert.equal(electricity.arePathwaysInactive, true);
     assert.match(electricity.detail, /commodity price selection is used instead/i);
   });
 
-  test('shows active routes count under a retained freight demo configuration', () => {
+  test('shows active method count under a retained freight demo configuration', () => {
     const configuration = readJson('../src/configurations/demo-freight-efficiency.json');
     const statuses = deriveOutputRunStatusesForConfiguration(pkg, configuration);
     const freight = getRightSidebarStatusPresentation(statuses.freight_road_transport);
 
     assert.ok(
-      freight.badges.some((badge) => /active route/i.test(badge.label)),
+      freight.badges.some((badge) => /active method/i.test(badge.label)),
     );
   });
 
@@ -109,7 +109,7 @@ describe('getRightSidebarStatusPresentation', () => {
         'Auto-included dependency',
         'Excluded from this run',
         'Externalized supply in this run',
-        'Active routes',
+        'Active methods',
       ],
     );
   });

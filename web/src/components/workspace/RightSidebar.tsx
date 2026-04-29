@@ -9,6 +9,10 @@ import { buildSystemStructureCatalog, deriveRightSidebarTree } from './rightSide
 import RightSidebarContent from './RightSidebarContent';
 
 export default function RightSidebar() {
+  const roleMetadata = usePackageStore((s) => s.roleMetadata);
+  const representations = usePackageStore((s) => s.representations);
+  const roleDecompositionEdges = usePackageStore((s) => s.roleDecompositionEdges);
+  const methods = usePackageStore((s) => s.methods);
   const sectorStates = usePackageStore((s) => s.sectorStates);
   const appConfig = usePackageStore((s) => s.appConfig);
   const autonomousEfficiencyTracks = usePackageStore((s) => s.autonomousEfficiencyTracks);
@@ -18,6 +22,7 @@ export default function RightSidebar() {
   const systemStructureMembers = usePackageStore((s) => s.systemStructureMembers);
   const currentConfiguration = usePackageStore((s) => s.currentConfiguration);
   const toggleStateActive = usePackageStore((s) => s.toggleStateActive);
+  const setRoleRepresentation = usePackageStore((s) => s.setRoleRepresentation);
   const setAutonomousEfficiencyForOutput = usePackageStore((s) => s.setAutonomousEfficiencyForOutput);
   const setEfficiencyPackageEnabled = usePackageStore((s) => s.setEfficiencyPackageEnabled);
   const setAllEfficiencyPackagesForOutput = usePackageStore((s) => s.setAllEfficiencyPackagesForOutput);
@@ -93,6 +98,13 @@ export default function RightSidebar() {
       efficiencyControls,
       residualOverlays2025,
       currentConfiguration.residual_overlays?.controls_by_overlay_id ?? {},
+      {
+        roleMetadata,
+        representations,
+        roleDecompositionEdges,
+        methods,
+        currentConfiguration,
+      },
     ),
     [
       catalog,
@@ -101,7 +113,11 @@ export default function RightSidebar() {
       expandedSectors,
       efficiencyControls,
       residualOverlays2025,
-      currentConfiguration.residual_overlays?.controls_by_overlay_id,
+      roleMetadata,
+      representations,
+      roleDecompositionEdges,
+      methods,
+      currentConfiguration,
     ],
   );
 
@@ -111,6 +127,7 @@ export default function RightSidebar() {
       onToggleExpandedSector={toggleExpandedSector}
       onToggleExpandedSubsector={toggleExpandedSubsector}
       onToggleStateActive={toggleStateActive}
+      onSetRoleRepresentation={setRoleRepresentation}
       onSetAutonomousEfficiencyForOutput={setAutonomousEfficiencyForOutput}
       onSetEfficiencyPackageEnabled={setEfficiencyPackageEnabled}
       onSetAllEfficiencyPackagesForOutput={setAllEfficiencyPackagesForOutput}

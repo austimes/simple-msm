@@ -3,7 +3,9 @@ import type {
   ConfigurationDocument,
   ConfigurationYearKey,
   FamilyResolution,
+  MethodKind,
   PriceLevel,
+  RepresentationKind,
   SectorState,
 } from './types.ts';
 import { derivePathwayStateIdsForOutput } from './pathwaySemantics.ts';
@@ -11,6 +13,10 @@ import { derivePathwayStateIdsForOutput } from './pathwaySemantics.ts';
 export interface StateCatalogEntry {
   stateId: string;
   stateLabel: string;
+  roleId: string;
+  representationId: string;
+  methodId: string;
+  methodKind: MethodKind;
 }
 
 interface StateCatalogSortEntry extends StateCatalogEntry {
@@ -22,6 +28,10 @@ export interface SubsectorCatalogEntry {
   subsector: string;
   outputId: string;
   outputLabel: string;
+  roleId: string;
+  roleLabel: string;
+  parentRoleId: string | null;
+  defaultRepresentationKind: RepresentationKind;
   familyResolution?: FamilyResolution;
   coverageScopeLabel?: string;
   states: StateCatalogEntry[];
@@ -84,10 +94,19 @@ export function buildStateCatalog(
       subsectorMap.set(row.subsector, stateMap);
     }
 
-    if (!stateMap.has(row.state_id)) {
-      stateMap.set(row.state_id, {
+    const roleId = row.role_id ?? row.service_or_output_name;
+    const representationId = row.representation_id ?? `${roleId}__pathway_bundle`;
+    const methodId = row.method_id ?? row.state_id;
+    const methodKind = row.method_kind ?? 'pathway';
+    const catalogKey = `${representationId}::${methodId}`;
+    if (!stateMap.has(catalogKey)) {
+      stateMap.set(catalogKey, {
         stateId: row.state_id,
         stateLabel: resolveStateCatalogLabel(row),
+        roleId,
+        representationId,
+        methodId,
+        methodKind,
         stateSortKey: row.state_sort_key.trim(),
         stateOptionRank: row.state_option_rank,
       });
@@ -104,6 +123,7 @@ export function buildStateCatalog(
         (r) => r.sector === sector && r.subsector === subsector,
       );
       const outputId = firstRow?.service_or_output_name ?? subsector;
+      const roleId = firstRow?.role_id ?? outputId;
       const roleMetadata = appConfig.output_roles[outputId];
       const outputLabel = roleMetadata?.display_label ?? outputId;
 
@@ -111,13 +131,21 @@ export function buildStateCatalog(
         subsector,
         outputId,
         outputLabel,
+        roleId,
+        roleLabel: firstRow?.coverage_scope_label ?? outputLabel,
+        parentRoleId: null,
+        defaultRepresentationKind: 'pathway_bundle',
         familyResolution: firstRow?.family_resolution,
         coverageScopeLabel: firstRow?.coverage_scope_label,
         states: Array.from(stateMap.values())
           .sort(compareStateCatalogEntries)
-          .map(({ stateId, stateLabel }) => ({
+          .map(({ stateId, stateLabel, roleId, representationId, methodId, methodKind }) => ({
             stateId,
             stateLabel,
+            roleId,
+            representationId,
+            methodId,
+            methodKind,
           })),
       });
     }

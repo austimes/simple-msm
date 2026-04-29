@@ -40,7 +40,7 @@ export const RIGHT_SIDEBAR_STATUS_LEGEND: RightSidebarLegendItem[] = [
     key: 'active-output',
     label: 'Active in this run',
     tone: 'success',
-    description: 'This output has active routes and participates in the current solve.',
+    description: 'This role has active methods and participates in the current solve.',
   },
   {
     key: 'auto-dependency',
@@ -52,19 +52,19 @@ export const RIGHT_SIDEBAR_STATUS_LEGEND: RightSidebarLegendItem[] = [
     key: 'excluded',
     label: 'Excluded from this run',
     tone: 'muted',
-    description: 'All routes are deactivated, so this output is excluded from the solve.',
+    description: 'All methods are deactivated, so this role is excluded from the solve.',
   },
   {
     key: 'externalized',
     label: 'Externalized supply in this run',
     tone: 'muted',
-    description: 'Commodity demand is met externally rather than by available in-model routes.',
+    description: 'Commodity demand is met externally rather than by available in-model methods.',
   },
   {
     key: 'active-pathways',
-    label: 'Active routes',
+    label: 'Active methods',
     tone: 'info',
-    description: 'Number of routes active in the current solve.',
+    description: 'Number of methods active in the current solve.',
   },
 ];
 
@@ -79,7 +79,7 @@ function buildPathwayBadge(status: DerivedOutputRunStatus): RightSidebarBadge | 
 
   return {
     key: 'active-pathways',
-    label: `${status.activeStateCount} active ${status.activeStateCount === 1 ? 'route' : 'routes'}`,
+    label: `${status.activeStateCount} active ${status.activeStateCount === 1 ? 'method' : 'methods'}`,
     tone: 'success',
   };
 }
@@ -150,28 +150,28 @@ function buildSupplyBadge(status: DerivedOutputRunStatus): RightSidebarBadge | n
 }
 
 function buildDetail(status: DerivedOutputRunStatus): string {
-  let detail = 'Has active routes and participates in this solve.';
+  let detail = 'Has active methods and participates in this solve.';
 
   switch (status.runParticipation) {
     case 'active_pathways':
-      detail = 'Has active routes and participates in this solve.';
+      detail = 'Has active methods and participates in this solve.';
       break;
     case 'auto_included_dependency':
       detail = 'Included in the effective run because an active output depends on it.';
       break;
     case 'excluded_from_run':
-      detail = 'All routes are deactivated, so this output is excluded.';
+      detail = 'All methods are deactivated, so this role is excluded.';
       break;
     default:
       break;
   }
 
   if (status.supplyParticipation === 'externalized_in_run') {
-    return `${detail} Supply is externalized, so the route list is inactive and the commodity price selection is used instead.`;
+    return `${detail} Supply is externalized, so the method list is inactive and the commodity price selection is used instead.`;
   }
 
   if (status.isDisabled) {
-    return `${detail} No routes are currently active.`;
+    return `${detail} No methods are currently active.`;
   }
 
   return detail;

@@ -29,12 +29,27 @@ function buildStatus(outputId, overrides = {}) {
   };
 }
 
-function buildSubsector(outputId, label = outputId) {
+function buildSubsector(outputId, label = outputId, overrides = {}) {
+  const roleId = overrides.roleId ?? outputId;
+  const representationId = overrides.representationId ?? `${roleId}__pathway_bundle`;
+  const methodId = overrides.methodId ?? `${outputId}-state`;
   return {
     subsector: outputId,
     outputId,
     outputLabel: label,
-    states: [{ stateId: `${outputId}-state`, stateLabel: `${label} state` }],
+    roleId,
+    roleLabel: label,
+    parentRoleId: overrides.parentRoleId ?? null,
+    defaultRepresentationKind: 'pathway_bundle',
+    states: [{
+      stateId: methodId,
+      stateLabel: `${label} method`,
+      roleId,
+      representationId,
+      methodId,
+      methodKind: 'pathway',
+    }],
+    ...overrides,
   };
 }
 
@@ -310,5 +325,185 @@ describe('deriveRightSidebarTree', () => {
     assert.equal(buildings.residualGroup?.residuals[0].overlayId, 'residential_other');
     assert.equal(buildings.residualGroup?.residuals[0].included, false);
     assert.deepEqual(buildings.subsectors.map((subsector) => subsector.outputId), ['residential_building_services']);
+  });
+
+  test('hides decomposition child roles until the parent representation activates them', () => {
+    const catalog = [
+      {
+        sector: 'industrial_heat_and_production',
+        label: 'Industrial heat and production',
+        subsectors: [
+          buildSubsector('crude_steel', 'Produce crude steel', {
+            roleId: 'produce_crude_steel',
+            representationId: 'produce_crude_steel__pathway_bundle',
+            methodId: 'steel_pathway',
+          }),
+          buildSubsector('produce_direct_reduced_iron', 'Produce direct reduced iron', {
+            parentRoleId: 'produce_crude_steel',
+            roleId: 'produce_direct_reduced_iron',
+            representationId: 'produce_direct_reduced_iron__technology_bundle',
+            methodId: 'h2_dri',
+          }),
+          buildSubsector('melt_refine_dri_crude_steel', 'Melt and refine DRI crude steel', {
+            parentRoleId: 'produce_crude_steel',
+            roleId: 'melt_refine_dri_crude_steel',
+            representationId: 'melt_refine_dri_crude_steel__technology_bundle',
+            methodId: 'eaf_finishing',
+          }),
+        ],
+      },
+    ];
+    const roleMetadata = [
+      {
+        role_id: 'produce_crude_steel',
+        role_label: 'Produce crude steel',
+        parent_role_id: null,
+        coverage_obligation: 'required_top_level',
+        default_representation_kind: 'pathway_bundle',
+      },
+      {
+        role_id: 'produce_direct_reduced_iron',
+        role_label: 'Produce direct reduced iron',
+        parent_role_id: 'produce_crude_steel',
+        coverage_obligation: 'required_decomposition_child',
+        default_representation_kind: 'technology_bundle',
+      },
+      {
+        role_id: 'melt_refine_dri_crude_steel',
+        role_label: 'Melt and refine DRI crude steel',
+        parent_role_id: 'produce_crude_steel',
+        coverage_obligation: 'required_decomposition_child',
+        default_representation_kind: 'technology_bundle',
+      },
+    ];
+    const representations = [
+      {
+        representation_id: 'produce_crude_steel__pathway_bundle',
+        role_id: 'produce_crude_steel',
+        representation_kind: 'pathway_bundle',
+        representation_label: 'Crude steel pathway bundle',
+        description: 'Direct pathway bundle',
+        is_default: true,
+        direct_method_kind: 'pathway',
+      },
+      {
+        representation_id: 'produce_crude_steel__h2_dri_decomposition',
+        role_id: 'produce_crude_steel',
+        representation_kind: 'role_decomposition',
+        representation_label: 'Crude steel H2 DRI decomposition',
+        description: 'Process-chain decomposition',
+        is_default: false,
+        direct_method_kind: null,
+      },
+      {
+        representation_id: 'produce_direct_reduced_iron__technology_bundle',
+        role_id: 'produce_direct_reduced_iron',
+        representation_kind: 'technology_bundle',
+        representation_label: 'DRI technology bundle',
+        description: 'DRI technology methods',
+        is_default: true,
+        direct_method_kind: 'technology',
+      },
+      {
+        representation_id: 'melt_refine_dri_crude_steel__technology_bundle',
+        role_id: 'melt_refine_dri_crude_steel',
+        representation_kind: 'technology_bundle',
+        representation_label: 'DRI finishing technology bundle',
+        description: 'Finishing technology methods',
+        is_default: true,
+        direct_method_kind: 'technology',
+      },
+    ];
+    const roleDecompositionEdges = [
+      {
+        parent_representation_id: 'produce_crude_steel__h2_dri_decomposition',
+        parent_role_id: 'produce_crude_steel',
+        child_role_id: 'produce_direct_reduced_iron',
+        is_required: true,
+        display_order: 0,
+      },
+      {
+        parent_representation_id: 'produce_crude_steel__h2_dri_decomposition',
+        parent_role_id: 'produce_crude_steel',
+        child_role_id: 'melt_refine_dri_crude_steel',
+        is_required: true,
+        display_order: 1,
+      },
+    ];
+    const methods = [
+      {
+        role_id: 'produce_crude_steel',
+        representation_id: 'produce_crude_steel__pathway_bundle',
+        method_id: 'steel_pathway',
+        sort_order: 0,
+      },
+      {
+        role_id: 'produce_direct_reduced_iron',
+        representation_id: 'produce_direct_reduced_iron__technology_bundle',
+        method_id: 'h2_dri',
+        sort_order: 0,
+      },
+      {
+        role_id: 'melt_refine_dri_crude_steel',
+        representation_id: 'melt_refine_dri_crude_steel__technology_bundle',
+        method_id: 'eaf_finishing',
+        sort_order: 0,
+      },
+    ];
+
+    const [directSector] = deriveRightSidebarTree(
+      catalog,
+      { crude_steel: buildStatus('crude_steel', { activeStateIds: ['steel_pathway'] }) },
+      new Set(),
+      new Set(),
+      [],
+      [],
+      {},
+      {
+        roleMetadata,
+        representations,
+        roleDecompositionEdges,
+        methods,
+        currentConfiguration: { representation_by_role: {} },
+      },
+    );
+
+    assert.deepEqual(directSector.subsectors.map((subsector) => subsector.roleId), ['produce_crude_steel']);
+    assert.equal(directSector.subsectors[0].selectedRepresentationId, 'produce_crude_steel__pathway_bundle');
+    assert.equal(directSector.subsectors[0].representationOptions.length, 2);
+    assert.deepEqual(directSector.subsectors[0].states.map((method) => method.methodId), ['steel_pathway']);
+
+    const [decomposedSector] = deriveRightSidebarTree(
+      catalog,
+      {
+        produce_direct_reduced_iron: buildStatus('produce_direct_reduced_iron', { activeStateIds: ['h2_dri'] }),
+        melt_refine_dri_crude_steel: buildStatus('melt_refine_dri_crude_steel', { activeStateIds: ['eaf_finishing'] }),
+      },
+      new Set(),
+      new Set(),
+      [],
+      [],
+      {},
+      {
+        roleMetadata,
+        representations,
+        roleDecompositionEdges,
+        methods,
+        currentConfiguration: {
+          representation_by_role: {
+            produce_crude_steel: 'produce_crude_steel__h2_dri_decomposition',
+          },
+        },
+      },
+    );
+
+    const [parent] = decomposedSector.subsectors;
+    assert.equal(parent.roleId, 'produce_crude_steel');
+    assert.equal(parent.selectedRepresentationId, 'produce_crude_steel__h2_dri_decomposition');
+    assert.deepEqual(parent.states, []);
+    assert.deepEqual(
+      parent.childRoles.map((role) => role.roleId),
+      ['produce_direct_reduced_iron', 'melt_refine_dri_crude_steel'],
+    );
   });
 });

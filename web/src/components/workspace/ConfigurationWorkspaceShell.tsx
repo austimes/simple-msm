@@ -112,12 +112,12 @@ export default function ConfigurationWorkspaceShell({
 
       <WorkspaceSidebarFrame
         side="right"
-        title="System Structure"
+        title="Role Representations"
         bodyId="workspace-right-sidebar-body"
         collapsed={rightCollapsed}
         onToggle={onToggleRight}
-        collapseLabel="Collapse system structure sidebar"
-        expandLabel="Expand system structure sidebar"
+        collapseLabel="Collapse role representations sidebar"
+        expandLabel="Expand role representations sidebar"
       >
         {rightSidebar}
       </WorkspaceSidebarFrame>

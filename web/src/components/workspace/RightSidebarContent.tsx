@@ -4,6 +4,7 @@ import {
 } from './rightSidebarStatus';
 import type { RightSidebarSectorNode } from './rightSidebarTree';
 import { formatWorkspacePillLabel } from './workspacePillLabel';
+import type { RepresentationKind } from '../../data/types';
 
 function formatSectorName(sector: string): string {
   return sector.replaceAll('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase());
@@ -23,6 +24,19 @@ function formatControlMode(mode: string | undefined): string {
       return 'Target';
     default:
       return 'Optimize';
+  }
+}
+
+function formatRepresentationKind(kind: RepresentationKind): string {
+  switch (kind) {
+    case 'pathway_bundle':
+      return 'Pathway bundle';
+    case 'technology_bundle':
+      return 'Technology bundle';
+    case 'role_decomposition':
+      return 'Role decomposition';
+    default:
+      return kind;
   }
 }
 
@@ -84,6 +98,7 @@ export interface RightSidebarContentProps {
   onToggleExpandedSector: (sector: string) => void;
   onToggleExpandedSubsector: (outputId: string) => void;
   onToggleStateActive: (outputId: string, stateId: string) => void;
+  onSetRoleRepresentation: (roleId: string, representationId: string) => void;
   onSetAutonomousEfficiencyForOutput: (outputId: string, mode: 'baseline' | 'off') => void;
   onSetEfficiencyPackageEnabled: (packageId: string, enabled: boolean) => void;
   onSetAllEfficiencyPackagesForOutput: (outputId: string, enabled: boolean) => void;
@@ -96,12 +111,259 @@ export default function RightSidebarContent({
   onToggleExpandedSector,
   onToggleExpandedSubsector,
   onToggleStateActive,
+  onSetRoleRepresentation,
   onSetAutonomousEfficiencyForOutput,
   onSetEfficiencyPackageEnabled,
   onSetAllEfficiencyPackagesForOutput,
   onSetResidualOverlayIncluded,
   onSetResidualOverlayGroupIncluded,
 }: RightSidebarContentProps) {
+  function renderRoleNode(
+    sub: RightSidebarSectorNode['subsectors'][number],
+  ): React.ReactNode {
+    const activeStateIdSet = new Set(sub.activeStateIds);
+    const methodsInactive = sub.pathwaysInactive;
+    const outOfScope = sub.outOfScope;
+    const isCollapsed = sub.isCollapsed;
+    const badges = sub.badges;
+    const efficiencyControls = sub.efficiencyControls;
+    const hasEfficiencyControls = efficiencyControls?.hasControls === true;
+    const autonomousEnabled = efficiencyControls?.autonomousTracks.some((track) => track.enabled) ?? false;
+    const embodiedStateIdSet = new Set(efficiencyControls?.embodiedStateIds ?? []);
+    const isResidualStub = sub.familyResolution === 'residual_stub';
+    const isDecomposition = sub.selectedRepresentationKind === 'role_decomposition';
+    const hasRepresentationControls = sub.representationOptions.length > 0;
+    const hasMethodControls = !isDecomposition && sub.states.length > 0;
+
+    return (
+      <React.Fragment key={sub.roleId}>
+        <div
+          className={`workspace-subsector-group${outOfScope ? ' workspace-subsector-group--dimmed' : ''}${sub.isDecompositionChild ? ' workspace-subsector-group--child-role' : ''}`}
+        >
+          <div
+            className={`workspace-subsector-title${sub.canCollapse ? ' workspace-subsector-title--clickable' : ''}`}
+            onClick={sub.canCollapse ? () => onToggleExpandedSubsector(sub.outputId) : undefined}
+          >
+            {sub.roleLabel || sub.outputLabel}
+          </div>
+          {(badges.length > 0 || isResidualStub || sub.status || sub.canCollapse) && (
+            <div className="workspace-subsector-meta">
+              {isResidualStub && (
+                <span
+                  className="workspace-mode-badge workspace-mode-badge--warning"
+                  title={sub.coverageScopeLabel ?? sub.roleLabel}
+                >
+                  Residual role
+                </span>
+              )}
+              {badges.map((badge) => (
+                <span
+                  key={badge.key}
+                  className={`workspace-mode-badge workspace-mode-badge--${badge.tone}`}
+                  title={sub.presentation.detail}
+                >
+                  {badge.label}
+                </span>
+              ))}
+              {sub.status && (
+                <span className="workspace-mode-badge workspace-mode-badge--muted">
+                  Mode: {formatControlMode(sub.status.controlMode)}
+                </span>
+              )}
+              {sub.canCollapse && (
+                <button
+                  type="button"
+                  className="workspace-mode-toggle"
+                  onClick={() => onToggleExpandedSubsector(sub.outputId)}
+                >
+                  {isCollapsed ? 'Show methods' : 'Hide methods'}
+                </button>
+              )}
+            </div>
+          )}
+
+          {hasRepresentationControls && (
+            <div className="workspace-representation-control">
+              <div className="workspace-representation-summary">
+                {sub.selectedRepresentationKind && (
+                  <span className="workspace-mode-badge workspace-mode-badge--info">
+                    {formatRepresentationKind(sub.selectedRepresentationKind)}
+                  </span>
+                )}
+                <span className="workspace-representation-label">
+                  {sub.selectedRepresentationLabel ?? 'No representation selected'}
+                </span>
+              </div>
+              {sub.representationOptions.length > 1 && (
+                <div
+                  className="workspace-representation-options"
+                  role="group"
+                  aria-label={`${sub.roleLabel} representation`}
+                >
+                  {sub.representationOptions.map((option) => (
+                    <button
+                      key={option.representationId}
+                      type="button"
+                      className={`workspace-representation-option${option.isSelected ? ' workspace-representation-option--selected' : ''}`}
+                      aria-pressed={option.isSelected}
+                      onClick={() => onSetRoleRepresentation(sub.roleId, option.representationId)}
+                      title={option.description}
+                    >
+                      <span className="workspace-pill-label">{option.label}</span>
+                      <span className="workspace-mode-badge workspace-mode-badge--muted">
+                        {formatRepresentationKind(option.representationKind)}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {isDecomposition && (
+                <div className="workspace-subsector-detail">
+                  {sub.activeChildRoleIds.length} child {sub.activeChildRoleIds.length === 1 ? 'role' : 'roles'} active
+                  under this representation.
+                </div>
+              )}
+            </div>
+          )}
+
+          {methodsInactive && (
+            <div className="workspace-subsector-detail">{sub.presentation.detail}</div>
+          )}
+          {!isCollapsed && hasMethodControls && (
+            <div className="workspace-method-chips">
+              {sub.states.map((state) => {
+                const isActive = !methodsInactive && activeStateIdSet.has(state.stateId);
+                const chipClass = methodsInactive
+                  ? 'workspace-method-chip--inactive'
+                  : isActive
+                    ? 'workspace-method-chip--on'
+                    : 'workspace-method-chip--off';
+                const chipLabel = formatWorkspacePillLabel(state.stateLabel);
+                const hasEmbodiedEfficiency = embodiedStateIdSet.has(state.stateId);
+                const chipTitle = methodsInactive
+                  ? `${state.stateLabel}. ${sub.presentation.detail}`
+                  : hasEmbodiedEfficiency
+                    ? `${state.stateLabel}. Embodied efficiency method.`
+                    : state.stateLabel;
+
+                return (
+                  <button
+                    key={`${state.representationId}:${state.stateId}`}
+                    type="button"
+                    className={`workspace-method-chip ${chipClass}${outOfScope ? ' workspace-method-chip--dimmed' : ''}`}
+                    onClick={() =>
+                      onToggleStateActive(sub.outputId, state.stateId)
+                    }
+                    aria-pressed={!methodsInactive && isActive}
+                    disabled={methodsInactive}
+                    title={chipTitle}
+                  >
+                    <span className="workspace-pill-label">{chipLabel}</span>
+                    {hasEmbodiedEfficiency && (
+                      <span className="workspace-method-chip-badge">Embodied</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {!isCollapsed && hasEfficiencyControls && efficiencyControls && (
+            <div className="workspace-efficiency-controls">
+              <div className="workspace-efficiency-heading">Efficiency items</div>
+              {efficiencyControls.autonomousTracks.length > 0 && (
+                <button
+                  type="button"
+                  className={`workspace-efficiency-toggle${autonomousEnabled ? ' workspace-efficiency-toggle--on' : ''}`}
+                  aria-pressed={autonomousEnabled}
+                  onClick={() => onSetAutonomousEfficiencyForOutput(
+                    sub.outputId,
+                    autonomousEnabled ? 'off' : 'baseline',
+                  )}
+                  title={efficiencyControls.autonomousTracks.map((track) => track.label).join(', ')}
+                >
+                  <span>Autonomous</span>
+                  <span className={`workspace-mode-badge workspace-mode-badge--${autonomousEnabled ? 'success' : 'muted'}`}>
+                    {autonomousEnabled ? 'On' : 'Off'}
+                  </span>
+                </button>
+              )}
+              {efficiencyControls.packages.length > 0 && (
+                <div className="workspace-efficiency-package-stack">
+                  {efficiencyControls.packages.length > 1 && (
+                    <div className="workspace-efficiency-package-actions">
+                      <button
+                        type="button"
+                        className="workspace-mode-toggle"
+                        onClick={() => onSetAllEfficiencyPackagesForOutput(sub.outputId, true)}
+                      >
+                        All packages on
+                      </button>
+                      <button
+                        type="button"
+                        className="workspace-mode-toggle"
+                        onClick={() => onSetAllEfficiencyPackagesForOutput(sub.outputId, false)}
+                      >
+                        All packages off
+                      </button>
+                    </div>
+                  )}
+                  {efficiencyControls.packages.map((pkg) => {
+                    const maxShareTitle = formatMaxShareByYear(pkg.maxShareByYear);
+                    const metadataTitle = [
+                      pkg.nonStackingGroup ? `Non-stacking group: ${pkg.nonStackingGroup}` : null,
+                      maxShareTitle || null,
+                    ].filter(Boolean).join('. ');
+
+                    return (
+                      <button
+                        key={pkg.packageId}
+                        type="button"
+                        className={`workspace-efficiency-package${pkg.enabled ? ' workspace-efficiency-package--on' : ''}`}
+                        aria-pressed={pkg.enabled}
+                        onClick={() => onSetEfficiencyPackageEnabled(pkg.packageId, !pkg.enabled)}
+                        title={metadataTitle || pkg.label}
+                      >
+                        <span className="workspace-efficiency-package-label">{pkg.label}</span>
+                        <span className="workspace-efficiency-package-meta">
+                          <span className="workspace-mode-badge workspace-mode-badge--info">
+                            {formatEfficiencyPackageClassification(pkg.classification)}
+                          </span>
+                          {pkg.nonStackingGroup && (
+                            <span
+                              className="workspace-mode-badge workspace-mode-badge--muted"
+                              title={`Non-stacking group: ${pkg.nonStackingGroup}`}
+                            >
+                              Group
+                            </span>
+                          )}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              {efficiencyControls.embodiedStateIds.length > 0 && (
+                <div className="workspace-efficiency-readonly">
+                  <span className="workspace-mode-badge workspace-mode-badge--muted">
+                    Embodied
+                  </span>
+                  <span className="workspace-efficiency-readonly-text">
+                    Controlled by method
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        {sub.childRoles.length > 0 && (
+          <div className="workspace-child-role-stack" role="group" aria-label={`${sub.roleLabel} child roles`}>
+            {sub.childRoles.map((childRole) => renderRoleNode(childRole))}
+          </div>
+        )}
+      </React.Fragment>
+    );
+  }
+
   return (
     <React.Fragment>
       {tree.map((sectorEntry) => (
@@ -126,198 +388,12 @@ export default function RightSidebarContent({
                   className="workspace-mode-toggle"
                   onClick={() => onToggleExpandedSector(sectorEntry.sector)}
                 >
-                  {sectorEntry.isCollapsed ? 'Show segments' : 'Hide segments'}
+                  {sectorEntry.isCollapsed ? 'Show roles' : 'Hide roles'}
                 </button>
               </div>
             )}
           </div>
-          {!sectorEntry.isCollapsed && sectorEntry.subsectors.map((sub) => {
-            const activeStateIdSet = new Set(sub.activeStateIds);
-            const pathwaysInactive = sub.pathwaysInactive;
-            const outOfScope = sub.outOfScope;
-            const isCollapsed = sub.isCollapsed;
-            const badges = sub.badges;
-            const efficiencyControls = sub.efficiencyControls;
-            const hasEfficiencyControls = efficiencyControls?.hasControls === true;
-            const autonomousEnabled = efficiencyControls?.autonomousTracks.some((track) => track.enabled) ?? false;
-            const embodiedStateIdSet = new Set(efficiencyControls?.embodiedStateIds ?? []);
-            const isResidualStub = sub.familyResolution === 'residual_stub';
-
-            return (
-              <div
-                key={sub.outputId}
-                className={`workspace-subsector-group${outOfScope ? ' workspace-subsector-group--dimmed' : ''}`}
-              >
-                <div
-                  className={`workspace-subsector-title${sub.canCollapse ? ' workspace-subsector-title--clickable' : ''}`}
-                  onClick={sub.canCollapse ? () => onToggleExpandedSubsector(sub.outputId) : undefined}
-                >
-                  {sub.outputLabel}
-                </div>
-                {(badges.length > 0 || isResidualStub) && (
-                  <div className="workspace-subsector-meta">
-                    {isResidualStub && (
-                      <span
-                        className="workspace-mode-badge workspace-mode-badge--warning"
-                        title={sub.coverageScopeLabel ?? sub.outputLabel}
-                      >
-                        Residual stub
-                      </span>
-                    )}
-                    {badges.map((badge) => (
-                      <span
-                        key={badge.key}
-                        className={`workspace-mode-badge workspace-mode-badge--${badge.tone}`}
-                        title={sub.presentation.detail}
-                      >
-                        {badge.label}
-                      </span>
-                    ))}
-                    <span className="workspace-mode-badge workspace-mode-badge--muted">
-                      Mode: {formatControlMode(sub.status?.controlMode)}
-                    </span>
-                    {sub.canCollapse && (
-                      <button
-                        type="button"
-                        className="workspace-mode-toggle"
-                        onClick={() => onToggleExpandedSubsector(sub.outputId)}
-                      >
-                        {isCollapsed ? 'Show routes' : 'Hide routes'}
-                      </button>
-                    )}
-                  </div>
-                )}
-                {pathwaysInactive && (
-                  <div className="workspace-subsector-detail">{sub.presentation.detail}</div>
-                )}
-                {!isCollapsed && (
-                  <div className="workspace-state-chips">
-                    {sub.states.map((state) => {
-                      const isActive = !pathwaysInactive && activeStateIdSet.has(state.stateId);
-                      const chipClass = pathwaysInactive
-                        ? 'workspace-state-chip--inactive'
-                        : isActive
-                          ? 'workspace-state-chip--on'
-                          : 'workspace-state-chip--off';
-                      const chipLabel = formatWorkspacePillLabel(state.stateLabel);
-                      const hasEmbodiedEfficiency = embodiedStateIdSet.has(state.stateId);
-                      const chipTitle = pathwaysInactive
-                        ? `${state.stateLabel}. ${sub.presentation.detail}`
-                        : hasEmbodiedEfficiency
-                          ? `${state.stateLabel}. Embodied efficiency route.`
-                          : state.stateLabel;
-
-                      return (
-                        <button
-                          key={state.stateId}
-                          type="button"
-                          className={`workspace-state-chip ${chipClass}${outOfScope ? ' workspace-state-chip--dimmed' : ''}`}
-                          onClick={() =>
-                            onToggleStateActive(sub.outputId, state.stateId)
-                          }
-                          aria-pressed={!pathwaysInactive && isActive}
-                          disabled={pathwaysInactive}
-                          title={chipTitle}
-                        >
-                          <span className="workspace-pill-label">{chipLabel}</span>
-                          {hasEmbodiedEfficiency && (
-                            <span className="workspace-state-chip-badge">Embodied</span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-                {!isCollapsed && hasEfficiencyControls && efficiencyControls && (
-                  <div className="workspace-efficiency-controls">
-                    <div className="workspace-efficiency-heading">Efficiency items</div>
-                    {efficiencyControls.autonomousTracks.length > 0 && (
-                      <button
-                        type="button"
-                        className={`workspace-efficiency-toggle${autonomousEnabled ? ' workspace-efficiency-toggle--on' : ''}`}
-                        aria-pressed={autonomousEnabled}
-                        onClick={() => onSetAutonomousEfficiencyForOutput(
-                          sub.outputId,
-                          autonomousEnabled ? 'off' : 'baseline',
-                        )}
-                        title={efficiencyControls.autonomousTracks.map((track) => track.label).join(', ')}
-                      >
-                        <span>Autonomous</span>
-                        <span className={`workspace-mode-badge workspace-mode-badge--${autonomousEnabled ? 'success' : 'muted'}`}>
-                          {autonomousEnabled ? 'On' : 'Off'}
-                        </span>
-                      </button>
-                    )}
-                    {efficiencyControls.packages.length > 0 && (
-                      <div className="workspace-efficiency-package-stack">
-                        {efficiencyControls.packages.length > 1 && (
-                          <div className="workspace-efficiency-package-actions">
-                            <button
-                              type="button"
-                              className="workspace-mode-toggle"
-                              onClick={() => onSetAllEfficiencyPackagesForOutput(sub.outputId, true)}
-                            >
-                              All packages on
-                            </button>
-                            <button
-                              type="button"
-                              className="workspace-mode-toggle"
-                              onClick={() => onSetAllEfficiencyPackagesForOutput(sub.outputId, false)}
-                            >
-                              All packages off
-                            </button>
-                          </div>
-                        )}
-                        {efficiencyControls.packages.map((pkg) => {
-                          const maxShareTitle = formatMaxShareByYear(pkg.maxShareByYear);
-                          const metadataTitle = [
-                            pkg.nonStackingGroup ? `Non-stacking group: ${pkg.nonStackingGroup}` : null,
-                            maxShareTitle || null,
-                          ].filter(Boolean).join('. ');
-
-                          return (
-                            <button
-                              key={pkg.packageId}
-                              type="button"
-                              className={`workspace-efficiency-package${pkg.enabled ? ' workspace-efficiency-package--on' : ''}`}
-                              aria-pressed={pkg.enabled}
-                              onClick={() => onSetEfficiencyPackageEnabled(pkg.packageId, !pkg.enabled)}
-                              title={metadataTitle || pkg.label}
-                            >
-                              <span className="workspace-efficiency-package-label">{pkg.label}</span>
-                              <span className="workspace-efficiency-package-meta">
-                                <span className="workspace-mode-badge workspace-mode-badge--info">
-                                  {formatEfficiencyPackageClassification(pkg.classification)}
-                                </span>
-                                {pkg.nonStackingGroup && (
-                                  <span
-                                    className="workspace-mode-badge workspace-mode-badge--muted"
-                                    title={`Non-stacking group: ${pkg.nonStackingGroup}`}
-                                  >
-                                    Group
-                                  </span>
-                                )}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                    {efficiencyControls.embodiedStateIds.length > 0 && (
-                      <div className="workspace-efficiency-readonly">
-                        <span className="workspace-mode-badge workspace-mode-badge--muted">
-                          Embodied
-                        </span>
-                        <span className="workspace-efficiency-readonly-text">
-                          Controlled by route
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+          {!sectorEntry.isCollapsed && sectorEntry.subsectors.map((sub) => renderRoleNode(sub))}
           {!sectorEntry.isCollapsed && sectorEntry.residualGroup && (
             <div className="workspace-residual-group">
               <div className="workspace-residual-group-header">
@@ -392,9 +468,9 @@ export default function RightSidebarContent({
           )}
         </div>
       ))}
-      <div className="workspace-state-legend" role="note" aria-label="System structure status legend">
+      <div className="workspace-state-legend" role="note" aria-label="Role representation status legend">
         <p className="workspace-state-legend-copy">
-          Outputs with active routes participate in the solve. Outputs whose routes are all
+          Roles with active methods participate in the solve. Roles whose methods are all
           deactivated are excluded. Dependencies like electricity are auto-included when needed.
         </p>
         <div className="workspace-state-legend-items">
