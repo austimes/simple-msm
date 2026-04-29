@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Background,
   BaseEdge,
@@ -8,7 +8,6 @@ import {
   Position,
   ReactFlow,
   ReactFlowProvider,
-  applyNodeChanges,
   useReactFlow,
   type EdgeProps,
   type NodeChange,
@@ -268,16 +267,26 @@ const EDGE_TYPES = {
   [SYSTEM_FLOW_EDGE_TYPE]: SystemFlowEdge,
 } satisfies EdgeTypes;
 
+const EMPTY_SYSTEM_FLOW_LAYOUT: SystemFlowDiagramLayout = {
+  nodes: [],
+  edges: [],
+};
+
+interface SystemFlowLayoutState {
+  data: SystemFlowGraphData | null;
+  layout: SystemFlowDiagramLayout;
+  viewMode: SystemFlowViewMode | null;
+}
+
 function useSystemFlowLayout(data: SystemFlowGraphData, viewMode: SystemFlowViewMode) {
-  const [layout, setLayout] = useState<SystemFlowDiagramLayout>(() => ({
-    nodes: [],
-    edges: [],
+  const [layoutState, setLayoutState] = useState<SystemFlowLayoutState>(() => ({
+    data: null,
+    layout: EMPTY_SYSTEM_FLOW_LAYOUT,
+    viewMode: null,
   }));
-  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
-    setIsLoading(true);
 
     layoutSystemFlowDiagram(data, viewMode)
       .then((nextLayout) => {
@@ -285,8 +294,7 @@ function useSystemFlowLayout(data: SystemFlowGraphData, viewMode: SystemFlowView
           return;
         }
 
-        setLayout(nextLayout);
-        setIsLoading(false);
+        setLayoutState({ data, layout: nextLayout, viewMode });
       })
       .catch((error: unknown) => {
         if (cancelled) {
@@ -294,8 +302,7 @@ function useSystemFlowLayout(data: SystemFlowGraphData, viewMode: SystemFlowView
         }
 
         console.error('Failed to layout system flow graph', error);
-        setLayout({ nodes: [], edges: [] });
-        setIsLoading(false);
+        setLayoutState({ data, layout: EMPTY_SYSTEM_FLOW_LAYOUT, viewMode });
       });
 
     return () => {
@@ -303,7 +310,10 @@ function useSystemFlowLayout(data: SystemFlowGraphData, viewMode: SystemFlowView
     };
   }, [data, viewMode]);
 
-  return { layout, isLoading };
+  return {
+    layout: layoutState.layout,
+    isLoading: layoutState.data !== data || layoutState.viewMode !== viewMode,
+  };
 }
 
 function SystemFlowCanvasInner({
@@ -314,11 +324,10 @@ function SystemFlowCanvasInner({
 }: SystemFlowGraphCanvasProps) {
   const { fitView } = useReactFlow<SystemFlowDiagramNode, SystemFlowDiagramEdge>();
   const { layout, isLoading } = useSystemFlowLayout(data, viewMode);
-  const manualPositionsRef = useRef(new Map<string, XYPosition>());
-  const [nodes, setNodes] = useState<SystemFlowDiagramNode[]>([]);
-  const nodesWithActions = useMemo<SystemFlowDiagramNode[]>(() => {
+  const [manualPositions, setManualPositions] = useState(() => new Map<string, XYPosition>());
+  const nodes = useMemo<SystemFlowDiagramNode[]>(() => {
     return layout.nodes.map((node) => {
-      const cachedPosition = manualPositionsRef.current.get(node.id);
+      const cachedPosition = manualPositions.get(node.id);
       const nextNode = cachedPosition
         ? {
           ...node,
@@ -338,26 +347,22 @@ function SystemFlowCanvasInner({
         },
       };
     });
-  }, [layout.nodes, onToggleSegment]);
-
-  useEffect(() => {
-    setNodes(nodesWithActions);
-  }, [nodesWithActions]);
+  }, [layout.nodes, manualPositions, onToggleSegment]);
 
   const onNodesChange = useCallback((changes: NodeChange<SystemFlowDiagramNode>[]) => {
-    setNodes((currentNodes) => {
-      const nextNodes = applyNodeChanges(changes, currentNodes) as SystemFlowDiagramNode[];
-      const changedNodeIds = new Set(
-        changes.flatMap((change) => ('id' in change ? [change.id] : [])),
-      );
+    setManualPositions((currentPositions) => {
+      let nextPositions: Map<string, XYPosition> | null = null;
 
-      for (const node of nextNodes) {
-        if (changedNodeIds.has(node.id)) {
-          manualPositionsRef.current.set(node.id, node.position);
+      for (const change of changes) {
+        if (change.type !== 'position' || !change.position) {
+          continue;
         }
+
+        nextPositions ??= new Map(currentPositions);
+        nextPositions.set(change.id, change.position);
       }
 
-      return nextNodes;
+      return nextPositions ?? currentPositions;
     });
   }, []);
 
