@@ -16,6 +16,12 @@
         "electricity__grid_supply__incumbent_thermal_mix"
       ]
     },
+    "coal_mining": {
+      "mode": "optimize",
+      "active_state_ids": [
+        "coal_mining__conventional"
+      ]
+    },
     "residential_building_services": {
       "mode": "optimize",
       "active_state_ids": [

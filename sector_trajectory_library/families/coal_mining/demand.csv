@@ -1,0 +1,2 @@
+family_id,anchor_year,anchor_value,unit,demand_growth_curve_id,anchor_status,source_family,coverage_note,notes
+coal_mining,2025,60000,kt_coal,simple_sector_growth_central__coal_mining,calibrated,Phase 1 reference scenario v0.1,"Covers all Australian black and brown coal mining (raw output at pit-head, pre-washing and beneficiation).",Calibrated to ABS and Geoscience Australia 2024-25. Real output ~60 Mt (raw coal) at 2024-25. Demand trajectory governed by external growth curve; see demand_growth_curves.csv for scenario variants.
