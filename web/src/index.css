@@ -1594,6 +1594,18 @@ body {
   align-items: flex-start;
 }
 
+.library-panel-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.library-download-button {
+  white-space: nowrap;
+}
+
 .library-panel-heading p,
 .library-section-header p,
 .methods-content-card p,

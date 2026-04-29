@@ -5,6 +5,8 @@ import {
   getPresentation,
 } from '../data/chartPresentation.ts';
 import { getEmbodiedEfficiencyPathwayEntry } from '../data/efficiencyAttributionRegistry.ts';
+import { buildLibraryExportBundle } from '../data/libraryExport.ts';
+import { downloadLibraryExportBundle } from '../data/libraryExportDownload.ts';
 import {
   buildInputCommoditySeries,
   buildFamilyEfficiencyOverview,
@@ -788,6 +790,23 @@ export default function LibraryPage() {
     resetLibraryUi();
   };
 
+  const handleDownloadLibraryExport = () => {
+    const bundle = buildLibraryExportBundle({
+      scope: {
+        sector: resolvedSelectedSector,
+        subsector: resolvedSelectedSubsector,
+        filters: { ...filters },
+        selectedTrajectoryId: resolvedSelectedTrajectoryId,
+        generatedAt: new Date().toISOString(),
+      },
+      trajectories: visibleTrajectories,
+      sourceLedger: enrichment.sourceLedger,
+      assumptionsLedger: enrichment.assumptionsLedger,
+    });
+
+    downloadLibraryExportBundle(bundle);
+  };
+
   return (
     <div className="page page--library">
       <h1>Library</h1>
@@ -969,7 +988,16 @@ export default function LibraryPage() {
                     <h2>Method highlight</h2>
                     <p>Choose one trajectory here to emphasize it across the charts, comparison matrix, detail pane, and coefficient facets.</p>
                   </div>
-                  <span className="library-count-pill">{trajectorySelectionItems.length} methods</span>
+                  <div className="library-panel-actions">
+                    <span className="library-count-pill">{trajectorySelectionItems.length} methods</span>
+                    <button
+                      type="button"
+                      className="configuration-button library-download-button"
+                      onClick={handleDownloadLibraryExport}
+                    >
+                      Download data package
+                    </button>
+                  </div>
                 </div>
 
                 <div className="library-state-selector-grid">

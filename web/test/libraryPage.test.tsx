@@ -64,6 +64,22 @@ async function renderLibraryPage(persistedState: AppUiState): Promise<string> {
 }
 
 describe('LibraryPage efficiency search and filters', () => {
+  test('shows a data package download action when trajectories are visible', async () => {
+    const persistedState: AppUiState = {
+      ...structuredClone(DEFAULT_APP_UI_STATE),
+      library: {
+        ...structuredClone(DEFAULT_APP_UI_STATE.library),
+        selectedSector: 'electricity_supply',
+        selectedSubsector: 'grid_supply',
+        selectedTrajectoryId: 'electricity__grid_supply__policy_frontier',
+      },
+    };
+
+    const html = await renderLibraryPage(persistedState);
+
+    assert.match(html, /Download data package/);
+  });
+
   test('searches applicable efficiency artifacts and filters states by applicability and artifact type', async () => {
     const packageState = usePackageStore.getState();
     const candidate = buildSectorStateFamilies(packageState.sectorStates)
