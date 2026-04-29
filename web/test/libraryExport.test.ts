@@ -62,6 +62,22 @@ function buildElectricityBundle(): {
   };
 }
 
+function parseReportData(report: string): {
+  comparisonRows: Array<{
+    state_id: string;
+    metric_id: string;
+    metric_label: string;
+    values: Record<string, string>;
+  }>;
+} {
+  const match = report.match(
+    /<script type="application\/json" id="library-export-data">([\s\S]*?)<\/script>/,
+  );
+
+  assert.ok(match, 'expected embedded report data');
+  return JSON.parse(match[1]);
+}
+
 describe('library export bundle', () => {
   test('exports the visible electricity supply scope with the expected bundle files and manifest', () => {
     const { bundle, trajectories } = buildElectricityBundle();
@@ -132,6 +148,26 @@ describe('library export bundle', () => {
     assert.equal(assumptionRows.length > 0, true);
     assert.equal(assumptionRows.length < pkg.enrichment.assumptionsLedger.length, true);
     assert.equal(assumptionRows.every((row) => referencedAssumptionIds.has(row.assumption_id)), true);
+  });
+
+  test('includes input coefficients in the offline report comparison table data', () => {
+    const { bundle } = buildElectricityBundle();
+    const reportData = parseReportData(bundle.files['report.html']);
+    const inputRows = reportData.comparisonRows.filter((row) => row.metric_id.startsWith('input:'));
+    const incumbentCoal = inputRows.find((row) =>
+      row.state_id === 'electricity__grid_supply__incumbent_thermal_mix'
+      && row.metric_label === 'Input coefficient: Coal'
+    );
+    const incumbentNaturalGas = inputRows.find((row) =>
+      row.state_id === 'electricity__grid_supply__incumbent_thermal_mix'
+      && row.metric_label === 'Input coefficient: Natural gas'
+    );
+
+    assert.equal(reportData.comparisonRows.some((row) => row.metric_label === 'Cost'), true);
+    assert.ok(incumbentCoal, 'expected incumbent coal coefficient row in report table data');
+    assert.ok(incumbentNaturalGas, 'expected incumbent natural gas coefficient row in report table data');
+    assert.equal(incumbentCoal?.values['2025'], '6.8 GJ/MWh');
+    assert.equal(incumbentNaturalGas?.values['2025'], '1.1 GJ/MWh');
   });
 
   test('builds a self-contained offline report and round-trippable zip archive', () => {

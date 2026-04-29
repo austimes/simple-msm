@@ -48,6 +48,22 @@ interface ChartPointRow extends CsvRow {
   is_selected: boolean;
 }
 
+interface ReportComparisonRow {
+  state_id: string;
+  state_label: string;
+  metric_id: string;
+  metric_label: string;
+  values: Record<string, string>;
+}
+
+const REPORT_BASE_METRICS = [
+  { id: 'cost', label: 'Cost' },
+  { id: 'energy', label: 'Energy emissions' },
+  { id: 'process', label: 'Process emissions' },
+  { id: 'max_share', label: 'Max share' },
+  { id: 'max_activity', label: 'Max activity' },
+] as const;
+
 const FILE_PATHS = [
   'manifest.json',
   'README.txt',
@@ -579,6 +595,65 @@ function escapeJsonForScript(value: unknown): string {
     .replaceAll('&', '\\u0026');
 }
 
+function chartPointKey(stateId: string, metricId: string, year: number): string {
+  return `${stateId}\u0000${metricId}\u0000${year}`;
+}
+
+function formatReportPoint(point: ChartPointRow | undefined): string {
+  if (!point?.display_value) return '';
+  return point.unit ? `${point.display_value} ${point.unit}` : point.display_value;
+}
+
+function buildReportComparisonRows(
+  trajectories: SectorStateTrajectory[],
+  years: number[],
+  chartPoints: ChartPointRow[],
+): ReportComparisonRow[] {
+  const pointByKey = new Map(
+    chartPoints.map((point) => [chartPointKey(point.state_id, point.metric_id, point.year), point]),
+  );
+
+  return trajectories.flatMap((trajectory) => {
+    const baseRows = REPORT_BASE_METRICS.map((metric) => ({
+      state_id: trajectory.stateId,
+      state_label: trajectory.label,
+      metric_id: metric.id,
+      metric_label: metric.label,
+      values: Object.fromEntries(
+        years.map((year) => [
+          String(year),
+          pointByKey.get(chartPointKey(trajectory.stateId, metric.id, year))?.display_value ?? '',
+        ]),
+      ),
+    }));
+
+    const inputMetrics = Array.from(
+      new Map(
+        chartPoints
+          .filter((point) => point.panel_id === 'input_coefficients' && point.state_id === trajectory.stateId)
+          .map((point) => [point.metric_id, point]),
+      ).values(),
+    ).sort((left, right) =>
+      (left.commodity_label || left.metric_label).localeCompare(right.commodity_label || right.metric_label),
+    );
+
+    const inputRows = inputMetrics.map((metric) => ({
+      state_id: trajectory.stateId,
+      state_label: trajectory.label,
+      metric_id: metric.metric_id,
+      metric_label: `Input coefficient: ${metric.metric_label}`,
+      values: Object.fromEntries(
+        years.map((year) => [
+          String(year),
+          formatReportPoint(pointByKey.get(chartPointKey(trajectory.stateId, metric.metric_id, year))),
+        ]),
+      ),
+    }));
+
+    return [...baseRows, ...inputRows];
+  });
+}
+
 function buildReportHtml(input: {
   manifest: Record<string, unknown>;
   chartPoints: ChartPointRow[];
@@ -598,6 +673,7 @@ function buildReportHtml(input: {
       emissions_unit: trajectory.emissionsUnit,
     })),
     chartPoints: input.chartPoints,
+    comparisonRows: buildReportComparisonRows(input.trajectories, input.years, input.chartPoints),
   };
 
   return `<!doctype html>
@@ -767,14 +843,6 @@ function buildReportHtml(input: {
         ['max_activity', 'Max activity'],
         ['input_coefficients', 'Input coefficient trajectories']
       ];
-      var metricOrder = ['cost', 'energy', 'process', 'max_share', 'max_activity'];
-      var metricLabels = {
-        cost: 'Cost',
-        energy: 'Energy emissions',
-        process: 'Process emissions',
-        max_share: 'Max share',
-        max_activity: 'Max activity'
-      };
       var colorByState = {};
       data.trajectories.forEach(function (trajectory, index) {
         colorByState[trajectory.state_id] = palette[index % palette.length];
@@ -947,26 +1015,12 @@ function buildReportHtml(input: {
       }
 
       function buildComparisonTable() {
-        var rows = [];
-        data.trajectories.forEach(function (trajectory) {
-          metricOrder.forEach(function (metric) {
-            var values = {};
-            data.years.forEach(function (year) {
-              var point = data.chartPoints.find(function (candidate) {
-                return candidate.state_id === trajectory.state_id
-                  && candidate.metric_id === metric
-                  && candidate.year === year;
-              });
-              values[year] = point ? point.display_value : '';
-            });
-            rows.push({ trajectory: trajectory, metric: metric, values: values });
-          });
-        });
+        var rows = data.comparisonRows || [];
         var html = '<table><thead><tr><th>State</th><th>Metric</th>' + data.years.map(function (year) {
           return '<th>' + escapeText(year) + '</th>';
         }).join('') + '</tr></thead><tbody>';
         rows.forEach(function (row) {
-          html += '<tr><td>' + escapeText(row.trajectory.state_label) + '</td><td>' + escapeText(metricLabels[row.metric]) + '</td>' + data.years.map(function (year) {
+          html += '<tr><td>' + escapeText(row.state_label) + '</td><td>' + escapeText(row.metric_label) + '</td>' + data.years.map(function (year) {
             return '<td>' + escapeText(row.values[year]) + '</td>';
           }).join('') + '</tr>';
         });
