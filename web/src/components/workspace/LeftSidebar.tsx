@@ -114,6 +114,10 @@ interface LeftSidebarProps {
 export default function LeftSidebar({ initialExpandedSections, initialActiveTab = 'levers' }: LeftSidebarProps = {}) {
   const appConfig = usePackageStore((s) => s.appConfig);
   const sectorStates = usePackageStore((s) => s.sectorStates);
+  const roleMetadata = usePackageStore((s) => s.roleMetadata);
+  const representations = usePackageStore((s) => s.representations);
+  const roleDecompositionEdges = usePackageStore((s) => s.roleDecompositionEdges);
+  const methods = usePackageStore((s) => s.methods);
   const currentConfiguration = usePackageStore((s) => s.currentConfiguration);
   const residualOverlays2025 = usePackageStore((s) => s.residualOverlays2025);
   const setDemandPreset = usePackageStore((s) => s.setDemandPreset);
@@ -152,10 +156,29 @@ export default function LeftSidebar({ initialExpandedSections, initialActiveTab 
   const respectMaxShare = currentConfiguration.solver_options?.respect_max_share ?? true;
   const outputStatuses = useMemo(
     () => deriveOutputRunStatusesForConfiguration(
-      { sectorStates, appConfig, autonomousEfficiencyTracks, efficiencyPackages },
+      {
+        sectorStates,
+        appConfig,
+        autonomousEfficiencyTracks,
+        efficiencyPackages,
+        roleMetadata,
+        representations,
+        roleDecompositionEdges,
+        methods,
+      },
       currentConfiguration,
     ),
-    [sectorStates, appConfig, autonomousEfficiencyTracks, efficiencyPackages, currentConfiguration],
+    [
+      sectorStates,
+      appConfig,
+      autonomousEfficiencyTracks,
+      efficiencyPackages,
+      roleMetadata,
+      representations,
+      roleDecompositionEdges,
+      methods,
+      currentConfiguration,
+    ],
   );
   const commodityControls = useMemo<CommodityControlEntry[]>(
     () => {

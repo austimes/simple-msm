@@ -1,11 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Phase 1 Sector State Explorer Configuration Schema v0.3",
+  "title": "Phase 1 Role Representation Configuration Schema v0.4",
   "type": "object",
   "required": [
     "name",
     "years",
-    "service_controls",
+    "role_controls",
     "service_demands",
     "demand_generation",
     "commodity_pricing",
@@ -40,9 +40,9 @@
         "type": "string"
       }
     },
-    "service_controls": {
+    "role_controls": {
       "type": "object",
-      "description": "One control block per service_or_output_name.",
+      "description": "One control block per canonical role_id.",
       "additionalProperties": {
         "type": "object",
         "required": [
@@ -64,7 +64,7 @@
             ],
             "minimum": 0
           },
-          "active_state_ids": {
+          "active_method_ids": {
             "type": [
               "array",
               "null"
@@ -90,6 +90,15 @@
                     "null"
                   ],
                   "minimum": 0
+                },
+                "active_method_ids": {
+                  "type": [
+                    "array",
+                    "null"
+                  ],
+                  "items": {
+                    "type": "string"
+                  }
                 }
               }
             }

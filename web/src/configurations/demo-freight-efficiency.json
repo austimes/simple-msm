@@ -9,146 +9,176 @@
     2045,
     2050
   ],
-  "service_controls": {
-    "electricity": {
-      "mode": "externalized"
-    },
-    "residential_building_services": {
+  "representation_by_role": {
+    "account_electricity_grid_losses_own_use": "account_electricity_grid_losses_own_use__pathway_bundle",
+    "account_residual_agriculture": "account_residual_agriculture__pathway_bundle",
+    "account_residual_commercial_buildings": "account_residual_commercial_buildings__pathway_bundle",
+    "account_residual_construction": "account_residual_construction__pathway_bundle",
+    "account_residual_fugitives": "account_residual_fugitives__pathway_bundle",
+    "account_residual_ippu": "account_residual_ippu__pathway_bundle",
+    "account_residual_lulucf_sink": "account_residual_lulucf_sink__pathway_bundle",
+    "account_residual_manufacturing": "account_residual_manufacturing__pathway_bundle",
+    "account_residual_mining_energy": "account_residual_mining_energy__pathway_bundle",
+    "account_residual_other_sectors": "account_residual_other_sectors__pathway_bundle",
+    "account_residual_residential_buildings": "account_residual_residential_buildings__pathway_bundle",
+    "account_residual_transport": "account_residual_transport__pathway_bundle",
+    "account_residual_waste_emissions": "account_residual_waste_emissions__pathway_bundle",
+    "account_residual_water_waste": "account_residual_water_waste__pathway_bundle",
+    "deliver_commercial_building_services": "deliver_commercial_building_services__pathway_bundle",
+    "deliver_freight_road_transport": "deliver_freight_road_transport__pathway_bundle",
+    "deliver_high_temperature_heat": "deliver_high_temperature_heat__pathway_bundle",
+    "deliver_low_temperature_heat": "deliver_low_temperature_heat__pathway_bundle",
+    "deliver_medium_temperature_heat": "deliver_medium_temperature_heat__pathway_bundle",
+    "deliver_passenger_road_transport": "deliver_passenger_road_transport__pathway_bundle",
+    "deliver_residential_building_services": "deliver_residential_building_services__pathway_bundle",
+    "produce_cement_equivalent": "produce_cement_equivalent__pathway_bundle",
+    "produce_cropping_horticulture_output": "produce_cropping_horticulture_output__pathway_bundle",
+    "produce_crude_steel": "produce_crude_steel__pathway_bundle",
+    "produce_livestock_output": "produce_livestock_output__pathway_bundle",
+    "remove_co2_engineered_removals": "remove_co2_engineered_removals__pathway_bundle",
+    "remove_co2_land_sequestration": "remove_co2_land_sequestration__pathway_bundle",
+    "supply_electricity": "supply_electricity__pathway_bundle"
+  },
+  "role_controls": {
+    "account_electricity_grid_losses_own_use": {
       "mode": "optimize",
-      "active_state_ids": []
+      "active_method_ids": [
+        "electricity_grid_losses_own_use__residual_incumbent"
+      ]
     },
-    "commercial_building_services": {
+    "account_residual_agriculture": {
       "mode": "optimize",
-      "active_state_ids": []
+      "active_method_ids": [
+        "residual_agriculture_other__residual_incumbent"
+      ]
     },
-    "passenger_road_transport": {
+    "account_residual_commercial_buildings": {
       "mode": "optimize",
-      "active_state_ids": []
+      "active_method_ids": [
+        "commercial_other__residual_incumbent"
+      ]
     },
-    "freight_road_transport": {
+    "account_residual_construction": {
       "mode": "optimize",
-      "active_state_ids": [
+      "active_method_ids": [
+        "construction_other__residual_incumbent"
+      ]
+    },
+    "account_residual_fugitives": {
+      "mode": "optimize",
+      "active_method_ids": [
+        "residual_fugitives__residual_incumbent"
+      ]
+    },
+    "account_residual_ippu": {
+      "mode": "optimize",
+      "active_method_ids": [
+        "residual_ippu_other__residual_incumbent"
+      ]
+    },
+    "account_residual_lulucf_sink": {
+      "mode": "optimize",
+      "active_method_ids": []
+    },
+    "account_residual_manufacturing": {
+      "mode": "optimize",
+      "active_method_ids": [
+        "manufacturing_other__residual_incumbent"
+      ]
+    },
+    "account_residual_mining_energy": {
+      "mode": "optimize",
+      "active_method_ids": [
+        "mining_other__residual_incumbent"
+      ]
+    },
+    "account_residual_other_sectors": {
+      "mode": "optimize",
+      "active_method_ids": [
+        "other_other__residual_incumbent"
+      ]
+    },
+    "account_residual_residential_buildings": {
+      "mode": "optimize",
+      "active_method_ids": [
+        "residential_other__residual_incumbent"
+      ]
+    },
+    "account_residual_transport": {
+      "mode": "optimize",
+      "active_method_ids": [
+        "transport_other__residual_incumbent"
+      ]
+    },
+    "account_residual_waste_emissions": {
+      "mode": "optimize",
+      "active_method_ids": [
+        "residual_waste__residual_incumbent"
+      ]
+    },
+    "account_residual_water_waste": {
+      "mode": "optimize",
+      "active_method_ids": [
+        "water_waste_other__residual_incumbent"
+      ]
+    },
+    "deliver_commercial_building_services": {
+      "mode": "optimize",
+      "active_method_ids": []
+    },
+    "deliver_freight_road_transport": {
+      "mode": "optimize",
+      "active_method_ids": [
         "road_transport__freight_road__diesel",
         "road_transport__freight_road__efficient_diesel"
       ]
     },
-    "low_temperature_heat": {
+    "deliver_high_temperature_heat": {
       "mode": "optimize",
-      "active_state_ids": []
+      "active_method_ids": []
     },
-    "medium_temperature_heat": {
+    "deliver_low_temperature_heat": {
       "mode": "optimize",
-      "active_state_ids": []
+      "active_method_ids": []
     },
-    "high_temperature_heat": {
+    "deliver_medium_temperature_heat": {
       "mode": "optimize",
-      "active_state_ids": []
+      "active_method_ids": []
     },
-    "crude_steel": {
+    "deliver_passenger_road_transport": {
       "mode": "optimize",
-      "active_state_ids": []
+      "active_method_ids": []
     },
-    "cement_equivalent": {
+    "deliver_residential_building_services": {
       "mode": "optimize",
-      "active_state_ids": []
+      "active_method_ids": []
     },
-    "livestock_output_bundle": {
+    "produce_cement_equivalent": {
       "mode": "optimize",
-      "active_state_ids": []
+      "active_method_ids": []
     },
-    "cropping_horticulture_output_bundle": {
+    "produce_cropping_horticulture_output": {
       "mode": "optimize",
-      "active_state_ids": []
+      "active_method_ids": []
     },
-    "land_sequestration": {
+    "produce_crude_steel": {
       "mode": "optimize",
-      "active_state_ids": []
+      "active_method_ids": []
     },
-    "engineered_removals": {
+    "produce_livestock_output": {
       "mode": "optimize",
-      "active_state_ids": []
+      "active_method_ids": []
     },
-    "commercial_other": {
+    "remove_co2_engineered_removals": {
       "mode": "optimize",
-      "active_state_ids": [
-        "commercial_other__residual_incumbent"
-      ]
+      "active_method_ids": []
     },
-    "residential_other": {
+    "remove_co2_land_sequestration": {
       "mode": "optimize",
-      "active_state_ids": [
-        "residential_other__residual_incumbent"
-      ]
+      "active_method_ids": []
     },
-    "transport_other": {
-      "mode": "optimize",
-      "active_state_ids": [
-        "transport_other__residual_incumbent"
-      ]
-    },
-    "manufacturing_other": {
-      "mode": "optimize",
-      "active_state_ids": [
-        "manufacturing_other__residual_incumbent"
-      ]
-    },
-    "mining_other": {
-      "mode": "optimize",
-      "active_state_ids": [
-        "mining_other__residual_incumbent"
-      ]
-    },
-    "construction_other": {
-      "mode": "optimize",
-      "active_state_ids": [
-        "construction_other__residual_incumbent"
-      ]
-    },
-    "water_waste_other": {
-      "mode": "optimize",
-      "active_state_ids": [
-        "water_waste_other__residual_incumbent"
-      ]
-    },
-    "other_other": {
-      "mode": "optimize",
-      "active_state_ids": [
-        "other_other__residual_incumbent"
-      ]
-    },
-    "residual_fugitives": {
-      "mode": "optimize",
-      "active_state_ids": [
-        "residual_fugitives__residual_incumbent"
-      ]
-    },
-    "residual_ippu_other": {
-      "mode": "optimize",
-      "active_state_ids": [
-        "residual_ippu_other__residual_incumbent"
-      ]
-    },
-    "residual_agriculture_other": {
-      "mode": "optimize",
-      "active_state_ids": [
-        "residual_agriculture_other__residual_incumbent"
-      ]
-    },
-    "residual_waste": {
-      "mode": "optimize",
-      "active_state_ids": [
-        "residual_waste__residual_incumbent"
-      ]
-    },
-    "residual_lulucf_sink": {
-      "mode": "optimize",
-      "active_state_ids": []
-    },
-    "electricity_grid_losses_own_use": {
-      "mode": "optimize",
-      "active_state_ids": [
-        "electricity_grid_losses_own_use__residual_incumbent"
-      ]
+    "supply_electricity": {
+      "mode": "externalized"
     }
   },
   "service_demands": {

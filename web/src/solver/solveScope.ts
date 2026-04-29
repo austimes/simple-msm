@@ -1,4 +1,5 @@
 import { derivePathwayStateIds } from '../data/pathwaySemantics.ts';
+import { materializeServiceControlsFromRoleControls } from '../data/configurationRoleControls.ts';
 import { resolveActiveSectorStatesForConfiguration } from '../data/roleTopologyResolver.ts';
 import type {
   AppConfigRegistry,
@@ -287,10 +288,13 @@ export function deriveOutputRunStatusesForConfiguration(
   >>,
   configuration: ConfigurationDocument,
 ): Record<string, DerivedOutputRunStatus> {
+  const configurationWithServiceControls = materializeServiceControlsFromRoleControls(configuration, {
+    sectorStates: pkg.sectorStates,
+  });
   const sectorStates = resolveActiveSectorStatesForConfiguration(pkg, configuration);
   const rows = normalizeSolverRows({ ...pkg, sectorStates });
   const resolvedConfiguration = resolveConfigurationForSolve(
-    configuration,
+    configurationWithServiceControls,
     pkg.appConfig,
     sectorStates,
     {
@@ -300,7 +304,7 @@ export function deriveOutputRunStatusesForConfiguration(
   );
   return deriveOutputRunStatuses(
     rows,
-    configuration,
+    configurationWithServiceControls,
     resolvedConfiguration,
     pkg.appConfig,
   );

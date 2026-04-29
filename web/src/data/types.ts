@@ -48,6 +48,19 @@ export interface ConfigurationServiceControl {
   year_overrides?: Partial<Record<ConfigurationYearKey, ConfigurationServiceControlYearOverride>> | null;
 }
 
+export interface ConfigurationRoleControlYearOverride {
+  mode?: ConfigurationControlMode;
+  target_value?: number | null;
+  active_method_ids?: string[] | null;
+}
+
+export interface ConfigurationRoleControl {
+  mode: ConfigurationControlMode;
+  target_value?: number | null;
+  active_method_ids?: string[] | null;
+  year_overrides?: Partial<Record<ConfigurationYearKey, ConfigurationRoleControlYearOverride>> | null;
+}
+
 export type ConfigurationDemandGenerationMode =
   | 'manual_table'
   | 'anchor_plus_preset'
@@ -114,6 +127,7 @@ export interface ConfigurationDocument {
   description?: string;
   years: ConfigurationYear[];
   representation_by_role?: Record<string, string>;
+  role_controls?: Record<string, ConfigurationRoleControl>;
   service_controls: Record<string, ConfigurationServiceControl>;
   service_demands: Record<string, ConfigurationYearValueTable>;
   demand_generation: ConfigurationDemandGeneration;

@@ -24,6 +24,7 @@ import {
   materializeEfficiencyConfiguration,
   materializeResidualOverlayConfiguration,
 } from './configurationDocumentLoader.ts';
+import { materializeServiceControlsFromRoleControls } from './configurationRoleControls.ts';
 import { buildNextPackageAllowList } from './efficiencyControlModel.ts';
 import { isAggregatableResidualOverlay } from './residualOverlayPresentation.ts';
 import { getActiveStateIds } from './configurationWorkspaceModel.ts';
@@ -139,12 +140,16 @@ function persistActiveConfigurationMeta(state: {
 
 function materializeConfiguration(
   configuration: ConfigurationDocument,
+  sectorStates: PackageData['sectorStates'],
   autonomousEfficiencyTracks: PackageData['autonomousEfficiencyTracks'],
   efficiencyPackages: PackageData['efficiencyPackages'],
   residualOverlays2025: PackageData['residualOverlays2025'],
 ): ConfigurationDocument {
   return materializeEfficiencyConfiguration(
-    materializeResidualOverlayConfiguration(configuration, residualOverlays2025),
+    materializeResidualOverlayConfiguration(
+      materializeServiceControlsFromRoleControls(configuration, { sectorStates }),
+      residualOverlays2025,
+    ),
     autonomousEfficiencyTracks,
     efficiencyPackages,
   );
@@ -163,11 +168,12 @@ export const usePackageStore = create<PackageStore>((set, get) => {
   let initialDirty = false;
 
   if (persistedDraft.configuration) {
-    initialConfiguration = materializeConfiguration(
-      cloneConfiguration(persistedDraft.configuration),
-      pkg.autonomousEfficiencyTracks,
-      pkg.efficiencyPackages,
-      pkg.residualOverlays2025,
+      initialConfiguration = materializeConfiguration(
+        cloneConfiguration(persistedDraft.configuration),
+        pkg.sectorStates,
+        pkg.autonomousEfficiencyTracks,
+        pkg.efficiencyPackages,
+        pkg.residualOverlays2025,
     );
     initialSource = 'local_draft';
 
@@ -177,6 +183,7 @@ export const usePackageStore = create<PackageStore>((set, get) => {
       initialConfigReadonly = restoredMeta.activeConfigurationReadonly;
       initialBaseConfiguration = materializeConfiguration(
         cloneConfiguration(restoredMeta.baseConfiguration),
+        pkg.sectorStates,
         pkg.autonomousEfficiencyTracks,
         pkg.efficiencyPackages,
         pkg.residualOverlays2025,
@@ -193,6 +200,7 @@ export const usePackageStore = create<PackageStore>((set, get) => {
 
       initialConfiguration = materializeConfiguration(
         cloneConfiguration(defaultConfig),
+        pkg.sectorStates,
         pkg.autonomousEfficiencyTracks,
         pkg.efficiencyPackages,
         pkg.residualOverlays2025,
@@ -211,6 +219,7 @@ export const usePackageStore = create<PackageStore>((set, get) => {
     } else {
       initialConfiguration = materializeConfiguration(
         cloneConfiguration(pkg.defaultConfiguration),
+        pkg.sectorStates,
         pkg.autonomousEfficiencyTracks,
         pkg.efficiencyPackages,
         pkg.residualOverlays2025,
@@ -255,6 +264,7 @@ export const usePackageStore = create<PackageStore>((set, get) => {
     replaceCurrentConfiguration: (configuration, source = 'draft', notice = null) => {
       const nextConfiguration = materializeConfiguration(
         cloneConfiguration(configuration),
+        get().sectorStates,
         get().autonomousEfficiencyTracks,
         get().efficiencyPackages,
         get().residualOverlays2025,
@@ -301,6 +311,7 @@ export const usePackageStore = create<PackageStore>((set, get) => {
         const defaultConfigId = getConfigurationId(defaultConfig) ?? defaultConfig.name;
         const nextConfiguration = materializeConfiguration(
           cloneConfiguration(defaultConfig),
+          get().sectorStates,
           get().autonomousEfficiencyTracks,
           get().efficiencyPackages,
           get().residualOverlays2025,
@@ -321,6 +332,7 @@ export const usePackageStore = create<PackageStore>((set, get) => {
 
       const nextConfiguration = materializeConfiguration(
         cloneConfiguration(get().defaultConfiguration),
+        get().sectorStates,
         get().autonomousEfficiencyTracks,
         get().efficiencyPackages,
         get().residualOverlays2025,
@@ -543,6 +555,7 @@ export const usePackageStore = create<PackageStore>((set, get) => {
     loadConfiguration: (config) => {
       const nextConfiguration = materializeConfiguration(
         cloneConfiguration(config),
+        get().sectorStates,
         get().autonomousEfficiencyTracks,
         get().efficiencyPackages,
         get().residualOverlays2025,

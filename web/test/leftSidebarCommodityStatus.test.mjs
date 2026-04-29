@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { describe, test } from 'node:test';
+import { materializeServiceControlsFromRoleControls } from '../src/data/configurationRoleControls.ts';
 import { getCommodityPriceLevel } from '../src/data/configurationWorkspaceModel.ts';
 import { getCommodityPriceSelectorPresentation } from '../src/components/workspace/leftSidebarCommodityStatus.ts';
 import { deriveOutputRunStatusesForConfiguration } from '../src/solver/solveScope.ts';
@@ -13,9 +14,15 @@ function readJson(relativePath) {
   return JSON.parse(readFileSync(url, 'utf8'));
 }
 
+function readConfiguration(relativePath) {
+  return materializeServiceControlsFromRoleControls(readJson(relativePath), {
+    sectorStates: pkg.sectorStates,
+  });
+}
+
 describe('getCommodityPriceSelectorPresentation', () => {
   test('disables endogenous commodity price selectors when supply stays in model', () => {
-    const configuration = readJson('../src/configurations/demo-buildings-efficiency.json');
+    const configuration = readConfiguration('../src/configurations/demo-buildings-efficiency.json');
     const statuses = deriveOutputRunStatusesForConfiguration(pkg, configuration);
     const presentation = getCommodityPriceSelectorPresentation(
       statuses.electricity,
@@ -29,7 +36,7 @@ describe('getCommodityPriceSelectorPresentation', () => {
   });
 
   test('keeps externalized endogenous commodity price selectors active', () => {
-    const configuration = readJson('../src/configurations/demo-buildings-efficiency.json');
+    const configuration = readConfiguration('../src/configurations/demo-buildings-efficiency.json');
     configuration.service_controls.electricity = { mode: 'externalized' };
     const statuses = deriveOutputRunStatusesForConfiguration(pkg, configuration);
     const activeLevel = getCommodityPriceLevel(configuration, 'electricity');
@@ -45,7 +52,7 @@ describe('getCommodityPriceSelectorPresentation', () => {
   });
 
   test('leaves non-endogenous commodity selectors unchanged', () => {
-    const configuration = readJson('../src/configurations/reference-baseline.json');
+    const configuration = readConfiguration('../src/configurations/reference-baseline.json');
     const statuses = deriveOutputRunStatusesForConfiguration(pkg, configuration);
     const activeLevel = getCommodityPriceLevel(configuration, 'natural_gas');
     const presentation = getCommodityPriceSelectorPresentation(

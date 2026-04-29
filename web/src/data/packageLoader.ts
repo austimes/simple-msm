@@ -6,6 +6,7 @@ import {
   materializeEfficiencyConfiguration,
   materializeResidualOverlayConfiguration,
 } from './configurationDocumentLoader.ts';
+import { materializeServiceControlsFromRoleControls } from './configurationRoleControls.ts';
 import type {
   AppConfigRegistry,
   AutonomousEfficiencyTrack,
@@ -1366,7 +1367,7 @@ function emptyPackage(appConfig: AppConfigRegistry): PackageData {
   const enrichment = buildPackageEnrichment({});
   const defaultConfiguration = materializeEfficiencyConfiguration(
     materializeResidualOverlayConfiguration(
-      loadDefaultConfiguration(appConfig),
+      materializeServiceControlsFromRoleControls(loadDefaultConfiguration(appConfig), { sectorStates: [] }),
       [],
     ),
     [],
@@ -1490,7 +1491,7 @@ export function loadPackage(): PackageData {
   const enrichment = buildPackageEnrichment(packageTextFiles);
   const defaultConfiguration = materializeEfficiencyConfiguration(
     materializeResidualOverlayConfiguration(
-      loadDefaultConfiguration(appConfig),
+      materializeServiceControlsFromRoleControls(loadDefaultConfiguration(appConfig), { sectorStates }),
       residualOverlays2025,
     ),
     autonomousEfficiencyTracks,

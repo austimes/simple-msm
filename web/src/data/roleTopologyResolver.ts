@@ -326,9 +326,6 @@ export function resolveActiveSectorStatesForConfiguration(
   configuration: Pick<ConfigurationDocument, 'representation_by_role'>,
 ): SectorState[] {
   if (!hasRoleTopologyInputs(pkg)) {
-    if (configuration.representation_by_role && Object.keys(configuration.representation_by_role).length > 0) {
-      throw new Error('Cannot resolve representation_by_role without role topology package data.');
-    }
     return pkg.sectorStates;
   }
 

@@ -4,6 +4,7 @@
  * Provides data loading, configuration building, and assertion helpers.
  */
 import { readFileSync } from 'node:fs';
+import { materializeServiceControlsFromRoleControls } from '../src/data/configurationRoleControls.ts';
 import { loadPackage } from '../src/data/packageLoader.ts';
 import { resolveConfigurationDocument as resolveConfigurationDocument } from '../src/data/demandResolution.ts';
 import { buildSolveRequest } from '../src/solver/buildSolveRequest.ts';
@@ -52,12 +53,16 @@ export function loadFormulationFixtureData() {
 
   return {
     ...pkg,
-    currentConfiguration: loadReferenceConfiguration(),
+    currentConfiguration: structuredClone(pkg.defaultConfiguration),
   };
 }
 
 export function loadReferenceConfiguration() {
-  return readJson('../src/configurations/reference-baseline.json');
+  const pkg = loadPkg();
+  return materializeServiceControlsFromRoleControls(
+    readJson('../src/configurations/reference-baseline.json'),
+    { sectorStates: pkg.sectorStates },
+  );
 }
 
 /**
@@ -113,6 +118,10 @@ export function solveScoped(pkg, configuration, seedOutputIds) {
       appConfig: pkg.appConfig,
       autonomousEfficiencyTracks: pkg.autonomousEfficiencyTracks,
       efficiencyPackages: pkg.efficiencyPackages,
+      roleMetadata: pkg.roleMetadata,
+      representations: pkg.representations,
+      roleDecompositionEdges: pkg.roleDecompositionEdges,
+      methods: pkg.methods,
     },
     effectiveConfiguration,
   );

@@ -73,7 +73,8 @@ test('bundled configurations are full documents with app metadata', () => {
 
     assert.equal(typeof config.name, 'string', `${file} should have a name`);
     assert.ok(Array.isArray(config.years), `${file} should include milestone years`);
-    assert.equal(typeof config.service_controls, 'object', `${file} should include service_controls`);
+    assert.equal(typeof config.representation_by_role, 'object', `${file} should include representation_by_role`);
+    assert.equal(typeof config.role_controls, 'object', `${file} should include role_controls`);
     assert.equal(typeof config.service_demands, 'object', `${file} should include service_demands`);
     assert.equal(typeof config.demand_generation, 'object', `${file} should include demand_generation`);
     assert.equal(typeof config.commodity_pricing, 'object', `${file} should include commodity_pricing`);
@@ -87,6 +88,8 @@ test('bundled configurations are full documents with app metadata', () => {
     assert.ok(!('readonly' in config), `${file} should not keep legacy top-level readonly`);
     assert.ok(!('includedOutputIds' in config), `${file} should not keep legacy includedOutputIds`);
     assert.ok(!('serviceControls' in config), `${file} should not keep legacy serviceControls`);
+    assert.ok(!('service_controls' in config), `${file} should not keep legacy service_controls`);
+    assert.ok(!JSON.stringify(config).includes('active_state_ids'), `${file} should not keep legacy active_state_ids`);
     assert.ok(!('solverOptions' in config), `${file} should not keep legacy solverOptions`);
 
     resolveConfigurationDocument(config, appConfig, file);
@@ -308,9 +311,9 @@ test('configuration loader prefers the canonical filename when duplicate config 
     ...(canonicalConfig.app_metadata ?? {}),
   };
 
-  duplicateConfig.service_controls.residential_building_services = {
+  duplicateConfig.role_controls.deliver_residential_building_services = {
     mode: 'optimize',
-    disabled_state_ids: ['buildings__residential__deep_electric'],
+    disabled_method_ids: ['buildings__residential__deep_electric'],
   };
 
   const parsed = parseConfigurationCollection(
@@ -324,7 +327,7 @@ test('configuration loader prefers the canonical filename when duplicate config 
   assert.equal(parsed.length, 1);
   assert.equal(parsed[0].app_metadata?.id, 'buildings-dlg');
   assert.equal(
-    parsed[0].service_controls.residential_building_services.disabled_state_ids,
+    parsed[0].role_controls.deliver_residential_building_services.disabled_method_ids,
     undefined,
   );
 });

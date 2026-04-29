@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { isEfficiencyAttributionSafePair } from '../src/data/configurationPairModel.ts';
+import { materializeServiceControlsFromRoleControls } from '../src/data/configurationRoleControls.ts';
 import { resolveConfigurationDocument } from '../src/data/demandResolution.ts';
 import { loadPackage } from '../src/data/packageLoader.ts';
 import { runScenario } from '../src/results/runScenario.ts';
@@ -171,10 +172,13 @@ function readJson(relativePath) {
 }
 
 function loadConfiguration(pkg, id) {
-  return resolveConfigurationDocument(
-    readJson(`../src/configurations/${id}.json`),
-    pkg.appConfig,
-    id,
+  return materializeServiceControlsFromRoleControls(
+    resolveConfigurationDocument(
+      readJson(`../src/configurations/${id}.json`),
+      pkg.appConfig,
+      id,
+    ),
+    { sectorStates: pkg.sectorStates },
   );
 }
 

@@ -5,6 +5,7 @@ import {
   getRightSidebarStatusPresentation,
   RIGHT_SIDEBAR_STATUS_LEGEND,
 } from '../src/components/workspace/rightSidebarStatus.ts';
+import { materializeServiceControlsFromRoleControls } from '../src/data/configurationRoleControls.ts';
 import { deriveOutputRunStatusesForConfiguration } from '../src/solver/solveScope.ts';
 import { buildConfiguration, loadPkg } from './solverTestUtils.mjs';
 
@@ -15,9 +16,15 @@ function readJson(relativePath) {
   return JSON.parse(readFileSync(url, 'utf8'));
 }
 
+function readConfiguration(relativePath) {
+  return materializeServiceControlsFromRoleControls(readJson(relativePath), {
+    sectorStates: pkg.sectorStates,
+  });
+}
+
 describe('getRightSidebarStatusPresentation', () => {
   test('distinguishes active methods, dependency inclusion, and excluded roles in buildings-only runs', () => {
-    const configuration = readJson('../src/configurations/demo-buildings-efficiency.json');
+    const configuration = readConfiguration('../src/configurations/demo-buildings-efficiency.json');
     const statuses = deriveOutputRunStatusesForConfiguration(pkg, configuration);
 
     const residential = getRightSidebarStatusPresentation(
@@ -71,7 +78,7 @@ describe('getRightSidebarStatusPresentation', () => {
   });
 
   test('greys out method status for externalized supply dependencies', () => {
-    const configuration = readJson('../src/configurations/demo-buildings-efficiency.json');
+    const configuration = readConfiguration('../src/configurations/demo-buildings-efficiency.json');
     configuration.service_controls.electricity = { mode: 'externalized' };
     const statuses = deriveOutputRunStatusesForConfiguration(pkg, configuration);
     const electricity = getRightSidebarStatusPresentation(statuses.electricity);
@@ -91,7 +98,7 @@ describe('getRightSidebarStatusPresentation', () => {
   });
 
   test('shows active method count under a retained freight demo configuration', () => {
-    const configuration = readJson('../src/configurations/demo-freight-efficiency.json');
+    const configuration = readConfiguration('../src/configurations/demo-freight-efficiency.json');
     const statuses = deriveOutputRunStatusesForConfiguration(pkg, configuration);
     const freight = getRightSidebarStatusPresentation(statuses.freight_road_transport);
 

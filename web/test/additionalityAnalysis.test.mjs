@@ -7,6 +7,7 @@ import {
   runAdditionalityAnalysis,
   validateAdditionalityPair,
 } from '../src/additionality/additionalityAnalysis.ts';
+import { materializeServiceControlsFromRoleControls } from '../src/data/configurationRoleControls.ts';
 import { resolveConfigurationDocument } from '../src/data/demandResolution.ts';
 import { buildAllContributionRows } from '../src/results/resultContributions.ts';
 import { buildSolveRequest } from '../src/solver/buildSolveRequest.ts';
@@ -74,10 +75,13 @@ function assertMetricVectorMatchesContributions(vector, contributions, label) {
 }
 
 function buildBaseCase() {
-  return resolveConfigurationDocument(
-    readJson('../src/configurations/reference-baseline.json'),
-    pkg.appConfig,
-    'reference-baseline',
+  return materializeServiceControlsFromRoleControls(
+    resolveConfigurationDocument(
+      readJson('../src/configurations/reference-baseline.json'),
+      pkg.appConfig,
+      'reference-baseline',
+    ),
+    { sectorStates: pkg.sectorStates },
   );
 }
 

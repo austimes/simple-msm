@@ -10,6 +10,7 @@ import type {
 } from '../data/types.ts';
 import { getCommodityMetadata, normalizeCommodityInput } from '../data/commodityMetadata.ts';
 import { materializeEfficiencyConfiguration } from '../data/configurationDocumentLoader.ts';
+import { materializeServiceControlsFromRoleControls } from '../data/configurationRoleControls.ts';
 import { resolveConfigurationDocument } from '../data/demandResolution.ts';
 import { resolveActiveEfficiencyPackageIds } from '../data/efficiencyControlModel.ts';
 import { derivePathwayStateIds } from '../data/pathwaySemantics.ts';
@@ -616,10 +617,13 @@ export function normalizeSolverRows(
 export function resolveConfigurationForSolve(
   configuration: ConfigurationDocument,
   appConfig: AppConfigRegistry,
-  sectorStates?: Pick<SectorState, 'service_or_output_name' | 'year' | 'state_id' | 'is_default_incumbent_2025'>[],
+  sectorStates?: Pick<SectorState, 'role_id' | 'service_or_output_name' | 'year' | 'state_id' | 'is_default_incumbent_2025'>[],
   efficiencyArtifacts?: Partial<Pick<PackageData, 'autonomousEfficiencyTracks' | 'efficiencyPackages'>>,
 ): ResolvedConfigurationForSolve {
-  const resolvedConfiguration = resolveConfigurationDocument(configuration, appConfig);
+  const configurationWithServiceControls = sectorStates
+    ? materializeServiceControlsFromRoleControls(configuration, { sectorStates })
+    : configuration;
+  const resolvedConfiguration = resolveConfigurationDocument(configurationWithServiceControls, appConfig);
   const years = [...resolvedConfiguration.years];
   const incumbentByOutput = collectIncumbentStateIdsByOutput(sectorStates);
   const stateIdsByOutputYear = collectStateIdsByOutputYear(sectorStates);

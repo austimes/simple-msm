@@ -3,6 +3,7 @@ import {
   resolveAutonomousModeForOutput,
 } from '../data/efficiencyControlModel.ts';
 import { embodiedEfficiencyPathwayEntries } from '../data/efficiencyAttributionRegistry.ts';
+import { materializeServiceControlsFromRoleControls } from '../data/configurationRoleControls.ts';
 import { derivePathwayStateIdsForOutput } from '../data/pathwaySemantics.ts';
 import type {
   ConfigurationAutonomousEfficiencyMode,
@@ -466,6 +467,15 @@ function normalizeControlComparison(control: ConfigurationDocument['service_cont
   };
 }
 
+function materializeAdditionalityConfiguration(
+  configuration: ConfigurationDocument,
+  pkg: Pick<PackageData, 'sectorStates'>,
+): ConfigurationDocument {
+  return materializeServiceControlsFromRoleControls(configuration, {
+    sectorStates: pkg.sectorStates,
+  });
+}
+
 function getOutputLabel(
   pkg: Pick<PackageData, 'appConfig'>,
   outputId: string,
@@ -918,7 +928,9 @@ export function canonicalizeAdditionalityConfiguration(
   configuration: ConfigurationDocument,
   pkg: AdditionalityPackageData,
 ): ConfigurationDocument {
-  const nextConfiguration = structuredClone(configuration);
+  const nextConfiguration = structuredClone(
+    materializeAdditionalityConfiguration(configuration, pkg),
+  );
   const activePackageIds = resolveActiveEfficiencyPackageIds(
     nextConfiguration.efficiency_controls,
     pkg.efficiencyPackages ?? [],
@@ -944,21 +956,27 @@ export function canonicalizeAdditionalityConfiguration(
 export function validateAdditionalityPair(
   baseConfiguration: ConfigurationDocument,
   targetConfiguration: ConfigurationDocument,
-  pkg: Pick<PackageData, 'appConfig'>,
+  pkg: Pick<PackageData, 'appConfig'> & Partial<Pick<PackageData, 'sectorStates'>>,
 ): AdditionalityValidationIssue[] {
+  const base = pkg.sectorStates
+    ? materializeAdditionalityConfiguration(baseConfiguration, { sectorStates: pkg.sectorStates })
+    : baseConfiguration;
+  const target = pkg.sectorStates
+    ? materializeAdditionalityConfiguration(targetConfiguration, { sectorStates: pkg.sectorStates })
+    : targetConfiguration;
   const issues: AdditionalityValidationIssue[] = [];
 
-  if (stableStringify(baseConfiguration.years) !== stableStringify(targetConfiguration.years)) {
+  if (stableStringify(base.years) !== stableStringify(target.years)) {
     issues.push(buildTopLevelMismatchIssue('years_mismatch', 'years'));
   }
 
-  if (stableStringify(baseConfiguration.service_demands) !== stableStringify(targetConfiguration.service_demands)) {
+  if (stableStringify(base.service_demands) !== stableStringify(target.service_demands)) {
     issues.push(buildTopLevelMismatchIssue('service_demands_mismatch', 'service_demands'));
   }
 
   if (
-    stableStringify(baseConfiguration.external_commodity_demands ?? {})
-    !== stableStringify(targetConfiguration.external_commodity_demands ?? {})
+    stableStringify(base.external_commodity_demands ?? {})
+    !== stableStringify(target.external_commodity_demands ?? {})
   ) {
     issues.push(
       buildTopLevelMismatchIssue(
@@ -969,33 +987,33 @@ export function validateAdditionalityPair(
   }
 
   if (
-    stableStringify(baseConfiguration.demand_generation)
-    !== stableStringify(targetConfiguration.demand_generation)
+    stableStringify(base.demand_generation)
+    !== stableStringify(target.demand_generation)
   ) {
     issues.push(buildTopLevelMismatchIssue('demand_generation_mismatch', 'demand_generation'));
   }
 
   if (
-    stableStringify(baseConfiguration.commodity_pricing)
-    !== stableStringify(targetConfiguration.commodity_pricing)
+    stableStringify(base.commodity_pricing)
+    !== stableStringify(target.commodity_pricing)
   ) {
     issues.push(buildTopLevelMismatchIssue('commodity_pricing_mismatch', 'commodity_pricing'));
   }
 
-  if (stableStringify(baseConfiguration.carbon_price) !== stableStringify(targetConfiguration.carbon_price)) {
+  if (stableStringify(base.carbon_price) !== stableStringify(target.carbon_price)) {
     issues.push(buildTopLevelMismatchIssue('carbon_price_mismatch', 'carbon_price'));
   }
 
   if (
-    stableStringify(baseConfiguration.residual_overlays ?? null)
-    !== stableStringify(targetConfiguration.residual_overlays ?? null)
+    stableStringify(base.residual_overlays ?? null)
+    !== stableStringify(target.residual_overlays ?? null)
   ) {
     issues.push(buildTopLevelMismatchIssue('residual_overlays_mismatch', 'residual_overlays'));
   }
 
   if (
-    stableStringify(baseConfiguration.solver_options ?? null)
-    !== stableStringify(targetConfiguration.solver_options ?? null)
+    stableStringify(base.solver_options ?? null)
+    !== stableStringify(target.solver_options ?? null)
   ) {
     issues.push(buildTopLevelMismatchIssue('solver_options_mismatch', 'solver_options'));
   }
@@ -1003,14 +1021,14 @@ export function validateAdditionalityPair(
   const outputIds = Array.from(
     new Set([
       ...Object.keys(pkg.appConfig.output_roles),
-      ...Object.keys(baseConfiguration.service_controls),
-      ...Object.keys(targetConfiguration.service_controls),
+      ...Object.keys(base.service_controls ?? {}),
+      ...Object.keys(target.service_controls ?? {}),
     ]),
   ).sort((left, right) => getOutputLabel(pkg, left).localeCompare(getOutputLabel(pkg, right)));
 
   for (const outputId of outputIds) {
-    const baseControl = normalizeControlComparison(baseConfiguration.service_controls[outputId]);
-    const targetControl = normalizeControlComparison(targetConfiguration.service_controls[outputId]);
+    const baseControl = normalizeControlComparison(base.service_controls?.[outputId]);
+    const targetControl = normalizeControlComparison(target.service_controls?.[outputId]);
     const outputLabel = getOutputLabel(pkg, outputId);
 
     if (baseControl.mode !== targetControl.mode) {
@@ -1055,6 +1073,8 @@ export function deriveAdditionalityAtoms(
   targetConfiguration: ConfigurationDocument,
   pkg: AdditionalityPackageData,
 ): AdditionalityAtom[] {
+  const base = materializeAdditionalityConfiguration(baseConfiguration, pkg);
+  const target = materializeAdditionalityConfiguration(targetConfiguration, pkg);
   const outputLabelById = Object.fromEntries(
     Object.entries(pkg.appConfig.output_roles).map(([outputId, metadata]) => [outputId, metadata.display_label]),
   );
@@ -1065,10 +1085,10 @@ export function deriveAdditionalityAtoms(
   for (const entry of Object.values(catalog)) {
     const allStateIds = getAllStateIds(entry);
     const baseActiveIds = new Set(
-      derivePathwayStateIdsForOutput(baseConfiguration, entry.outputId, allStateIds).activeStateIds,
+      derivePathwayStateIdsForOutput(base, entry.outputId, allStateIds).activeStateIds,
     );
     const targetActiveIds = new Set(
-      derivePathwayStateIdsForOutput(targetConfiguration, entry.outputId, allStateIds).activeStateIds,
+      derivePathwayStateIdsForOutput(target, entry.outputId, allStateIds).activeStateIds,
     );
 
     for (const state of entry.states) {
@@ -1140,11 +1160,12 @@ export function applyAdditionalityAtom(
   atom: AdditionalityAtom,
   pkg: AdditionalityPackageData,
 ): ConfigurationDocument {
+  const materializedConfiguration = materializeAdditionalityConfiguration(configuration, pkg);
   const outputLabelById = Object.fromEntries(
     Object.entries(pkg.appConfig.output_roles).map(([outputId, metadata]) => [outputId, metadata.display_label]),
   );
   const catalog = buildOutputStateCatalog(pkg.sectorStates, outputLabelById);
-  return applyAdditionalityAtomWithCatalog(configuration, atom, catalog, pkg);
+  return applyAdditionalityAtomWithCatalog(materializedConfiguration, atom, catalog, pkg);
 }
 
 function calculateTotalExpected(

@@ -312,13 +312,6 @@ export function buildSolveRequest(
   const activeRoleStructure = hasRoleTopologyInputs(pkg)
     ? resolveActiveRoleStructure(pkg, configuration)
     : null;
-  if (
-    !activeRoleStructure
-    && configuration.representation_by_role
-    && Object.keys(configuration.representation_by_role).length > 0
-  ) {
-    throw new Error('Cannot resolve representation_by_role without role topology package data.');
-  }
   const sectorStates = activeRoleStructure
     ? filterSectorStatesByActiveRoleStructure(pkg.sectorStates, activeRoleStructure)
     : pkg.sectorStates;

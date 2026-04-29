@@ -12,6 +12,7 @@ import {
   materializeResidualOverlayConfiguration,
   parseConfigurationDocument,
 } from '../data/configurationDocumentLoader.ts'
+import { materializeServiceControlsFromRoleControls } from '../data/configurationRoleControls.ts'
 
 function cloneConfiguration(configuration) {
   return structuredClone(configuration)
@@ -136,7 +137,10 @@ export function resolveCliConfigurationReference(rawRef) {
 
 export function materializeConfigurationForRuntime(configuration, pkg) {
   return materializeEfficiencyConfiguration(
-    materializeResidualOverlayConfiguration(configuration, pkg.residualOverlays2025),
+    materializeResidualOverlayConfiguration(
+      materializeServiceControlsFromRoleControls(configuration, { sectorStates: pkg.sectorStates }),
+      pkg.residualOverlays2025,
+    ),
     pkg.autonomousEfficiencyTracks,
     pkg.efficiencyPackages,
   )

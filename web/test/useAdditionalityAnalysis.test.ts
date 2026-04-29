@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { describe, test } from 'node:test';
 import { prepareAdditionalityAnalysis } from '../src/additionality/additionalityAnalysis.ts';
+import { materializeServiceControlsFromRoleControls } from '../src/data/configurationRoleControls.ts';
 import { resolveConfigurationDocument } from '../src/data/demandResolution.ts';
 import {
   buildAdditionalityAnalysisCacheKeyFromSelections,
@@ -18,10 +19,13 @@ function readJson(relativePath: string) {
 }
 
 function buildBaseCase() {
-  return resolveConfigurationDocument(
-    readJson('../src/configurations/reference-baseline.json'),
-    pkg.appConfig,
-    'reference-baseline',
+  return materializeServiceControlsFromRoleControls(
+    resolveConfigurationDocument(
+      readJson('../src/configurations/reference-baseline.json'),
+      pkg.appConfig,
+      'reference-baseline',
+    ),
+    { sectorStates: pkg.sectorStates },
   );
 }
 
