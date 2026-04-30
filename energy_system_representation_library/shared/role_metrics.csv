@@ -4,8 +4,8 @@ provide_residential_water_heating,2025,119250000,GJ_hot_water_service,3.237041,3
 serve_commercial_building_occupants,2025,314000000,GJ_service_eq,4.847532,4.847532,low,incumbent_activity_anchor,Derived from 2025 incumbent method emissions intensity and baseline activity anchor.
 account_remaining_residential_building_services,2025,1,residual_activity,0.006,0.006,very_low,incumbent_activity_anchor,Derived from 2025 incumbent method emissions intensity and baseline activity anchor.
 account_remaining_commercial_building_services,2025,1,residual_activity,0.001,0.001,very_low,incumbent_activity_anchor,Derived from 2025 incumbent method emissions intensity and baseline activity anchor.
-deliver_passenger_road_transport,2025,293414730000,pkm,51.934407,51.934407,very_high,incumbent_activity_anchor,Derived from 2025 incumbent method emissions intensity and baseline activity anchor.
-deliver_freight_road_transport,2025,249000000000,tkm,35.109,35.109,high,incumbent_activity_anchor,Derived from 2025 incumbent method emissions intensity and baseline activity anchor.
+move_passengers_by_road,2025,293414730000,pkm,51.934407,51.934407,very_high,incumbent_activity_anchor,Derived from 2025 incumbent method emissions intensity and baseline activity anchor.
+move_freight_by_road,2025,249000000000,tkm,35.109,35.109,high,incumbent_activity_anchor,Derived from 2025 incumbent method emissions intensity and baseline activity anchor.
 account_residual_transport,2025,1,residual_activity,11.657,11.657,medium,incumbent_activity_anchor,Derived from 2025 incumbent method emissions intensity and baseline activity anchor.
 deliver_low_temperature_heat,2025,120000000,GJ_useful_heat,6.80196,6.80196,medium,incumbent_activity_anchor,Derived from 2025 incumbent method emissions intensity and baseline activity anchor.
 deliver_medium_temperature_heat,2025,140000000,GJ_useful_heat,6.30966,6.30966,medium,incumbent_activity_anchor,Derived from 2025 incumbent method emissions intensity and baseline activity anchor.

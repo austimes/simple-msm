@@ -108,7 +108,7 @@ test('canonical role/method rows expose only canonical app fields', () => {
   assert.equal('family_id' in electricity, false);
 
   const efficiencyTrack = pkg.autonomousEfficiencyTracks.find((row) =>
-    row.role_id === 'deliver_freight_road_transport'
+    row.role_id === 'move_freight_by_road'
   );
   assert.ok(efficiencyTrack);
   assert.equal(efficiencyTrack.applicable_method_ids.length > 0, true);

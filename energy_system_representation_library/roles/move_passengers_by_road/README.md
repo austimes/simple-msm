@@ -1,4 +1,4 @@
-# Deliver passenger road transport
+# Move passengers by road
 
 ## What the role represents
 
@@ -6,7 +6,7 @@ This role covers `passenger_road_transport` in sector `road_transport` / subsect
 
 ## Role definition
 
-- Role id: `deliver_passenger_road_transport`
+- Role id: `move_passengers_by_road`
 - Balance type: `service_demand`
 - Output unit: `pkm`
 - Output quantity basis: One pkm of delivered road transport service at national-average reduced-form boundary.

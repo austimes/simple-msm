@@ -1,4 +1,4 @@
-# Deliver freight road transport
+# Move freight by road
 
 ## What the role represents
 
@@ -6,7 +6,7 @@ This role covers `freight_road_transport` in sector `road_transport` / subsector
 
 ## Role definition
 
-- Role id: `deliver_freight_road_transport`
+- Role id: `move_freight_by_road`
 - Balance type: `service_demand`
 - Output unit: `tkm`
 - Output quantity basis: One tkm of delivered road transport service at national-average reduced-form boundary.

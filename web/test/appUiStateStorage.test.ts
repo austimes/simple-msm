@@ -58,10 +58,10 @@ function buildSampleState(): AppUiState {
         efficiencyApplicability: 'with_applicable_artifacts',
         efficiencyArtifactType: 'pure_efficiency_overlay',
       },
-      selectedRoleId: 'deliver_passenger_road_transport',
-      selectedRepresentationId: 'deliver_passenger_road_transport__pathway_bundle',
+      selectedRoleId: 'move_passengers_by_road',
+      selectedRepresentationId: 'move_passengers_by_road__pathway_bundle',
       selectedMethodId: 'road_transport__passenger_road__bev',
-      roleGraphExpandedNodeIds: ['role:deliver_passenger_road_transport'],
+      roleGraphExpandedNodeIds: ['role:move_passengers_by_road'],
     },
     methods: {
       activeTab: 'evidence',

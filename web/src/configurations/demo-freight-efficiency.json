@@ -25,11 +25,11 @@
     "account_residual_waste_emissions": "account_residual_waste_emissions__pathway_bundle",
     "account_residual_water_waste": "account_residual_water_waste__pathway_bundle",
     "serve_commercial_building_occupants": "serve_commercial_building_occupants__pathway_bundle",
-    "deliver_freight_road_transport": "deliver_freight_road_transport__pathway_bundle",
+    "move_freight_by_road": "move_freight_by_road__pathway_bundle",
     "deliver_high_temperature_heat": "deliver_high_temperature_heat__pathway_bundle",
     "deliver_low_temperature_heat": "deliver_low_temperature_heat__pathway_bundle",
     "deliver_medium_temperature_heat": "deliver_medium_temperature_heat__pathway_bundle",
-    "deliver_passenger_road_transport": "deliver_passenger_road_transport__pathway_bundle",
+    "move_passengers_by_road": "move_passengers_by_road__pathway_bundle",
     "serve_residential_building_occupants": "serve_residential_building_occupants__pathway_bundle",
     "produce_cement_equivalent": "produce_cement_equivalent__pathway_bundle",
     "produce_cropping_horticulture_output": "produce_cropping_horticulture_output__pathway_bundle",
@@ -126,7 +126,7 @@
       "mode": "optimize",
       "active_method_ids": []
     },
-    "deliver_freight_road_transport": {
+    "move_freight_by_road": {
       "mode": "optimize",
       "active_method_ids": [
         "road_transport__freight_road__diesel",
@@ -145,7 +145,7 @@
       "mode": "optimize",
       "active_method_ids": []
     },
-    "deliver_passenger_road_transport": {
+    "move_passengers_by_road": {
       "mode": "optimize",
       "active_method_ids": []
     },

@@ -75,11 +75,11 @@ describe('systemStructureModel', () => {
       [INCUMBENT_STATE_IDS.residential_building_services],
     );
     assert.deepEqual(
-      generated.role_controls.deliver_passenger_road_transport.active_method_ids,
+      generated.role_controls.move_passengers_by_road.active_method_ids,
       [],
     );
     assert.deepEqual(
-      generated.role_controls.deliver_freight_road_transport.active_method_ids,
+      generated.role_controls.move_freight_by_road.active_method_ids,
       [],
     );
     assert.deepEqual(generated.efficiency_controls, {
