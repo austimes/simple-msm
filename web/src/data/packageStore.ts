@@ -23,6 +23,7 @@ import {
   materializeEfficiencyConfiguration,
   materializeResidualOverlayConfiguration,
 } from './configurationDocumentLoader.ts';
+import { materializeConfigurationRoleControls } from './configurationRoleControls.ts';
 import { buildNextPackageAllowList } from './efficiencyControlModel.ts';
 import { isAggregatableResidualOverlay } from './residualOverlayPresentation.ts';
 import { getActiveMethodIds } from './configurationWorkspaceModel.ts';
@@ -149,10 +150,15 @@ function materializeConfiguration(
   autonomousEfficiencyTracks: PackageData['autonomousEfficiencyTracks'],
   efficiencyPackages: PackageData['efficiencyPackages'],
   residualOverlays2025: PackageData['residualOverlays2025'],
+  defaultConfiguration?: Pick<ConfigurationDocument, 'role_controls'>,
 ): ConfigurationDocument {
   return materializeEfficiencyConfiguration(
     materializeResidualOverlayConfiguration(
-      configuration,
+      materializeConfigurationRoleControls(
+        configuration,
+        { resolvedMethodYears },
+        defaultConfiguration,
+      ),
       residualOverlays2025,
     ),
     autonomousEfficiencyTracks,
@@ -180,6 +186,7 @@ export const usePackageStore = create<PackageStore>((set, get) => {
         pkg.autonomousEfficiencyTracks,
         pkg.efficiencyPackages,
         pkg.residualOverlays2025,
+        pkg.defaultConfiguration,
     );
     initialSource = 'local_draft';
 
@@ -193,6 +200,7 @@ export const usePackageStore = create<PackageStore>((set, get) => {
         pkg.autonomousEfficiencyTracks,
         pkg.efficiencyPackages,
         pkg.residualOverlays2025,
+        pkg.defaultConfiguration,
       );
       initialDirty =
         !configurationsEqual(initialConfiguration, initialBaseConfiguration);
@@ -210,6 +218,7 @@ export const usePackageStore = create<PackageStore>((set, get) => {
         pkg.autonomousEfficiencyTracks,
         pkg.efficiencyPackages,
         pkg.residualOverlays2025,
+        pkg.defaultConfiguration,
       );
       initialSource = 'configuration';
       initialConfigId = defaultConfigId;
@@ -229,6 +238,7 @@ export const usePackageStore = create<PackageStore>((set, get) => {
         pkg.autonomousEfficiencyTracks,
         pkg.efficiencyPackages,
         pkg.residualOverlays2025,
+        pkg.defaultConfiguration,
       );
       initialSource = 'reference';
     }
@@ -274,6 +284,7 @@ export const usePackageStore = create<PackageStore>((set, get) => {
         get().autonomousEfficiencyTracks,
         get().efficiencyPackages,
         get().residualOverlays2025,
+        get().defaultConfiguration,
       );
       const persistenceError = persistConfigurationDraft(nextConfiguration);
       persistConfigMeta(null);
@@ -321,6 +332,7 @@ export const usePackageStore = create<PackageStore>((set, get) => {
           get().autonomousEfficiencyTracks,
           get().efficiencyPackages,
           get().residualOverlays2025,
+          get().defaultConfiguration,
         );
 
         set({
@@ -342,6 +354,7 @@ export const usePackageStore = create<PackageStore>((set, get) => {
         get().autonomousEfficiencyTracks,
         get().efficiencyPackages,
         get().residualOverlays2025,
+        get().defaultConfiguration,
       );
 
       set({
@@ -572,6 +585,7 @@ export const usePackageStore = create<PackageStore>((set, get) => {
         get().autonomousEfficiencyTracks,
         get().efficiencyPackages,
         get().residualOverlays2025,
+        get().defaultConfiguration,
       );
       const baseConfiguration = cloneConfiguration(nextConfiguration);
       const configId = getConfigurationId(config) ?? config.name;

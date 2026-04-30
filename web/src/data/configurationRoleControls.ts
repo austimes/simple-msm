@@ -158,6 +158,35 @@ export function normalizeConfigurationRoleControls(
   };
 }
 
+export function materializeConfigurationRoleControls(
+  configuration: ConfigurationDocument,
+  inputs: RoleControlMappingInputs,
+  defaultConfiguration?: Pick<ConfigurationDocument, 'role_controls'>,
+): ConfigurationDocument {
+  const normalizedConfiguration = normalizeConfigurationRoleControls(configuration, inputs);
+  const defaultRoleControls = defaultConfiguration?.role_controls ?? {};
+  const roleIds = new Set(
+    inputs.resolvedMethodYears
+      .map((row) => row.role_id)
+      .filter((roleId): roleId is string => Boolean(roleId)),
+  );
+  const roleControls = { ...(normalizedConfiguration.role_controls ?? {}) };
+  let changed = false;
+
+  for (const roleId of roleIds) {
+    if (roleControls[roleId] !== undefined || defaultRoleControls[roleId] === undefined) {
+      continue;
+    }
+
+    roleControls[roleId] = structuredClone(defaultRoleControls[roleId]);
+    changed = true;
+  }
+
+  return changed
+    ? { ...normalizedConfiguration, role_controls: roleControls }
+    : normalizedConfiguration;
+}
+
 export function buildOutputIdByRoleId(
   inputs: RoleControlMappingInputs,
 ): Map<string, string> {

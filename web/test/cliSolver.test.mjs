@@ -113,6 +113,15 @@ test('repo-backed user configurations with legacy autonomous role ids materializ
       deliver_residential_building_services: 'off',
     },
   };
+  delete tempConfiguration.role_controls.account_residual_lulucf_sink;
+  tempConfiguration.carbon_price = {
+    2025: 30,
+    2030: 120,
+    2035: 220,
+    2040: 340,
+    2045: 470,
+    2050: 600,
+  };
 
   writeFileSync(tempFile, JSON.stringify(tempConfiguration, null, 2) + '\n');
 
@@ -125,6 +134,10 @@ test('repo-backed user configurations with legacy autonomous role ids materializ
       commercial_building_services: 'off',
       residential_building_services: 'off',
     });
+    assert.deepEqual(
+      output.configuration.role_controls.account_residual_lulucf_sink.active_method_ids,
+      [],
+    );
   } finally {
     rmSync(tempFile, { force: true });
   }
