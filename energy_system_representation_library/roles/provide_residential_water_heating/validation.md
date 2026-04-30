@@ -35,3 +35,8 @@
 - The 2025 technology-bundle incumbent shares must sum to `1.0`: gas storage `0.48`, resistive electric `0.32`, electric heat pump `0.12`, and solar boosted `0.08`.
 - `would_expand_to_explicit_capacity` values across the role: false.
 - `would_expand_to_process_chain` values across the role: false.
+
+## Representation comparison evidence
+
+- `validation/residential_water_heating_representation_comparison.csv` records pathway-vs-technology comparison rows for activity, cost, inputs, direct emissions, constraints, and deltas.
+- These rows are validation evidence only and must not be silently promoted into authored pathway data.

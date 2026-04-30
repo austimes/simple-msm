@@ -230,6 +230,7 @@
     "validation/baseline_commodity_balance.csv",
     "validation/baseline_electricity_balance.csv",
     "validation/baseline_emissions_balance.csv",
-    "validation/role_validation_summary.csv"
+    "validation/role_validation_summary.csv",
+    "validation/residential_water_heating_representation_comparison.csv"
   ]
 }
