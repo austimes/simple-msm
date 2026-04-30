@@ -15,6 +15,8 @@ const FINAL_ELECTRICITY_RESIDUAL_FAMILIES = [
   'transport_marine_freight',
   'transport_other_non_road',
   'transport_other',
+  'chemical_products',
+  'other_material_products',
   'manufacturing_other',
   'mining_other',
   'construction_other',
@@ -39,7 +41,7 @@ test('residual stubs load as first-class families with library grouping', () => 
     primaryMembershipCountByRole.set(member.role_id, (primaryMembershipCountByRole.get(member.role_id) ?? 0) + 1);
   }
 
-  assert.equal(residualFamilies.length, 28);
+  assert.equal(residualFamilies.length, 30);
   assert.equal(pkg.residualOverlays2025.length, 0);
   assert.equal(pkg.appConfig.output_roles.electricity_grid_losses_own_use?.display_group, 'Energy supply');
   for (const role of pkg.rolePresentationMetadata) {

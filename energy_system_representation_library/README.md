@@ -6,9 +6,9 @@ The package keeps role data, explanation, evidence hooks, and validation materia
 
 ## What Is Included
 
-- 32 authored roles in `roles/<role_id>/`
-- 67 distinct methods
-- 402 method-year rows across milestone years 2025, 2030, 2035, 2040, 2045, and 2050
+- 48 authored roles in `roles/<role_id>/`
+- 83 distinct methods
+- 498 method-year rows across milestone years 2025, 2030, 2035, 2040, 2045, and 2050
 - Shared role topology, physical node graph, activity drivers, role metrics, representation choices, representation incumbents, reporting allocations, ledgers, commodity taxonomy, growth curves, price curves, carbon price curves, schemas, and validation diagnostics
 - A crude-steel role-decomposition pilot that keeps the aggregate pathway bundle available while testing a granular H2 DRI process-chain branch
 

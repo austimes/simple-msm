@@ -9,9 +9,9 @@
     2045,
     2050
   ],
-  "role_count": 46,
-  "method_count": 81,
-  "method_year_row_count": 486,
+  "role_count": 48,
+  "method_count": 83,
+  "method_year_row_count": 498,
   "files": [
     "README.md",
     "roles/account_grid_losses_and_own_use/demand.csv",
@@ -301,6 +301,16 @@
     "roles/supply_iron_ore_to_export_gate/method_years.csv",
     "roles/supply_iron_ore_to_export_gate/methods.csv",
     "roles/supply_iron_ore_to_export_gate/README.md",
-    "roles/supply_iron_ore_to_export_gate/validation.md"
+    "roles/supply_iron_ore_to_export_gate/validation.md",
+    "roles/make_chemical_products/demand.csv",
+    "roles/make_chemical_products/method_years.csv",
+    "roles/make_chemical_products/methods.csv",
+    "roles/make_chemical_products/README.md",
+    "roles/make_chemical_products/validation.md",
+    "roles/make_other_material_products/demand.csv",
+    "roles/make_other_material_products/method_years.csv",
+    "roles/make_other_material_products/methods.csv",
+    "roles/make_other_material_products/README.md",
+    "roles/make_other_material_products/validation.md"
   ]
 }

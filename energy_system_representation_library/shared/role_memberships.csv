@@ -20,8 +20,10 @@ make_non_h2_dri_crude_steel,make_non_h2_dri_crude_steel,decomposition_child,true
 make_direct_reduced_iron,make_direct_reduced_iron,decomposition_child,true,Current steel decomposition child maps to physical intermediate node.
 melt_and_refine_dri_into_crude_steel,melt_and_refine_dri_into_crude_steel,decomposition_child,true,Current steel decomposition child maps to physical finishing node.
 make_cement_equivalent,make_cement_equivalent,modeled_role,true,Current cement role maps to physical production node.
-account_residual_manufacturing,account_remaining_manufacturing_activity,residual_role,true,Residual coverage is explicit in the physical graph.
-account_residual_ippu,account_remaining_industrial_process_emissions,residual_role,true,Residual coverage is explicit in the physical graph.
+make_chemical_products,make_chemical_products,residual_role,true,Make chemical products coverage is explicit even while carried by a residual method.
+make_other_material_products,make_other_material_products,residual_role,true,Make other material products coverage is explicit even while carried by a residual method.
+account_residual_manufacturing,account_remaining_manufacturing_activity,residual_role,true,Compatibility residual remains visible but carries no calibrated residual manufacturing quantities.
+account_residual_ippu,account_remaining_industrial_process_emissions,residual_role,true,Compatibility residual remains visible but carries no calibrated residual IPPU quantities.
 supply_grid_electricity,supply_grid_electricity,modeled_role,true,Canonical grid-supply role is anchored directly on its physical node.
 account_grid_losses_and_own_use,account_grid_losses_and_own_use,residual_role,true,Grid losses and own use remain explicit physical coverage.
 account_residual_mining_energy,account_remaining_domestic_energy_supply_activity,residual_role,true,Domestic mining energy residual is separate from export-gate resource supply nodes.

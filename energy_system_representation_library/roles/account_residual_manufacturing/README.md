@@ -1,5 +1,8 @@
 # Account residual manufacturing
 
-Residual stub role migrated from the former residual role calibration layer. The role has one route, `Residual incumbent`, and a 2025 demand anchor of `1 residual_activity`. Commodity quantities, direct emissions, and residual costs are carried by normal role-method fields so solver balances and charts treat the bucket like other roles.
+Compatibility residual role retained from the former residual role calibration layer. The role has one route, `Residual compatibility incumbent`, and a 2025 demand anchor of `1 residual_activity`, but the calibrated residual quantities have moved to explicit material product roles:
 
-Growth proxy: low_temperature_heat, medium_temperature_heat, high_temperature_heat, crude_steel, cement_equivalent. Confidence: low.
+- `make_chemical_products`
+- `make_other_material_products`
+
+This role should no longer be used as an opaque manufacturing residual bucket. It remains only so older configuration surfaces continue to resolve while the library shape evolves.

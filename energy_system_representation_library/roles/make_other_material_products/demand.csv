@@ -1,0 +1,2 @@
+role_id,anchor_year,anchor_value,unit,demand_growth_curve_id,anchor_status,source_role,coverage_note,notes
+make_other_material_products,2025,1,residual_activity,simple_role_growth_central__make_other_material_products,derived_residual_stub,Manufacturing/IPPU residual split,Make other material products uses a residual_activity anchor of 1; quantities live on the residual incumbent method.,"Growth proxy: low_temperature_heat, medium_temperature_heat, high_temperature_heat, crude_steel, cement_equivalent. Confidence: low."
