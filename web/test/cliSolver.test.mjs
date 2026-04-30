@@ -139,7 +139,7 @@ test('repo-backed user configurations with legacy autonomous role ids materializ
       residential_building_services: 'off',
     },
   };
-  delete tempConfiguration.role_controls.account_residual_lulucf_sink;
+  delete tempConfiguration.role_controls.account_remaining_land_sink_adjustment;
   tempConfiguration.carbon_price = {
     2025: 30,
     2030: 120,
@@ -161,7 +161,7 @@ test('repo-backed user configurations with legacy autonomous role ids materializ
       serve_residential_building_occupants: 'off',
     });
     assert.deepEqual(
-      output.configuration.role_controls.account_residual_lulucf_sink.active_method_ids,
+      output.configuration.role_controls.account_remaining_land_sink_adjustment.active_method_ids,
       [],
     );
   } finally {

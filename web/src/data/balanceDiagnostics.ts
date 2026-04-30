@@ -8,7 +8,7 @@
 import type { ResidualOverlayRow, ResolvedMethodYearRow } from './types.ts';
 
 export const GRID_LOSSES_OWN_USE_ROLE_ID = 'account_grid_losses_and_own_use';
-export const RESIDUAL_LULUCF_SINK_ROLE_ID = 'account_residual_lulucf_sink';
+export const RESIDUAL_LULUCF_SINK_ROLE_ID = 'account_remaining_land_sink_adjustment';
 
 export function getDefaultIncludedResidualOverlays(
   overlays: ResidualOverlayRow[],

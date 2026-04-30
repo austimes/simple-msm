@@ -47,7 +47,7 @@ test('web package loader reads canonical role-topology files', () => {
     && edge.is_required === true
   ));
   assert.ok(pkg.rolePresentationMetadata.some((role) =>
-    role.role_id === 'account_residual_lulucf_sink'
+    role.role_id === 'account_remaining_land_sink_adjustment'
     && role.emissions_importance_band === 'sink'
     && role.role_metric?.baseline_direct_net_emissions_mtco2e === -73.7
   ));

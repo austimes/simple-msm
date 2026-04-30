@@ -1,0 +1,2 @@
+role_id,anchor_year,anchor_value,unit,demand_growth_curve_id,anchor_status,source_role,coverage_note,notes
+remove_co2_through_land_sequestration,2025,0,tCO2_removed,flat_2025__remove_co2_through_land_sequestration,synthetic_migrated,Migrated role default,Migrated from the Phase 1 package without changing anchor semantics.,Migrated from the Phase 1 anchor table without changing the baseline value.

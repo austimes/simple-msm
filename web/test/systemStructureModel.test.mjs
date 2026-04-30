@@ -123,7 +123,7 @@ describe('systemStructureModel', () => {
     assert.deepEqual(generated.role_controls.account_residual_transport.active_method_ids, [
       'transport_other__residual_incumbent',
     ]);
-    assert.deepEqual(generated.role_controls.account_residual_lulucf_sink.active_method_ids, []);
+    assert.deepEqual(generated.role_controls.account_remaining_land_sink_adjustment.active_method_ids, []);
     assert.equal(generated.residual_overlays, undefined);
   });
 });

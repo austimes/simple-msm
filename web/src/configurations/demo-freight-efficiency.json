@@ -11,19 +11,19 @@
   ],
   "representation_by_role": {
     "account_grid_losses_and_own_use": "account_grid_losses_and_own_use__pathway_bundle",
-    "account_residual_agriculture": "account_residual_agriculture__pathway_bundle",
+    "account_remaining_agricultural_activity": "account_remaining_agricultural_activity__pathway_bundle",
     "account_remaining_commercial_building_services": "account_remaining_commercial_building_services__pathway_bundle",
     "account_residual_construction": "account_residual_construction__pathway_bundle",
     "account_residual_fugitives": "account_residual_fugitives__pathway_bundle",
     "account_residual_ippu": "account_residual_ippu__pathway_bundle",
-    "account_residual_lulucf_sink": "account_residual_lulucf_sink__pathway_bundle",
+    "account_remaining_land_sink_adjustment": "account_remaining_land_sink_adjustment__pathway_bundle",
     "account_residual_manufacturing": "account_residual_manufacturing__pathway_bundle",
     "account_residual_mining_energy": "account_residual_mining_energy__pathway_bundle",
     "account_residual_other_sectors": "account_residual_other_sectors__pathway_bundle",
     "account_remaining_residential_building_services": "account_remaining_residential_building_services__pathway_bundle",
     "account_residual_transport": "account_residual_transport__pathway_bundle",
-    "account_residual_waste_emissions": "account_residual_waste_emissions__pathway_bundle",
-    "account_residual_water_waste": "account_residual_water_waste__pathway_bundle",
+    "manage_waste_emissions": "manage_waste_emissions__pathway_bundle",
+    "provide_water_services": "provide_water_services__pathway_bundle",
     "serve_commercial_building_occupants": "serve_commercial_building_occupants__pathway_bundle",
     "move_freight_by_road": "move_freight_by_road__pathway_bundle",
     "deliver_high_temperature_heat": "deliver_high_temperature_heat__pathway_bundle",
@@ -32,11 +32,11 @@
     "move_passengers_by_road": "move_passengers_by_road__pathway_bundle",
     "serve_residential_building_occupants": "serve_residential_building_occupants__pathway_bundle",
     "make_cement_equivalent": "make_cement_equivalent__pathway_bundle",
-    "produce_cropping_horticulture_output": "produce_cropping_horticulture_output__pathway_bundle",
+    "grow_crops_and_horticulture_output": "grow_crops_and_horticulture_output__pathway_bundle",
     "make_crude_steel": "make_crude_steel__pathway_bundle",
-    "produce_livestock_output": "produce_livestock_output__pathway_bundle",
-    "remove_co2_engineered_removals": "remove_co2_engineered_removals__pathway_bundle",
-    "remove_co2_land_sequestration": "remove_co2_land_sequestration__pathway_bundle",
+    "raise_livestock_output": "raise_livestock_output__pathway_bundle",
+    "remove_co2_through_engineered_removals": "remove_co2_through_engineered_removals__pathway_bundle",
+    "remove_co2_through_land_sequestration": "remove_co2_through_land_sequestration__pathway_bundle",
     "supply_grid_electricity": "supply_grid_electricity__pathway_bundle"
   },
   "role_controls": {
@@ -46,7 +46,7 @@
         "electricity_grid_losses_own_use__residual_incumbent"
       ]
     },
-    "account_residual_agriculture": {
+    "account_remaining_agricultural_activity": {
       "mode": "optimize",
       "active_method_ids": [
         "residual_agriculture_other__residual_incumbent"
@@ -76,7 +76,7 @@
         "residual_ippu_other__residual_incumbent"
       ]
     },
-    "account_residual_lulucf_sink": {
+    "account_remaining_land_sink_adjustment": {
       "mode": "optimize",
       "active_method_ids": []
     },
@@ -110,13 +110,13 @@
         "transport_other__residual_incumbent"
       ]
     },
-    "account_residual_waste_emissions": {
+    "manage_waste_emissions": {
       "mode": "optimize",
       "active_method_ids": [
         "residual_waste__residual_incumbent"
       ]
     },
-    "account_residual_water_waste": {
+    "provide_water_services": {
       "mode": "optimize",
       "active_method_ids": [
         "water_waste_other__residual_incumbent"
@@ -157,7 +157,7 @@
       "mode": "optimize",
       "active_method_ids": []
     },
-    "produce_cropping_horticulture_output": {
+    "grow_crops_and_horticulture_output": {
       "mode": "optimize",
       "active_method_ids": []
     },
@@ -165,15 +165,15 @@
       "mode": "optimize",
       "active_method_ids": []
     },
-    "produce_livestock_output": {
+    "raise_livestock_output": {
       "mode": "optimize",
       "active_method_ids": []
     },
-    "remove_co2_engineered_removals": {
+    "remove_co2_through_engineered_removals": {
       "mode": "optimize",
       "active_method_ids": []
     },
-    "remove_co2_land_sequestration": {
+    "remove_co2_through_land_sequestration": {
       "mode": "optimize",
       "active_method_ids": []
     },

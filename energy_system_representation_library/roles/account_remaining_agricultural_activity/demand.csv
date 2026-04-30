@@ -1,0 +1,2 @@
+role_id,anchor_year,anchor_value,unit,demand_growth_curve_id,anchor_status,source_role,coverage_note,notes
+account_remaining_agricultural_activity,2025,1,residual_activity,simple_role_growth_central__account_remaining_agricultural_activity,derived_residual_stub,Migrated residual calibration layer,Residual agriculture other uses a residual_activity anchor of 1; quantities live on the residual incumbent method.,"Growth proxy: livestock_output_bundle, cropping_horticulture_output_bundle. Confidence: low."
