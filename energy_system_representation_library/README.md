@@ -100,7 +100,7 @@ Those files use `role_id` and `applicable_method_ids` so efficiency effects atta
 - `roles/<role_id>/validation.md` — role validation expectations
 - `schema/*.json` — JSON-schema companions for the authored CSV surfaces
 - `shared/*.csv` — ledgers, owners, commodities, growth, price, carbon, topology, representation, and reporting tables
-- `validation/*.csv` — baseline validation diagnostics using role/method terminology
+- `validation/*.csv` — baseline and whole-system coverage validation diagnostics using role/method terminology
 
 ## Validation Structure
 

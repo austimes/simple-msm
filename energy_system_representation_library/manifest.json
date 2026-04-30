@@ -341,6 +341,7 @@
     "roles/transport_captured_co2/method_years.csv",
     "roles/transport_captured_co2/methods.csv",
     "roles/transport_captured_co2/README.md",
-    "roles/transport_captured_co2/validation.md"
+    "roles/transport_captured_co2/validation.md",
+    "validation/whole_system_coverage_summary.csv"
   ]
 }
