@@ -15,6 +15,9 @@
 - The default incumbent method for this role must exist in `method_years.csv` and remain selectable at every milestone year.
 - Baseline validation outputs must include this role in the 2025 package checks whenever it contributes activity, commodity use, emissions, or electricity demand.
 - Any balance notes embedded in the role rows must remain visible in the generated validation summary.
+- `make_cement_equivalent__pathway_bundle` must remain a direct pathway representation with 3 methods, 18 method-year rows, incumbent metadata, product-demand activity driver, and a medium emissions-importance metric.
+- The aggregate representation must keep cement kiln heat and fuel use inside the cement method rows and must not also activate `deliver_high_temperature_heat` for the same cement-equivalent output.
+- Process emissions in the aggregate rows must remain calcination coefficients on a cement-equivalent output basis until the planned clinker decomposition is selected.
 
 ## Validation tolerances
 
@@ -31,6 +34,7 @@
 ## What is intentionally approximate or excluded
 
 - This role remains a reduced-form Phase 1 representation.
+- The aggregate CCS method uses `capture_service` as a bundled proxy and does not yet expand to the shared capture transport and storage role chain.
 - `would_expand_to_explicit_capacity` values across the role: true.
 - `would_expand_to_process_chain` values across the role: true.
 - Contributors should treat the current role as the canonical authored unit and use the shared ledgers plus role-local notes for traceability.

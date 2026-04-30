@@ -342,6 +342,7 @@
     "roles/transport_captured_co2/methods.csv",
     "roles/transport_captured_co2/README.md",
     "roles/transport_captured_co2/validation.md",
+    "validation/cement_aggregate_representation_summary.csv",
     "validation/cement_decomposition_boundary.csv",
     "validation/whole_system_coverage_summary.csv"
   ]

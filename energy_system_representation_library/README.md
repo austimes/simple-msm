@@ -60,6 +60,8 @@ The current pilot is `make_crude_steel`. Its default representation remains the 
 
 That pilot proves the package can keep complete crude-steel coverage without making every steel route process-chain detailed at once.
 
+`validation/cement_aggregate_representation_summary.csv` records the active aggregate cement pathway representation. It ties the direct method bundle to its incumbent method, product-demand activity driver, emissions metric, integrated kiln heat/fuel boundary, cement-equivalent calcination basis, bundled CCS proxy, and mutual-exclusion guardrail.
+
 `validation/cement_decomposition_boundary.csv` records the planned cement/clinker decomposition before the child role files are authored. It fixes the parent aggregate mutual-exclusion boundary, planned child roles, parent-activity links, host-owned kiln heat placement, calcination and fuel-emissions ownership, and CCS/double-counting guardrails for the follow-on implementation issues.
 
 ### Methods
