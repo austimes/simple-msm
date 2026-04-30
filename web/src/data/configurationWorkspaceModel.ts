@@ -2,7 +2,6 @@ import type {
   AppConfigRegistry,
   ConfigurationDocument,
   ConfigurationYearKey,
-  FamilyResolution,
   MethodKind,
   PriceLevel,
   RepresentationKind,
@@ -45,7 +44,6 @@ export type RoleMethodNavigationEntry = RoleMethodCatalogEntry;
 
 export interface RoleNodeNavigationEntry extends Omit<RoleNodeCatalogEntry, 'methods' | 'childRoles'> {
   subsector: string;
-  familyResolution?: FamilyResolution;
   coverageScopeLabel?: string;
   states: RoleMethodNavigationEntry[];
   childRoles: RoleNodeNavigationEntry[];
@@ -57,11 +55,11 @@ export interface RoleAreaNavigationEntry {
 }
 
 function resolveMethodCatalogLabel(row: ResolvedMethodYearRow): string {
-  const preferredLabel = (row.method_label_standardized ?? row.state_label_standardized ?? '').trim()
-    || (row.method_option_label ?? row.state_option_label ?? '').trim()
-    || (row.method_label ?? row.state_label ?? '').trim();
+  const preferredLabel = row.method_label_standardized.trim()
+    || row.method_option_label.trim()
+    || row.method_label.trim();
 
-  return preferredLabel || row.method_id || row.state_id;
+  return preferredLabel || row.method_id;
 }
 
 function compareMethodSortKey(left: string, right: string): number {
@@ -182,10 +180,10 @@ export function buildRoleAreaNavigationCatalog(
   const sectors = new Map<string, Map<string, RoleNodeNavigationEntry & { sortRows: RoleMethodCatalogSortEntry[] }>>();
 
   for (const row of resolvedMethodYears) {
-    const outputId = row.output_id ?? row.service_or_output_name;
-    const roleId = row.role_id ?? outputId;
-    const representationId = row.representation_id ?? `${roleId}__pathway_bundle`;
-    const methodId = row.method_id ?? row.state_id;
+    const outputId = row.output_id;
+    const roleId = row.role_id;
+    const representationId = row.representation_id;
+    const methodId = row.method_id;
     if (!outputId || !methodId) {
       continue;
     }
@@ -196,17 +194,15 @@ export function buildRoleAreaNavigationCatalog(
     const entry = sectorMap.get(subsector) ?? {
       outputId,
       outputLabel: appConfig.output_roles[outputId]?.display_label
-        ?? row.coverage_scope_label
         ?? row.role_label
         ?? outputId,
       roleId,
-      roleLabel: row.role_label ?? row.coverage_scope_label ?? outputId,
-      parentRoleId: row.parent_role_id ?? null,
-      defaultRepresentationKind: row.default_representation_kind ?? 'pathway_bundle',
-      coverageObligation: row.coverage_obligation ?? 'required_top_level',
+      roleLabel: row.role_label ?? outputId,
+      parentRoleId: row.parent_role_id,
+      defaultRepresentationKind: row.default_representation_kind,
+      coverageObligation: row.coverage_obligation,
       subsector,
-      familyResolution: row.family_resolution,
-      coverageScopeLabel: row.coverage_scope_label ?? row.role_label ?? outputId,
+      coverageScopeLabel: row.role_label ?? outputId,
       states: [],
       childRoles: [],
       sortRows: [],
@@ -218,9 +214,9 @@ export function buildRoleAreaNavigationCatalog(
         roleId,
         representationId,
         methodId,
-        methodKind: row.method_kind ?? 'pathway',
-        methodSortKey: row.method_sort_key ?? row.state_sort_key ?? '',
-        methodOptionRank: row.method_option_rank ?? row.state_option_rank ?? null,
+        methodKind: row.method_kind,
+        methodSortKey: row.method_sort_key,
+        methodOptionRank: row.method_option_rank,
       });
     }
 

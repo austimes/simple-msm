@@ -49,8 +49,6 @@ import type {
   ResolvedMethodYearRow,
   ServiceDemandAnchorRow,
   ServiceDemandAnchorType,
-  SystemStructureGroupRow,
-  SystemStructureMemberRow,
 } from './types.ts';
 
 interface DemandGrowthCurveRow {
@@ -88,7 +86,6 @@ interface EfficiencyArtifactValidationContext {
   sourceIds: Set<string>;
   assumptionIds: Set<string>;
   methodIdsByRoleId: Map<string, Set<string>>;
-  appProjectionByRoleId: Map<string, RoleAppProjection>;
 }
 
 interface NodeDirectoryEntryLike {
@@ -1034,34 +1031,6 @@ function validateMethodYearReferences(
   }
 }
 
-function buildSystemStructureGroups(roles: RoleMetadata[]): SystemStructureGroupRow[] {
-  const byId = new Map<string, SystemStructureGroupRow>();
-  for (const role of roles) {
-    if (!byId.has(role.topology_area_id)) {
-      byId.set(role.topology_area_id, {
-        group_id: role.topology_area_id,
-        group_label: role.topology_area_label,
-        display_order: byId.size * 10 + 10,
-        notes: '',
-      });
-    }
-  }
-
-  return Array.from(byId.values());
-}
-
-function buildSystemStructureMembers(
-  roles: RoleMetadata[],
-  appProjectionByRoleId: Map<string, RoleAppProjection>,
-): SystemStructureMemberRow[] {
-  return roles.map((role, index) => ({
-    group_id: role.topology_area_id,
-    family_id: appProjectionByRoleId.get(role.role_id)?.appOutputId ?? role.role_id,
-    display_order: index * 10 + 10,
-    notes: '',
-  }));
-}
-
 function buildRolePresentationMetadata(
   roles: RoleMetadata[],
   appProjectionByRoleId: Map<string, RoleAppProjection>,
@@ -1170,24 +1139,8 @@ function buildResolvedMethodYearRows(
       method_option_rank: method.sort_order,
       method_option_code: optionCode,
       method_option_label: optionCode,
-      family_id: appOutputId,
-      family_resolution: role.role_kind === 'residual' ? 'residual_stub' : 'modeled',
-      coverage_scope_id: row.role_id,
-      coverage_scope_label: role.role_label,
       sector: (projection?.reportingAllocation?.sector ?? role.topology_area_id),
       subsector: (projection?.reportingAllocation?.subsector ?? appOutputId),
-      service_or_output_name: appOutputId,
-      state_id: row.method_id,
-      state_label: method.method_label,
-      state_description: method.method_description,
-      state_stage_family: method.method_kind,
-      state_stage_rank: method.sort_order,
-      state_stage_code: method.method_kind,
-      state_sort_key: `${appOutputId}:${String(method.sort_order).padStart(3, '0')}:${row.method_id}`,
-      state_label_standardized: method.method_label,
-      state_option_rank: method.sort_order,
-      state_option_code: optionCode,
-      state_option_label: optionCode,
       balance_tuning_flag: false,
       balance_tuning_note: '',
       benchmark_balance_note: '',
@@ -1285,10 +1238,8 @@ function toAutonomousEfficiencyTrack(
     context,
   );
 
-  const family_id = context.appProjectionByRoleId.get(role_id)?.appOutputId ?? role_id;
   return {
     role_id,
-    family_id,
     track_id,
     year: parseMilestoneYear(row['year'], `${artifactLabel}.year`),
     track_label: parseRequiredString(row['track_label'], `${artifactLabel}.track_label`),
@@ -1297,7 +1248,6 @@ function toAutonomousEfficiencyTrack(
       `${artifactLabel}.track_description`,
     ),
     applicable_method_ids,
-    applicable_state_ids: applicable_method_ids,
     affected_input_commodities,
     input_multipliers,
     delta_output_cost_per_unit: parseRequiredNumber(
@@ -1377,10 +1327,8 @@ function toEfficiencyPackage(
     context,
   );
 
-  const family_id = context.appProjectionByRoleId.get(role_id)?.appOutputId ?? role_id;
   return {
     role_id,
-    family_id,
     package_id,
     year: parseMilestoneYear(row['year'], `${artifactLabel}.year`),
     package_label: parseRequiredString(row['package_label'], `${artifactLabel}.package_label`),
@@ -1393,7 +1341,6 @@ function toEfficiencyPackage(
       `${artifactLabel}.classification`,
     ),
     applicable_method_ids,
-    applicable_state_ids: applicable_method_ids,
     affected_input_commodities,
     input_multipliers,
     delta_output_cost_per_unit: parseRequiredNumber(
@@ -1641,14 +1588,14 @@ function toServiceDemandAnchorRow(
   const outputId = appProjectionByRoleId.get(roleId)?.appOutputId ?? roleId;
   return {
     anchor_type: row['row_type'] as ServiceDemandAnchorType,
-    service_or_output_name: outputId,
-    default_2025_state_id: row['default_method_id'],
-    default_2025_state_option_code: row['default_method_option_code'],
-    default_2025_state_option_label: row['default_method_option_code'],
+    output_id: outputId,
+    default_2025_method_id: row['default_method_id'],
+    default_2025_method_option_code: row['default_method_option_code'],
+    default_2025_method_option_label: row['default_method_option_code'],
     quantity_2025: parseNum(row['quantity_2025']),
     unit: row['unit'],
     anchor_status: row['anchor_status'],
-    source_family: row['source_role'],
+    source_role: row['source_role'],
     coverage_note: row['coverage_note'],
     implied_gross_input_energy_pj_if_default: null,
     implied_benchmark_final_energy_pj_if_default: null,
@@ -1717,8 +1664,6 @@ function emptyPackage(appConfig: AppConfigRegistry): PackageData {
     methodYears: [],
     roleDemands: [],
     rolePresentationMetadata: [],
-    systemStructureGroups: [],
-    systemStructureMembers: [],
     resolvedMethodYears: [],
     autonomousEfficiencyTracks: [],
     efficiencyPackages: [],
@@ -1831,7 +1776,6 @@ export function loadPackage(): PackageData {
     sourceIds,
     assumptionIds,
     methodIdsByRoleId,
-    appProjectionByRoleId,
   });
 
   const serviceDemandAnchors2025 = parseCsv(
@@ -1876,8 +1820,6 @@ export function loadPackage(): PackageData {
       reportingAllocations,
       roleMetrics,
     ),
-    systemStructureGroups: buildSystemStructureGroups(roleMetadata),
-    systemStructureMembers: buildSystemStructureMembers(roleMetadata, appProjectionByRoleId),
     resolvedMethodYears,
     autonomousEfficiencyTracks,
     efficiencyPackages,

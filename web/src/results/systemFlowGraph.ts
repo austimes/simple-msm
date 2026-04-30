@@ -5,10 +5,6 @@ import type {
   SolveResult,
   SolveMethodShareSummary,
 } from '../solver/contract.ts';
-import type {
-  SystemStructureGroupRow,
-  SystemStructureMemberRow,
-} from '../data/types.ts';
 
 export type SystemFlowViewMode = 'both' | 'topology' | 'solved';
 
@@ -200,22 +196,25 @@ function buildMethodShareLookup(methodShares: SolveMethodShareSummary[]): {
 }
 
 function buildSystemGroupLookup(
-  groups: SystemStructureGroupRow[] | undefined,
-  members: SystemStructureMemberRow[] | undefined,
+  rows: NormalizedSolverRow[],
 ): Map<string, SystemFlowStructureGroup> {
-  const groupsById = new Map((groups ?? []).map((group) => [group.group_id, group]));
   const lookup = new Map<string, SystemFlowStructureGroup>();
+  const orderByGroupId = new Map<string, number>();
 
-  for (const member of members ?? []) {
-    const group = groupsById.get(member.group_id);
-    if (!group) {
+  for (const row of rows) {
+    const groupId = row.reportingSectorId ?? 'other';
+    const groupLabel = row.reportingSectorId ?? 'Other';
+    if (lookup.has(row.outputId)) {
       continue;
     }
+    if (!orderByGroupId.has(groupId)) {
+      orderByGroupId.set(groupId, orderByGroupId.size * 10 + 10);
+    }
 
-    lookup.set(member.family_id, {
-      id: group.group_id,
-      label: group.group_label,
-      order: group.display_order,
+    lookup.set(row.outputId, {
+      id: groupId,
+      label: groupLabel,
+      order: orderByGroupId.get(groupId) ?? 900,
     });
   }
 
@@ -344,15 +343,10 @@ export function buildSystemFlowGraphData(
   options: {
     year: number;
     collapsedSegmentIds?: ReadonlySet<string>;
-    systemStructureGroups?: SystemStructureGroupRow[];
-    systemStructureMembers?: SystemStructureMemberRow[];
   },
 ): SystemFlowGraphData {
   const collapsedSegmentIds = options.collapsedSegmentIds ?? new Set<string>();
-  const systemGroupByOutputId = buildSystemGroupLookup(
-    options.systemStructureGroups,
-    options.systemStructureMembers,
-  );
+  const systemGroupByOutputId = buildSystemGroupLookup(request.rows);
   const commodityModes = buildCommodityModeLookup(result, options.year);
   const shareLookup = buildMethodShareLookup(result.reporting.methodShares);
   const rowsForYear = request.rows.filter((row) => row.year === options.year);

@@ -1,6 +1,6 @@
 import {
   summarizeOverlayTotals,
-  summarizeResidualFamilyTotals,
+  summarizeResidualRoleTotals,
 } from '../data/balanceDiagnostics.ts';
 import { getCommodityMetadata } from '../data/commodityMetadata.ts';
 import type {
@@ -106,10 +106,10 @@ export interface ModelFormulationOverlaySummary {
   totalOverlayFixedCostAudm2024: number;
   residualFinalElectricityTwh?: number;
   gridLossesOwnUseElectricityTwh?: number;
-  includedResidualFamilyCount?: number;
-  energyResidualFamilyCount?: number;
-  nonEnergyResidualFamilyCount?: number;
-  sinkResidualFamilyCount?: number;
+  includedResidualRoleCount?: number;
+  energyResidualRoleCount?: number;
+  nonEnergyResidualRoleCount?: number;
+  sinkResidualRoleCount?: number;
   includedOverlayCount: number;
   energyOverlayCount: number;
   nonEnergyOverlayCount: number;
@@ -557,21 +557,20 @@ function buildOverlaySummary(
   commodityBalance2025: CommodityBalance2025Row[],
   emissionsBalance2025: EmissionsBalance2025Row[],
 ): ModelFormulationOverlaySummary {
-  const residualFamilyRows = resolvedMethodYears.filter(
-    (row) => row.family_resolution === 'residual_stub' && row.year === 2025,
+  const residualRoleRows = resolvedMethodYears.filter(
+    (row) => row.role_kind === 'residual' && row.year === 2025,
   );
-  const includedResidualFamilyIds = new Set(
-    residualFamilyRows
-      .map((row) => row.family_id)
-      .filter((familyId) => {
-        const roleId = residualFamilyRows.find((row) => row.family_id === familyId)?.role_id ?? familyId;
+  const includedResidualRoleIds = new Set(
+    residualRoleRows
+      .map((row) => row.role_id)
+      .filter((roleId) => {
         const activeMethodIds = currentConfiguration.role_controls?.[roleId]?.active_method_ids;
         return !(Array.isArray(activeMethodIds) && activeMethodIds.length === 0);
       }),
   );
   const totals = residualOverlays2025.length > 0
     ? summarizeOverlayTotals(residualOverlays2025)
-    : summarizeResidualFamilyTotals(resolvedMethodYears, includedResidualFamilyIds);
+    : summarizeResidualRoleTotals(resolvedMethodYears, includedResidualRoleIds);
   const includedOverlayIds = new Set(
     residualOverlays2025
       .filter((row) => row.default_include)
@@ -606,16 +605,16 @@ function buildOverlaySummary(
     ...totals,
     includedOverlayCount: residualOverlays2025.length > 0
       ? includedOverlayIds.size
-      : totals.includedResidualFamilyCount ?? 0,
+      : totals.includedResidualRoleCount ?? 0,
     energyOverlayCount: residualOverlays2025.length > 0
       ? energyOverlayIds.size
-      : totals.energyResidualFamilyCount ?? 0,
+      : totals.energyResidualRoleCount ?? 0,
     nonEnergyOverlayCount: residualOverlays2025.length > 0
       ? nonEnergyOverlayIds.size
-      : totals.nonEnergyResidualFamilyCount ?? 0,
+      : totals.nonEnergyResidualRoleCount ?? 0,
     sinkOverlayCount: residualOverlays2025.length > 0
       ? sinkOverlayIds.size
-      : totals.sinkResidualFamilyCount ?? 0,
+      : totals.sinkResidualRoleCount ?? 0,
     commodityBalanceRowCount: commodityBalance2025.length,
     emissionsBalanceRowCount: emissionsBalance2025.length,
     totalFinalEnergyBenchmarkPj: totalFinalEnergyRow?.balanced_total_pj_2025 ?? null,

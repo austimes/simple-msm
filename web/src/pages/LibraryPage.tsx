@@ -605,10 +605,10 @@ export default function LibraryPage() {
 
   const familyEfficiencyByFamilyId = useMemo(() => {
     return new Map(
-      Array.from(new Set(families.map((family) => family.representative.family_id))).map((familyId) => [
-        familyId,
+      Array.from(new Set(families.map((family) => family.representative.role_id))).map((roleId) => [
+        roleId,
         buildFamilyEfficiencyOverview(
-          familyId,
+          roleId,
           resolvedMethodYears,
           autonomousEfficiencyTracks,
           efficiencyPackages,
@@ -623,7 +623,7 @@ export default function LibraryPage() {
         family.methodId,
         buildTrajectoryEfficiencyMetadata(
           family,
-          familyEfficiencyByFamilyId.get(family.representative.family_id) ?? null,
+          familyEfficiencyByFamilyId.get(family.representative.role_id) ?? null,
         ),
       ]),
     );
@@ -652,7 +652,7 @@ export default function LibraryPage() {
         trajectoryEfficiencyByMethodId.get(family.methodId)
           ?? buildTrajectoryEfficiencyMetadata(
             family,
-            familyEfficiencyByFamilyId.get(family.representative.family_id) ?? null,
+            familyEfficiencyByFamilyId.get(family.representative.role_id) ?? null,
           ),
       );
     });
@@ -1320,7 +1320,7 @@ export default function LibraryPage() {
                           ))}
                         </div>
                         <h2>{selectedTrajectory.label}</h2>
-                        <p>{selectedTrajectory.representative.state_description}</p>
+                        <p>{selectedTrajectory.representative.method_description}</p>
                       </div>
                       <dl className="library-detail-summary">
                         <div>

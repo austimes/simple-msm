@@ -18,8 +18,6 @@ export default function RightSidebar() {
   const autonomousEfficiencyTracks = usePackageStore((s) => s.autonomousEfficiencyTracks);
   const efficiencyPackages = usePackageStore((s) => s.efficiencyPackages);
   const residualOverlays2025 = usePackageStore((s) => s.residualOverlays2025);
-  const systemStructureGroups = usePackageStore((s) => s.systemStructureGroups);
-  const systemStructureMembers = usePackageStore((s) => s.systemStructureMembers);
   const currentConfiguration = usePackageStore((s) => s.currentConfiguration);
   const toggleMethodActive = usePackageStore((s) => s.toggleMethodActive);
   const setRoleRepresentation = usePackageStore((s) => s.setRoleRepresentation);
@@ -72,10 +70,8 @@ export default function RightSidebar() {
     () => buildSystemStructureCatalog(
       rawCatalog,
       residualOverlays2025,
-      systemStructureGroups,
-      systemStructureMembers,
     ),
-    [rawCatalog, residualOverlays2025, systemStructureGroups, systemStructureMembers],
+    [rawCatalog, residualOverlays2025],
   );
 
   const outputStatuses = useMemo(

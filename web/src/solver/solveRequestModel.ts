@@ -164,8 +164,8 @@ function resolveCommodityPriceSeries(
 
 function resolveEfficiencyControlsForSolve(
   configuration: ConfigurationDocument,
-  autonomousEfficiencyTracks: Pick<AutonomousEfficiencyTrack, 'family_id' | 'track_id'>[],
-  efficiencyPackages: Pick<EfficiencyPackage, 'family_id' | 'package_id'>[],
+  autonomousEfficiencyTracks: Pick<AutonomousEfficiencyTrack, 'role_id' | 'track_id'>[],
+  efficiencyPackages: Pick<EfficiencyPackage, 'role_id' | 'package_id'>[],
   resolvedMethodYears?: Pick<ResolvedMethodYearRow, 'role_id' | 'output_id'>[],
 ): ResolvedConfigurationEfficiencyControls {
   const materializedConfiguration = materializeEfficiencyConfiguration(
@@ -181,7 +181,7 @@ function resolveEfficiencyControlsForSolve(
       autonomousEfficiencyTracks
         .filter((track) => {
           const effectiveMode =
-            autonomousModesByRole[track.family_id]
+            autonomousModesByRole[track.role_id]
             ?? controls?.autonomous_mode
             ?? 'baseline';
           return effectiveMode === 'baseline';
@@ -505,7 +505,7 @@ function buildPackageRow(
     directEmissions: applyEnergyEmissionMultiplier(baseRow.directEmissions, energyEmissionMultiplier),
     provenance: {
       kind: 'efficiency_package',
-      familyId: pkg.family_id,
+      familyId: pkg.role_id,
       baseMethodId: baseRow.provenance?.baseMethodId ?? baseRow.methodId,
       baseMethodLabel: baseRow.provenance?.baseMethodLabel ?? baseRow.methodDisplayLabel ?? baseRow.methodLabel,
       baseRowId: baseRow.provenance?.baseRowId ?? methodYearKey(baseRow.methodId, baseRow.year),
@@ -535,7 +535,7 @@ function collectAutonomousTracksByMethodYear(
     }
 
     const effectiveMode =
-      efficiency?.autonomousModesByRole[track.family_id]
+      efficiency?.autonomousModesByRole[track.role_id]
       ?? efficiency?.autonomousMode
       ?? 'baseline';
     if (effectiveMode !== 'baseline') {

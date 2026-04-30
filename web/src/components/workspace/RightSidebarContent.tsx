@@ -130,7 +130,7 @@ export default function RightSidebarContent({
     const hasEfficiencyControls = efficiencyControls?.hasControls === true;
     const autonomousEnabled = efficiencyControls?.autonomousTracks.some((track) => track.enabled) ?? false;
     const embodiedMethodIdSet = new Set(efficiencyControls?.embodiedMethodIds ?? []);
-    const isResidualStub = sub.familyResolution === 'residual_stub';
+    const isResidual = sub.roleKind === 'residual';
     const isDecomposition = sub.selectedRepresentationKind === 'role_decomposition';
     const hasRepresentationControls = sub.representationOptions.length > 0;
     const hasMethodControls = !isDecomposition && sub.states.length > 0;
@@ -146,9 +146,9 @@ export default function RightSidebarContent({
           >
             {sub.roleLabel || sub.outputLabel}
           </div>
-          {(badges.length > 0 || isResidualStub || sub.status || sub.canCollapse) && (
+          {(badges.length > 0 || isResidual || sub.status || sub.canCollapse) && (
             <div className="workspace-subsector-meta">
-              {isResidualStub && (
+              {isResidual && (
                 <span
                   className="workspace-mode-badge workspace-mode-badge--warning"
                   title={sub.coverageScopeLabel ?? sub.roleLabel}

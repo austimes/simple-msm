@@ -1,43 +1,43 @@
 /**
- * Residual family balance diagnostics tests.
+ * Residual role balance diagnostics tests.
  *
  * Verifies that the built-in package no longer uses residual overlay sidecar
- * rows and that first-class residual families reproduce the 2025 closure
+ * rows and that first-class residual roles reproduce the 2025 closure
  * quantities formerly represented by overlays.
  *
  * Run:  bunx tsx --test test/balanceDiagnostics.test.mjs
  */
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { summarizeResidualFamilyTotals } from '../src/data/balanceDiagnostics.ts';
+import { summarizeResidualRoleTotals } from '../src/data/balanceDiagnostics.ts';
 import { loadPkg } from './solverTestUtils.mjs';
 
 const pkg = loadPkg();
 const overlayRows = pkg.residualOverlays2025;
 const commodityBalanceRows = pkg.commodityBalance2025;
 const emissionsBalanceRows = pkg.emissionsBalance2025;
-const residualFamilyRows = pkg.resolvedMethodYears.filter(
-  (row) => row.family_resolution === 'residual_stub' && row.year === 2025,
+const residualRoleRows = pkg.resolvedMethodYears.filter(
+  (row) => row.role_kind === 'residual' && row.year === 2025,
 );
-const residualFamilyIds = new Set(residualFamilyRows.map((row) => row.family_id));
-const totals = summarizeResidualFamilyTotals(pkg.resolvedMethodYears);
+const residualRoleIds = new Set(residualRoleRows.map((row) => row.role_id));
+const totals = summarizeResidualRoleTotals(pkg.resolvedMethodYears);
 
-describe('Residual family migration', () => {
+describe('Residual role migration', () => {
   it('residual overlays are removed from the canonical web package load', () => {
     assert.equal(overlayRows.length, 0);
   });
 
-  it('loads 14 residual stub families with one 2025 incumbent row each', () => {
-    assert.equal(residualFamilyIds.size, 14);
-    assert.equal(residualFamilyRows.length, 14);
-    for (const row of residualFamilyRows) {
-      assert.equal(row.state_label, 'Residual incumbent');
+  it('loads 14 residual roles with one 2025 incumbent row each', () => {
+    assert.equal(residualRoleIds.size, 14);
+    assert.equal(residualRoleRows.length, 14);
+    for (const row of residualRoleRows) {
+      assert.equal(row.method_label, 'Residual incumbent');
     }
   });
 
   it('every residual role has demand, validation, and documentation companions', () => {
     const availablePaths = new Set(pkg.enrichment.availablePaths);
-    const residualRoleIds = new Set(residualFamilyRows.map((row) => row.role_id));
+    const residualRoleIds = new Set(residualRoleRows.map((row) => row.role_id));
     for (const roleId of residualRoleIds) {
       for (const filename of ['demand.csv', 'method_years.csv', 'README.md', 'validation.md']) {
         const path = `roles/${roleId}/${filename}`;
@@ -47,7 +47,7 @@ describe('Residual family migration', () => {
   });
 });
 
-describe('Residual family aggregation totals', () => {
+describe('Residual role aggregation totals', () => {
   it('total residual final energy excluding grid losses is about 1354.152 PJ', () => {
     assert.ok(
       Math.abs(totals.totalResidualEnergyPj - 1354.152) < 0.5,

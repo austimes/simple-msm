@@ -172,12 +172,12 @@ function collectMethodIdsByOutput(
   const byOutput = new Map<string, Set<string>>();
 
   for (const row of resolvedMethodYears) {
-    let methodIds = byOutput.get(row.service_or_output_name);
+    let methodIds = byOutput.get(row.output_id);
     if (!methodIds) {
       methodIds = new Set<string>();
-      byOutput.set(row.service_or_output_name, methodIds);
+      byOutput.set(row.output_id, methodIds);
     }
-    methodIds.add(row.state_id);
+    methodIds.add(row.method_id);
   }
 
   return new Map(
@@ -204,9 +204,9 @@ function collectIncumbentMethodIdsByOutput(
       continue;
     }
 
-    const existing = incumbents.get(row.service_or_output_name);
+    const existing = incumbents.get(row.output_id);
     if (!existing || row.year === 2025) {
-      incumbents.set(row.service_or_output_name, row.state_id);
+      incumbents.set(row.output_id, row.method_id);
     }
   }
 
