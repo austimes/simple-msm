@@ -32,6 +32,6 @@
 ## What is intentionally approximate or excluded
 
 - Technology-specific appliance rows are deferred to `simple-msm-techrep-1.3`.
-- Incumbent technology mix calibration is deferred to `simple-msm-techrep-1.4`.
+- The 2025 technology-bundle incumbent shares must sum to `1.0`: gas storage `0.48`, resistive electric `0.32`, electric heat pump `0.12`, and solar boosted `0.08`.
 - `would_expand_to_explicit_capacity` values across the role: false.
 - `would_expand_to_process_chain` values across the role: false.

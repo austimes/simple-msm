@@ -465,7 +465,7 @@ test('energy system representation library package structure is internally consi
   assert.equal(roles.filter((role) => role.role_kind === 'residual').length, 14);
   assert.equal(roles.filter((role) => role.coverage_obligation === 'explicit_residual_top_level').length, 14);
   assert.equal(representations.length, roles.length + 3);
-  assert.equal(representationIncumbents.length, roles.length + 1);
+  assert.equal(representationIncumbents.length, roles.length + 4);
   assert.equal(reportingAllocations.length, roles.length);
   assert.equal(roleValidationSummary.length, roles.length);
   assertAcyclicRoleTopology(roles);
