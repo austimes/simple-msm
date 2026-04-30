@@ -1,12 +1,12 @@
-# Deliver commercial building services
+# Serve commercial building occupants
 
 ## What the role represents
 
-This role covers `commercial_building_services` in sector `buildings` / subsector `commercial` for region `AUS`. The canonical balance type is `service_demand`, with output measured in `GJ_service_eq`. Buildings are represented as **aggregate service bundles** rather than explicit end-use processes.
+This role covers `commercial_building_services` in reporting sector `buildings` / subsector `commercial` for region `AUS`. The canonical balance type is `service_demand`, with output measured in `GJ_service_eq`. Buildings are represented as **aggregate service bundles** rather than explicit end-use processes.
 
 ## Role definition
 
-- Role id: `deliver_commercial_building_services`
+- Role id: `serve_commercial_building_occupants`
 - Balance type: `service_demand`
 - Output unit: `GJ_service_eq`
 - Output quantity basis: Baseline-normalised building service bundle. One unit approximates the useful service delivered by one GJ of incumbent 2025 final-energy use in this subsector.
@@ -59,6 +59,7 @@ The Phase 1 package keeps 3 method ids for this role so the explorer and solver 
 ## Expansion path
 
 - Split into space conditioning, water heating, cooking and appliances, with new-build versus retrofit variants.
+- Future decomposition should start with the largest controllable commercial end uses: HVAC, lighting, water heating, cooking, appliances, and residual remaining services.
 
 ## Maintainer and reviewer
 

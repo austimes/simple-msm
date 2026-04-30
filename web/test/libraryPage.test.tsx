@@ -157,8 +157,8 @@ describe('LibraryPage efficiency search and filters', () => {
       ...structuredClone(DEFAULT_APP_UI_STATE),
       library: {
         ...structuredClone(DEFAULT_APP_UI_STATE.library),
-        selectedRoleId: 'deliver_commercial_building_services',
-        selectedRepresentationId: 'deliver_commercial_building_services__pathway_bundle',
+        selectedRoleId: 'serve_commercial_building_occupants',
+        selectedRepresentationId: 'serve_commercial_building_occupants__pathway_bundle',
         selectedMethodId: 'buildings__commercial__deep_electric',
       },
     };
