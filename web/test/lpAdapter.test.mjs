@@ -530,8 +530,8 @@ function createDecomposedSteelRequest(overrides = {}) {
   const rows = [
     createRow({
       rowId: 'non_h2::2030',
-      roleId: 'produce_crude_steel_non_h2_dri_residual',
-      outputId: 'produce_crude_steel_non_h2_dri_residual',
+      roleId: 'make_non_h2_dri_crude_steel',
+      outputId: 'make_non_h2_dri_crude_steel',
       outputRole: 'optional_activity',
       outputUnit: 't_crude_steel',
       balanceType: 'service_demand',
@@ -542,8 +542,8 @@ function createDecomposedSteelRequest(overrides = {}) {
     }),
     createRow({
       rowId: 'dri_h2::2030',
-      roleId: 'produce_direct_reduced_iron',
-      outputId: 'produce_direct_reduced_iron',
+      roleId: 'make_direct_reduced_iron',
+      outputId: 'make_direct_reduced_iron',
       outputRole: 'optional_activity',
       outputUnit: 't_dri',
       balanceType: 'intermediate_material',
@@ -553,8 +553,8 @@ function createDecomposedSteelRequest(overrides = {}) {
     }),
     createRow({
       rowId: 'dri_finish::2030',
-      roleId: 'melt_refine_dri_crude_steel',
-      outputId: 'melt_refine_dri_crude_steel',
+      roleId: 'melt_and_refine_dri_into_crude_steel',
+      outputId: 'melt_and_refine_dri_into_crude_steel',
       outputRole: 'optional_activity',
       outputUnit: 't_crude_steel',
       balanceType: 'intermediate_conversion',
@@ -588,21 +588,21 @@ function createDecomposedSteelRequest(overrides = {}) {
             targetValue: null,
           },
         },
-        produce_crude_steel_non_h2_dri_residual: {
+        make_non_h2_dri_crude_steel: {
           2030: {
             mode: 'optimize',
             activeMethodIds: null,
             targetValue: null,
           },
         },
-        produce_direct_reduced_iron: {
+        make_direct_reduced_iron: {
           2030: {
             mode: 'optimize',
             activeMethodIds: null,
             targetValue: null,
           },
         },
-        melt_refine_dri_crude_steel: {
+        melt_and_refine_dri_into_crude_steel: {
           2030: {
             mode: 'optimize',
             activeMethodIds: null,
@@ -635,64 +635,64 @@ function createDecomposedSteelRequest(overrides = {}) {
     },
     roleTopology: {
       activeRoleIds: [
-        'produce_crude_steel',
-        'produce_crude_steel_non_h2_dri_residual',
-        'produce_direct_reduced_iron',
-        'melt_refine_dri_crude_steel',
+        'make_crude_steel',
+        'make_non_h2_dri_crude_steel',
+        'make_direct_reduced_iron',
+        'melt_and_refine_dri_into_crude_steel',
       ],
       activeRepresentationByRole: {
-        produce_crude_steel: 'produce_crude_steel__h2_dri_decomposition',
-        produce_crude_steel_non_h2_dri_residual: 'produce_crude_steel_non_h2_dri_residual__pathway_bundle',
-        produce_direct_reduced_iron: 'produce_direct_reduced_iron__technology_bundle',
-        melt_refine_dri_crude_steel: 'melt_refine_dri_crude_steel__technology_bundle',
+        make_crude_steel: 'make_crude_steel__h2_dri_decomposition',
+        make_non_h2_dri_crude_steel: 'make_non_h2_dri_crude_steel__pathway_bundle',
+        make_direct_reduced_iron: 'make_direct_reduced_iron__technology_bundle',
+        melt_and_refine_dri_into_crude_steel: 'melt_and_refine_dri_into_crude_steel__technology_bundle',
       },
       rolesById: {
-        produce_crude_steel: {
-          roleId: 'produce_crude_steel',
+        make_crude_steel: {
+          roleId: 'make_crude_steel',
           outputId: 'crude_steel',
           roleLabel: 'Crude steel',
           balanceType: 'service_demand',
           outputUnit: 't_crude_steel',
           parentRoleId: null,
         },
-        produce_crude_steel_non_h2_dri_residual: {
-          roleId: 'produce_crude_steel_non_h2_dri_residual',
-          outputId: 'produce_crude_steel_non_h2_dri_residual',
+        make_non_h2_dri_crude_steel: {
+          roleId: 'make_non_h2_dri_crude_steel',
+          outputId: 'make_non_h2_dri_crude_steel',
           roleLabel: 'Non-H2 DRI crude steel residual',
           balanceType: 'service_demand',
           outputUnit: 't_crude_steel',
-          parentRoleId: 'produce_crude_steel',
+          parentRoleId: 'make_crude_steel',
         },
-        produce_direct_reduced_iron: {
-          roleId: 'produce_direct_reduced_iron',
-          outputId: 'produce_direct_reduced_iron',
+        make_direct_reduced_iron: {
+          roleId: 'make_direct_reduced_iron',
+          outputId: 'make_direct_reduced_iron',
           roleLabel: 'Direct reduced iron',
           balanceType: 'intermediate_material',
           outputUnit: 't_dri',
-          parentRoleId: 'produce_crude_steel',
+          parentRoleId: 'make_crude_steel',
         },
-        melt_refine_dri_crude_steel: {
-          roleId: 'melt_refine_dri_crude_steel',
-          outputId: 'melt_refine_dri_crude_steel',
+        melt_and_refine_dri_into_crude_steel: {
+          roleId: 'melt_and_refine_dri_into_crude_steel',
+          outputId: 'melt_and_refine_dri_into_crude_steel',
           roleLabel: 'DRI melt/refine',
           balanceType: 'intermediate_conversion',
           outputUnit: 't_crude_steel',
-          parentRoleId: 'produce_crude_steel',
+          parentRoleId: 'make_crude_steel',
         },
       },
       decompositions: [
         {
-          parentRoleId: 'produce_crude_steel',
+          parentRoleId: 'make_crude_steel',
           parentOutputId: 'crude_steel',
           childRoleIds: [
-            'produce_crude_steel_non_h2_dri_residual',
-            'produce_direct_reduced_iron',
-            'melt_refine_dri_crude_steel',
+            'make_non_h2_dri_crude_steel',
+            'make_direct_reduced_iron',
+            'melt_and_refine_dri_into_crude_steel',
           ],
         },
       ],
       intermediateCommodityByRole: {
-        produce_direct_reduced_iron: 'direct_reduced_iron',
+        make_direct_reduced_iron: 'direct_reduced_iron',
       },
     },
   };
@@ -722,8 +722,8 @@ test('decomposed role topology reports missing child-role parent coverage', () =
     rows: [
       createRow({
         rowId: 'non_h2::2030',
-        roleId: 'produce_crude_steel_non_h2_dri_residual',
-        outputId: 'produce_crude_steel_non_h2_dri_residual',
+        roleId: 'make_non_h2_dri_crude_steel',
+        outputId: 'make_non_h2_dri_crude_steel',
         outputRole: 'optional_activity',
         outputUnit: 't_crude_steel',
         balanceType: 'service_demand',
@@ -746,7 +746,7 @@ test('decomposed role topology reports missing child-role parent coverage', () =
 test('decomposed role topology reports missing intermediate material coverage', () => {
   const request = createDecomposedSteelRequest({
     rows: createDecomposedSteelRequest().rows.map((row) => (
-      row.roleId === 'produce_direct_reduced_iron'
+      row.roleId === 'make_direct_reduced_iron'
         ? { ...row, bounds: { ...row.bounds, maxActivity: 10 } }
         : row
     )),

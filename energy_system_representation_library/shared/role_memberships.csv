@@ -10,11 +10,11 @@ account_residual_transport,account_remaining_transport_activity,residual_role,tr
 deliver_low_temperature_heat,provide_low_temperature_process_heat_for_host_roles,modeled_role,true,Current heat role maps to host-owned process heat rather than a standalone national heat system.
 deliver_medium_temperature_heat,provide_medium_temperature_process_heat_for_host_roles,modeled_role,true,Current heat role maps to host-owned process heat rather than a standalone national heat system.
 deliver_high_temperature_heat,provide_high_temperature_process_heat_for_host_roles,modeled_role,true,Current heat role maps to host-owned process heat rather than a standalone national heat system.
-produce_crude_steel,make_crude_steel,modeled_role,true,Current steel role maps to physical production node.
-produce_crude_steel_non_h2_dri_residual,make_non_h2_dri_crude_steel,decomposition_child,true,Current steel decomposition child maps to physical production node.
-produce_direct_reduced_iron,make_direct_reduced_iron,decomposition_child,true,Current steel decomposition child maps to physical intermediate node.
-melt_refine_dri_crude_steel,melt_and_refine_dri_into_crude_steel,decomposition_child,true,Current steel decomposition child maps to physical finishing node.
-produce_cement_equivalent,make_cement_equivalent,modeled_role,true,Current cement role maps to physical production node.
+make_crude_steel,make_crude_steel,modeled_role,true,Current steel role maps to physical production node.
+make_non_h2_dri_crude_steel,make_non_h2_dri_crude_steel,decomposition_child,true,Current steel decomposition child maps to physical production node.
+make_direct_reduced_iron,make_direct_reduced_iron,decomposition_child,true,Current steel decomposition child maps to physical intermediate node.
+melt_and_refine_dri_into_crude_steel,melt_and_refine_dri_into_crude_steel,decomposition_child,true,Current steel decomposition child maps to physical finishing node.
+make_cement_equivalent,make_cement_equivalent,modeled_role,true,Current cement role maps to physical production node.
 account_residual_manufacturing,account_remaining_manufacturing_activity,residual_role,true,Residual coverage is explicit in the physical graph.
 account_residual_ippu,account_remaining_industrial_process_emissions,residual_role,true,Residual coverage is explicit in the physical graph.
 supply_grid_electricity,supply_grid_electricity,modeled_role,true,Canonical grid-supply role is anchored directly on its physical node.

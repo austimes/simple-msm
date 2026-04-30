@@ -38,12 +38,12 @@ test('web package loader reads canonical role-topology files', () => {
     && metric.baseline_direct_gross_emissions_mtco2e > 100
   ));
   assert.ok(pkg.representations.some((representation) =>
-    representation.representation_id === 'produce_crude_steel__h2_dri_decomposition'
+    representation.representation_id === 'make_crude_steel__h2_dri_decomposition'
     && representation.representation_kind === 'role_decomposition'
   ));
   assert.ok(pkg.roleDecompositionEdges.some((edge) =>
-    edge.parent_representation_id === 'produce_crude_steel__h2_dri_decomposition'
-    && edge.child_role_id === 'produce_direct_reduced_iron'
+    edge.parent_representation_id === 'make_crude_steel__h2_dri_decomposition'
+    && edge.child_role_id === 'make_direct_reduced_iron'
     && edge.is_required === true
   ));
   assert.ok(pkg.rolePresentationMetadata.some((role) =>

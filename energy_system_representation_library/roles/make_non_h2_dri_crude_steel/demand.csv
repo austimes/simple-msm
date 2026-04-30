@@ -1,0 +1,2 @@
+role_id,anchor_year,anchor_value,unit,demand_growth_curve_id,anchor_status,source_role,coverage_note,notes
+make_non_h2_dri_crude_steel,2025,5700000.0,t_crude_steel,simple_role_growth_central__make_non_h2_dri_crude_steel,pilot_decomposition_child,Phase 1 reference scenario v0.2,Preserves non-H2 crude-steel aggregate coverage when the H2 DRI branch is decomposed.,Pilot anchor mirrors parent crude-steel demand until a topology resolver allocates parent demand across child roles.

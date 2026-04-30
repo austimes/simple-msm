@@ -31,9 +31,9 @@
     "deliver_medium_temperature_heat": "deliver_medium_temperature_heat__pathway_bundle",
     "move_passengers_by_road": "move_passengers_by_road__pathway_bundle",
     "serve_residential_building_occupants": "serve_residential_building_occupants__pathway_bundle",
-    "produce_cement_equivalent": "produce_cement_equivalent__pathway_bundle",
+    "make_cement_equivalent": "make_cement_equivalent__pathway_bundle",
     "produce_cropping_horticulture_output": "produce_cropping_horticulture_output__pathway_bundle",
-    "produce_crude_steel": "produce_crude_steel__pathway_bundle",
+    "make_crude_steel": "make_crude_steel__pathway_bundle",
     "produce_livestock_output": "produce_livestock_output__pathway_bundle",
     "remove_co2_engineered_removals": "remove_co2_engineered_removals__pathway_bundle",
     "remove_co2_land_sequestration": "remove_co2_land_sequestration__pathway_bundle",
@@ -164,7 +164,7 @@
         "buildings__residential__incumbent_mixed_fuels"
       ]
     },
-    "produce_cement_equivalent": {
+    "make_cement_equivalent": {
       "mode": "optimize",
       "active_method_ids": [
         "cement_clinker__cement_equivalent__conventional"
@@ -176,7 +176,7 @@
         "agriculture__cropping_horticulture__conventional"
       ]
     },
-    "produce_crude_steel": {
+    "make_crude_steel": {
       "mode": "optimize",
       "active_method_ids": [
         "steel__crude_steel__bf_bof_conventional"

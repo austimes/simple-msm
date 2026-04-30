@@ -54,7 +54,7 @@ function collectOutputIdByRoleId(resolvedMethodYears: ResolvedMethodYearRow[]): 
 }
 
 function stripLeadingRoleVerb(roleId: string): string | null {
-  const match = /^(produce|supply|deliver|remove|account)_(.+)$/.exec(roleId);
+  const match = /^(produce|make|supply|deliver|remove|account)_(.+)$/.exec(roleId);
   return match?.[2] ?? null;
 }
 

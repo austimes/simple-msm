@@ -52,11 +52,11 @@ Every active role must have exactly one active representation. Direct bundle rep
 
 `shared/representation_incumbents.csv` records the base-year incumbent method or method mix for each direct representation. Pathway and residual representations usually have one incumbent row with share `1.0`. Technology bundles can author multiple incumbent rows as a calibrated mix. Validation requires incumbent methods to belong to the same direct representation and incumbent shares to sum to `1.0` for each representation and anchor year.
 
-The current pilot is `produce_crude_steel`. Its default representation remains the aggregate `pathway_bundle`, while the optional `role_decomposition` representation activates:
+The current pilot is `make_crude_steel`. Its default representation remains the aggregate `pathway_bundle`, while the optional `role_decomposition` representation activates:
 
-- `produce_crude_steel_non_h2_dri_residual`
-- `produce_direct_reduced_iron`
-- `melt_refine_dri_crude_steel`
+- `make_non_h2_dri_crude_steel`
+- `make_direct_reduced_iron`
+- `melt_and_refine_dri_into_crude_steel`
 
 That pilot proves the package can keep complete crude-steel coverage without making every steel route process-chain detailed at once.
 

@@ -1,0 +1,2 @@
+role_id,anchor_year,anchor_value,unit,demand_growth_curve_id,anchor_status,source_role,coverage_note,notes
+make_direct_reduced_iron,2025,0,t_dri,simple_role_growth_central__make_direct_reduced_iron,derived_intermediate_pilot,make_crude_steel__h2_dri_decomposition,Intermediate DRI demand is induced by the decomposed crude-steel route rather than direct top-level demand.,Zero direct anchor prevents this intermediate role from becoming a top-level exogenous demand before topology solving exists.

@@ -62,15 +62,15 @@ test('library role graph shows crude-steel decomposition child roles', () => {
     new Set([
       'physical:make_materials_and_products',
       'physical:make_crude_steel',
-      'role:produce_crude_steel',
-      'representation:produce_crude_steel__h2_dri_decomposition',
+      'role:make_crude_steel',
+      'representation:make_crude_steel__h2_dri_decomposition',
     ]),
   );
 
-  assert.ok(graph.nodes.some((node) => node.id === 'role:produce_direct_reduced_iron'));
+  assert.ok(graph.nodes.some((node) => node.id === 'role:make_direct_reduced_iron'));
   assert.ok(graph.edges.some((edge) =>
-    edge.source === 'representation:produce_crude_steel__h2_dri_decomposition'
-    && edge.target === 'role:produce_direct_reduced_iron'
+    edge.source === 'representation:make_crude_steel__h2_dri_decomposition'
+    && edge.target === 'role:make_direct_reduced_iron'
   ));
 });
 
@@ -83,7 +83,7 @@ test('library role graph hides decomposition child roles until decomposition rep
     ]),
   );
 
-  assert.equal(graph.nodes.some((node) => node.id === 'role:produce_direct_reduced_iron'), false);
+  assert.equal(graph.nodes.some((node) => node.id === 'role:make_direct_reduced_iron'), false);
 });
 
 test('library role graph exposes emissions importance bands on role nodes', () => {

@@ -10,11 +10,11 @@ account_residual_transport,2025,1,residual_activity,11.657,11.657,medium,incumbe
 deliver_low_temperature_heat,2025,120000000,GJ_useful_heat,6.80196,6.80196,medium,incumbent_activity_anchor,Derived from 2025 incumbent method emissions intensity and baseline activity anchor.
 deliver_medium_temperature_heat,2025,140000000,GJ_useful_heat,6.30966,6.30966,medium,incumbent_activity_anchor,Derived from 2025 incumbent method emissions intensity and baseline activity anchor.
 deliver_high_temperature_heat,2025,170000000,GJ_useful_heat,6.23662,6.23662,medium,incumbent_activity_anchor,Derived from 2025 incumbent method emissions intensity and baseline activity anchor.
-produce_crude_steel,2025,5700000,t_crude_steel,11.4,11.4,medium,incumbent_activity_anchor,Derived from 2025 incumbent method emissions intensity and baseline activity anchor.
-produce_crude_steel_non_h2_dri_residual,2025,0,t_crude_steel,,,unknown,linked_parent_activity_unresolved,Linked parent activity needs an active decomposition allocation before emissions are meaningful.
-produce_direct_reduced_iron,2025,0,t_dri,,,unknown,linked_parent_activity_unresolved,Linked parent activity needs an active decomposition allocation before emissions are meaningful.
-melt_refine_dri_crude_steel,2025,0,t_crude_steel,,,unknown,linked_parent_activity_unresolved,Linked parent activity needs an active decomposition allocation before emissions are meaningful.
-produce_cement_equivalent,2025,9600000,t_cement_equivalent,7.134835,7.134835,medium,incumbent_activity_anchor,Derived from 2025 incumbent method emissions intensity and baseline activity anchor.
+make_crude_steel,2025,5700000,t_crude_steel,11.4,11.4,medium,incumbent_activity_anchor,Derived from 2025 incumbent method emissions intensity and baseline activity anchor.
+make_non_h2_dri_crude_steel,2025,0,t_crude_steel,,,unknown,linked_parent_activity_unresolved,Linked parent activity needs an active decomposition allocation before emissions are meaningful.
+make_direct_reduced_iron,2025,0,t_dri,,,unknown,linked_parent_activity_unresolved,Linked parent activity needs an active decomposition allocation before emissions are meaningful.
+melt_and_refine_dri_into_crude_steel,2025,0,t_crude_steel,,,unknown,linked_parent_activity_unresolved,Linked parent activity needs an active decomposition allocation before emissions are meaningful.
+make_cement_equivalent,2025,9600000,t_cement_equivalent,7.134835,7.134835,medium,incumbent_activity_anchor,Derived from 2025 incumbent method emissions intensity and baseline activity anchor.
 account_residual_manufacturing,2025,1,residual_activity,9.452,9.452,medium,incumbent_activity_anchor,Derived from 2025 incumbent method emissions intensity and baseline activity anchor.
 account_residual_ippu,2025,1,residual_activity,22.0692,22.0692,high,incumbent_activity_anchor,Derived from 2025 incumbent method emissions intensity and baseline activity anchor.
 supply_grid_electricity,2025,283920000,MWh,149.799883,149.799883,very_high,electricity_output_benchmark,Uses the 2025 electricity output benchmark with incumbent grid-supply intensity.

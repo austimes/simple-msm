@@ -8,22 +8,22 @@ const pkg = loadPackage();
 test('role library model keeps top-level roles separate from decomposition children', () => {
   const model = buildRoleLibraryModel(pkg);
 
-  assert.ok(model.topLevelRoles.some((role) => role.roleId === 'produce_crude_steel'));
-  assert.ok(!model.topLevelRoles.some((role) => role.roleId === 'produce_direct_reduced_iron'));
+  assert.ok(model.topLevelRoles.some((role) => role.roleId === 'make_crude_steel'));
+  assert.ok(!model.topLevelRoles.some((role) => role.roleId === 'make_direct_reduced_iron'));
   assert.equal(
-    model.roleById.get('produce_direct_reduced_iron')?.coverageObligation,
+    model.roleById.get('make_direct_reduced_iron')?.coverageObligation,
     'required_decomposition_child',
   );
 });
 
 test('role library model discovers crude-steel child roles from decomposition edges', () => {
   const model = buildRoleLibraryModel(pkg);
-  const decomposition = model.representationById.get('produce_crude_steel__h2_dri_decomposition');
+  const decomposition = model.representationById.get('make_crude_steel__h2_dri_decomposition');
 
   assert.deepEqual(decomposition?.childRoleIds, [
-    'melt_refine_dri_crude_steel',
-    'produce_crude_steel_non_h2_dri_residual',
-    'produce_direct_reduced_iron',
+    'melt_and_refine_dri_into_crude_steel',
+    'make_non_h2_dri_crude_steel',
+    'make_direct_reduced_iron',
   ]);
 });
 

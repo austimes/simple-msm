@@ -139,14 +139,14 @@ test('crude steel aggregate and decomposed built-ins solve and expose comparable
   const aggregateRoleIds = new Set(aggregate.snapshot.request.rows.map((row) => row.roleId));
   const decomposedRoleIds = new Set(decomposed.snapshot.request.rows.map((row) => row.roleId));
 
-  assert.ok(aggregateRoleIds.has('produce_crude_steel'));
-  assert.equal(aggregateRoleIds.has('produce_direct_reduced_iron'), false);
-  assert.equal(aggregateRoleIds.has('melt_refine_dri_crude_steel'), false);
+  assert.ok(aggregateRoleIds.has('make_crude_steel'));
+  assert.equal(aggregateRoleIds.has('make_direct_reduced_iron'), false);
+  assert.equal(aggregateRoleIds.has('melt_and_refine_dri_into_crude_steel'), false);
 
-  assert.equal(decomposedRoleIds.has('produce_crude_steel'), false);
-  assert.ok(decomposedRoleIds.has('produce_crude_steel_non_h2_dri_residual'));
-  assert.ok(decomposedRoleIds.has('produce_direct_reduced_iron'));
-  assert.ok(decomposedRoleIds.has('melt_refine_dri_crude_steel'));
+  assert.equal(decomposedRoleIds.has('make_crude_steel'), false);
+  assert.ok(decomposedRoleIds.has('make_non_h2_dri_crude_steel'));
+  assert.ok(decomposedRoleIds.has('make_direct_reduced_iron'));
+  assert.ok(decomposedRoleIds.has('melt_and_refine_dri_into_crude_steel'));
 
   const aggregateObjective = aggregate.snapshot.result.raw?.objectiveValue;
   const decomposedObjective = decomposed.snapshot.result.raw?.objectiveValue;
@@ -155,12 +155,12 @@ test('crude steel aggregate and decomposed built-ins solve and expose comparable
   assert.notEqual(aggregateObjective, decomposedObjective);
 
   const aggregateSteelRows = aggregate.snapshot.request.rows.filter((row) =>
-    row.roleId === 'produce_crude_steel'
+    row.roleId === 'make_crude_steel'
   );
   const decomposedSteelRows = decomposed.snapshot.request.rows.filter((row) =>
-    row.roleId === 'produce_crude_steel_non_h2_dri_residual'
-    || row.roleId === 'produce_direct_reduced_iron'
-    || row.roleId === 'melt_refine_dri_crude_steel'
+    row.roleId === 'make_non_h2_dri_crude_steel'
+    || row.roleId === 'make_direct_reduced_iron'
+    || row.roleId === 'melt_and_refine_dri_into_crude_steel'
   );
 
   assert.ok(aggregateSteelRows.length > 0);

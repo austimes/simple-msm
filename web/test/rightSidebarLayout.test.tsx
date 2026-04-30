@@ -197,20 +197,20 @@ describe('RightSidebarContent', () => {
           {
             subsector: 'crude_steel',
             outputId: 'crude_steel',
-            outputLabel: 'Produce crude steel',
-            roleId: 'produce_crude_steel',
-            roleLabel: 'Produce crude steel',
+            outputLabel: 'Make crude steel',
+            roleId: 'make_crude_steel',
+            roleLabel: 'Make crude steel',
             states: [
               {
                 methodId: 'steel_pathway',
                 methodLabel: 'Aggregate steel pathway',
-                representationId: 'produce_crude_steel__pathway_bundle',
+                representationId: 'make_crude_steel__pathway_bundle',
                 methodId: 'steel_pathway',
               },
             ],
             representationOptions: [
               {
-                representationId: 'produce_crude_steel__pathway_bundle',
+                representationId: 'make_crude_steel__pathway_bundle',
                 representationKind: 'pathway_bundle',
                 label: 'Crude steel pathway bundle',
                 description: 'Direct methods',
@@ -220,17 +220,17 @@ describe('RightSidebarContent', () => {
                 isSelected: true,
               },
               {
-                representationId: 'produce_crude_steel__h2_dri_decomposition',
+                representationId: 'make_crude_steel__h2_dri_decomposition',
                 representationKind: 'role_decomposition',
                 label: 'Crude steel H2 DRI decomposition',
                 description: 'Process-chain child roles',
                 directMethodKind: null,
                 methodIds: [],
-                childRoleIds: ['produce_direct_reduced_iron'],
+                childRoleIds: ['make_direct_reduced_iron'],
                 isSelected: false,
               },
             ],
-            selectedRepresentationId: 'produce_crude_steel__pathway_bundle',
+            selectedRepresentationId: 'make_crude_steel__pathway_bundle',
             selectedRepresentationKind: 'pathway_bundle',
             selectedRepresentationLabel: 'Crude steel pathway bundle',
             selectedRepresentationDescription: 'Direct methods',
@@ -284,8 +284,8 @@ describe('RightSidebarContent', () => {
     assert.ok(decompositionButton);
     decompositionButton.props.onClick();
     assert.deepEqual(selected, {
-      roleId: 'produce_crude_steel',
-      representationId: 'produce_crude_steel__h2_dri_decomposition',
+      roleId: 'make_crude_steel',
+      representationId: 'make_crude_steel__h2_dri_decomposition',
     });
   });
 
