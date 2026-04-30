@@ -104,6 +104,16 @@ bd close <id>         # Complete work
 - For issue work, always use a dedicated git worktree rather than editing directly in the primary `main` checkout
 - Land issue branches onto `main` only through the beads merge slot: create it if needed, check it first, acquire it before merging, and release it immediately after
 
+### Issue and Epic Naming
+
+When creating new beads issues or epics, make the intended work sequence visible in `bd list`.
+
+- Use versioned, sortable titles for related work. Prefix each related epic and issue with a stable version tag and an ordered step number where order matters, for example `[role-graph-v1 00] Epic: Physical role graph`, `[role-graph-v1 01] Define role graph schema`, `[role-graph-v1 02] Migrate library data`.
+- Start a new version tag when follow-up work changes scope or supersedes an earlier plan, for example `role-graph-v2` rather than reusing `role-graph-v1`.
+- Add beads dependencies whenever order or readiness matters. Later work should depend on earlier work with `bd dep add <later-issue> <earlier-issue>` so blocked work is hidden from `bd ready` and the intended order is clear to agents and humans.
+- Prefer a small dependency chain or dependency fan-in over relying only on title ordering. If an issue can genuinely run in parallel, do not add a dependency just to group it.
+- For epics, use the version tag in the epic title and apply the same version tag to its child issues so `bd list` shows the set together even without opening each issue.
+
 ## Session Completion
 
 **When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
