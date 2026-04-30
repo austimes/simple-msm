@@ -30,14 +30,17 @@ account_residual_mining_energy,account_remaining_domestic_energy_supply_activity
 account_residual_fugitives,account_remaining_fugitive_emissions,residual_role,true,Fugitive emissions remain explicit until assigned to richer supply roles.
 raise_livestock_output,raise_livestock_output,modeled_role,true,Current livestock role maps to physical production node.
 grow_crops_and_horticulture_output,grow_crops_and_horticulture_output,modeled_role,true,Current cropping role maps to physical production node.
-account_remaining_agricultural_activity,account_remaining_agricultural_activity,residual_role,true,Residual coverage is explicit in the physical graph.
+account_livestock_biogenic_emissions,account_livestock_biogenic_emissions,residual_role,true,Account livestock biogenic emissions coverage is explicit in the physical graph.
+account_soil_fertiliser_residue_emissions,account_soil_fertiliser_residue_emissions,residual_role,true,Account soil fertiliser and residue emissions coverage is explicit in the physical graph.
+account_remaining_agricultural_activity,account_remaining_agricultural_activity,residual_role,true,Compatibility residual remains visible but carries no calibrated residual agriculture quantities.
 account_residual_construction,construct_built_assets,residual_role,true,Current construction residual maps to physical construction node.
 provide_water_services,provide_water_services,residual_role,true,Current water residual maps to water-services node.
 manage_waste_emissions,manage_waste_emissions,residual_role,true,Current waste emissions residual maps to waste-management node.
 account_residual_other_sectors,account_remaining_other_sectors,residual_role,true,Residual coverage is explicit in the physical graph.
 remove_co2_through_land_sequestration,remove_co2_through_land_sequestration,modeled_role,true,Current land sequestration role maps to physical removal node.
 remove_co2_through_engineered_removals,remove_co2_through_engineered_removals,modeled_role,true,Current engineered removals role maps to physical removal node.
-account_remaining_land_sink_adjustment,account_remaining_land_sink_adjustment,residual_role,true,Residual land sink adjustment remains explicit in the physical graph.
+account_remaining_land_sink_adjustment,account_remaining_land_sink_adjustment,residual_role,true,Compatibility residual remains visible but carries no calibrated land stock-change quantities.
+account_land_carbon_stock_change,account_land_carbon_stock_change,residual_role,true,Account land carbon stock change coverage is explicit in the physical graph.
 supply_domestic_gas,supply_domestic_gas,residual_role,true,Supply domestic gas maps to its domestic carrier supply node as residual coverage.
 supply_domestic_liquid_fuels,supply_domestic_liquid_fuels,residual_role,true,Supply domestic liquid fuels maps to its domestic carrier supply node as residual coverage.
 supply_domestic_solid_fuels,supply_domestic_solid_fuels,residual_role,true,Supply domestic solid fuels maps to its domestic carrier supply node as residual coverage.

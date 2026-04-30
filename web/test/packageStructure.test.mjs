@@ -315,6 +315,8 @@ const EXPECTED_ROLE_IDS = new Set([
   'supply_iron_ore_to_export_gate',
   'raise_livestock_output',
   'grow_crops_and_horticulture_output',
+  'account_livestock_biogenic_emissions',
+  'account_soil_fertiliser_residue_emissions',
   'account_remaining_agricultural_activity',
   'account_residual_construction',
   'provide_water_services',
@@ -323,6 +325,7 @@ const EXPECTED_ROLE_IDS = new Set([
   'remove_co2_through_land_sequestration',
   'remove_co2_through_engineered_removals',
   'account_remaining_land_sink_adjustment',
+  'account_land_carbon_stock_change',
 ]);
 
 function readText(relativePath) {
@@ -475,11 +478,11 @@ test('energy system representation library package structure is internally consi
   assertUnique(reportingAllocations, (allocation) => allocation.reporting_allocation_id, 'reporting_allocation_id');
   assertUnique(roleValidationSummary, (summary) => summary.role_id, 'validation summary role_id');
   assert.deepEqual(roleIds, EXPECTED_ROLE_IDS);
-  assert.equal(roles.length, 48);
+  assert.equal(roles.length, 51);
   assert.equal(roleActivityDrivers.length, roles.length);
   assert.equal(roleMetrics.length, roles.length);
-  assert.equal(roles.filter((role) => role.role_kind === 'residual').length, 30);
-  assert.equal(roles.filter((role) => role.coverage_obligation === 'explicit_residual_top_level').length, 30);
+  assert.equal(roles.filter((role) => role.role_kind === 'residual').length, 33);
+  assert.equal(roles.filter((role) => role.coverage_obligation === 'explicit_residual_top_level').length, 33);
   assert.equal(representations.length, roles.length + 3);
   assert.equal(representationIncumbents.length, roles.length + 4);
   assert.equal(reportingAllocations.length, roles.length);
@@ -833,8 +836,8 @@ test('energy system representation library package structure is internally consi
     }
   }
 
-  assert.equal(totalMethods, 83);
-  assert.equal(totalMethodYearRows, 498);
+  assert.equal(totalMethods, 86);
+  assert.equal(totalMethodYearRows, 516);
   assert.equal(autonomousTrackRowCount > 0, true, 'expected at least one autonomous efficiency track row');
   assert.equal(efficiencyPackageRowCount > 0, true, 'expected at least one efficiency package row');
 

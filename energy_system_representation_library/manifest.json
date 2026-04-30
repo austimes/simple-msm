@@ -9,9 +9,9 @@
     2045,
     2050
   ],
-  "role_count": 48,
-  "method_count": 83,
-  "method_year_row_count": 498,
+  "role_count": 51,
+  "method_count": 86,
+  "method_year_row_count": 516,
   "files": [
     "README.md",
     "roles/account_grid_losses_and_own_use/demand.csv",
@@ -311,6 +311,21 @@
     "roles/make_other_material_products/method_years.csv",
     "roles/make_other_material_products/methods.csv",
     "roles/make_other_material_products/README.md",
-    "roles/make_other_material_products/validation.md"
+    "roles/make_other_material_products/validation.md",
+    "roles/account_livestock_biogenic_emissions/demand.csv",
+    "roles/account_livestock_biogenic_emissions/method_years.csv",
+    "roles/account_livestock_biogenic_emissions/methods.csv",
+    "roles/account_livestock_biogenic_emissions/README.md",
+    "roles/account_livestock_biogenic_emissions/validation.md",
+    "roles/account_soil_fertiliser_residue_emissions/demand.csv",
+    "roles/account_soil_fertiliser_residue_emissions/method_years.csv",
+    "roles/account_soil_fertiliser_residue_emissions/methods.csv",
+    "roles/account_soil_fertiliser_residue_emissions/README.md",
+    "roles/account_soil_fertiliser_residue_emissions/validation.md",
+    "roles/account_land_carbon_stock_change/demand.csv",
+    "roles/account_land_carbon_stock_change/method_years.csv",
+    "roles/account_land_carbon_stock_change/methods.csv",
+    "roles/account_land_carbon_stock_change/README.md",
+    "roles/account_land_carbon_stock_change/validation.md"
   ]
 }

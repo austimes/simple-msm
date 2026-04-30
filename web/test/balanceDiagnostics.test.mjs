@@ -27,9 +27,9 @@ describe('Residual role migration', () => {
     assert.equal(overlayRows.length, 0);
   });
 
-  it('loads 30 residual roles with one 2025 incumbent row each', () => {
-    assert.equal(residualRoleIds.size, 30);
-    assert.equal(residualRoleRows.length, 30);
+  it('loads 33 residual roles with one 2025 incumbent row each', () => {
+    assert.equal(residualRoleIds.size, 33);
+    assert.equal(residualRoleRows.length, 33);
     for (const row of residualRoleRows) {
       assert.match(row.method_label.toLowerCase(), /residual|compatibility/);
     }
@@ -76,10 +76,10 @@ describe('Residual role aggregation totals', () => {
     );
   });
 
-  it('total residual non-energy emissions excluding LULUCF are about 86.735 MtCO2e', () => {
+  it('total residual non-energy emissions excluding LULUCF are about 161.869 MtCO2e', () => {
     assert.ok(
-      Math.abs(totals.totalResidualNonEnergyEmissions - 86.735) < 0.001,
-      `Expected about 86.735, got ${totals.totalResidualNonEnergyEmissions}`,
+      Math.abs(totals.totalResidualNonEnergyEmissions - 161.869) < 0.001,
+      `Expected about 161.869, got ${totals.totalResidualNonEnergyEmissions}`,
     );
   });
 
@@ -87,10 +87,10 @@ describe('Residual role aggregation totals', () => {
     assert.equal(totals.lulucfSinkMtco2e, -73.7);
   });
 
-  it('total positive carbon-billable residual emissions are about 143.904 MtCO2e', () => {
+  it('total positive carbon-billable residual emissions are about 219.038 MtCO2e', () => {
     assert.ok(
-      Math.abs(totals.totalCarbonBillableEmissionsMtco2e - 143.904) < 0.001,
-      `Expected about 143.904, got ${totals.totalCarbonBillableEmissionsMtco2e}`,
+      Math.abs(totals.totalCarbonBillableEmissionsMtco2e - 219.038) < 0.001,
+      `Expected about 219.038, got ${totals.totalCarbonBillableEmissionsMtco2e}`,
     );
   });
 });

@@ -1,0 +1,2 @@
+role_id,anchor_year,anchor_value,unit,demand_growth_curve_id,anchor_status,source_role,coverage_note,notes
+account_land_carbon_stock_change,2025,1,residual_activity,flat__account_land_carbon_stock_change,optional_residual_sink,Biological emissions and land-stock split,Account land carbon stock change uses a residual_activity anchor of 1; quantities live on the residual incumbent method.,Growth proxy is low-confidence and should be replaced with explicit biological or land-stock drivers.

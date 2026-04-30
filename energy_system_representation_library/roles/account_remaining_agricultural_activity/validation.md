@@ -1,6 +1,6 @@
-# Account remaining agricultural activity
+# Account Remaining Agricultural Activity
 
 - 2025 demand anchor: `1 residual_activity`.
 - Default method: `residual_agriculture_other__residual_incumbent`.
-- Residual quantities are mechanically migrated from the prior overlay calibration table or, for grid losses and own-use, from the electricity balance validation row.
-- This is a residual stub, not an explicit technology or subsector model.
+- Calibrated residual quantities are zero on this compatibility role.
+- Former biological agriculture emissions now live on explicit biological or land stock-change residual roles.
