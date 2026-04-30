@@ -11,6 +11,7 @@ import type {
 void React;
 
 const ROLE_NODE_TYPE = 'libraryRole';
+const PHYSICAL_NODE_TYPE = 'libraryPhysical';
 const REPRESENTATION_NODE_TYPE = 'libraryRepresentation';
 const METHOD_NODE_TYPE = 'libraryMethod';
 
@@ -21,7 +22,7 @@ interface LibraryRoleGraphNodeData extends Record<string, unknown>, RoleLibraryG
 
 type LibraryRoleGraphNode = Node<
   LibraryRoleGraphNodeData,
-  typeof ROLE_NODE_TYPE | typeof REPRESENTATION_NODE_TYPE | typeof METHOD_NODE_TYPE
+  typeof PHYSICAL_NODE_TYPE | typeof ROLE_NODE_TYPE | typeof REPRESENTATION_NODE_TYPE | typeof METHOD_NODE_TYPE
 >;
 
 type LibraryRoleGraphEdge = {
@@ -54,6 +55,9 @@ async function getElk(): Promise<ElkInstance> {
 }
 
 function nodeSize(node: RoleLibraryGraphModelNode): { width: number; height: number } {
+  if (node.kind === 'physical') {
+    return { width: 260, height: 96 };
+  }
   if (node.kind === 'role') {
     return { width: 248, height: 106 };
   }
@@ -99,7 +103,9 @@ async function layoutLibraryRoleGraph(
   return {
     nodes: data.nodes.map((node) => ({
       id: node.id,
-      type: node.kind === 'role'
+      type: node.kind === 'physical'
+        ? PHYSICAL_NODE_TYPE
+        : node.kind === 'role'
         ? ROLE_NODE_TYPE
         : node.kind === 'representation'
           ? REPRESENTATION_NODE_TYPE
@@ -125,10 +131,13 @@ function stopGraphInteraction(event: React.PointerEvent | React.MouseEvent) {
 
 function LibraryGraphNode({ data }: NodeProps<LibraryRoleGraphNode>) {
   const expandable = data.kind !== 'method';
+  const metricClass = data.kind === 'role' && data.emissionsImportanceBand
+    ? ` library-role-node--emissions-${data.emissionsImportanceBand}`
+    : '';
   return (
     <button
       type="button"
-      className={`library-role-node library-role-node--${data.kind}${data.expanded ? ' library-role-node--expanded' : ''}${data.isDefault ? ' library-role-node--default' : ''}`}
+      className={`library-role-node library-role-node--${data.kind}${data.expanded ? ' library-role-node--expanded' : ''}${data.isDefault ? ' library-role-node--default' : ''}${metricClass}`}
       onClick={() => data.onSelect(data)}
       style={{ textAlign: 'left' }}
     >
@@ -136,6 +145,11 @@ function LibraryGraphNode({ data }: NodeProps<LibraryRoleGraphNode>) {
       <Handle type="source" position={Position.Right} isConnectable={false} />
       <span className="library-role-node__label">{data.label}</span>
       <span className="library-role-node__meta">{data.meta}</span>
+      {data.kind === 'physical' ? (
+        <span className="library-role-node__counts">
+          {data.childNodeCount ?? 0} nodes · {data.roleCount ?? 0} roles
+        </span>
+      ) : null}
       {data.kind === 'role' ? (
         <span className="library-role-node__counts">
           {data.representationCount ?? 0} reps · {data.methodCount ?? 0} methods
@@ -172,6 +186,7 @@ function LibraryGraphNode({ data }: NodeProps<LibraryRoleGraphNode>) {
 }
 
 const NODE_TYPES = {
+  [PHYSICAL_NODE_TYPE]: LibraryGraphNode,
   [ROLE_NODE_TYPE]: LibraryGraphNode,
   [REPRESENTATION_NODE_TYPE]: LibraryGraphNode,
   [METHOD_NODE_TYPE]: LibraryGraphNode,

@@ -1,9 +1,14 @@
 import type {
   BalanceType,
+  EmissionsImportanceBand,
   MethodKind,
   PackageData,
+  PhysicalEdge,
+  PhysicalEdgeKind,
+  PhysicalSystemNodeKind,
   ReportingAllocation,
   RepresentationKind,
+  RoleMetric,
   RoleMetadata,
 } from './types.ts';
 
@@ -49,14 +54,31 @@ export interface RoleLibraryRole {
   representations: RoleLibraryRepresentation[];
   childRoleIds: string[];
   reportingAllocations: ReportingAllocation[];
+  primaryPhysicalNodeId: string | null;
+  emissionsImportanceBand: EmissionsImportanceBand;
+  roleMetric: RoleMetric | null;
 }
 
-export type RoleLibraryGraphNodeKind = 'role' | 'representation' | 'method';
+export interface RoleLibraryPhysicalNode {
+  nodeId: string;
+  label: string;
+  description: string;
+  parentNodeId: string | null;
+  nodeKind: PhysicalSystemNodeKind;
+  boundary: string;
+  displayOrder: number;
+  notes: string;
+  childNodeIds: string[];
+  roleIds: string[];
+}
+
+export type RoleLibraryGraphNodeKind = 'physical' | 'role' | 'representation' | 'method';
 
 export interface RoleLibraryGraphNode {
   id: string;
   kind: RoleLibraryGraphNodeKind;
-  roleId: string;
+  roleId?: string;
+  physicalNodeId?: string;
   representationId?: string;
   methodId?: string;
   label: string;
@@ -65,10 +87,14 @@ export interface RoleLibraryGraphNode {
   isDefault?: boolean;
   roleKind?: RoleMetadata['role_kind'];
   balanceType?: BalanceType;
+  physicalNodeKind?: PhysicalSystemNodeKind;
   representationKind?: RepresentationKind;
   methodKind?: MethodKind;
+  emissionsImportanceBand?: EmissionsImportanceBand;
   representationCount?: number;
   methodCount?: number;
+  childNodeCount?: number;
+  roleCount?: number;
 }
 
 export interface RoleLibraryGraphEdge {
@@ -76,6 +102,7 @@ export interface RoleLibraryGraphEdge {
   source: string;
   target: string;
   label?: string;
+  edgeKind?: PhysicalEdgeKind | 'physical_hierarchy' | 'role_membership' | 'representation' | 'method';
 }
 
 export interface RoleLibraryGraphData {
@@ -84,6 +111,10 @@ export interface RoleLibraryGraphData {
 }
 
 export interface RoleLibraryModel {
+  physicalNodes: RoleLibraryPhysicalNode[];
+  topLevelPhysicalNodes: RoleLibraryPhysicalNode[];
+  physicalNodeById: Map<string, RoleLibraryPhysicalNode>;
+  physicalEdges: PhysicalEdge[];
   roles: RoleLibraryRole[];
   topLevelRoles: RoleLibraryRole[];
   roleById: Map<string, RoleLibraryRole>;
@@ -105,6 +136,10 @@ function roleNodeId(roleId: string): string {
   return `role:${roleId}`;
 }
 
+function physicalNodeId(nodeId: string): string {
+  return `physical:${nodeId}`;
+}
+
 function representationNodeId(representationId: string): string {
   return `representation:${representationId}`;
 }
@@ -117,7 +152,7 @@ function buildMethodKey(roleId: string, representationId: string, methodId: stri
   return `${roleId}::${representationId}::${methodId}`;
 }
 
-function matchesSearch(role: RoleLibraryRole, search: string): boolean {
+function matchesRoleSearch(role: RoleLibraryRole, search: string): boolean {
   if (!search) {
     return true;
   }
@@ -146,9 +181,34 @@ function matchesSearch(role: RoleLibraryRole, search: string): boolean {
   return haystack.includes(search.toLowerCase());
 }
 
+function matchesPhysicalNodeSearch(node: RoleLibraryPhysicalNode, search: string): boolean {
+  if (!search) {
+    return true;
+  }
+
+  const haystack = [
+    node.nodeId,
+    node.label,
+    node.description,
+    node.nodeKind,
+    node.boundary,
+    node.notes,
+  ].join(' ').toLowerCase();
+
+  return haystack.includes(search.toLowerCase());
+}
+
 export function buildRoleLibraryModel(pkg: Pick<
   PackageData,
-  'roleMetadata' | 'representations' | 'methods' | 'roleDecompositionEdges' | 'reportingAllocations'
+  | 'roleMetadata'
+  | 'roleMetrics'
+  | 'physicalSystemNodes'
+  | 'roleMemberships'
+  | 'physicalEdges'
+  | 'representations'
+  | 'methods'
+  | 'roleDecompositionEdges'
+  | 'reportingAllocations'
 >): RoleLibraryModel {
   const reportingAllocationsByRoleId = pkg.reportingAllocations.reduce<Map<string, ReportingAllocation[]>>(
     (result, allocation) => {
@@ -234,6 +294,40 @@ export function buildRoleLibraryModel(pkg: Pick<
     result.set(edge.parent_role_id, ids);
     return result;
   }, new Map<string, string[]>());
+  const roleMetricByRoleId = new Map(pkg.roleMetrics.map((metric) => [metric.role_id, metric]));
+  const primaryPhysicalNodeByRoleId = new Map(
+    pkg.roleMemberships
+      .filter((membership) => membership.is_primary)
+      .map((membership) => [membership.role_id, membership.node_id]),
+  );
+  const roleIdsByPhysicalNodeId = pkg.roleMemberships.reduce<Map<string, string[]>>((result, membership) => {
+    const roleIds = result.get(membership.node_id) ?? [];
+    roleIds.push(membership.role_id);
+    result.set(membership.node_id, roleIds);
+    return result;
+  }, new Map<string, string[]>());
+  for (const roleIds of roleIdsByPhysicalNodeId.values()) {
+    roleIds.sort((left, right) => left.localeCompare(right));
+  }
+  const childNodeIdsByParentNodeId = pkg.physicalSystemNodes.reduce<Map<string, string[]>>((result, node) => {
+    if (!node.parent_node_id) {
+      return result;
+    }
+    const childIds = result.get(node.parent_node_id) ?? [];
+    childIds.push(node.node_id);
+    result.set(node.parent_node_id, childIds);
+    return result;
+  }, new Map<string, string[]>());
+  const physicalSourceNodeById = new Map(pkg.physicalSystemNodes.map((node) => [node.node_id, node]));
+  for (const [parentNodeId, childIds] of childNodeIdsByParentNodeId) {
+    childIds.sort((left, right) => {
+      const leftNode = physicalSourceNodeById.get(left);
+      const rightNode = physicalSourceNodeById.get(right);
+      return (leftNode?.display_order ?? 0) - (rightNode?.display_order ?? 0)
+        || left.localeCompare(right);
+    });
+    childNodeIdsByParentNodeId.set(parentNodeId, childIds);
+  }
 
   const roles = pkg.roleMetadata.map((role) => ({
     roleId: role.role_id,
@@ -250,13 +344,45 @@ export function buildRoleLibraryModel(pkg: Pick<
     representations: representationsByRoleId.get(role.role_id) ?? [],
     childRoleIds: childRoleIdsByRoleId.get(role.role_id) ?? [],
     reportingAllocations: reportingAllocationsByRoleId.get(role.role_id) ?? [],
+    primaryPhysicalNodeId: primaryPhysicalNodeByRoleId.get(role.role_id) ?? null,
+    emissionsImportanceBand: roleMetricByRoleId.get(role.role_id)?.emissions_importance_band ?? 'unknown',
+    roleMetric: roleMetricByRoleId.get(role.role_id) ?? null,
   })).sort(compareLabels);
   const roleById = new Map(roles.map((role) => [role.roleId, role]));
   const topLevelRoles = roles
     .filter((role) => role.coverageObligation !== 'required_decomposition_child')
     .sort(compareLabels);
+  const physicalNodes = pkg.physicalSystemNodes.map((node) => ({
+    nodeId: node.node_id,
+    label: node.node_label,
+    description: node.description,
+    parentNodeId: node.parent_node_id,
+    nodeKind: node.node_kind,
+    boundary: node.boundary,
+    displayOrder: node.display_order,
+    notes: node.notes,
+    childNodeIds: childNodeIdsByParentNodeId.get(node.node_id) ?? [],
+    roleIds: roleIdsByPhysicalNodeId.get(node.node_id) ?? [],
+  })).sort((left, right) =>
+    left.displayOrder - right.displayOrder
+    || left.label.localeCompare(right.label)
+    || left.nodeId.localeCompare(right.nodeId),
+  );
+  const physicalNodeById = new Map(physicalNodes.map((node) => [node.nodeId, node]));
+  const rootNode = physicalNodes.find((node) => node.nodeKind === 'root');
+  const topLevelPhysicalNodes = physicalNodes
+    .filter((node) => node.parentNodeId === rootNode?.nodeId)
+    .sort((left, right) =>
+      left.displayOrder - right.displayOrder
+      || left.label.localeCompare(right.label)
+      || left.nodeId.localeCompare(right.nodeId),
+    );
 
   return {
+    physicalNodes,
+    topLevelPhysicalNodes,
+    physicalNodeById,
+    physicalEdges: pkg.physicalEdges,
     roles,
     topLevelRoles,
     roleById,
@@ -272,17 +398,99 @@ export function buildRoleLibraryGraphData(
 ): RoleLibraryGraphData {
   const nodes: RoleLibraryGraphNode[] = [];
   const edges: RoleLibraryGraphEdge[] = [];
+  const visibleNodeIds = new Set<string>();
   const search = filters.search?.trim() ?? '';
-  const visibleTopLevelRoles = model.topLevelRoles.filter((role) =>
-    matchesSearch(role, search)
-    && (!filters.roleKind || role.roleKind === filters.roleKind)
-    && (!filters.balanceType || role.balanceType === filters.balanceType),
-  );
+  const matchingRoleIds = new Set(model.roles
+    .filter((role) =>
+      matchesRoleSearch(role, search)
+      && (!filters.roleKind || role.roleKind === filters.roleKind)
+      && (!filters.balanceType || role.balanceType === filters.balanceType),
+    )
+    .map((role) => role.roleId));
+
+  function physicalSubtreeContainsMatch(node: RoleLibraryPhysicalNode): boolean {
+    if (!search && !filters.roleKind && !filters.balanceType) {
+      return true;
+    }
+    if (matchesPhysicalNodeSearch(node, search) && !filters.roleKind && !filters.balanceType) {
+      return true;
+    }
+    if (node.roleIds.some((roleId) => matchingRoleIds.has(roleId))) {
+      return true;
+    }
+    return node.childNodeIds.some((childNodeId) => {
+      const childNode = model.physicalNodeById.get(childNodeId);
+      return childNode ? physicalSubtreeContainsMatch(childNode) : false;
+    });
+  }
+
+  function addVisibleEdge(edge: RoleLibraryGraphEdge): void {
+    if (visibleNodeIds.has(edge.source) && visibleNodeIds.has(edge.target)) {
+      edges.push(edge);
+    }
+  }
+
+  function addPhysicalNode(node: RoleLibraryPhysicalNode): void {
+    const id = physicalNodeId(node.nodeId);
+    const expanded = expandedNodeIds.has(id);
+    nodes.push({
+      id,
+      kind: 'physical',
+      physicalNodeId: node.nodeId,
+      label: node.label,
+      meta: node.nodeKind.replaceAll('_', ' '),
+      expanded,
+      physicalNodeKind: node.nodeKind,
+      childNodeCount: node.childNodeIds.length,
+      roleCount: node.roleIds.length,
+    });
+    visibleNodeIds.add(id);
+
+    if (!expanded) {
+      return;
+    }
+
+    for (const childNodeId of node.childNodeIds) {
+      const childNode = model.physicalNodeById.get(childNodeId);
+      if (!childNode || !physicalSubtreeContainsMatch(childNode)) {
+        continue;
+      }
+      addPhysicalNode(childNode);
+      edges.push({
+        id: `${id}->${physicalNodeId(childNodeId)}`,
+        source: id,
+        target: physicalNodeId(childNodeId),
+        edgeKind: 'physical_hierarchy',
+      });
+    }
+
+    for (const roleId of node.roleIds) {
+      const role = model.roleById.get(roleId);
+      if (
+        !role
+        || role.coverageObligation === 'required_decomposition_child'
+        || !matchingRoleIds.has(role.roleId)
+      ) {
+        continue;
+      }
+      addRole(role);
+      edges.push({
+        id: `${id}->${roleNodeId(role.roleId)}`,
+        source: id,
+        target: roleNodeId(role.roleId),
+        label: 'role',
+        edgeKind: 'role_membership',
+      });
+    }
+  }
 
   function addRole(role: RoleLibraryRole): void {
     const id = roleNodeId(role.roleId);
     const expanded = expandedNodeIds.has(id);
     const methodCount = role.representations.reduce((sum, representation) => sum + representation.methods.length, 0);
+    if (visibleNodeIds.has(id)) {
+      return;
+    }
     nodes.push({
       id,
       kind: 'role',
@@ -294,7 +502,9 @@ export function buildRoleLibraryGraphData(
       balanceType: role.balanceType,
       representationCount: role.representations.length,
       methodCount,
+      emissionsImportanceBand: role.emissionsImportanceBand,
     });
+    visibleNodeIds.add(id);
 
     if (!expanded) {
       return;
@@ -306,6 +516,7 @@ export function buildRoleLibraryGraphData(
         id: `${id}->${representationNodeId(representation.representationId)}`,
         source: id,
         target: representationNodeId(representation.representationId),
+        edgeKind: 'representation',
       });
     }
   }
@@ -325,6 +536,7 @@ export function buildRoleLibraryGraphData(
       representationKind: representation.representationKind,
       methodCount: representation.methods.length,
     });
+    visibleNodeIds.add(id);
 
     if (!expanded) {
       return;
@@ -342,6 +554,7 @@ export function buildRoleLibraryGraphData(
           source: id,
           target: roleNodeId(childRoleId),
           label: 'child role',
+          edgeKind: 'role_membership',
         });
       }
       return;
@@ -364,12 +577,25 @@ export function buildRoleLibraryGraphData(
         id: `${id}->${methodId}`,
         source: id,
         target: methodId,
+        edgeKind: 'method',
       });
     }
   }
 
-  for (const role of visibleTopLevelRoles) {
-    addRole(role);
+  for (const physicalNode of model.topLevelPhysicalNodes) {
+    if (physicalSubtreeContainsMatch(physicalNode)) {
+      addPhysicalNode(physicalNode);
+    }
+  }
+
+  for (const physicalEdge of model.physicalEdges) {
+    addVisibleEdge({
+      id: `physical-edge:${physicalEdge.edge_id}`,
+      source: physicalNodeId(physicalEdge.from_node_id),
+      target: physicalNodeId(physicalEdge.to_node_id),
+      label: physicalEdge.flow_label,
+      edgeKind: physicalEdge.edge_kind,
+    });
   }
 
   return { nodes, edges };
