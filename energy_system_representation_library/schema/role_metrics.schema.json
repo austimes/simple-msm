@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schema/role_metrics.schema.json",
+  "title": "Role metrics",
+  "description": "Schema for shared/role_metrics.csv. Rows expose baseline role-level emissions metrics for visualization and explanation without changing solver semantics.",
+  "type": "object",
+  "required": [
+    "role_id",
+    "baseline_year",
+    "activity_value",
+    "activity_unit",
+    "baseline_direct_gross_emissions_mtco2e",
+    "baseline_direct_net_emissions_mtco2e",
+    "emissions_importance_band",
+    "metric_basis",
+    "notes"
+  ],
+  "properties": {
+    "role_id": {
+      "type": "string",
+      "description": "Role identifier from shared/roles.csv."
+    },
+    "baseline_year": {
+      "type": "integer",
+      "description": "Baseline year used for this metric row."
+    },
+    "activity_value": {
+      "type": "number",
+      "description": "Baseline activity value used to scale incumbent method emissions."
+    },
+    "activity_unit": {
+      "type": "string",
+      "description": "Baseline activity unit."
+    },
+    "baseline_direct_gross_emissions_mtco2e": {
+      "type": "number",
+      "description": "Positive direct baseline emissions in MtCO2e. Blank when unresolved."
+    },
+    "baseline_direct_net_emissions_mtco2e": {
+      "type": "number",
+      "description": "Net direct baseline emissions in MtCO2e including negative-removal entries. Blank when unresolved."
+    },
+    "emissions_importance_band": {
+      "type": "string",
+      "enum": [
+        "very_high",
+        "high",
+        "medium",
+        "low",
+        "very_low",
+        "zero",
+        "sink",
+        "unknown"
+      ],
+      "description": "Coarse emissions importance band for visualization."
+    },
+    "metric_basis": {
+      "type": "string",
+      "description": "Derivation basis for the metric."
+    },
+    "notes": {
+      "type": "string",
+      "description": "Metric derivation notes."
+    }
+  }
+}

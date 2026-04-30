@@ -6,6 +6,7 @@ test('web package loader reads canonical role-topology files', () => {
   const pkg = loadPackage();
 
   assert.equal(pkg.roleMetadata.length, 31);
+  assert.equal(pkg.roleMetrics.length, 31);
   assert.equal(pkg.representations.length, 32);
   assert.equal(pkg.roleDecompositionEdges.length, 3);
   assert.equal(pkg.methods.length, 60);
@@ -13,6 +14,11 @@ test('web package loader reads canonical role-topology files', () => {
   assert.equal(pkg.roleDemands.length, 31);
 
   assert.ok(pkg.roleMetadata.some((role) => role.role_id === 'supply_electricity'));
+  assert.ok(pkg.roleMetrics.some((metric) =>
+    metric.role_id === 'supply_electricity'
+    && metric.emissions_importance_band === 'very_high'
+    && metric.baseline_direct_gross_emissions_mtco2e > 100
+  ));
   assert.ok(pkg.representations.some((representation) =>
     representation.representation_id === 'produce_crude_steel__h2_dri_decomposition'
     && representation.representation_kind === 'role_decomposition'
@@ -21,6 +27,11 @@ test('web package loader reads canonical role-topology files', () => {
     edge.parent_representation_id === 'produce_crude_steel__h2_dri_decomposition'
     && edge.child_role_id === 'produce_direct_reduced_iron'
     && edge.is_required === true
+  ));
+  assert.ok(pkg.rolePresentationMetadata.some((role) =>
+    role.role_id === 'account_residual_lulucf_sink'
+    && role.emissions_importance_band === 'sink'
+    && role.role_metric?.baseline_direct_net_emissions_mtco2e === -73.7
   ));
 });
 
