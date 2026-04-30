@@ -60,6 +60,7 @@ The Phase 1 package keeps 3 method ids for this role so the explorer and solver 
 
 - Split into space conditioning, water heating, cooking and appliances, with new-build versus retrofit variants.
 - The first likely decomposition point is residential water heating, followed by space conditioning, cooking, appliances, and residual remaining services.
+- Residential water heating is defined in `docs/plan/20260430-residential-water-heating-role-boundary.md` as `provide_residential_water_heating`, with `GJ_hot_water_service` activity linked to this aggregate role.
 
 ## Maintainer and reviewer
 
