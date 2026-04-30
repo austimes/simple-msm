@@ -16,14 +16,14 @@ test('web package loader reads canonical role-topology files', () => {
   assert.equal(pkg.methodYears.length, 360);
   assert.equal(pkg.roleDemands.length, 31);
 
-  assert.ok(pkg.roleMetadata.some((role) => role.role_id === 'supply_electricity'));
+  assert.ok(pkg.roleMetadata.some((role) => role.role_id === 'supply_grid_electricity'));
   assert.ok(pkg.physicalSystemNodes.some((node) =>
     node.node_id === 'operate_australian_energy_and_emissions_system'
     && node.node_kind === 'root'
     && node.parent_node_id === null
   ));
   assert.ok(pkg.roleMemberships.some((membership) =>
-    membership.role_id === 'supply_electricity'
+    membership.role_id === 'supply_grid_electricity'
     && membership.node_id === 'supply_grid_electricity'
     && membership.is_primary === true
   ));
@@ -33,7 +33,7 @@ test('web package loader reads canonical role-topology files', () => {
     && edge.to_node_id === 'serve_building_occupants'
   ));
   assert.ok(pkg.roleMetrics.some((metric) =>
-    metric.role_id === 'supply_electricity'
+    metric.role_id === 'supply_grid_electricity'
     && metric.emissions_importance_band === 'very_high'
     && metric.baseline_direct_gross_emissions_mtco2e > 100
   ));
@@ -56,7 +56,7 @@ test('web package loader reads canonical role-topology files', () => {
 test('web package loader parses methods and method-year rows with role/method names', () => {
   const pkg = loadPackage();
   const method = pkg.methods.find((row) =>
-    row.role_id === 'supply_electricity'
+    row.role_id === 'supply_grid_electricity'
     && row.method_id === 'electricity__grid_supply__policy_frontier'
   );
   assert.ok(method);
@@ -65,8 +65,8 @@ test('web package loader parses methods and method-year rows with role/method na
   assert.ok(method.source_ids.includes('S003'));
 
   const methodYear = pkg.methodYears.find((row) =>
-    row.role_id === 'supply_electricity'
-    && row.representation_id === 'supply_electricity__pathway_bundle'
+    row.role_id === 'supply_grid_electricity'
+    && row.representation_id === 'supply_grid_electricity__pathway_bundle'
     && row.method_id === 'electricity__grid_supply__policy_frontier'
     && row.year === 2030
   );
@@ -89,13 +89,13 @@ test('web package loader removes old family/state package file paths', () => {
 
   assert.deepEqual(oldPackagePaths, []);
   assert.equal(pkg.enrichment.methodYearsSchema?.title, 'Method-year rows');
-  assert.equal(Boolean(pkg.enrichment.roleReadmes.supply_electricity), true);
+  assert.equal(Boolean(pkg.enrichment.roleReadmes.supply_grid_electricity), true);
 });
 
 test('canonical role/method rows expose only canonical app fields', () => {
   const pkg = loadPackage();
   const electricity = pkg.resolvedMethodYears.find((row) =>
-    row.role_id === 'supply_electricity'
+    row.role_id === 'supply_grid_electricity'
     && row.method_id === 'electricity__grid_supply__incumbent_thermal_mix'
     && row.year === 2025
   );

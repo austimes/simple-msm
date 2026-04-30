@@ -28,14 +28,14 @@ test('library role graph expands a role into representation nodes', () => {
     new Set([
       'physical:supply_domestic_energy_carriers',
       'physical:supply_grid_electricity',
-      'role:supply_electricity',
+      'role:supply_grid_electricity',
     ]),
   );
 
-  assert.ok(graph.nodes.some((node) => node.id === 'representation:supply_electricity__pathway_bundle'));
+  assert.ok(graph.nodes.some((node) => node.id === 'representation:supply_grid_electricity__pathway_bundle'));
   assert.ok(graph.edges.some((edge) =>
-    edge.source === 'role:supply_electricity'
-    && edge.target === 'representation:supply_electricity__pathway_bundle'
+    edge.source === 'role:supply_grid_electricity'
+    && edge.target === 'representation:supply_grid_electricity__pathway_bundle'
   ));
 });
 
@@ -45,8 +45,8 @@ test('library role graph expands a direct representation into method nodes', () 
     new Set([
       'physical:supply_domestic_energy_carriers',
       'physical:supply_grid_electricity',
-      'role:supply_electricity',
-      'representation:supply_electricity__pathway_bundle',
+      'role:supply_grid_electricity',
+      'representation:supply_grid_electricity__pathway_bundle',
     ]),
   );
 
@@ -94,7 +94,7 @@ test('library role graph exposes emissions importance bands on role nodes', () =
       'physical:supply_grid_electricity',
     ]),
   );
-  const electricity = graph.nodes.find((node) => node.id === 'role:supply_electricity');
+  const electricity = graph.nodes.find((node) => node.id === 'role:supply_grid_electricity');
 
   assert.equal(electricity?.emissionsImportanceBand, 'very_high');
 });

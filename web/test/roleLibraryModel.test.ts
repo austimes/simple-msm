@@ -29,8 +29,8 @@ test('role library model discovers crude-steel child roles from decomposition ed
 
 test('role library model counts representations, methods, and reporting allocations', () => {
   const model = buildRoleLibraryModel(pkg);
-  const electricity = model.roleById.get('supply_electricity');
-  const directRepresentation = model.representationById.get('supply_electricity__pathway_bundle');
+  const electricity = model.roleById.get('supply_grid_electricity');
+  const directRepresentation = model.representationById.get('supply_grid_electricity__pathway_bundle');
 
   assert.ok(electricity);
   assert.equal(electricity?.representations.length, 1);
@@ -40,7 +40,7 @@ test('role library model counts representations, methods, and reporting allocati
 
 test('reporting allocations do not create topology children', () => {
   const model = buildRoleLibraryModel(pkg);
-  const electricity = model.roleById.get('supply_electricity');
+  const electricity = model.roleById.get('supply_grid_electricity');
 
   assert.equal(electricity?.reportingAllocations.length, 1);
   assert.deepEqual(electricity?.childRoleIds, []);

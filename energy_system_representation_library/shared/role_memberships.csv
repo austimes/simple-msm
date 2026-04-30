@@ -16,8 +16,8 @@ melt_refine_dri_crude_steel,melt_and_refine_dri_into_crude_steel,decomposition_c
 produce_cement_equivalent,make_cement_equivalent,modeled_role,true,Current cement role maps to physical production node.
 account_residual_manufacturing,account_remaining_manufacturing_activity,residual_role,true,Residual coverage is explicit in the physical graph.
 account_residual_ippu,account_remaining_industrial_process_emissions,residual_role,true,Residual coverage is explicit in the physical graph.
-supply_electricity,supply_grid_electricity,modeled_role,true,Current electricity role maps to physical supply node.
-account_electricity_grid_losses_own_use,account_grid_losses_and_own_use,residual_role,true,Grid losses and own use remain explicit physical coverage.
+supply_grid_electricity,supply_grid_electricity,modeled_role,true,Canonical grid-supply role is anchored directly on its physical node.
+account_grid_losses_and_own_use,account_grid_losses_and_own_use,residual_role,true,Grid losses and own use remain explicit physical coverage.
 account_residual_mining_energy,account_remaining_domestic_energy_supply_activity,residual_role,true,Domestic mining energy residual is separate from export-gate resource supply nodes.
 account_residual_fugitives,account_remaining_fugitive_emissions,residual_role,true,Fugitive emissions remain explicit until assigned to richer supply roles.
 produce_livestock_output,raise_livestock_output,modeled_role,true,Current livestock role maps to physical production node.
