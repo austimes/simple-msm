@@ -22,6 +22,7 @@
  *   1 = any runtime/solve errors
  *   2 = CLI usage error
  */
+import { readFileSync } from 'node:fs';
 import { relative as relativePath } from 'node:path';
 import {
   listCliConfigurations,
@@ -31,6 +32,7 @@ import {
 import { validateAdditionalityPair } from './src/additionality/additionalityAnalysis.ts';
 import { resolveWorkspacePair } from './src/data/configurationPairModel.ts';
 import { loadPackage } from './src/data/packageLoader.ts';
+import { parseCsv } from './src/data/parseCsv.ts';
 import { runScenario } from './src/results/runScenario.ts';
 
 const EXIT_OK = 0;
@@ -49,6 +51,7 @@ Usage:
   bun run msm compare <config> <config> Compare two config runs
   bun run msm prime <config>           Emit AI-oriented run context as JSON
   bun run msm list                     List built-in and user configs
+  bun run msm water-heating-comparison Show residential water-heating pathway-vs-technology evidence
   bun run msm --all                    Batch solve all built-ins
 
 A <config> can be:
@@ -154,6 +157,40 @@ function printTableSection(title, columns, rows, { limit = rows.length, noneMess
 }
 
 function statusIcon(s) { return s === 'solved' ? '✓' : s === 'partial' ? '~' : s === 'error' ? '✗' : '•'; }
+
+function loadWaterHeatingComparisonRows() {
+  const csvUrl = new URL('../energy_system_representation_library/validation/residential_water_heating_representation_comparison.csv', import.meta.url);
+  return parseCsv(readFileSync(csvUrl, 'utf8')).map((row) => ({
+    ...row,
+    year: Number(row.year),
+    activity_value: Number(row.activity_value),
+    pathway_output_cost_per_unit: Number(row.pathway_output_cost_per_unit),
+    pathway_direct_emissions_tco2e_per_unit: Number(row.pathway_direct_emissions_tco2e_per_unit),
+    technology_output_cost_per_unit: Number(row.technology_output_cost_per_unit),
+    technology_direct_emissions_tco2e_per_unit: Number(row.technology_direct_emissions_tco2e_per_unit),
+    delta_cost_per_unit: Number(row.delta_cost_per_unit),
+    delta_direct_emissions_tco2e_per_unit: Number(row.delta_direct_emissions_tco2e_per_unit),
+    technology_method_shares: JSON.parse(row.technology_method_shares),
+    pathway_input_commodities: JSON.parse(row.pathway_input_commodities),
+    pathway_input_coefficients: JSON.parse(row.pathway_input_coefficients),
+    technology_input_commodities: JSON.parse(row.technology_input_commodities),
+    technology_input_coefficients: JSON.parse(row.technology_input_coefficients),
+  }));
+}
+
+function printWaterHeatingComparison(rows) {
+  console.log('\nResidential water-heating pathway-vs-technology comparison');
+  console.log(renderTable([
+    { header: 'year', key: 'year', align: 'right', maxWidth: 6 },
+    { header: 'comparison', key: 'comparison_id', maxWidth: 58 },
+    { header: 'technology basis', key: 'technology_solution_basis', maxWidth: 34 },
+    { header: 'delta cost', get: (row) => fmtDelta(row.delta_cost_per_unit), align: 'right', maxWidth: 12 },
+    { header: 'delta emissions', get: (row) => fmtDelta(row.delta_direct_emissions_tco2e_per_unit, 6), align: 'right', maxWidth: 16 },
+  ], rows));
+  console.log('\n  Evidence only: these rows do not rewrite authored pathway data.');
+  console.log();
+}
+
 
 // ---------------------------------------------------------------------------
 // Solve execution
@@ -690,6 +727,7 @@ function parseCli(argv) {
   if (argv[0] === 'compare') { command = 'compare'; i = 1; }
   else if (argv[0] === 'list') { command = 'list'; i = 1; }
   else if (argv[0] === 'prime') { command = 'prime'; i = 1; }
+  else if (argv[0] === 'water-heating-comparison') { command = 'water-heating-comparison'; i = 1; }
 
   for (; i < argv.length; i++) {
     const arg = argv[i];
@@ -715,6 +753,13 @@ function parseCli(argv) {
   if (json) quiet = false;
 
   if (command === 'help') return { command };
+  if (command === 'water-heating-comparison') {
+    if (all) throw new UsageError('--all cannot be used with water-heating-comparison.');
+    if (base) throw new UsageError('--base can only be used with prime.');
+    if (positionals.length) throw new UsageError('water-heating-comparison does not accept positional arguments.');
+    return { command, json, quiet };
+  }
+
   if (command === 'list') {
     if (all) throw new UsageError('--all cannot be used with list.');
     if (base) throw new UsageError('--base can only be used with prime.');
@@ -800,6 +845,13 @@ function main(argv) {
       }))));
       console.log();
     }
+    return EXIT_OK;
+  }
+
+  if (cli.command === 'water-heating-comparison') {
+    const rows = loadWaterHeatingComparisonRows();
+    if (cli.json) console.log(JSON.stringify({ rows }, null, 2));
+    else printWaterHeatingComparison(rows);
     return EXIT_OK;
   }
 
