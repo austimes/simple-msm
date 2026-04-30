@@ -67,6 +67,15 @@ const REPRESENTATION_HEADERS = [
   'direct_method_kind',
   'notes',
 ];
+const REPRESENTATION_INCUMBENT_HEADERS = [
+  'representation_id',
+  'role_id',
+  'anchor_year',
+  'method_id',
+  'incumbent_share',
+  'incumbent_basis',
+  'notes',
+];
 const ROLE_DECOMPOSITION_EDGE_HEADERS = [
   'parent_representation_id',
   'parent_role_id',
@@ -191,6 +200,7 @@ const ROLE_VALIDATION_HEADERS = [
   'notes',
 ];
 const REPRESENTATION_KINDS = new Set(['pathway_bundle', 'technology_bundle', 'role_decomposition']);
+const INCUMBENT_BASES = new Set(['default_pathway_method', 'residual_incumbent_method', 'technology_incumbent_mix']);
 const METHOD_KINDS = new Set(['pathway', 'technology', 'residual']);
 const ROLE_KINDS = new Set(['modeled', 'removal', 'residual']);
 const PHYSICAL_NODE_KINDS = new Set([
@@ -360,6 +370,7 @@ test('energy system representation library package structure is internally consi
   const roleMemberships = parseCsv(readText('shared/role_memberships.csv'));
   const physicalEdges = parseCsv(readText('shared/physical_edges.csv'));
   const representations = parseCsv(readText('shared/representations.csv'));
+  const representationIncumbents = parseCsv(readText('shared/representation_incumbents.csv'));
   const roleDecompositionEdges = parseCsv(readText('shared/role_decomposition_edges.csv'));
   const reportingAllocations = parseCsv(readText('shared/reporting_allocations.csv'));
   const roleValidationSummary = parseCsv(readText('validation/role_validation_summary.csv'));
@@ -382,6 +393,7 @@ test('energy system representation library package structure is internally consi
   assert.deepEqual(parseHeader('shared/role_memberships.csv'), ROLE_MEMBERSHIP_HEADERS);
   assert.deepEqual(parseHeader('shared/physical_edges.csv'), PHYSICAL_EDGE_HEADERS);
   assert.deepEqual(parseHeader('shared/representations.csv'), REPRESENTATION_HEADERS);
+  assert.deepEqual(parseHeader('shared/representation_incumbents.csv'), REPRESENTATION_INCUMBENT_HEADERS);
   assert.deepEqual(parseHeader('shared/role_decomposition_edges.csv'), ROLE_DECOMPOSITION_EDGE_HEADERS);
   assert.deepEqual(parseHeader('shared/reporting_allocations.csv'), REPORTING_ALLOCATION_HEADERS);
   assert.deepEqual(parseHeader('validation/role_validation_summary.csv'), ROLE_VALIDATION_HEADERS);
@@ -390,6 +402,11 @@ test('energy system representation library package structure is internally consi
   assertUnique(roleMemberships, (membership) => `${membership.role_id}::${membership.node_id}`, 'role membership');
   assertUnique(physicalEdges, (edge) => edge.edge_id, 'physical edge_id');
   assertUnique(representations, (representation) => representation.representation_id, 'representation_id');
+  assertUnique(
+    representationIncumbents,
+    (incumbent) => `${incumbent.representation_id}::${incumbent.anchor_year}::${incumbent.method_id}`,
+    'representation incumbent',
+  );
   assertUnique(roleDecompositionEdges, (edge) => `${edge.parent_representation_id}::${edge.child_role_id}`, 'role decomposition edge');
   assertUnique(reportingAllocations, (allocation) => allocation.reporting_allocation_id, 'reporting_allocation_id');
   assertUnique(roleValidationSummary, (summary) => summary.role_id, 'validation summary role_id');
@@ -398,6 +415,7 @@ test('energy system representation library package structure is internally consi
   assert.equal(roles.filter((role) => role.role_kind === 'residual').length, 14);
   assert.equal(roles.filter((role) => role.coverage_obligation === 'explicit_residual_top_level').length, 14);
   assert.equal(representations.length, roles.length + 1);
+  assert.equal(representationIncumbents.length, roles.length);
   assert.equal(reportingAllocations.length, roles.length);
   assert.equal(roleValidationSummary.length, roles.length);
   assertAcyclicRoleTopology(roles);
@@ -465,6 +483,42 @@ test('energy system representation library package structure is internally consi
   }
   for (const role of roles) {
     assert.equal(defaultCountByRole.get(role.role_id), 1, `${role.role_id} must have exactly one default representation`);
+  }
+
+  const methodsByRepresentationAndId = new Map();
+  for (const role of roles) {
+    for (const method of parseCsv(readText(`roles/${role.role_id}/methods.csv`))) {
+      methodsByRepresentationAndId.set(`${method.representation_id}::${method.method_id}`, method);
+    }
+  }
+  const incumbentsByRepresentationYear = groupBy(
+    representationIncumbents,
+    (incumbent) => `${incumbent.representation_id}::${incumbent.anchor_year}`,
+  );
+  for (const representation of representations) {
+    const incumbentRows = representationIncumbents.filter((incumbent) => incumbent.representation_id === representation.representation_id);
+    if (representation.representation_kind === 'role_decomposition') {
+      assert.equal(incumbentRows.length, 0, `${representation.representation_id} decomposition must not have incumbent method rows`);
+      continue;
+    }
+
+    assert.equal(incumbentRows.length > 0, true, `${representation.representation_id} direct representation must have incumbent rows`);
+  }
+  for (const incumbent of representationIncumbents) {
+    const representation = representationById.get(incumbent.representation_id);
+    assert.ok(representation, `${incumbent.representation_id} incumbent representation must resolve`);
+    assert.notEqual(representation.representation_kind, 'role_decomposition', `${incumbent.representation_id} incumbent must belong to a direct representation`);
+    assert.equal(incumbent.role_id, representation.role_id, `${incumbent.representation_id} incumbent role must match representation role`);
+    assert.equal(MILESTONE_YEARS.includes(incumbent.anchor_year), true, `${incumbent.representation_id} incumbent anchor year must be a milestone`);
+    assert.equal(methodsByRepresentationAndId.has(`${incumbent.representation_id}::${incumbent.method_id}`), true, `${incumbent.method_id} must resolve inside ${incumbent.representation_id}`);
+    assert.equal(INCUMBENT_BASES.has(incumbent.incumbent_basis), true, `${incumbent.representation_id} incumbent basis must be canonical`);
+    const incumbentShare = Number(incumbent.incumbent_share);
+    assert.equal(Number.isFinite(incumbentShare), true, `${incumbent.representation_id} incumbent share must be numeric`);
+    assert.equal(incumbentShare > 0 && incumbentShare <= 1, true, `${incumbent.representation_id} incumbent share must be within (0, 1]`);
+  }
+  for (const [key, incumbentRows] of incumbentsByRepresentationYear) {
+    const incumbentShare = incumbentRows.reduce((sum, row) => sum + Number(row.incumbent_share), 0);
+    assert.equal(Math.abs(incumbentShare - 1) < 1e-9, true, `${key} incumbent shares must resolve to 1`);
   }
 
   for (const edge of roleDecompositionEdges) {
@@ -728,6 +782,7 @@ test('schema companions stay aligned with the authored CSV headers', () => {
     ['schema/physical_edges.schema.json', 'shared/physical_edges.csv', PHYSICAL_EDGE_HEADERS],
     ['schema/reporting_allocations.schema.json', 'shared/reporting_allocations.csv', REPORTING_ALLOCATION_HEADERS],
     ['schema/representations.schema.json', 'shared/representations.csv', REPRESENTATION_HEADERS],
+    ['schema/representation_incumbents.schema.json', 'shared/representation_incumbents.csv', REPRESENTATION_INCUMBENT_HEADERS],
     ['schema/role_decomposition_edges.schema.json', 'shared/role_decomposition_edges.csv', ROLE_DECOMPOSITION_EDGE_HEADERS],
     ['schema/methods.schema.json', 'roles/supply_electricity/methods.csv', METHOD_HEADERS],
     ['schema/method_years.schema.json', 'roles/supply_electricity/method_years.csv', METHOD_YEAR_HEADERS],

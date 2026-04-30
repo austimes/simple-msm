@@ -451,6 +451,16 @@ export interface RoleRepresentation {
   notes: string;
 }
 
+export interface RepresentationIncumbent {
+  representation_id: string;
+  role_id: string;
+  anchor_year: number;
+  method_id: string;
+  incumbent_share: number;
+  incumbent_basis: 'default_pathway_method' | 'residual_incumbent_method' | 'technology_incumbent_mix';
+  notes: string;
+}
+
 export interface RoleDecompositionEdge {
   parent_representation_id: string;
   parent_role_id: string;
@@ -643,6 +653,7 @@ export interface EmissionsBalance2025Row {
 export interface PackageData {
   roleMetadata: RoleMetadata[];
   representations: RoleRepresentation[];
+  representationIncumbents: RepresentationIncumbent[];
   roleDecompositionEdges: RoleDecompositionEdge[];
   reportingAllocations: ReportingAllocation[];
   methods: Method[];

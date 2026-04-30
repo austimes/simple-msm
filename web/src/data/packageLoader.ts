@@ -27,6 +27,7 @@ import type {
   PackageData,
   PriceLevel,
   ReportingAllocation,
+  RepresentationIncumbent,
   RepresentationKind,
   ResidualOverlayRow,
   RoleDecompositionEdge,
@@ -467,6 +468,55 @@ function toRoleRepresentation(row: Record<string, string>): RoleRepresentation {
   };
 }
 
+function parseIncumbentBasis(
+  raw: string | undefined,
+  label: string,
+): RepresentationIncumbent['incumbent_basis'] {
+  const value = parseRequiredString(raw, label);
+  if (
+    value === 'default_pathway_method'
+    || value === 'residual_incumbent_method'
+    || value === 'technology_incumbent_mix'
+  ) {
+    return value;
+  }
+
+  throw new Error(`Unknown incumbent_basis for ${label}: ${JSON.stringify(value)}`);
+}
+
+function toRepresentationIncumbent(row: Record<string, string>): RepresentationIncumbent {
+  const representationId = parseRequiredString(
+    row['representation_id'],
+    'shared/representation_incumbents.csv.representation_id',
+  );
+  const methodId = parseRequiredString(
+    row['method_id'],
+    `shared/representation_incumbents.csv.${representationId}.method_id`,
+  );
+  const anchorYear = parseMilestoneYear(
+    row['anchor_year'],
+    `shared/representation_incumbents.csv.${representationId}.${methodId}.anchor_year`,
+  );
+  return {
+    representation_id: representationId,
+    role_id: parseRequiredString(
+      row['role_id'],
+      `shared/representation_incumbents.csv.${representationId}.role_id`,
+    ),
+    anchor_year: anchorYear,
+    method_id: methodId,
+    incumbent_share: parseRequiredNumber(
+      row['incumbent_share'],
+      `shared/representation_incumbents.csv.${representationId}.${methodId}.incumbent_share`,
+    ),
+    incumbent_basis: parseIncumbentBasis(
+      row['incumbent_basis'],
+      `shared/representation_incumbents.csv.${representationId}.${methodId}.incumbent_basis`,
+    ),
+    notes: row['notes'] ?? '',
+  };
+}
+
 function toRoleDecompositionEdge(row: Record<string, string>): RoleDecompositionEdge {
   const parentRepresentationId = parseRequiredString(
     row['parent_representation_id'],
@@ -829,6 +879,7 @@ function buildResolvedMethodYearRows(
   methodsByRoleAndId: Map<string, Method>,
   appProjectionByRoleId: Map<string, RoleAppProjection>,
   reportingAllocations: ReportingAllocation[],
+  representationIncumbents: RepresentationIncumbent[],
 ): ResolvedMethodYearRow[] {
   const allocationsByRoleId = reportingAllocations.reduce<Map<string, ReportingAllocation[]>>((result, allocation) => {
     const rows = result.get(allocation.role_id) ?? [];
@@ -836,6 +887,11 @@ function buildResolvedMethodYearRows(
     result.set(allocation.role_id, rows);
     return result;
   }, new Map<string, ReportingAllocation[]>());
+  const incumbentMethodYearKeys = new Set(
+    representationIncumbents
+      .filter((row) => row.incumbent_share > 0)
+      .map((row) => `${row.role_id}::${row.representation_id}::${row.method_id}::${row.anchor_year}`),
+  );
 
   return methodYears.map((row) => {
     const role = rolesById.get(row.role_id);
@@ -875,7 +931,9 @@ function buildResolvedMethodYearRows(
       method_stage_code: method.method_kind,
       method_sort_key: `${appOutputId}:${String(method.sort_order).padStart(3, '0')}:${row.method_id}`,
       method_label_standardized: method.method_label,
-      is_default_incumbent_2025: row.year === 2025 && row.method_id === projection?.defaultMethodId,
+      is_default_incumbent_2025: row.year === 2025 && incumbentMethodYearKeys.has(
+        `${row.role_id}::${row.representation_id}::${row.method_id}::${row.year}`,
+      ),
       method_option_rank: method.sort_order,
       method_option_code: optionCode,
       method_option_label: optionCode,
@@ -1414,6 +1472,7 @@ function emptyPackage(appConfig: AppConfigRegistry): PackageData {
   return {
     roleMetadata: [],
     representations: [],
+    representationIncumbents: [],
     roleDecompositionEdges: [],
     reportingAllocations: [],
     methods: [],
@@ -1445,6 +1504,9 @@ export function loadPackage(): PackageData {
 
   const roleMetadata = parseCsv(requirePackageFile('shared/roles.csv')).map(toRoleMetadata);
   const representations = parseCsv(requirePackageFile('shared/representations.csv')).map(toRoleRepresentation);
+  const representationIncumbents = parseCsv(
+    requirePackageFile('shared/representation_incumbents.csv'),
+  ).map(toRepresentationIncumbent);
   const roleDecompositionEdges = parseCsv(
     requirePackageFile('shared/role_decomposition_edges.csv'),
   ).map(toRoleDecompositionEdge);
@@ -1493,6 +1555,7 @@ export function loadPackage(): PackageData {
     methodsByRoleAndId,
     appProjectionByRoleId,
     reportingAllocations,
+    representationIncumbents,
   );
 
   const roleDemands = listPackageFiles('roles/', '/demand.csv').map((path) => {
@@ -1545,6 +1608,7 @@ export function loadPackage(): PackageData {
   return {
     roleMetadata,
     representations,
+    representationIncumbents,
     roleDecompositionEdges,
     reportingAllocations,
     methods,
