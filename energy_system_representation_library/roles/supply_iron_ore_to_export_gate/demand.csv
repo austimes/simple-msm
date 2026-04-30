@@ -1,0 +1,2 @@
+role_id,anchor_year,anchor_value,unit,demand_growth_curve_id,anchor_status,source_role,coverage_note,notes
+supply_iron_ore_to_export_gate,2025,1,residual_activity,simple_role_growth_central__supply_iron_ore_to_export_gate,derived_residual_stub,Export-gate iron ore boundary decision,Supply iron ore to export gate uses a residual_activity anchor of 1; export tonnage and supply-chain quantities will live on future explicit supply methods.,Growth proxy: flat where evidence is weak. Confidence: low.

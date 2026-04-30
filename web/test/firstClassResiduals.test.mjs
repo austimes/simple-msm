@@ -34,7 +34,7 @@ test('residual stubs load as first-class families with library grouping', () => 
     primaryMembershipCountByRole.set(member.role_id, (primaryMembershipCountByRole.get(member.role_id) ?? 0) + 1);
   }
 
-  assert.equal(residualFamilies.length, 22);
+  assert.equal(residualFamilies.length, 23);
   assert.equal(pkg.residualOverlays2025.length, 0);
   assert.equal(pkg.appConfig.output_roles.electricity_grid_losses_own_use?.display_group, 'Energy supply');
   for (const role of pkg.rolePresentationMetadata) {
