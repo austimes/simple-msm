@@ -7,6 +7,9 @@ test('web package loader reads canonical role-topology files', () => {
 
   assert.equal(pkg.roleMetadata.length, 31);
   assert.equal(pkg.roleMetrics.length, 31);
+  assert.equal(pkg.physicalSystemNodes.length, 50);
+  assert.equal(pkg.roleMemberships.length, 31);
+  assert.equal(pkg.physicalEdges.length, 13);
   assert.equal(pkg.representations.length, 32);
   assert.equal(pkg.roleDecompositionEdges.length, 3);
   assert.equal(pkg.methods.length, 60);
@@ -14,6 +17,21 @@ test('web package loader reads canonical role-topology files', () => {
   assert.equal(pkg.roleDemands.length, 31);
 
   assert.ok(pkg.roleMetadata.some((role) => role.role_id === 'supply_electricity'));
+  assert.ok(pkg.physicalSystemNodes.some((node) =>
+    node.node_id === 'operate_australian_energy_and_emissions_system'
+    && node.node_kind === 'root'
+    && node.parent_node_id === null
+  ));
+  assert.ok(pkg.roleMemberships.some((membership) =>
+    membership.role_id === 'supply_electricity'
+    && membership.node_id === 'supply_grid_electricity'
+    && membership.is_primary === true
+  ));
+  assert.ok(pkg.physicalEdges.some((edge) =>
+    edge.edge_kind === 'supplies_energy_carrier_to'
+    && edge.from_node_id === 'supply_grid_electricity'
+    && edge.to_node_id === 'serve_building_occupants'
+  ));
   assert.ok(pkg.roleMetrics.some((metric) =>
     metric.role_id === 'supply_electricity'
     && metric.emissions_importance_band === 'very_high'
