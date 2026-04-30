@@ -37,3 +37,5 @@ supply_domestic_solid_fuels,supply_domestic_solid_fuels,residual_role,true,Suppl
 supply_domestic_bioenergy,supply_domestic_bioenergy,residual_role,true,Supply domestic bioenergy maps to its domestic carrier supply node as residual coverage.
 supply_domestic_hydrogen,supply_domestic_hydrogen,residual_role,true,Supply domestic hydrogen maps to its domestic carrier supply node as residual coverage.
 supply_domestic_derived_fuels,supply_domestic_derived_fuels,residual_role,true,Supply domestic derived fuels maps to its domestic carrier supply node as residual coverage.
+supply_thermal_coal_to_export_gate,supply_thermal_coal_to_export_gate,residual_role,true,Supply thermal coal to export gate maps to its export-gate coal supply node as residual coverage.
+supply_metallurgical_coal_to_export_gate,supply_metallurgical_coal_to_export_gate,residual_role,true,Supply metallurgical coal to export gate maps to its export-gate coal supply node as residual coverage.

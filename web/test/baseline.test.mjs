@@ -234,5 +234,5 @@ test('electricity incumbent 2025 state has energy_co2e populated', () => {
 });
 
 test('row count matches manifest expectation', () => {
-  assert.equal(pkg.resolvedMethodYears.length, 438, `expected 438 rows, got ${pkg.resolvedMethodYears.length}`);
+  assert.equal(pkg.resolvedMethodYears.length, 450, `expected 450 rows, got ${pkg.resolvedMethodYears.length}`);
 });

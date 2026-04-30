@@ -303,6 +303,8 @@ const EXPECTED_ROLE_IDS = new Set([
   'supply_domestic_bioenergy',
   'supply_domestic_hydrogen',
   'supply_domestic_derived_fuels',
+  'supply_thermal_coal_to_export_gate',
+  'supply_metallurgical_coal_to_export_gate',
   'raise_livestock_output',
   'grow_crops_and_horticulture_output',
   'account_remaining_agricultural_activity',
@@ -465,11 +467,11 @@ test('energy system representation library package structure is internally consi
   assertUnique(reportingAllocations, (allocation) => allocation.reporting_allocation_id, 'reporting_allocation_id');
   assertUnique(roleValidationSummary, (summary) => summary.role_id, 'validation summary role_id');
   assert.deepEqual(roleIds, EXPECTED_ROLE_IDS);
-  assert.equal(roles.length, 38);
+  assert.equal(roles.length, 40);
   assert.equal(roleActivityDrivers.length, roles.length);
   assert.equal(roleMetrics.length, roles.length);
-  assert.equal(roles.filter((role) => role.role_kind === 'residual').length, 20);
-  assert.equal(roles.filter((role) => role.coverage_obligation === 'explicit_residual_top_level').length, 20);
+  assert.equal(roles.filter((role) => role.role_kind === 'residual').length, 22);
+  assert.equal(roles.filter((role) => role.coverage_obligation === 'explicit_residual_top_level').length, 22);
   assert.equal(representations.length, roles.length + 3);
   assert.equal(representationIncumbents.length, roles.length + 4);
   assert.equal(reportingAllocations.length, roles.length);
@@ -823,8 +825,8 @@ test('energy system representation library package structure is internally consi
     }
   }
 
-  assert.equal(totalMethods, 73);
-  assert.equal(totalMethodYearRows, 438);
+  assert.equal(totalMethods, 75);
+  assert.equal(totalMethodYearRows, 450);
   assert.equal(autonomousTrackRowCount > 0, true, 'expected at least one autonomous efficiency track row');
   assert.equal(efficiencyPackageRowCount > 0, true, 'expected at least one efficiency package row');
 

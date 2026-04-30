@@ -27,9 +27,9 @@ describe('Residual role migration', () => {
     assert.equal(overlayRows.length, 0);
   });
 
-  it('loads 20 residual roles with one 2025 incumbent row each', () => {
-    assert.equal(residualRoleIds.size, 20);
-    assert.equal(residualRoleRows.length, 20);
+  it('loads 22 residual roles with one 2025 incumbent row each', () => {
+    assert.equal(residualRoleIds.size, 22);
+    assert.equal(residualRoleRows.length, 22);
     for (const row of residualRoleRows) {
       assert.equal(row.method_label, 'Residual incumbent');
     }

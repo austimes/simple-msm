@@ -9,9 +9,9 @@
     2045,
     2050
   ],
-  "role_count": 38,
-  "method_count": 73,
-  "method_year_row_count": 438,
+  "role_count": 40,
+  "method_count": 75,
+  "method_year_row_count": 450,
   "files": [
     "README.md",
     "roles/account_grid_losses_and_own_use/demand.csv",
@@ -261,6 +261,16 @@
     "roles/supply_domestic_derived_fuels/method_years.csv",
     "roles/supply_domestic_derived_fuels/methods.csv",
     "roles/supply_domestic_derived_fuels/README.md",
-    "roles/supply_domestic_derived_fuels/validation.md"
+    "roles/supply_domestic_derived_fuels/validation.md",
+    "roles/supply_thermal_coal_to_export_gate/demand.csv",
+    "roles/supply_thermal_coal_to_export_gate/method_years.csv",
+    "roles/supply_thermal_coal_to_export_gate/methods.csv",
+    "roles/supply_thermal_coal_to_export_gate/README.md",
+    "roles/supply_thermal_coal_to_export_gate/validation.md",
+    "roles/supply_metallurgical_coal_to_export_gate/demand.csv",
+    "roles/supply_metallurgical_coal_to_export_gate/method_years.csv",
+    "roles/supply_metallurgical_coal_to_export_gate/methods.csv",
+    "roles/supply_metallurgical_coal_to_export_gate/README.md",
+    "roles/supply_metallurgical_coal_to_export_gate/validation.md"
   ]
 }
