@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schema/representation_incumbents.schema.json",
+  "title": "Representation incumbents",
+  "description": "Schema for shared/representation_incumbents.csv. Rows define the base-year incumbent method or incumbent method mix for each direct representation.",
+  "type": "object",
+  "required": [
+    "representation_id",
+    "role_id",
+    "anchor_year",
+    "method_id",
+    "incumbent_share",
+    "incumbent_basis",
+    "notes"
+  ],
+  "properties": {
+    "representation_id": {
+      "type": "string",
+      "description": "Direct representation identifier from shared/representations.csv."
+    },
+    "role_id": {
+      "type": "string",
+      "description": "Role represented by the direct representation."
+    },
+    "anchor_year": {
+      "type": "integer",
+      "description": "Base year for the incumbent method or mix."
+    },
+    "method_id": {
+      "type": "string",
+      "description": "Method identifier participating in the incumbent method or mix."
+    },
+    "incumbent_share": {
+      "type": "number",
+      "description": "Share of the representation incumbent mix for this method in the anchor year."
+    },
+    "incumbent_basis": {
+      "type": "string",
+      "enum": [
+        "default_pathway_method",
+        "residual_incumbent_method",
+        "technology_incumbent_mix"
+      ],
+      "description": "Basis for the incumbent row."
+    },
+    "notes": {
+      "type": "string",
+      "description": "Incumbent calibration notes."
+    }
+  }
+}

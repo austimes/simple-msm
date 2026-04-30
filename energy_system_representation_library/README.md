@@ -9,7 +9,7 @@ The package keeps role data, explanation, evidence hooks, and validation materia
 - 31 authored roles in `roles/<role_id>/`
 - 60 distinct methods
 - 360 method-year rows across milestone years 2025, 2030, 2035, 2040, 2045, and 2050
-- Shared role topology, physical node graph, representation choices, reporting allocations, ledgers, commodity taxonomy, growth curves, price curves, carbon price curves, schemas, and validation diagnostics
+- Shared role topology, physical node graph, representation choices, representation incumbents, reporting allocations, ledgers, commodity taxonomy, growth curves, price curves, carbon price curves, schemas, and validation diagnostics
 - A crude-steel role-decomposition pilot that keeps the aggregate pathway bundle available while testing a granular H2 DRI process-chain branch
 
 ## Public Ontology
@@ -39,6 +39,8 @@ The physical graph is separate from reporting allocations. Reporting categories 
 - `role_decomposition`
 
 Every active role must have exactly one active representation. Direct bundle representations expose methods. Decomposition representations activate child roles through `shared/role_decomposition_edges.csv`. When a decomposition is selected, the parent role's direct methods are inactive and the child roles must each be represented in turn.
+
+`shared/representation_incumbents.csv` records the base-year incumbent method or method mix for each direct representation. Pathway and residual representations usually have one incumbent row with share `1.0`. Technology bundles can author multiple incumbent rows as a calibrated mix. Validation requires incumbent methods to belong to the same direct representation and incumbent shares to sum to `1.0` for each representation and anchor year.
 
 The current pilot is `produce_crude_steel`. Its default representation remains the aggregate `pathway_bundle`, while the optional `role_decomposition` representation activates:
 
@@ -76,6 +78,7 @@ Those files use `role_id` and `applicable_method_ids` so efficiency effects atta
 - `shared/role_memberships.csv` — role-to-physical-node mapping surface
 - `shared/physical_edges.csv` — physical-flow context between physical nodes
 - `shared/representations.csv` — default and optional representation choices for each role
+- `shared/representation_incumbents.csv` — base-year incumbent method or method mix for each direct representation
 - `shared/role_decomposition_edges.csv` — child-role activation edges for decomposition representations
 - `shared/reporting_allocations.csv` — mappings from roles to reporting sectors, subsectors, and buckets
 - `roles/<role_id>/methods.csv` — method registry for each direct role representation
@@ -96,6 +99,7 @@ The package structure test checks:
 - topology integrity: parent roles resolve, decomposition edges point at decomposition representations, required children point back to their parent role, and the role graph is acyclic;
 - physical graph integrity: physical parent nodes resolve, the physical hierarchy is acyclic, every role has one primary physical node membership, and physical edge endpoints resolve to physical nodes;
 - representation exclusivity: every role has exactly one default representation, direct representations expose methods, decomposition representations expose child edges, and decomposition representations do not carry direct methods;
+- incumbent consistency: every direct representation has anchor-year incumbent rows, incumbent methods resolve inside the same representation, and incumbent shares sum to full coverage;
 - method-year completeness: every method resolves to a direct representation for the same role and has one row for each milestone year from 2025 through 2050;
 - reporting allocation resolution: every allocation resolves to a role, every role has reporting coverage, and allocation shares resolve to full coverage within each reporting system;
 - schema alignment: each JSON-schema companion exposes the same ordered fields as the authored CSV it documents.
