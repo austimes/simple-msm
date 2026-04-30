@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schema/physical_system_nodes.schema.json",
+  "title": "Physical system nodes",
+  "description": "Schema for shared/physical_system_nodes.csv. Physical system nodes define the navigation hierarchy for physical roles without relying on reporting allocations.",
+  "type": "object",
+  "required": [
+    "node_id",
+    "node_label",
+    "description",
+    "parent_node_id",
+    "node_kind",
+    "boundary",
+    "display_order",
+    "notes"
+  ],
+  "properties": {
+    "node_id": {
+      "type": "string",
+      "description": "Stable physical node identifier."
+    },
+    "node_label": {
+      "type": "string",
+      "description": "Human-readable physical node label."
+    },
+    "description": {
+      "type": "string",
+      "description": "Plain-language description of the physical node."
+    },
+    "parent_node_id": {
+      "type": "string",
+      "description": "Parent physical node identifier. Blank only for the root node."
+    },
+    "node_kind": {
+      "type": "string",
+      "enum": [
+        "cluster",
+        "export_anchor",
+        "intermediate_anchor",
+        "residual_anchor",
+        "role_anchor",
+        "root"
+      ],
+      "description": "Physical node class used for navigation and validation."
+    },
+    "boundary": {
+      "type": "string",
+      "description": "Physical boundary represented by the node."
+    },
+    "display_order": {
+      "type": "integer",
+      "description": "Stable ordering for navigation and documentation."
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional physical topology notes."
+    }
+  }
+}

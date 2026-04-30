@@ -9,7 +9,7 @@ The package keeps role data, explanation, evidence hooks, and validation materia
 - 31 authored roles in `roles/<role_id>/`
 - 60 distinct methods
 - 360 method-year rows across milestone years 2025, 2030, 2035, 2040, 2045, and 2050
-- Shared role topology, representation choices, reporting allocations, ledgers, commodity taxonomy, growth curves, price curves, carbon price curves, schemas, and validation diagnostics
+- Shared role topology, physical node graph, representation choices, reporting allocations, ledgers, commodity taxonomy, growth curves, price curves, carbon price curves, schemas, and validation diagnostics
 - A crude-steel role-decomposition pilot that keeps the aggregate pathway bundle available while testing a granular H2 DRI process-chain branch
 
 ## Public Ontology
@@ -23,6 +23,12 @@ Roles are the model-structure ontology. Reporting labels such as sector and subs
 ### Role Topology
 
 The role topology records which coverage obligations exist and how decompositions activate child roles. A selected model structure must cover every required active role exactly once. Residual coverage is explicit: residual roles and residual methods are named rows, not hidden overlays.
+
+### Physical System Graph
+
+`shared/physical_system_nodes.csv` defines the physical navigation hierarchy. `shared/role_memberships.csv` maps roles onto that hierarchy. `shared/physical_edges.csv` describes physical-flow context between nodes such as energy-carrier supply, intermediate material supply, host-owned heat services, captured-CO2 flows, and export-gate resource preparation.
+
+The physical graph is separate from reporting allocations. Reporting categories can group results, but they do not create parent-child hierarchy, activate roles, or define physical-flow edges.
 
 ### Representations
 
@@ -66,6 +72,9 @@ Those files use `role_id` and `applicable_method_ids` so efficiency effects atta
 ## Package Layout
 
 - `shared/roles.csv` — role registry and topology surface
+- `shared/physical_system_nodes.csv` — physical navigation hierarchy using doing-word node names
+- `shared/role_memberships.csv` — role-to-physical-node mapping surface
+- `shared/physical_edges.csv` — physical-flow context between physical nodes
 - `shared/representations.csv` — default and optional representation choices for each role
 - `shared/role_decomposition_edges.csv` — child-role activation edges for decomposition representations
 - `shared/reporting_allocations.csv` — mappings from roles to reporting sectors, subsectors, and buckets
@@ -85,6 +94,7 @@ Structural validation expects every role listed in `shared/roles.csv` to have a 
 The package structure test checks:
 
 - topology integrity: parent roles resolve, decomposition edges point at decomposition representations, required children point back to their parent role, and the role graph is acyclic;
+- physical graph integrity: physical parent nodes resolve, the physical hierarchy is acyclic, every role has one primary physical node membership, and physical edge endpoints resolve to physical nodes;
 - representation exclusivity: every role has exactly one default representation, direct representations expose methods, decomposition representations expose child edges, and decomposition representations do not carry direct methods;
 - method-year completeness: every method resolves to a direct representation for the same role and has one row for each milestone year from 2025 through 2050;
 - reporting allocation resolution: every allocation resolves to a role, every role has reporting coverage, and allocation shares resolve to full coverage within each reporting system;
