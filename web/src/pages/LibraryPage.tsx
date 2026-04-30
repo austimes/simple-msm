@@ -482,6 +482,10 @@ export default function LibraryPage() {
   const enrichment = usePackageStore((state) => state.enrichment);
   const resolvedMethodYears = usePackageStore((state) => state.resolvedMethodYears);
   const roleMetadata = usePackageStore((state) => state.roleMetadata);
+  const roleMetrics = usePackageStore((state) => state.roleMetrics);
+  const physicalSystemNodes = usePackageStore((state) => state.physicalSystemNodes);
+  const roleMemberships = usePackageStore((state) => state.roleMemberships);
+  const physicalEdges = usePackageStore((state) => state.physicalEdges);
   const representations = usePackageStore((state) => state.representations);
   const roleDecompositionEdges = usePackageStore((state) => state.roleDecompositionEdges);
   const reportingAllocations = usePackageStore((state) => state.reportingAllocations);
@@ -509,11 +513,25 @@ export default function LibraryPage() {
   }, [families, selectedMethodId, selectedRoleId]);
   const roleLibraryModel = useMemo(() => buildRoleLibraryModel({
     roleMetadata,
+    roleMetrics,
+    physicalSystemNodes,
+    roleMemberships,
+    physicalEdges,
     representations,
     roleDecompositionEdges,
     reportingAllocations,
     methods,
-  }), [methods, reportingAllocations, representations, roleDecompositionEdges, roleMetadata]);
+  }), [
+    methods,
+    physicalEdges,
+    physicalSystemNodes,
+    reportingAllocations,
+    representations,
+    roleDecompositionEdges,
+    roleMemberships,
+    roleMetadata,
+    roleMetrics,
+  ]);
   const expandedRoleGraphNodeIds = useMemo(
     () => new Set(roleGraphExpandedNodeIds),
     [roleGraphExpandedNodeIds],
