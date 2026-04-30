@@ -461,6 +461,27 @@ export interface RepresentationIncumbent {
   notes: string;
 }
 
+export type RoleActivityDriverKind =
+  | 'baseline_scale_factor'
+  | 'exogenous_series'
+  | 'linked_parent_activity'
+  | 'service_or_product_demand';
+
+export interface RoleActivityDriver {
+  driver_id: string;
+  role_id: string;
+  driver_kind: RoleActivityDriverKind;
+  anchor_year: number;
+  anchor_value: number;
+  unit: string;
+  growth_curve_id: string | null;
+  parent_role_id: string | null;
+  parent_activity_coefficient: number | null;
+  source_role: string;
+  coverage_note: string;
+  notes: string;
+}
+
 export interface RoleDecompositionEdge {
   parent_representation_id: string;
   parent_role_id: string;
@@ -655,6 +676,7 @@ export interface PackageData {
   representations: RoleRepresentation[];
   representationIncumbents: RepresentationIncumbent[];
   roleDecompositionEdges: RoleDecompositionEdge[];
+  roleActivityDrivers: RoleActivityDriver[];
   reportingAllocations: ReportingAllocation[];
   methods: Method[];
   methodYears: MethodYear[];

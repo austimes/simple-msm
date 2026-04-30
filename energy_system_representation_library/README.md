@@ -9,7 +9,7 @@ The package keeps role data, explanation, evidence hooks, and validation materia
 - 31 authored roles in `roles/<role_id>/`
 - 60 distinct methods
 - 360 method-year rows across milestone years 2025, 2030, 2035, 2040, 2045, and 2050
-- Shared role topology, physical node graph, representation choices, representation incumbents, reporting allocations, ledgers, commodity taxonomy, growth curves, price curves, carbon price curves, schemas, and validation diagnostics
+- Shared role topology, physical node graph, activity drivers, representation choices, representation incumbents, reporting allocations, ledgers, commodity taxonomy, growth curves, price curves, carbon price curves, schemas, and validation diagnostics
 - A crude-steel role-decomposition pilot that keeps the aggregate pathway bundle available while testing a granular H2 DRI process-chain branch
 
 ## Public Ontology
@@ -23,6 +23,12 @@ Roles are the model-structure ontology. Reporting labels such as sector and subs
 ### Role Topology
 
 The role topology records which coverage obligations exist and how decompositions activate child roles. A selected model structure must cover every required active role exactly once. Residual coverage is explicit: residual roles and residual methods are named rows, not hidden overlays.
+
+### Activity Drivers
+
+`shared/role_activity_drivers.csv` generalizes role demand into a role activity source. The initial driver kinds cover service or product demand, baseline scale factors for residual roles, linked parent activity for decomposition children, and exogenous series for scenario-driven activity.
+
+The legacy role-local `demand.csv` files remain in the package while the solver and UI migrate. New logic should prefer activity drivers when it needs to understand why a role is active or how its base-year activity is anchored.
 
 ### Physical System Graph
 
@@ -74,6 +80,7 @@ Those files use `role_id` and `applicable_method_ids` so efficiency effects atta
 ## Package Layout
 
 - `shared/roles.csv` — role registry and topology surface
+- `shared/role_activity_drivers.csv` — role activity anchors and driver kinds
 - `shared/physical_system_nodes.csv` — physical navigation hierarchy using doing-word node names
 - `shared/role_memberships.csv` — role-to-physical-node mapping surface
 - `shared/physical_edges.csv` — physical-flow context between physical nodes
@@ -97,6 +104,7 @@ Structural validation expects every role listed in `shared/roles.csv` to have a 
 The package structure test checks:
 
 - topology integrity: parent roles resolve, decomposition edges point at decomposition representations, required children point back to their parent role, and the role graph is acyclic;
+- activity driver integrity: every role has an activity driver, driver kinds are canonical, residual roles use baseline scale factors, and linked child drivers resolve to their parent roles;
 - physical graph integrity: physical parent nodes resolve, the physical hierarchy is acyclic, every role has one primary physical node membership, and physical edge endpoints resolve to physical nodes;
 - representation exclusivity: every role has exactly one default representation, direct representations expose methods, decomposition representations expose child edges, and decomposition representations do not carry direct methods;
 - incumbent consistency: every direct representation has anchor-year incumbent rows, incumbent methods resolve inside the same representation, and incumbent shares sum to full coverage;

@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schema/role_activity_drivers.schema.json",
+  "title": "Role activity drivers",
+  "description": "Schema for shared/role_activity_drivers.csv. Activity drivers generalize role demand into service or product demand, baseline scale factors, linked parent activity, and exogenous series.",
+  "type": "object",
+  "required": [
+    "driver_id",
+    "role_id",
+    "driver_kind",
+    "anchor_year",
+    "anchor_value",
+    "unit",
+    "growth_curve_id",
+    "parent_role_id",
+    "parent_activity_coefficient",
+    "source_role",
+    "coverage_note",
+    "notes"
+  ],
+  "properties": {
+    "driver_id": {
+      "type": "string",
+      "description": "Stable activity driver identifier."
+    },
+    "role_id": {
+      "type": "string",
+      "description": "Role whose activity is driven by this row."
+    },
+    "driver_kind": {
+      "type": "string",
+      "enum": [
+        "baseline_scale_factor",
+        "exogenous_series",
+        "linked_parent_activity",
+        "service_or_product_demand"
+      ],
+      "description": "Activity driver class."
+    },
+    "anchor_year": {
+      "type": "integer",
+      "description": "Anchor year for the driver."
+    },
+    "anchor_value": {
+      "type": "number",
+      "description": "Anchor value in the driver's unit. Linked parent activity rows can use zero until parent allocation is resolved."
+    },
+    "unit": {
+      "type": "string",
+      "description": "Activity unit."
+    },
+    "growth_curve_id": {
+      "type": "string",
+      "description": "Growth curve identifier when the driver uses an exogenous series or demand projection."
+    },
+    "parent_role_id": {
+      "type": "string",
+      "description": "Parent role identifier for linked parent activity drivers. Blank otherwise."
+    },
+    "parent_activity_coefficient": {
+      "type": "number",
+      "description": "Coefficient applied to parent activity for linked parent activity drivers. Blank otherwise."
+    },
+    "source_role": {
+      "type": "string",
+      "description": "Evidence or modelling source for the driver."
+    },
+    "coverage_note": {
+      "type": "string",
+      "description": "Coverage note for the driver."
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional driver notes."
+    }
+  }
+}

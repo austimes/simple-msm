@@ -20,6 +20,20 @@ const ROLE_HEADERS = [
   'default_representation_kind',
   'notes',
 ];
+const ROLE_ACTIVITY_DRIVER_HEADERS = [
+  'driver_id',
+  'role_id',
+  'driver_kind',
+  'anchor_year',
+  'anchor_value',
+  'unit',
+  'growth_curve_id',
+  'parent_role_id',
+  'parent_activity_coefficient',
+  'source_role',
+  'coverage_note',
+  'notes',
+];
 const PHYSICAL_SYSTEM_NODE_HEADERS = [
   'node_id',
   'node_label',
@@ -203,6 +217,12 @@ const REPRESENTATION_KINDS = new Set(['pathway_bundle', 'technology_bundle', 'ro
 const INCUMBENT_BASES = new Set(['default_pathway_method', 'residual_incumbent_method', 'technology_incumbent_mix']);
 const METHOD_KINDS = new Set(['pathway', 'technology', 'residual']);
 const ROLE_KINDS = new Set(['modeled', 'removal', 'residual']);
+const ROLE_ACTIVITY_DRIVER_KINDS = new Set([
+  'baseline_scale_factor',
+  'exogenous_series',
+  'linked_parent_activity',
+  'service_or_product_demand',
+]);
 const PHYSICAL_NODE_KINDS = new Set([
   'cluster',
   'export_anchor',
@@ -366,6 +386,7 @@ function assertAcyclicPhysicalSystemNodes(nodes) {
 
 test('energy system representation library package structure is internally consistent', () => {
   const roles = parseCsv(readText('shared/roles.csv'));
+  const roleActivityDrivers = parseCsv(readText('shared/role_activity_drivers.csv'));
   const physicalSystemNodes = parseCsv(readText('shared/physical_system_nodes.csv'));
   const roleMemberships = parseCsv(readText('shared/role_memberships.csv'));
   const physicalEdges = parseCsv(readText('shared/physical_edges.csv'));
@@ -389,6 +410,7 @@ test('energy system representation library package structure is internally consi
   const defaultCountByRole = new Map();
 
   assert.deepEqual(parseHeader('shared/roles.csv'), ROLE_HEADERS);
+  assert.deepEqual(parseHeader('shared/role_activity_drivers.csv'), ROLE_ACTIVITY_DRIVER_HEADERS);
   assert.deepEqual(parseHeader('shared/physical_system_nodes.csv'), PHYSICAL_SYSTEM_NODE_HEADERS);
   assert.deepEqual(parseHeader('shared/role_memberships.csv'), ROLE_MEMBERSHIP_HEADERS);
   assert.deepEqual(parseHeader('shared/physical_edges.csv'), PHYSICAL_EDGE_HEADERS);
@@ -398,6 +420,7 @@ test('energy system representation library package structure is internally consi
   assert.deepEqual(parseHeader('shared/reporting_allocations.csv'), REPORTING_ALLOCATION_HEADERS);
   assert.deepEqual(parseHeader('validation/role_validation_summary.csv'), ROLE_VALIDATION_HEADERS);
   assertUnique(roles, (role) => role.role_id, 'role_id');
+  assertUnique(roleActivityDrivers, (driver) => driver.driver_id, 'role activity driver_id');
   assertUnique(physicalSystemNodes, (node) => node.node_id, 'physical node_id');
   assertUnique(roleMemberships, (membership) => `${membership.role_id}::${membership.node_id}`, 'role membership');
   assertUnique(physicalEdges, (edge) => edge.edge_id, 'physical edge_id');
@@ -412,6 +435,7 @@ test('energy system representation library package structure is internally consi
   assertUnique(roleValidationSummary, (summary) => summary.role_id, 'validation summary role_id');
   assert.deepEqual(roleIds, EXPECTED_ROLE_IDS);
   assert.equal(roles.length, 31);
+  assert.equal(roleActivityDrivers.length, roles.length);
   assert.equal(roles.filter((role) => role.role_kind === 'residual').length, 14);
   assert.equal(roles.filter((role) => role.coverage_obligation === 'explicit_residual_top_level').length, 14);
   assert.equal(representations.length, roles.length + 1);
@@ -420,6 +444,31 @@ test('energy system representation library package structure is internally consi
   assert.equal(roleValidationSummary.length, roles.length);
   assertAcyclicRoleTopology(roles);
   assertAcyclicPhysicalSystemNodes(physicalSystemNodes);
+
+  const activityDriversByRole = groupBy(roleActivityDrivers, (driver) => driver.role_id);
+  for (const role of roles) {
+    assert.equal(activityDriversByRole.get(role.role_id)?.length, 1, `${role.role_id} must have exactly one activity driver`);
+  }
+  for (const driver of roleActivityDrivers) {
+    const role = roleById.get(driver.role_id);
+    assert.ok(role, `${driver.role_id} activity driver role must resolve`);
+    assert.equal(ROLE_ACTIVITY_DRIVER_KINDS.has(driver.driver_kind), true, `${driver.driver_id} driver kind must be canonical`);
+    assert.equal(MILESTONE_YEARS.includes(driver.anchor_year), true, `${driver.driver_id} anchor year must be a milestone`);
+    assert.equal(Number.isFinite(Number(driver.anchor_value)), true, `${driver.driver_id} anchor value must be numeric`);
+    if (driver.driver_kind === 'baseline_scale_factor') {
+      assert.equal(role.role_kind, 'residual', `${driver.driver_id} baseline scale factor should belong to a residual role`);
+      assert.equal(driver.anchor_value, '1', `${driver.driver_id} baseline scale factor should anchor to one activity unit`);
+    }
+    if (driver.driver_kind === 'linked_parent_activity') {
+      assert.equal(role.coverage_obligation, 'required_decomposition_child', `${driver.driver_id} linked parent driver should belong to a decomposition child`);
+      assert.equal(driver.parent_role_id, role.parent_role_id, `${driver.driver_id} parent role should match roles.csv`);
+      assert.equal(roleIds.has(driver.parent_role_id), true, `${driver.driver_id} parent role must resolve`);
+      assert.equal(Number.isFinite(Number(driver.parent_activity_coefficient)), true, `${driver.driver_id} parent activity coefficient must be numeric`);
+    } else {
+      assert.equal(driver.parent_role_id, '', `${driver.driver_id} non-linked driver must not name a parent role`);
+      assert.equal(driver.parent_activity_coefficient, '', `${driver.driver_id} non-linked driver must not carry a parent activity coefficient`);
+    }
+  }
 
   const membershipsByRole = groupBy(roleMemberships, (membership) => membership.role_id);
   const primaryMembershipsByRole = groupBy(
@@ -777,6 +826,7 @@ test('canonical ESRL documentation uses role-topology terminology', () => {
 test('schema companions stay aligned with the authored CSV headers', () => {
   const schemaChecks = [
     ['schema/roles.schema.json', 'shared/roles.csv', ROLE_HEADERS],
+    ['schema/role_activity_drivers.schema.json', 'shared/role_activity_drivers.csv', ROLE_ACTIVITY_DRIVER_HEADERS],
     ['schema/physical_system_nodes.schema.json', 'shared/physical_system_nodes.csv', PHYSICAL_SYSTEM_NODE_HEADERS],
     ['schema/role_memberships.schema.json', 'shared/role_memberships.csv', ROLE_MEMBERSHIP_HEADERS],
     ['schema/physical_edges.schema.json', 'shared/physical_edges.csv', PHYSICAL_EDGE_HEADERS],

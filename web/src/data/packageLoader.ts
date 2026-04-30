@@ -29,6 +29,8 @@ import type {
   ReportingAllocation,
   RepresentationIncumbent,
   RepresentationKind,
+  RoleActivityDriver,
+  RoleActivityDriverKind,
   ResidualOverlayRow,
   RoleDecompositionEdge,
   RoleDemand,
@@ -482,6 +484,60 @@ function parseIncumbentBasis(
   }
 
   throw new Error(`Unknown incumbent_basis for ${label}: ${JSON.stringify(value)}`);
+}
+
+function parseRoleActivityDriverKind(
+  raw: string | undefined,
+  label: string,
+): RoleActivityDriverKind {
+  const value = parseRequiredString(raw, label);
+  if (
+    value === 'baseline_scale_factor'
+    || value === 'exogenous_series'
+    || value === 'linked_parent_activity'
+    || value === 'service_or_product_demand'
+  ) {
+    return value;
+  }
+
+  throw new Error(`Unknown driver_kind for ${label}: ${JSON.stringify(value)}`);
+}
+
+function toRoleActivityDriver(row: Record<string, string>): RoleActivityDriver {
+  const driverId = parseRequiredString(row['driver_id'], 'shared/role_activity_drivers.csv.driver_id');
+  const roleId = parseRequiredString(row['role_id'], `shared/role_activity_drivers.csv.${driverId}.role_id`);
+  return {
+    driver_id: driverId,
+    role_id: roleId,
+    driver_kind: parseRoleActivityDriverKind(
+      row['driver_kind'],
+      `shared/role_activity_drivers.csv.${driverId}.driver_kind`,
+    ),
+    anchor_year: parseMilestoneYear(
+      row['anchor_year'],
+      `shared/role_activity_drivers.csv.${driverId}.anchor_year`,
+    ),
+    anchor_value: parseRequiredNumber(
+      row['anchor_value'],
+      `shared/role_activity_drivers.csv.${driverId}.anchor_value`,
+    ),
+    unit: parseRequiredString(row['unit'], `shared/role_activity_drivers.csv.${driverId}.unit`),
+    growth_curve_id: parseEmptyNull(row['growth_curve_id']),
+    parent_role_id: parseEmptyNull(row['parent_role_id']),
+    parent_activity_coefficient: parseOptionalNumber(
+      row['parent_activity_coefficient'],
+      `shared/role_activity_drivers.csv.${driverId}.parent_activity_coefficient`,
+    ),
+    source_role: parseRequiredString(
+      row['source_role'],
+      `shared/role_activity_drivers.csv.${driverId}.source_role`,
+    ),
+    coverage_note: parseRequiredString(
+      row['coverage_note'],
+      `shared/role_activity_drivers.csv.${driverId}.coverage_note`,
+    ),
+    notes: row['notes'] ?? '',
+  };
 }
 
 function toRepresentationIncumbent(row: Record<string, string>): RepresentationIncumbent {
@@ -1217,12 +1273,12 @@ export function loadEfficiencyArtifacts(
 
 function buildBaselineAnchors(
   roles: RoleMetadata[],
-  roleDemands: RoleDemand[],
+  roleActivityDrivers: RoleActivityDriver[],
   appConfig: AppConfigRegistry,
   appProjectionByRoleId: Map<string, RoleAppProjection>,
 ): Record<string, BaselineActivityAnchor> {
   const anchors: Record<string, BaselineActivityAnchor> = {};
-  const roleDemandById = new Map(roleDemands.map((row) => [row.role_id, row]));
+  const driverByRoleId = new Map(roleActivityDrivers.map((row) => [row.role_id, row]));
 
   for (const role of roles) {
     const outputRole = outputRoleFromRole(role);
@@ -1230,8 +1286,8 @@ function buildBaselineAnchors(
       continue;
     }
 
-    const demand = roleDemandById.get(role.role_id);
-    if (!demand) {
+    const driver = driverByRoleId.get(role.role_id);
+    if (!driver || driver.driver_kind === 'linked_parent_activity') {
       continue;
     }
 
@@ -1239,10 +1295,10 @@ function buildBaselineAnchors(
     anchors[outputId] = {
       output_role: (appConfig.output_roles[outputId]?.output_role ?? outputRole) as BaselineActivityAnchor['output_role'],
       anchor_kind: 'service_demand',
-      anchor_year: demand.anchor_year,
-      value: demand.anchor_value,
-      unit: demand.unit,
-      provenance_note: `${demand.source_role} - ${demand.coverage_note}`,
+      anchor_year: driver.anchor_year,
+      value: driver.anchor_value,
+      unit: driver.unit,
+      provenance_note: `${driver.source_role} - ${driver.coverage_note}`,
     };
   }
 
@@ -1474,6 +1530,7 @@ function emptyPackage(appConfig: AppConfigRegistry): PackageData {
     representations: [],
     representationIncumbents: [],
     roleDecompositionEdges: [],
+    roleActivityDrivers: [],
     reportingAllocations: [],
     methods: [],
     methodYears: [],
@@ -1507,6 +1564,9 @@ export function loadPackage(): PackageData {
   const representationIncumbents = parseCsv(
     requirePackageFile('shared/representation_incumbents.csv'),
   ).map(toRepresentationIncumbent);
+  const roleActivityDrivers = parseCsv(
+    requirePackageFile('shared/role_activity_drivers.csv'),
+  ).map(toRoleActivityDriver);
   const roleDecompositionEdges = parseCsv(
     requirePackageFile('shared/role_decomposition_edges.csv'),
   ).map(toRoleDecompositionEdge);
@@ -1568,7 +1628,7 @@ export function loadPackage(): PackageData {
 
   appConfig.baseline_activity_anchors = buildBaselineAnchors(
     roleMetadata,
-    roleDemands,
+    roleActivityDrivers,
     appConfig,
     appProjectionByRoleId,
   );
@@ -1610,6 +1670,7 @@ export function loadPackage(): PackageData {
     representations,
     representationIncumbents,
     roleDecompositionEdges,
+    roleActivityDrivers,
     reportingAllocations,
     methods,
     methodYears,
