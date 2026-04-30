@@ -1,5 +1,6 @@
 role_id,node_id,membership_kind,is_primary,coverage_notes
 serve_residential_building_occupants,serve_residential_building_occupants,modeled_role,true,Canonical residential building service role is anchored directly on its physical node.
+provide_residential_water_heating,provide_residential_water_heating,decomposition_child,true,Residential water-heating role maps directly to its physical end-use node.
 serve_commercial_building_occupants,serve_commercial_building_occupants,modeled_role,true,Canonical commercial building service role is anchored directly on its physical node.
 account_remaining_residential_building_services,account_remaining_residential_building_services,residual_role,true,Residual coverage is explicit in the physical graph.
 account_remaining_commercial_building_services,account_remaining_commercial_building_services,residual_role,true,Residual coverage is explicit in the physical graph.

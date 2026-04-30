@@ -2,3 +2,4 @@ parent_representation_id,parent_role_id,child_role_id,edge_kind,is_required,disp
 produce_crude_steel__h2_dri_decomposition,produce_crude_steel,produce_crude_steel_non_h2_dri_residual,required_child,true,0,Required aggregate child preserving non-H2 crude-steel coverage when the H2 DRI branch is decomposed.
 produce_crude_steel__h2_dri_decomposition,produce_crude_steel,produce_direct_reduced_iron,required_child,true,1,Required intermediate child producing DRI for the decomposed H2 DRI crude-steel route.
 produce_crude_steel__h2_dri_decomposition,produce_crude_steel,melt_refine_dri_crude_steel,required_child,true,2,Required finishing child converting DRI into crude steel for the decomposed H2 DRI route.
+serve_residential_building_occupants__end_use_decomposition,serve_residential_building_occupants,provide_residential_water_heating,required_child,true,0,Required hot-water child when the residential end-use decomposition representation is selected.

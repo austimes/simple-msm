@@ -5,16 +5,16 @@ import { loadPackage } from '../src/data/packageLoader.ts';
 test('web package loader reads canonical role-topology files', () => {
   const pkg = loadPackage();
 
-  assert.equal(pkg.roleMetadata.length, 31);
-  assert.equal(pkg.roleMetrics.length, 31);
-  assert.equal(pkg.physicalSystemNodes.length, 50);
-  assert.equal(pkg.roleMemberships.length, 31);
+  assert.equal(pkg.roleMetadata.length, 32);
+  assert.equal(pkg.roleMetrics.length, 32);
+  assert.equal(pkg.physicalSystemNodes.length, 51);
+  assert.equal(pkg.roleMemberships.length, 32);
   assert.equal(pkg.physicalEdges.length, 13);
-  assert.equal(pkg.representations.length, 32);
-  assert.equal(pkg.roleDecompositionEdges.length, 3);
-  assert.equal(pkg.methods.length, 60);
-  assert.equal(pkg.methodYears.length, 360);
-  assert.equal(pkg.roleDemands.length, 31);
+  assert.equal(pkg.representations.length, 34);
+  assert.equal(pkg.roleDecompositionEdges.length, 4);
+  assert.equal(pkg.methods.length, 63);
+  assert.equal(pkg.methodYears.length, 378);
+  assert.equal(pkg.roleDemands.length, 32);
 
   assert.ok(pkg.roleMetadata.some((role) => role.role_id === 'supply_grid_electricity'));
   assert.ok(pkg.physicalSystemNodes.some((node) =>
