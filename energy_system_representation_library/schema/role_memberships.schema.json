@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schema/role_memberships.schema.json",
+  "title": "Role memberships",
+  "description": "Schema for shared/role_memberships.csv. Role memberships map canonical roles onto physical system nodes without using reporting allocations to create hierarchy.",
+  "type": "object",
+  "required": [
+    "role_id",
+    "node_id",
+    "membership_kind",
+    "is_primary",
+    "coverage_notes"
+  ],
+  "properties": {
+    "role_id": {
+      "type": "string",
+      "description": "Role identifier from shared/roles.csv."
+    },
+    "node_id": {
+      "type": "string",
+      "description": "Physical node identifier from shared/physical_system_nodes.csv."
+    },
+    "membership_kind": {
+      "type": "string",
+      "enum": [
+        "decomposition_child",
+        "modeled_role",
+        "residual_role"
+      ],
+      "description": "How the role participates in the physical node graph."
+    },
+    "is_primary": {
+      "type": "boolean",
+      "description": "True when this is the role's primary physical node membership."
+    },
+    "coverage_notes": {
+      "type": "string",
+      "description": "Coverage notes for the role-to-node mapping."
+    }
+  }
+}

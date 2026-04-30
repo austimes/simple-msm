@@ -20,6 +20,32 @@ const ROLE_HEADERS = [
   'default_representation_kind',
   'notes',
 ];
+const PHYSICAL_SYSTEM_NODE_HEADERS = [
+  'node_id',
+  'node_label',
+  'description',
+  'parent_node_id',
+  'node_kind',
+  'boundary',
+  'display_order',
+  'notes',
+];
+const ROLE_MEMBERSHIP_HEADERS = [
+  'role_id',
+  'node_id',
+  'membership_kind',
+  'is_primary',
+  'coverage_notes',
+];
+const PHYSICAL_EDGE_HEADERS = [
+  'edge_id',
+  'from_node_id',
+  'to_node_id',
+  'edge_kind',
+  'flow_label',
+  'display_order',
+  'notes',
+];
 const REPORTING_ALLOCATION_HEADERS = [
   'reporting_allocation_id',
   'role_id',
@@ -167,6 +193,22 @@ const ROLE_VALIDATION_HEADERS = [
 const REPRESENTATION_KINDS = new Set(['pathway_bundle', 'technology_bundle', 'role_decomposition']);
 const METHOD_KINDS = new Set(['pathway', 'technology', 'residual']);
 const ROLE_KINDS = new Set(['modeled', 'removal', 'residual']);
+const PHYSICAL_NODE_KINDS = new Set([
+  'cluster',
+  'export_anchor',
+  'intermediate_anchor',
+  'residual_anchor',
+  'role_anchor',
+  'root',
+]);
+const ROLE_MEMBERSHIP_KINDS = new Set(['decomposition_child', 'modeled_role', 'residual_role']);
+const PHYSICAL_EDGE_KINDS = new Set([
+  'prepares_export_resource_for',
+  'provides_host_service_to',
+  'sends_captured_co2_to',
+  'supplies_energy_carrier_to',
+  'supplies_intermediate_to',
+]);
 const BALANCE_TYPES = new Set([
   'carbon_removal',
   'commodity_supply',
@@ -286,8 +328,37 @@ function assertAcyclicRoleTopology(roles) {
   }
 }
 
+function assertAcyclicPhysicalSystemNodes(nodes) {
+  const nodeById = new Map(nodes.map((node) => [node.node_id, node]));
+  const rootNodes = nodes.filter((node) => node.parent_node_id === '');
+  assert.equal(rootNodes.length, 1, 'physical system graph must have exactly one root node');
+  assert.equal(rootNodes[0].node_kind, 'root', 'physical system root node must have root kind');
+
+  for (const node of nodes) {
+    assert.equal(PHYSICAL_NODE_KINDS.has(node.node_kind), true, `${node.node_id} node kind must be canonical`);
+    assert.equal(Number.isInteger(Number(node.display_order)), true, `${node.node_id} display_order must be an integer`);
+    if (node.node_kind === 'root') {
+      assert.equal(node.parent_node_id, '', `${node.node_id} root node must not name a parent`);
+    } else {
+      assert.notEqual(node.parent_node_id, '', `${node.node_id} non-root node must name a parent`);
+    }
+
+    const seen = new Set([node.node_id]);
+    let parentNodeId = node.parent_node_id;
+    while (parentNodeId) {
+      assert.equal(nodeById.has(parentNodeId), true, `${node.node_id} parent ${parentNodeId} must resolve`);
+      assert.equal(seen.has(parentNodeId), false, `${node.node_id} parent chain must not contain a cycle through ${parentNodeId}`);
+      seen.add(parentNodeId);
+      parentNodeId = nodeById.get(parentNodeId)?.parent_node_id ?? '';
+    }
+  }
+}
+
 test('energy system representation library package structure is internally consistent', () => {
   const roles = parseCsv(readText('shared/roles.csv'));
+  const physicalSystemNodes = parseCsv(readText('shared/physical_system_nodes.csv'));
+  const roleMemberships = parseCsv(readText('shared/role_memberships.csv'));
+  const physicalEdges = parseCsv(readText('shared/physical_edges.csv'));
   const representations = parseCsv(readText('shared/representations.csv'));
   const roleDecompositionEdges = parseCsv(readText('shared/role_decomposition_edges.csv'));
   const reportingAllocations = parseCsv(readText('shared/reporting_allocations.csv'));
@@ -296,6 +367,7 @@ test('energy system representation library package structure is internally consi
   const assumptionIds = new Set(parseCsv(readText('shared/assumptions_ledger.csv')).map((row) => row.assumption_id));
   const demandCurveIds = new Set(parseCsv(readText('shared/demand_growth_curves.csv')).map((row) => row.demand_growth_curve_id));
   const roleIds = new Set(roles.map((role) => role.role_id));
+  const physicalNodeIds = new Set(physicalSystemNodes.map((node) => node.node_id));
   const roleById = new Map(roles.map((role) => [role.role_id, role]));
   const representationById = new Map(representations.map((representation) => [representation.representation_id, representation]));
   const edgesByParentRepresentation = groupBy(roleDecompositionEdges, (edge) => edge.parent_representation_id);
@@ -306,11 +378,17 @@ test('energy system representation library package structure is internally consi
   const defaultCountByRole = new Map();
 
   assert.deepEqual(parseHeader('shared/roles.csv'), ROLE_HEADERS);
+  assert.deepEqual(parseHeader('shared/physical_system_nodes.csv'), PHYSICAL_SYSTEM_NODE_HEADERS);
+  assert.deepEqual(parseHeader('shared/role_memberships.csv'), ROLE_MEMBERSHIP_HEADERS);
+  assert.deepEqual(parseHeader('shared/physical_edges.csv'), PHYSICAL_EDGE_HEADERS);
   assert.deepEqual(parseHeader('shared/representations.csv'), REPRESENTATION_HEADERS);
   assert.deepEqual(parseHeader('shared/role_decomposition_edges.csv'), ROLE_DECOMPOSITION_EDGE_HEADERS);
   assert.deepEqual(parseHeader('shared/reporting_allocations.csv'), REPORTING_ALLOCATION_HEADERS);
   assert.deepEqual(parseHeader('validation/role_validation_summary.csv'), ROLE_VALIDATION_HEADERS);
   assertUnique(roles, (role) => role.role_id, 'role_id');
+  assertUnique(physicalSystemNodes, (node) => node.node_id, 'physical node_id');
+  assertUnique(roleMemberships, (membership) => `${membership.role_id}::${membership.node_id}`, 'role membership');
+  assertUnique(physicalEdges, (edge) => edge.edge_id, 'physical edge_id');
   assertUnique(representations, (representation) => representation.representation_id, 'representation_id');
   assertUnique(roleDecompositionEdges, (edge) => `${edge.parent_representation_id}::${edge.child_role_id}`, 'role decomposition edge');
   assertUnique(reportingAllocations, (allocation) => allocation.reporting_allocation_id, 'reporting_allocation_id');
@@ -323,6 +401,31 @@ test('energy system representation library package structure is internally consi
   assert.equal(reportingAllocations.length, roles.length);
   assert.equal(roleValidationSummary.length, roles.length);
   assertAcyclicRoleTopology(roles);
+  assertAcyclicPhysicalSystemNodes(physicalSystemNodes);
+
+  const membershipsByRole = groupBy(roleMemberships, (membership) => membership.role_id);
+  const primaryMembershipsByRole = groupBy(
+    roleMemberships.filter((membership) => membership.is_primary === 'true'),
+    (membership) => membership.role_id,
+  );
+  for (const membership of roleMemberships) {
+    assert.equal(roleIds.has(membership.role_id), true, `${membership.role_id} membership role must resolve`);
+    assert.equal(physicalNodeIds.has(membership.node_id), true, `${membership.node_id} membership node must resolve`);
+    assert.equal(ROLE_MEMBERSHIP_KINDS.has(membership.membership_kind), true, `${membership.role_id} membership kind must be canonical`);
+    assert.match(membership.is_primary, /^(true|false)$/, `${membership.role_id} is_primary must be true or false`);
+  }
+  for (const role of roles) {
+    assert.equal(membershipsByRole.has(role.role_id), true, `${role.role_id} must have a physical node membership`);
+    assert.equal(primaryMembershipsByRole.get(role.role_id)?.length, 1, `${role.role_id} must have exactly one primary physical membership`);
+  }
+
+  for (const edge of physicalEdges) {
+    assert.equal(physicalNodeIds.has(edge.from_node_id), true, `${edge.edge_id} from_node_id must resolve`);
+    assert.equal(physicalNodeIds.has(edge.to_node_id), true, `${edge.edge_id} to_node_id must resolve`);
+    assert.notEqual(edge.from_node_id, edge.to_node_id, `${edge.edge_id} must not be a self edge`);
+    assert.equal(PHYSICAL_EDGE_KINDS.has(edge.edge_kind), true, `${edge.edge_id} edge kind must be canonical`);
+    assert.equal(Number.isInteger(Number(edge.display_order)), true, `${edge.edge_id} display_order must be an integer`);
+  }
 
   for (const role of roles) {
     assert.equal(ROLE_KINDS.has(role.role_kind), true, `${role.role_id} kind must be canonical`);
@@ -620,6 +723,9 @@ test('canonical ESRL documentation uses role-topology terminology', () => {
 test('schema companions stay aligned with the authored CSV headers', () => {
   const schemaChecks = [
     ['schema/roles.schema.json', 'shared/roles.csv', ROLE_HEADERS],
+    ['schema/physical_system_nodes.schema.json', 'shared/physical_system_nodes.csv', PHYSICAL_SYSTEM_NODE_HEADERS],
+    ['schema/role_memberships.schema.json', 'shared/role_memberships.csv', ROLE_MEMBERSHIP_HEADERS],
+    ['schema/physical_edges.schema.json', 'shared/physical_edges.csv', PHYSICAL_EDGE_HEADERS],
     ['schema/reporting_allocations.schema.json', 'shared/reporting_allocations.csv', REPORTING_ALLOCATION_HEADERS],
     ['schema/representations.schema.json', 'shared/representations.csv', REPRESENTATION_HEADERS],
     ['schema/role_decomposition_edges.schema.json', 'shared/role_decomposition_edges.csv', ROLE_DECOMPOSITION_EDGE_HEADERS],

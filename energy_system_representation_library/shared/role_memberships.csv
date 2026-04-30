@@ -1,0 +1,32 @@
+role_id,node_id,membership_kind,is_primary,coverage_notes
+deliver_residential_building_services,serve_residential_building_occupants,modeled_role,true,Maps current role to physical building-service node.
+deliver_commercial_building_services,serve_commercial_building_occupants,modeled_role,true,Maps current role to physical building-service node.
+account_residual_residential_buildings,account_remaining_residential_building_services,residual_role,true,Residual coverage is explicit in the physical graph.
+account_residual_commercial_buildings,account_remaining_commercial_building_services,residual_role,true,Residual coverage is explicit in the physical graph.
+deliver_passenger_road_transport,move_passengers_by_road,modeled_role,true,Maps current role to physical mobility node.
+deliver_freight_road_transport,move_freight_by_road,modeled_role,true,Maps current role to physical mobility node.
+account_residual_transport,account_remaining_transport_activity,residual_role,true,Residual coverage is explicit in the physical graph.
+deliver_low_temperature_heat,provide_low_temperature_process_heat_for_host_roles,modeled_role,true,Current heat role maps to host-owned process heat rather than a standalone national heat system.
+deliver_medium_temperature_heat,provide_medium_temperature_process_heat_for_host_roles,modeled_role,true,Current heat role maps to host-owned process heat rather than a standalone national heat system.
+deliver_high_temperature_heat,provide_high_temperature_process_heat_for_host_roles,modeled_role,true,Current heat role maps to host-owned process heat rather than a standalone national heat system.
+produce_crude_steel,make_crude_steel,modeled_role,true,Current steel role maps to physical production node.
+produce_crude_steel_non_h2_dri_residual,make_non_h2_dri_crude_steel,decomposition_child,true,Current steel decomposition child maps to physical production node.
+produce_direct_reduced_iron,make_direct_reduced_iron,decomposition_child,true,Current steel decomposition child maps to physical intermediate node.
+melt_refine_dri_crude_steel,melt_and_refine_dri_into_crude_steel,decomposition_child,true,Current steel decomposition child maps to physical finishing node.
+produce_cement_equivalent,make_cement_equivalent,modeled_role,true,Current cement role maps to physical production node.
+account_residual_manufacturing,account_remaining_manufacturing_activity,residual_role,true,Residual coverage is explicit in the physical graph.
+account_residual_ippu,account_remaining_industrial_process_emissions,residual_role,true,Residual coverage is explicit in the physical graph.
+supply_electricity,supply_grid_electricity,modeled_role,true,Current electricity role maps to physical supply node.
+account_electricity_grid_losses_own_use,account_grid_losses_and_own_use,residual_role,true,Grid losses and own use remain explicit physical coverage.
+account_residual_mining_energy,account_remaining_domestic_energy_supply_activity,residual_role,true,Domestic mining energy residual is separate from export-gate resource supply nodes.
+account_residual_fugitives,account_remaining_fugitive_emissions,residual_role,true,Fugitive emissions remain explicit until assigned to richer supply roles.
+produce_livestock_output,raise_livestock_output,modeled_role,true,Current livestock role maps to physical production node.
+produce_cropping_horticulture_output,grow_crops_and_horticulture_output,modeled_role,true,Current cropping role maps to physical production node.
+account_residual_agriculture,account_remaining_agricultural_activity,residual_role,true,Residual coverage is explicit in the physical graph.
+account_residual_construction,construct_built_assets,residual_role,true,Current construction residual maps to physical construction node.
+account_residual_water_waste,provide_water_services,residual_role,true,Current water residual maps to water-services node.
+account_residual_waste_emissions,manage_waste_emissions,residual_role,true,Current waste emissions residual maps to waste-management node.
+account_residual_other_sectors,account_remaining_other_sectors,residual_role,true,Residual coverage is explicit in the physical graph.
+remove_co2_land_sequestration,remove_co2_through_land_sequestration,modeled_role,true,Current land sequestration role maps to physical removal node.
+remove_co2_engineered_removals,remove_co2_through_engineered_removals,modeled_role,true,Current engineered removals role maps to physical removal node.
+account_residual_lulucf_sink,account_remaining_land_sink_adjustment,residual_role,true,Residual land sink adjustment remains explicit in the physical graph.
