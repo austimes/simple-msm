@@ -37,7 +37,7 @@ The non-default `provide_residential_water_heating__technology_bundle` represent
 - buildings__residential_water_heating__electric_heat_pump - Electric heat-pump water heater
 - buildings__residential_water_heating__solar_boosted - Solar boosted water heater
 
-The technology bundle carries a placeholder single incumbent row so package integrity checks can resolve an incumbent for the direct representation. Calibrated 2025 stock shares are deferred to `simple-msm-techrep-1.4`.
+The technology bundle carries calibrated 2025 incumbent shares: gas storage `0.48`, resistive electric `0.32`, electric heat pump `0.12`, and solar boosted `0.08`. These shares sum to `1.0` and provide the base-year mix for technology-bundle comparisons.
 
 ## Main sources used
 
