@@ -14,11 +14,11 @@ const pkg = loadPkg();
 
 function findNonIncumbentMethodId(outputId) {
   const row = pkg.resolvedMethodYears.find((candidate) =>
-    candidate.service_or_output_name === outputId
+    candidate.output_id === outputId
     && !candidate.is_default_incumbent_2025,
   );
   assert.ok(row, `expected a non-incumbent state for ${outputId}`);
-  return row.state_id;
+  return row.method_id;
 }
 
 describe('systemStructureModel', () => {
@@ -71,7 +71,7 @@ describe('systemStructureModel', () => {
     assert.deepEqual(generated.presentation_options, focus.presentation_options);
 
     assert.deepEqual(
-      generated.role_controls.deliver_residential_building_services.active_method_ids,
+      generated.role_controls.serve_residential_building_occupants.active_method_ids,
       [INCUMBENT_STATE_IDS.residential_building_services],
     );
     assert.deepEqual(
@@ -119,7 +119,7 @@ describe('systemStructureModel', () => {
 
     const generated = buildGeneratedIncumbentBaseConfiguration(focus, pkg);
 
-    assert.deepEqual(generated.role_controls.account_residual_residential_buildings.active_method_ids, []);
+    assert.deepEqual(generated.role_controls.account_remaining_residential_building_services.active_method_ids, []);
     assert.deepEqual(generated.role_controls.account_residual_transport.active_method_ids, [
       'transport_other__residual_incumbent',
     ]);

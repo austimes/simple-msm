@@ -1,8 +1,8 @@
 role_id,node_id,membership_kind,is_primary,coverage_notes
-deliver_residential_building_services,serve_residential_building_occupants,modeled_role,true,Maps current role to physical building-service node.
-deliver_commercial_building_services,serve_commercial_building_occupants,modeled_role,true,Maps current role to physical building-service node.
-account_residual_residential_buildings,account_remaining_residential_building_services,residual_role,true,Residual coverage is explicit in the physical graph.
-account_residual_commercial_buildings,account_remaining_commercial_building_services,residual_role,true,Residual coverage is explicit in the physical graph.
+serve_residential_building_occupants,serve_residential_building_occupants,modeled_role,true,Canonical residential building service role is anchored directly on its physical node.
+serve_commercial_building_occupants,serve_commercial_building_occupants,modeled_role,true,Canonical commercial building service role is anchored directly on its physical node.
+account_remaining_residential_building_services,account_remaining_residential_building_services,residual_role,true,Residual coverage is explicit in the physical graph.
+account_remaining_commercial_building_services,account_remaining_commercial_building_services,residual_role,true,Residual coverage is explicit in the physical graph.
 deliver_passenger_road_transport,move_passengers_by_road,modeled_role,true,Maps current role to physical mobility node.
 deliver_freight_road_transport,move_freight_by_road,modeled_role,true,Maps current role to physical mobility node.
 account_residual_transport,account_remaining_transport_activity,residual_role,true,Residual coverage is explicit in the physical graph.

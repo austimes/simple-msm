@@ -189,11 +189,11 @@ test('efficiency materialization backfills defaults, normalizes package ids, and
   const { materializeEfficiencyConfiguration } = await loadViteModule('/src/data/configurationDocumentLoader.ts');
   const configuration = structuredClone(readJson('../src/configurations/reference-baseline.json'));
   const tracks = [
-    { family_id: 'residential_building_services', track_id: 'background_standards_drift' },
+    { role_id: 'serve_residential_building_occupants', track_id: 'background_standards_drift' },
   ];
   const packages = [
-    { family_id: 'residential_building_services', package_id: 'retrofit_shell' },
-    { family_id: 'commercial_building_services', package_id: 'hvac_tuning' },
+    { role_id: 'serve_residential_building_occupants', package_id: 'retrofit_shell' },
+    { role_id: 'serve_commercial_building_occupants', package_id: 'hvac_tuning' },
   ];
 
   const defaults = materializeEfficiencyConfiguration(
@@ -212,7 +212,7 @@ test('efficiency materialization backfills defaults, normalizes package ids, and
   configuration.efficiency_controls = {
     autonomous_mode: 'baseline',
     autonomous_modes_by_role: {
-      residential_building_services: 'off',
+      serve_residential_building_occupants: 'off',
     },
     package_mode: 'allow_list',
     package_ids: ['hvac_tuning', 'retrofit_shell', 'hvac_tuning'],
@@ -222,7 +222,7 @@ test('efficiency materialization backfills defaults, normalizes package ids, and
   assert.deepEqual(allowList.efficiency_controls, {
     autonomous_mode: 'baseline',
     autonomous_modes_by_role: {
-      residential_building_services: 'off',
+      serve_residential_building_occupants: 'off',
     },
     package_mode: 'allow_list',
     package_ids: ['hvac_tuning', 'retrofit_shell'],
@@ -244,20 +244,20 @@ test('efficiency materialization backfills defaults, normalizes package ids, and
   );
 });
 
-test('efficiency materialization migrates legacy autonomous role ids to family ids', async () => {
+test('efficiency materialization migrates legacy output ids to role ids', async () => {
   const { materializeEfficiencyConfiguration } = await loadViteModule('/src/data/configurationDocumentLoader.ts');
   const configuration = structuredClone(readJson('../src/configurations/reference-baseline.json'));
   const tracks = [
-    { family_id: 'commercial_building_services', track_id: 'commercial_background_efficiency' },
-    { family_id: 'residential_building_services', track_id: 'residential_background_efficiency' },
+    { role_id: 'serve_commercial_building_occupants', track_id: 'commercial_background_efficiency' },
+    { role_id: 'serve_residential_building_occupants', track_id: 'residential_background_efficiency' },
   ];
   const resolvedMethodYears = [
     {
-      role_id: 'deliver_commercial_building_services',
+      role_id: 'serve_commercial_building_occupants',
       output_id: 'commercial_building_services',
     },
     {
-      role_id: 'deliver_residential_building_services',
+      role_id: 'serve_residential_building_occupants',
       output_id: 'residential_building_services',
     },
   ];
@@ -265,9 +265,9 @@ test('efficiency materialization migrates legacy autonomous role ids to family i
   configuration.efficiency_controls = {
     autonomous_mode: 'baseline',
     autonomous_modes_by_role: {
-      deliver_commercial_building_services: 'off',
+      serve_commercial_building_occupants: 'off',
       residential_building_services: 'baseline',
-      deliver_residential_building_services: 'off',
+      serve_residential_building_occupants: 'off',
     },
     package_mode: 'off',
     package_ids: [],
@@ -281,8 +281,8 @@ test('efficiency materialization migrates legacy autonomous role ids to family i
   );
 
   assert.deepEqual(materialized.efficiency_controls.autonomous_modes_by_role, {
-    commercial_building_services: 'off',
-    residential_building_services: 'baseline',
+    serve_commercial_building_occupants: 'off',
+    serve_residential_building_occupants: 'off',
   });
 });
 
@@ -301,13 +301,13 @@ test('buildSolveRequest resolves efficiency controls into active track and packa
     {
       ...pkg,
       autonomousEfficiencyTracks: [
-        { family_id: 'residential_building_services', track_id: 'background_standards_drift' },
-        { family_id: 'commercial_building_services', track_id: 'background_commercial_efficiency_drift' },
+        { role_id: 'serve_residential_building_occupants', track_id: 'background_standards_drift' },
+        { role_id: 'serve_commercial_building_occupants', track_id: 'background_commercial_efficiency_drift' },
       ],
       efficiencyPackages: [
-        { family_id: 'residential_building_services', package_id: 'residential_shell_retrofit' },
-        { family_id: 'commercial_building_services', package_id: 'commercial_hvac_tuning' },
-        { family_id: 'low_temperature_heat', package_id: 'boiler_insulation' },
+        { role_id: 'serve_residential_building_occupants', package_id: 'residential_shell_retrofit' },
+        { role_id: 'serve_commercial_building_occupants', package_id: 'commercial_hvac_tuning' },
+        { role_id: 'deliver_low_temperature_heat', package_id: 'boiler_insulation' },
       ],
     },
     configuration,
@@ -316,7 +316,7 @@ test('buildSolveRequest resolves efficiency controls into active track and packa
   assert.deepEqual(request.configuration.efficiency, {
     autonomousMode: 'baseline',
     autonomousModesByRole: {
-      residential_building_services: 'off',
+      serve_residential_building_occupants: 'off',
     },
     activeTrackIds: ['background_commercial_efficiency_drift'],
     packageMode: 'deny_list',
@@ -353,7 +353,7 @@ test('configuration loader prefers the canonical filename when duplicate config 
     ...(canonicalConfig.app_metadata ?? {}),
   };
 
-  duplicateConfig.role_controls.deliver_residential_building_services = {
+  duplicateConfig.role_controls.serve_residential_building_occupants = {
     mode: 'optimize',
     disabled_method_ids: ['buildings__residential__deep_electric'],
   };
@@ -369,7 +369,7 @@ test('configuration loader prefers the canonical filename when duplicate config 
   assert.equal(parsed.length, 1);
   assert.equal(parsed[0].app_metadata?.id, 'buildings-dlg');
   assert.equal(
-    parsed[0].role_controls.deliver_residential_building_services.disabled_method_ids,
+    parsed[0].role_controls.serve_residential_building_occupants.disabled_method_ids,
     undefined,
   );
 });

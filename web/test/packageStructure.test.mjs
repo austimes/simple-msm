@@ -275,10 +275,10 @@ const COVERAGE_OBLIGATIONS = new Set([
 ]);
 const CONFIDENCE_RATINGS = new Set(['High', 'Medium', 'Low', 'Exploratory']);
 const EXPECTED_ROLE_IDS = new Set([
-  'deliver_residential_building_services',
-  'deliver_commercial_building_services',
-  'account_residual_residential_buildings',
-  'account_residual_commercial_buildings',
+  'serve_residential_building_occupants',
+  'serve_commercial_building_occupants',
+  'account_remaining_residential_building_services',
+  'account_remaining_commercial_building_services',
   'deliver_passenger_road_transport',
   'deliver_freight_road_transport',
   'account_residual_transport',

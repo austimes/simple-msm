@@ -1,8 +1,8 @@
 role_id,baseline_year,activity_value,activity_unit,baseline_direct_gross_emissions_mtco2e,baseline_direct_net_emissions_mtco2e,emissions_importance_band,metric_basis,notes
-deliver_residential_building_services,2025,477000000,GJ_service_eq,8.222049,8.222049,medium,incumbent_activity_anchor,Derived from 2025 incumbent method emissions intensity and baseline activity anchor.
-deliver_commercial_building_services,2025,314000000,GJ_service_eq,4.847532,4.847532,low,incumbent_activity_anchor,Derived from 2025 incumbent method emissions intensity and baseline activity anchor.
-account_residual_residential_buildings,2025,1,residual_activity,0.006,0.006,very_low,incumbent_activity_anchor,Derived from 2025 incumbent method emissions intensity and baseline activity anchor.
-account_residual_commercial_buildings,2025,1,residual_activity,0.001,0.001,very_low,incumbent_activity_anchor,Derived from 2025 incumbent method emissions intensity and baseline activity anchor.
+serve_residential_building_occupants,2025,477000000,GJ_service_eq,8.222049,8.222049,medium,incumbent_activity_anchor,Derived from 2025 incumbent method emissions intensity and baseline activity anchor.
+serve_commercial_building_occupants,2025,314000000,GJ_service_eq,4.847532,4.847532,low,incumbent_activity_anchor,Derived from 2025 incumbent method emissions intensity and baseline activity anchor.
+account_remaining_residential_building_services,2025,1,residual_activity,0.006,0.006,very_low,incumbent_activity_anchor,Derived from 2025 incumbent method emissions intensity and baseline activity anchor.
+account_remaining_commercial_building_services,2025,1,residual_activity,0.001,0.001,very_low,incumbent_activity_anchor,Derived from 2025 incumbent method emissions intensity and baseline activity anchor.
 deliver_passenger_road_transport,2025,293414730000,pkm,51.934407,51.934407,very_high,incumbent_activity_anchor,Derived from 2025 incumbent method emissions intensity and baseline activity anchor.
 deliver_freight_road_transport,2025,249000000000,tkm,35.109,35.109,high,incumbent_activity_anchor,Derived from 2025 incumbent method emissions intensity and baseline activity anchor.
 account_residual_transport,2025,1,residual_activity,11.657,11.657,medium,incumbent_activity_anchor,Derived from 2025 incumbent method emissions intensity and baseline activity anchor.

@@ -109,8 +109,8 @@ test('repo-backed user configurations with legacy autonomous role ids materializ
     package_mode: 'off',
     package_ids: [],
     autonomous_modes_by_role: {
-      deliver_commercial_building_services: 'off',
-      deliver_residential_building_services: 'off',
+      commercial_building_services: 'off',
+      residential_building_services: 'off',
     },
   };
   delete tempConfiguration.role_controls.account_residual_lulucf_sink;
@@ -131,8 +131,8 @@ test('repo-backed user configurations with legacy autonomous role ids materializ
     assert.equal(output.ok, true);
     assert.equal(output.result.status, 'solved');
     assert.deepEqual(output.configuration.efficiency_controls.autonomous_modes_by_role, {
-      commercial_building_services: 'off',
-      residential_building_services: 'off',
+      serve_commercial_building_occupants: 'off',
+      serve_residential_building_occupants: 'off',
     });
     assert.deepEqual(
       output.configuration.role_controls.account_residual_lulucf_sink.active_method_ids,
