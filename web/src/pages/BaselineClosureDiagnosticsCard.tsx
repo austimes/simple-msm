@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { usePackageStore } from '../data/packageStore';
 import {
   summarizeOverlayTotals,
-  summarizeResidualFamilyTotals,
+  summarizeResidualRoleTotals,
 } from '../data/balanceDiagnostics';
 import {
   AGGREGATED_RESIDUAL_OVERLAY_LABEL,
@@ -60,7 +60,7 @@ export default function BaselineClosureDiagnosticsCard() {
   const totals = useMemo(
     () => hasOverlayRows
       ? summarizeOverlayTotals(residualOverlays2025)
-      : summarizeResidualFamilyTotals(resolvedMethodYears),
+      : summarizeResidualRoleTotals(resolvedMethodYears),
     [hasOverlayRows, residualOverlays2025, resolvedMethodYears],
   );
 

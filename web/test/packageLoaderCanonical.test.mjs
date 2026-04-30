@@ -92,7 +92,7 @@ test('web package loader removes old family/state package file paths', () => {
   assert.equal(Boolean(pkg.enrichment.roleReadmes.supply_electricity), true);
 });
 
-test('canonical role/method rows are bridged into the current app harness', () => {
+test('canonical role/method rows expose only canonical app fields', () => {
   const pkg = loadPackage();
   const electricity = pkg.resolvedMethodYears.find((row) =>
     row.role_id === 'supply_electricity'
@@ -101,13 +101,17 @@ test('canonical role/method rows are bridged into the current app harness', () =
   );
 
   assert.ok(electricity);
-  assert.equal(electricity.service_or_output_name, 'electricity');
-  assert.equal(electricity.state_id, electricity.method_id);
-  assert.equal(electricity.method_label, electricity.state_label);
+  assert.equal(electricity.output_id, 'electricity');
+  assert.equal(electricity.method_label, 'Incumbent thermal-heavy grid mix');
+  assert.equal('service_or_output_name' in electricity, false);
+  assert.equal('state_id' in electricity, false);
+  assert.equal('family_id' in electricity, false);
 
   const efficiencyTrack = pkg.autonomousEfficiencyTracks.find((row) =>
     row.role_id === 'deliver_freight_road_transport'
   );
   assert.ok(efficiencyTrack);
-  assert.deepEqual(efficiencyTrack.applicable_state_ids, efficiencyTrack.applicable_method_ids);
+  assert.equal(efficiencyTrack.applicable_method_ids.length > 0, true);
+  assert.equal('applicable_state_ids' in efficiencyTrack, false);
+  assert.equal('family_id' in efficiencyTrack, false);
 });

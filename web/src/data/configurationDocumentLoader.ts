@@ -193,35 +193,35 @@ function normalizeConfiguredPackageIds(packageIds: string[] | null | undefined):
   ).sort((left, right) => left.localeCompare(right));
 }
 
-function buildAutonomousControlIdByLegacyRoleId(
+function buildAutonomousControlIdByOutputId(
   resolvedMethodYears: Pick<ResolvedMethodYearRow, 'role_id' | 'output_id'>[] | undefined,
 ): Map<string, string> {
-  const controlIdByLegacyRoleId = new Map<string, string>();
+  const controlIdByOutputId = new Map<string, string>();
 
   for (const row of resolvedMethodYears ?? []) {
     if (!row.role_id || !row.output_id) {
       continue;
     }
 
-    const existing = controlIdByLegacyRoleId.get(row.role_id);
-    if (existing && existing !== row.output_id) {
+    const existing = controlIdByOutputId.get(row.output_id);
+    if (existing && existing !== row.role_id) {
       throw new Error(
-        `Role ${JSON.stringify(row.role_id)} maps to multiple autonomous efficiency families: ${JSON.stringify(existing)} and ${JSON.stringify(row.output_id)}.`,
+        `Output ${JSON.stringify(row.output_id)} maps to multiple autonomous efficiency roles: ${JSON.stringify(existing)} and ${JSON.stringify(row.role_id)}.`,
       );
     }
 
-    controlIdByLegacyRoleId.set(row.role_id, row.output_id);
+    controlIdByOutputId.set(row.output_id, row.role_id);
   }
 
-  return controlIdByLegacyRoleId;
+  return controlIdByOutputId;
 }
 
 function normalizeAutonomousModesByRole(
   autonomousModesByRole: Record<string, ConfigurationAutonomousEfficiencyMode> | null | undefined,
   autonomousFamilyIds: Set<string>,
-  controlIdByLegacyRoleId = new Map<string, string>(),
+  controlIdByOutputId = new Map<string, string>(),
 ): Record<string, ConfigurationAutonomousEfficiencyMode> {
-  const canonicalModesByFamilyId = new Map<string, ConfigurationAutonomousEfficiencyMode>();
+  const canonicalModesByRoleId = new Map<string, ConfigurationAutonomousEfficiencyMode>();
 
   for (const [rawControlId, mode] of Object.entries(autonomousModesByRole ?? {})) {
     const controlId = rawControlId.trim();
@@ -229,76 +229,76 @@ function normalizeAutonomousModesByRole(
       continue;
     }
 
-    const isCanonicalFamilyId = autonomousFamilyIds.has(controlId);
-    const familyId = isCanonicalFamilyId
+    const isCanonicalRoleId = autonomousFamilyIds.has(controlId);
+    const roleId = isCanonicalRoleId
       ? controlId
-      : controlIdByLegacyRoleId.get(controlId) ?? controlId;
+      : controlIdByOutputId.get(controlId) ?? controlId;
 
-    if (!canonicalModesByFamilyId.has(familyId) || isCanonicalFamilyId) {
-      canonicalModesByFamilyId.set(familyId, mode);
+    if (!canonicalModesByRoleId.has(roleId) || isCanonicalRoleId) {
+      canonicalModesByRoleId.set(roleId, mode);
     }
   }
 
   return Object.fromEntries(
-    Array.from(canonicalModesByFamilyId.entries())
+    Array.from(canonicalModesByRoleId.entries())
       .sort(([left], [right]) => left.localeCompare(right)),
   );
 }
 
-function buildAutonomousFamilyIds(
-  autonomousEfficiencyTracks: Pick<AutonomousEfficiencyTrack, 'family_id'>[],
+function buildAutonomousRoleIds(
+  autonomousEfficiencyTracks: Pick<AutonomousEfficiencyTrack, 'role_id'>[],
 ): Set<string> {
-  return new Set(autonomousEfficiencyTracks.map((track) => track.family_id));
+  return new Set(autonomousEfficiencyTracks.map((track) => track.role_id));
 }
 
-function buildPackageFamiliesById(
-  efficiencyPackages: Pick<EfficiencyPackage, 'family_id' | 'package_id'>[],
+function buildPackageRolesById(
+  efficiencyPackages: Pick<EfficiencyPackage, 'role_id' | 'package_id'>[],
 ): Map<string, Set<string>> {
-  return efficiencyPackages.reduce<Map<string, Set<string>>>((familiesById, row) => {
-    const families = familiesById.get(row.package_id) ?? new Set<string>();
-    families.add(row.family_id);
-    familiesById.set(row.package_id, families);
-    return familiesById;
+  return efficiencyPackages.reduce<Map<string, Set<string>>>((rolesById, row) => {
+    const roles = rolesById.get(row.package_id) ?? new Set<string>();
+    roles.add(row.role_id);
+    rolesById.set(row.package_id, roles);
+    return rolesById;
   }, new Map<string, Set<string>>());
 }
 
 export function materializeEfficiencyConfiguration(
   configuration: ConfigurationDocument,
-  autonomousEfficiencyTracks: Pick<AutonomousEfficiencyTrack, 'family_id'>[],
-  efficiencyPackages: Pick<EfficiencyPackage, 'family_id' | 'package_id'>[],
+  autonomousEfficiencyTracks: Pick<AutonomousEfficiencyTrack, 'role_id'>[],
+  efficiencyPackages: Pick<EfficiencyPackage, 'role_id' | 'package_id'>[],
   resolvedMethodYears?: Pick<ResolvedMethodYearRow, 'role_id' | 'output_id'>[],
 ): ConfigurationDocument {
   const autonomousMode = configuration.efficiency_controls?.autonomous_mode ?? 'baseline';
-  const autonomousFamilyIds = buildAutonomousFamilyIds(autonomousEfficiencyTracks);
+  const autonomousRoleIds = buildAutonomousRoleIds(autonomousEfficiencyTracks);
   const autonomousModesByRole = normalizeAutonomousModesByRole(
     configuration.efficiency_controls?.autonomous_modes_by_role,
-    autonomousFamilyIds,
-    buildAutonomousControlIdByLegacyRoleId(resolvedMethodYears),
+    autonomousRoleIds,
+    buildAutonomousControlIdByOutputId(resolvedMethodYears),
   );
   const packageMode = configuration.efficiency_controls?.package_mode ?? 'off';
   const configuredPackageIds = normalizeConfiguredPackageIds(
     configuration.efficiency_controls?.package_ids,
   );
-  const packageFamiliesById = buildPackageFamiliesById(efficiencyPackages);
+  const packageRolesById = buildPackageRolesById(efficiencyPackages);
 
-  for (const outputId of Object.keys(autonomousModesByRole)) {
-    if (!autonomousFamilyIds.has(outputId)) {
+  for (const roleId of Object.keys(autonomousModesByRole)) {
+    if (!autonomousRoleIds.has(roleId)) {
       throw new Error(
-        `Unknown autonomous efficiency role id ${JSON.stringify(outputId)} in efficiency_controls.autonomous_modes_by_role.`,
+        `Unknown autonomous efficiency role id ${JSON.stringify(roleId)} in efficiency_controls.autonomous_modes_by_role.`,
       );
     }
   }
 
   if (packageMode === 'allow_list' || packageMode === 'deny_list') {
     for (const packageId of configuredPackageIds) {
-      const families = packageFamiliesById.get(packageId);
-      if (!families) {
+      const roles = packageRolesById.get(packageId);
+      if (!roles) {
         throw new Error(`Unknown efficiency package id ${JSON.stringify(packageId)} in efficiency_controls.package_ids.`);
       }
 
-      if (families.size > 1) {
+      if (roles.size > 1) {
         throw new Error(
-          `Ambiguous efficiency package id ${JSON.stringify(packageId)} is shared by families ${Array.from(families).sort().join(', ')}.`,
+          `Ambiguous efficiency package id ${JSON.stringify(packageId)} is shared by roles ${Array.from(roles).sort().join(', ')}.`,
         );
       }
     }

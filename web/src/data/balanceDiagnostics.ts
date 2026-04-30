@@ -7,8 +7,8 @@
  */
 import type { ResidualOverlayRow, ResolvedMethodYearRow } from './types.ts';
 
-export const GRID_LOSSES_OWN_USE_FAMILY_ID = 'electricity_grid_losses_own_use';
-export const RESIDUAL_LULUCF_SINK_FAMILY_ID = 'residual_lulucf_sink';
+export const GRID_LOSSES_OWN_USE_ROLE_ID = 'account_electricity_grid_losses_own_use';
+export const RESIDUAL_LULUCF_SINK_ROLE_ID = 'account_residual_lulucf_sink';
 
 export function getDefaultIncludedResidualOverlays(
   overlays: ResidualOverlayRow[],
@@ -26,10 +26,10 @@ export interface OverlayTotalsSummary {
   totalOverlayFixedCostAudm2024: number;
   residualFinalElectricityTwh?: number;
   gridLossesOwnUseElectricityTwh?: number;
-  includedResidualFamilyCount?: number;
-  energyResidualFamilyCount?: number;
-  nonEnergyResidualFamilyCount?: number;
-  sinkResidualFamilyCount?: number;
+  includedResidualRoleCount?: number;
+  energyResidualRoleCount?: number;
+  nonEnergyResidualRoleCount?: number;
+  sinkResidualRoleCount?: number;
 }
 
 export function summarizeOverlayTotals(
@@ -108,37 +108,37 @@ function inputCoefficientToElectricityTwh(
   return coefficient / 1_000_000;
 }
 
-function residualFamilyRows(resolvedMethodYears: ResolvedMethodYearRow[]): ResolvedMethodYearRow[] {
-  const rowsByFamily = new Map<string, ResolvedMethodYearRow>();
+function residualRoleRows(resolvedMethodYears: ResolvedMethodYearRow[]): ResolvedMethodYearRow[] {
+  const rowsByRole = new Map<string, ResolvedMethodYearRow>();
 
   for (const row of resolvedMethodYears) {
-    if (row.family_resolution !== 'residual_stub' || row.year !== 2025) {
+    if (row.role_kind !== 'residual' || row.year !== 2025) {
       continue;
     }
-    if (!rowsByFamily.has(row.family_id) || row.is_default_incumbent_2025) {
-      rowsByFamily.set(row.family_id, row);
+    if (!rowsByRole.has(row.role_id) || row.is_default_incumbent_2025) {
+      rowsByRole.set(row.role_id, row);
     }
   }
 
-  return Array.from(rowsByFamily.values()).sort((left, right) =>
-    left.family_id.localeCompare(right.family_id),
+  return Array.from(rowsByRole.values()).sort((left, right) =>
+    left.role_id.localeCompare(right.role_id),
   );
 }
 
-function defaultIncludedResidualFamilyIds(rows: ResolvedMethodYearRow[]): Set<string> {
+function defaultIncludedResidualRoleIds(rows: ResolvedMethodYearRow[]): Set<string> {
   return new Set(
     rows
-      .filter((row) => row.family_id !== RESIDUAL_LULUCF_SINK_FAMILY_ID)
-      .map((row) => row.family_id),
+      .filter((row) => row.role_id !== RESIDUAL_LULUCF_SINK_ROLE_ID)
+      .map((row) => row.role_id),
   );
 }
 
-export function summarizeResidualFamilyTotals(
+export function summarizeResidualRoleTotals(
   resolvedMethodYears: ResolvedMethodYearRow[],
-  includedFamilyIds?: Set<string>,
+  includedRoleIds?: Set<string>,
 ): OverlayTotalsSummary {
-  const rows = residualFamilyRows(resolvedMethodYears);
-  const included = includedFamilyIds ?? defaultIncludedResidualFamilyIds(rows);
+  const rows = residualRoleRows(resolvedMethodYears);
+  const included = includedRoleIds ?? defaultIncludedResidualRoleIds(rows);
 
   let totalResidualEnergyPj = 0;
   let totalResidualEnergyEmissions = 0;
@@ -147,9 +147,9 @@ export function summarizeResidualFamilyTotals(
   let residualFinalElectricityTwh = 0;
   let gridLossesOwnUseElectricityTwh = 0;
   let lulucfSinkMtco2e: number | null = null;
-  let energyResidualFamilyCount = 0;
-  let nonEnergyResidualFamilyCount = 0;
-  let sinkResidualFamilyCount = 0;
+  let energyResidualRoleCount = 0;
+  let nonEnergyResidualRoleCount = 0;
+  let sinkResidualRoleCount = 0;
 
   for (const row of rows) {
     const inputPj = row.input_coefficients.reduce(
@@ -167,17 +167,17 @@ export function summarizeResidualFamilyTotals(
     const energyEmissionsMt = sumEmissionsMt(row.energy_emissions_by_pollutant);
     const processEmissionsMt = sumEmissionsMt(row.process_emissions_by_pollutant);
 
-    if (row.family_id === RESIDUAL_LULUCF_SINK_FAMILY_ID) {
+    if (row.role_id === RESIDUAL_LULUCF_SINK_ROLE_ID) {
       lulucfSinkMtco2e = (lulucfSinkMtco2e ?? 0) + energyEmissionsMt + processEmissionsMt;
-      sinkResidualFamilyCount += 1;
+      sinkResidualRoleCount += 1;
       continue;
     }
 
-    if (!included.has(row.family_id)) {
+    if (!included.has(row.role_id)) {
       continue;
     }
 
-    if (row.family_id === GRID_LOSSES_OWN_USE_FAMILY_ID) {
+    if (row.role_id === GRID_LOSSES_OWN_USE_ROLE_ID) {
       gridLossesOwnUseElectricityTwh += inputElectricityTwh;
     } else {
       totalResidualEnergyPj += inputPj;
@@ -188,11 +188,11 @@ export function summarizeResidualFamilyTotals(
     totalResidualNonEnergyEmissions += processEmissionsMt;
     totalCarbonBillableEmissionsMtco2e += energyEmissionsMt + processEmissionsMt;
 
-    if (inputPj > 0 && row.family_id !== GRID_LOSSES_OWN_USE_FAMILY_ID) {
-      energyResidualFamilyCount += 1;
+    if (inputPj > 0 && row.role_id !== GRID_LOSSES_OWN_USE_ROLE_ID) {
+      energyResidualRoleCount += 1;
     }
     if (processEmissionsMt > 0) {
-      nonEnergyResidualFamilyCount += 1;
+      nonEnergyResidualRoleCount += 1;
     }
   }
 
@@ -206,9 +206,9 @@ export function summarizeResidualFamilyTotals(
     totalOverlayFixedCostAudm2024: 0,
     residualFinalElectricityTwh,
     gridLossesOwnUseElectricityTwh,
-    includedResidualFamilyCount: included.size,
-    energyResidualFamilyCount,
-    nonEnergyResidualFamilyCount,
-    sinkResidualFamilyCount,
+    includedResidualRoleCount: included.size,
+    energyResidualRoleCount,
+    nonEnergyResidualRoleCount,
+    sinkResidualRoleCount,
   };
 }

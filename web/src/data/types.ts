@@ -277,20 +277,6 @@ export interface RolePresentationMetadata {
   notes: string;
 }
 
-export interface SystemStructureGroupRow {
-  group_id: string;
-  group_label: string;
-  display_order: number;
-  notes: string;
-}
-
-export interface SystemStructureMemberRow {
-  group_id: string;
-  family_id: string;
-  display_order: number;
-  notes: string;
-}
-
 export interface PackageCompanionDoc {
   key: string;
   path: string;
@@ -320,13 +306,11 @@ export type EfficiencyPackageClassification =
 
 export interface AutonomousEfficiencyTrack {
   role_id: string;
-  family_id: string;
   track_id: string;
   year: number;
   track_label: string;
   track_description: string;
   applicable_method_ids: string[];
-  applicable_state_ids: string[];
   affected_input_commodities: string[];
   input_multipliers: number[];
   delta_output_cost_per_unit: number;
@@ -343,14 +327,12 @@ export interface AutonomousEfficiencyTrack {
 
 export interface EfficiencyPackage {
   role_id: string;
-  family_id: string;
   package_id: string;
   year: number;
   package_label: string;
   package_description: string;
   classification: EfficiencyPackageClassification;
   applicable_method_ids: string[];
-  applicable_state_ids: string[];
   affected_input_commodities: string[];
   input_multipliers: number[];
   delta_output_cost_per_unit: number;
@@ -426,24 +408,8 @@ export interface ResolvedMethodYearRow {
   method_option_rank: number | null;
   method_option_code: string;
   method_option_label: string;
-  family_id: string;
-  family_resolution: FamilyResolution;
-  coverage_scope_id: string;
-  coverage_scope_label: string;
   sector: string;
   subsector: string;
-  service_or_output_name: string;
-  state_id: string;
-  state_label: string;
-  state_description: string;
-  state_stage_family: string;
-  state_stage_rank: number | null;
-  state_stage_code: string;
-  state_sort_key: string;
-  state_label_standardized: string;
-  state_option_rank: number | null;
-  state_option_code: string;
-  state_option_label: string;
   balance_tuning_flag: boolean;
   balance_tuning_note: string;
   benchmark_balance_note: string;
@@ -665,14 +631,14 @@ export type ServiceDemandAnchorType =
 
 export interface ServiceDemandAnchorRow {
   anchor_type: ServiceDemandAnchorType;
-  service_or_output_name: string;
-  default_2025_state_id: string;
-  default_2025_state_option_code: string;
-  default_2025_state_option_label: string;
+  output_id: string;
+  default_2025_method_id: string;
+  default_2025_method_option_code: string;
+  default_2025_method_option_label: string;
   quantity_2025: number | null;
   unit: string;
   anchor_status: string;
-  source_family: string;
+  source_role: string;
   coverage_note: string;
   implied_gross_input_energy_pj_if_default: number | null;
   implied_benchmark_final_energy_pj_if_default: number | null;
@@ -759,8 +725,6 @@ export interface PackageData {
   methodYears: MethodYear[];
   roleDemands: RoleDemand[];
   rolePresentationMetadata: RolePresentationMetadata[];
-  systemStructureGroups: SystemStructureGroupRow[];
-  systemStructureMembers: SystemStructureMemberRow[];
   resolvedMethodYears: ResolvedMethodYearRow[];
   autonomousEfficiencyTracks: AutonomousEfficiencyTrack[];
   efficiencyPackages: EfficiencyPackage[];

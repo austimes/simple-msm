@@ -33,15 +33,14 @@ type PackageToggleChange =
   | { packageId: string; enabled: boolean }
   | { outputId: string; roleId?: string; enabled: boolean };
 
-type EfficiencyCatalogMethodRow = Pick<ResolvedMethodYearRow, 'output_id' | 'method_id'>
-  & Partial<Pick<ResolvedMethodYearRow, 'service_or_output_name' | 'state_id'>>;
+type EfficiencyCatalogMethodRow = Pick<ResolvedMethodYearRow, 'output_id' | 'method_id' | 'role_id'>;
 type EfficiencyCatalogTrack = Pick<
   AutonomousEfficiencyTrack,
-  'family_id' | 'track_id' | 'track_label' | 'applicable_method_ids'
-> & { applicable_state_ids?: string[] };
+  'role_id' | 'track_id' | 'track_label' | 'applicable_method_ids'
+>;
 type EfficiencyCatalogPackage = Pick<
   EfficiencyPackage,
-  | 'family_id'
+  | 'role_id'
   | 'package_id'
   | 'package_label'
   | 'classification'
@@ -49,7 +48,7 @@ type EfficiencyCatalogPackage = Pick<
   | 'non_stacking_group'
   | 'max_share'
   | 'year'
-> & { applicable_state_ids?: string[] };
+>;
 
 function compareStrings(left: string, right: string): number {
   return left.localeCompare(right);
@@ -75,13 +74,13 @@ function collectPackageIds(
 }
 
 function collectPackageIdsForOutput(
-  efficiencyPackages: Pick<EfficiencyPackage, 'family_id' | 'package_id'>[],
-  outputId: string,
+  efficiencyPackages: Pick<EfficiencyPackage, 'role_id' | 'package_id'>[],
+  roleId: string,
 ): string[] {
   return Array.from(
     new Set(
       efficiencyPackages
-        .filter((pkg) => pkg.family_id === outputId)
+        .filter((pkg) => pkg.role_id === roleId)
         .map((pkg) => pkg.package_id),
     ),
   ).sort(compareStrings);
@@ -121,7 +120,7 @@ export function resolveAutonomousModeForOutput(
 
 export function buildNextPackageAllowList(
   controls: ConfigurationEfficiencyControls | null | undefined,
-  efficiencyPackages: Pick<EfficiencyPackage, 'family_id' | 'package_id'>[],
+  efficiencyPackages: Pick<EfficiencyPackage, 'role_id' | 'package_id'>[],
   change: PackageToggleChange,
 ): string[] {
   const activePackageIds = new Set(resolveActiveEfficiencyPackageIds(controls, efficiencyPackages));
@@ -138,7 +137,7 @@ export function buildNextPackageAllowList(
       activePackageIds.delete(change.packageId);
     }
   } else {
-    for (const packageId of collectPackageIdsForOutput(efficiencyPackages, change.outputId)) {
+    for (const packageId of collectPackageIdsForOutput(efficiencyPackages, change.roleId ?? change.outputId)) {
       if (change.enabled) {
         activePackageIds.add(packageId);
       } else {
@@ -157,16 +156,18 @@ export function buildEfficiencyControlCatalog(
   efficiencyPackages: EfficiencyCatalogPackage[],
 ): OutputEfficiencyControlNode[] {
   const outputIds = Array.from(
-    new Set(resolvedMethodYears.map((row) => row.output_id ?? row.service_or_output_name)),
+    new Set(resolvedMethodYears.map((row) => row.output_id)),
   ).sort(compareStrings);
   const methodIdsByOutput = new Map<string, Set<string>>();
+  const roleIdByOutput = new Map<string, string>();
 
   for (const row of resolvedMethodYears) {
-    const outputId = row.output_id ?? row.service_or_output_name;
-    const methodId = row.method_id ?? row.state_id;
+    const outputId = row.output_id;
+    const methodId = row.method_id;
     if (!outputId || !methodId) {
       continue;
     }
+    roleIdByOutput.set(outputId, row.role_id);
     const methodIds = methodIdsByOutput.get(outputId) ?? new Set<string>();
     methodIds.add(methodId);
     methodIdsByOutput.set(outputId, methodIds);
@@ -176,6 +177,7 @@ export function buildEfficiencyControlCatalog(
   const activePackageIds = new Set(resolveActiveEfficiencyPackageIds(controls, efficiencyPackages));
 
   return outputIds.map((outputId) => {
+    const roleId = roleIdByOutput.get(outputId) ?? outputId;
     const trackMap = new Map<string, {
       trackId: string;
       label: string;
@@ -185,7 +187,7 @@ export function buildEfficiencyControlCatalog(
     const autonomousMode = resolveAutonomousModeForOutput(controls, outputId);
 
     for (const track of autonomousEfficiencyTracks) {
-      if (track.family_id !== outputId) {
+      if (track.role_id !== roleId) {
         continue;
       }
 
@@ -195,7 +197,7 @@ export function buildEfficiencyControlCatalog(
         enabled: autonomousMode === 'baseline',
         applicableMethodIds: new Set<string>(),
       };
-      for (const methodId of track.applicable_method_ids ?? track.applicable_state_ids ?? []) {
+      for (const methodId of track.applicable_method_ids) {
         entry.applicableMethodIds.add(methodId);
       }
       trackMap.set(track.track_id, entry);
@@ -212,7 +214,7 @@ export function buildEfficiencyControlCatalog(
     }>();
 
     for (const pkg of efficiencyPackages) {
-      if (pkg.family_id !== outputId) {
+      if (pkg.role_id !== roleId) {
         continue;
       }
 
@@ -225,7 +227,7 @@ export function buildEfficiencyControlCatalog(
         nonStackingGroup: pkg.non_stacking_group ?? null,
         maxShareByYear: {},
       };
-      for (const methodId of pkg.applicable_method_ids ?? pkg.applicable_state_ids ?? []) {
+      for (const methodId of pkg.applicable_method_ids) {
         entry.applicableMethodIds.add(methodId);
       }
       entry.maxShareByYear[String(pkg.year)] = pkg.max_share ?? null;

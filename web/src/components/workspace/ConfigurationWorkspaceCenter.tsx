@@ -216,8 +216,6 @@ export default function ConfigurationWorkspaceCenter({
   systemFlow,
 }: ConfigurationWorkspaceCenterProps) {
   const residualOverlays2025 = usePackageStore((s) => s.residualOverlays2025);
-  const systemStructureGroups = usePackageStore((s) => s.systemStructureGroups);
-  const systemStructureMembers = usePackageStore((s) => s.systemStructureMembers);
   const currentConfiguration = usePackageStore((s) => s.currentConfiguration);
 
   const focusHasSolvedSnapshot = focusSolve.request != null && focusSolve.result != null;
@@ -278,8 +276,6 @@ export default function ConfigurationWorkspaceCenter({
         ? buildSystemFlowGraphData(focusSolve.request, focusSolve.result, {
           year: selectedSystemFlowYear,
           collapsedSegmentIds: new Set(systemFlow.collapsedSegmentIds),
-          systemStructureGroups,
-          systemStructureMembers,
         })
         : null
     ),
@@ -288,8 +284,6 @@ export default function ConfigurationWorkspaceCenter({
       focusSolve.result,
       selectedSystemFlowYear,
       systemFlow.collapsedSegmentIds,
-      systemStructureGroups,
-      systemStructureMembers,
     ],
   );
 

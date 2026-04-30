@@ -91,7 +91,7 @@ export interface FamilyEfficiencyPackageSummary {
 }
 
 export interface FamilyEfficiencyOverview {
-  familyId: string;
+  roleId: string;
   orderedMethodIds: string[];
   methodLabelById: Record<string, string>;
   tracks: FamilyAutonomousTrackSummary[];
@@ -114,7 +114,7 @@ const efficiencyPackageClassificationRank: Record<EfficiencyPackage['classificat
   operational_efficiency_overlay: 1,
 };
 
-function compareStateSortKey(left: string, right: string): number {
+function compareMethodSortKey(left: string, right: string): number {
   if (!left || !right) {
     return 0;
   }
@@ -122,7 +122,7 @@ function compareStateSortKey(left: string, right: string): number {
   return left.localeCompare(right);
 }
 
-function compareStateOptionRank(left: number | null, right: number | null): number {
+function compareMethodOptionRank(left: number | null, right: number | null): number {
   if (left == null || right == null) {
     return 0;
   }
@@ -132,10 +132,10 @@ function compareStateOptionRank(left: number | null, right: number | null): numb
 
 function compareResolvedMethodYearRowDisplayOrder(left: ResolvedMethodYearRow, right: ResolvedMethodYearRow): number {
   return (
-    compareStateSortKey(left.state_sort_key, right.state_sort_key) ||
-    compareStateOptionRank(left.state_option_rank, right.state_option_rank) ||
-    left.state_label.localeCompare(right.state_label) ||
-    left.state_id.localeCompare(right.state_id)
+    compareMethodSortKey(left.method_sort_key, right.method_sort_key) ||
+    compareMethodOptionRank(left.method_option_rank, right.method_option_rank) ||
+    left.method_label.localeCompare(right.method_label) ||
+    left.method_id.localeCompare(right.method_id)
   );
 }
 
@@ -173,11 +173,11 @@ export function buildResolvedMethodYearSearchText(row: ResolvedMethodYearRow): s
   return [
     row.sector,
     row.subsector,
-    row.service_or_output_name,
+    row.output_id,
     row.region,
-    row.state_id,
-    row.state_label,
-    row.state_description,
+    row.method_id,
+    row.method_label,
+    row.method_description,
     row.confidence_rating,
     row.evidence_summary,
     row.derivation_method,
@@ -221,13 +221,13 @@ export function buildRoleMethodFamilies(resolvedMethodYears: ResolvedMethodYearR
   const grouped = new Map<string, ResolvedMethodYearRow[]>();
 
   resolvedMethodYears.forEach((row) => {
-    const existing = grouped.get(row.state_id);
+    const existing = grouped.get(row.method_id);
     if (existing) {
       existing.push(row);
       return;
     }
 
-    grouped.set(row.state_id, [row]);
+    grouped.set(row.method_id, [row]);
   });
 
   return Array.from(grouped.entries())
@@ -237,10 +237,10 @@ export function buildRoleMethodFamilies(resolvedMethodYears: ResolvedMethodYearR
 
       return {
         methodId,
-        label: representative.state_label,
+        label: representative.method_label,
         sector: representative.sector,
         subsector: representative.subsector,
-        serviceOrOutputName: representative.service_or_output_name,
+        serviceOrOutputName: representative.output_id,
         years: sortedRows.map((row) => row.year),
         representative,
         rows: sortedRows,
@@ -276,7 +276,7 @@ export function buildRoleMethodTrajectory(family: RoleMethodFamily): RoleMethodT
     rows: family.rows,
     points: family.rows.map((row) => ({
       year: row.year,
-      rowKey: `${row.state_id}:${row.year}`,
+      rowKey: `${row.method_id}:${row.year}`,
       cost: row.output_cost_per_unit,
       energyTotal: sumEmissionEntries(row.energy_emissions_by_pollutant),
       processTotal: sumEmissionEntries(row.process_emissions_by_pollutant),
@@ -317,13 +317,13 @@ export function buildInputCommoditySeries(family: RoleMethodFamily): InputCommod
 }
 
 export function buildFamilyEfficiencyOverview(
-  familyId: string,
+  roleId: string,
   resolvedMethodYears: ResolvedMethodYearRow[],
   autonomousEfficiencyTracks: AutonomousEfficiencyTrack[],
   efficiencyPackages: EfficiencyPackage[],
 ): FamilyEfficiencyOverview | null {
   const stateFamilies = buildRoleMethodFamilies(
-    resolvedMethodYears.filter((row) => row.family_id === familyId),
+    resolvedMethodYears.filter((row) => row.role_id === roleId),
   );
 
   if (stateFamilies.length === 0) {
@@ -343,7 +343,7 @@ export function buildFamilyEfficiencyOverview(
 
   const tracks = Array.from(
     autonomousEfficiencyTracks
-      .filter((row) => row.family_id === familyId)
+      .filter((row) => row.role_id === roleId)
       .reduce<Map<string, AutonomousEfficiencyTrack[]>>((result, row) => {
         const rows = result.get(row.track_id) ?? [];
 
@@ -357,7 +357,7 @@ export function buildFamilyEfficiencyOverview(
       const sortedRows = [...rows].sort((left, right) => left.year - right.year);
       const representative = sortedRows[0];
       const applicableMethodIds = orderMethodIds(
-        orderedUniqueStrings(sortedRows.flatMap((row) => row.applicable_state_ids)),
+        orderedUniqueStrings(sortedRows.flatMap((row) => row.applicable_method_ids)),
         orderedMethodIds,
       );
 
@@ -384,7 +384,7 @@ export function buildFamilyEfficiencyOverview(
 
   const packages = Array.from(
     efficiencyPackages
-      .filter((row) => row.family_id === familyId)
+      .filter((row) => row.role_id === roleId)
       .reduce<Map<string, EfficiencyPackage[]>>((result, row) => {
         const rows = result.get(row.package_id) ?? [];
 
@@ -398,7 +398,7 @@ export function buildFamilyEfficiencyOverview(
       const sortedRows = [...rows].sort((left, right) => left.year - right.year);
       const representative = sortedRows[0];
       const applicableMethodIds = orderMethodIds(
-        orderedUniqueStrings(sortedRows.flatMap((row) => row.applicable_state_ids)),
+        orderedUniqueStrings(sortedRows.flatMap((row) => row.applicable_method_ids)),
         orderedMethodIds,
       );
 
@@ -426,7 +426,7 @@ export function buildFamilyEfficiencyOverview(
     .sort(compareEfficiencyPackageSummaries);
 
   return {
-    familyId,
+    roleId,
     orderedMethodIds,
     methodLabelById,
     tracks,
@@ -437,7 +437,7 @@ export function buildFamilyEfficiencyOverview(
 }
 
 function scoreReferenceCandidate(row: ResolvedMethodYearRow): number {
-  const haystack = `${row.state_id} ${row.state_label}`;
+  const haystack = `${row.method_id} ${row.method_label}`;
 
   return referencePatterns.reduce((score, { pattern, score: weight }) => {
     return pattern.test(haystack) ? score + weight : score;
@@ -450,7 +450,7 @@ export function findReferenceMethodRow(
 ): ResolvedMethodYearRow | null {
   const candidates = resolvedMethodYears.filter((row) => {
     return (
-      row.service_or_output_name === selected.service_or_output_name &&
+      row.output_id === selected.output_id &&
       row.year === selected.year &&
       row.region === selected.region
     );

@@ -384,17 +384,19 @@ function buildPackageCatalog(
   pkg: AdditionalityPackageData,
 ): Record<string, AdditionalityEfficiencyPackageCatalogEntry> {
   const catalog = new Map<string, AdditionalityEfficiencyPackageCatalogEntry>();
+  const outputIdByRoleId = new Map(pkg.resolvedMethodYears.map((row) => [row.role_id, row.output_id] as const));
 
   for (const row of pkg.efficiencyPackages ?? []) {
     if (catalog.has(row.package_id)) {
       continue;
     }
+    const outputId = outputIdByRoleId.get(row.role_id) ?? row.role_id;
 
     catalog.set(row.package_id, {
       packageId: row.package_id,
       packageLabel: row.package_label || row.package_id,
-      outputId: row.family_id,
-      outputLabel: getOutputLabel(pkg, row.family_id),
+      outputId,
+      outputLabel: getOutputLabel(pkg, outputId),
       classification: row.classification,
     });
   }
@@ -412,8 +414,9 @@ function buildPackageCatalog(
 function buildAutonomousCatalog(
   pkg: AdditionalityPackageData,
 ): AdditionalityAutonomousCatalogEntry[] {
+  const outputIdByRoleId = new Map(pkg.resolvedMethodYears.map((row) => [row.role_id, row.output_id] as const));
   return Array.from(
-    new Set((pkg.autonomousEfficiencyTracks ?? []).map((track) => track.family_id)),
+    new Set((pkg.autonomousEfficiencyTracks ?? []).map((track) => outputIdByRoleId.get(track.role_id) ?? track.role_id)),
   )
     .sort((left, right) => getOutputLabel(pkg, left).localeCompare(getOutputLabel(pkg, right)))
     .map((outputId) => ({
