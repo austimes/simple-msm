@@ -6,7 +6,12 @@ account_remaining_residential_building_services,account_remaining_residential_bu
 account_remaining_commercial_building_services,account_remaining_commercial_building_services,residual_role,true,Residual coverage is explicit in the physical graph.
 move_passengers_by_road,move_passengers_by_road,modeled_role,true,Maps current role to physical mobility node.
 move_freight_by_road,move_freight_by_road,modeled_role,true,Maps current role to physical mobility node.
-account_residual_transport,account_remaining_transport_activity,residual_role,true,Residual coverage is explicit in the physical graph.
+move_passengers_by_rail,move_passengers_by_rail,residual_role,true,Non-road passenger rail coverage is explicit even while carried by a residual method.
+move_freight_by_rail,move_freight_by_rail,residual_role,true,Non-road freight rail coverage is explicit even while carried by a residual method.
+move_passengers_by_air,move_passengers_by_air,residual_role,true,Passenger aviation coverage is explicit even while carried by a residual method.
+move_freight_by_marine,move_freight_by_marine,residual_role,true,Marine freight coverage is explicit even while carried by a residual method.
+account_other_non_road_transport_activity,account_other_non_road_transport_activity,residual_role,true,Other non-road transport coverage is explicit in the physical graph.
+account_residual_transport,account_remaining_transport_activity,residual_role,true,Compatibility residual remains visible but carries no calibrated residual quantities.
 deliver_low_temperature_heat,provide_low_temperature_process_heat_for_host_roles,modeled_role,true,Current heat role maps to host-owned process heat rather than a standalone national heat system.
 deliver_medium_temperature_heat,provide_medium_temperature_process_heat_for_host_roles,modeled_role,true,Current heat role maps to host-owned process heat rather than a standalone national heat system.
 deliver_high_temperature_heat,provide_high_temperature_process_heat_for_host_roles,modeled_role,true,Current heat role maps to host-owned process heat rather than a standalone national heat system.

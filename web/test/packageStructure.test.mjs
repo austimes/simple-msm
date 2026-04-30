@@ -282,6 +282,11 @@ const EXPECTED_ROLE_IDS = new Set([
   'account_remaining_commercial_building_services',
   'move_passengers_by_road',
   'move_freight_by_road',
+  'move_passengers_by_rail',
+  'move_freight_by_rail',
+  'move_passengers_by_air',
+  'move_freight_by_marine',
+  'account_other_non_road_transport_activity',
   'account_residual_transport',
   'deliver_low_temperature_heat',
   'deliver_medium_temperature_heat',
@@ -468,11 +473,11 @@ test('energy system representation library package structure is internally consi
   assertUnique(reportingAllocations, (allocation) => allocation.reporting_allocation_id, 'reporting_allocation_id');
   assertUnique(roleValidationSummary, (summary) => summary.role_id, 'validation summary role_id');
   assert.deepEqual(roleIds, EXPECTED_ROLE_IDS);
-  assert.equal(roles.length, 41);
+  assert.equal(roles.length, 46);
   assert.equal(roleActivityDrivers.length, roles.length);
   assert.equal(roleMetrics.length, roles.length);
-  assert.equal(roles.filter((role) => role.role_kind === 'residual').length, 23);
-  assert.equal(roles.filter((role) => role.coverage_obligation === 'explicit_residual_top_level').length, 23);
+  assert.equal(roles.filter((role) => role.role_kind === 'residual').length, 28);
+  assert.equal(roles.filter((role) => role.coverage_obligation === 'explicit_residual_top_level').length, 28);
   assert.equal(representations.length, roles.length + 3);
   assert.equal(representationIncumbents.length, roles.length + 4);
   assert.equal(reportingAllocations.length, roles.length);
@@ -826,8 +831,8 @@ test('energy system representation library package structure is internally consi
     }
   }
 
-  assert.equal(totalMethods, 76);
-  assert.equal(totalMethodYearRows, 456);
+  assert.equal(totalMethods, 81);
+  assert.equal(totalMethodYearRows, 486);
   assert.equal(autonomousTrackRowCount > 0, true, 'expected at least one autonomous efficiency track row');
   assert.equal(efficiencyPackageRowCount > 0, true, 'expected at least one efficiency package row');
 

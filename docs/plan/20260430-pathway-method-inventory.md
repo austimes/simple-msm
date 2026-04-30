@@ -49,7 +49,12 @@ The current package contains 60 methods:
 | `remove_co2_engineered_removals` | `removals_negative_emissions__engineered_removals__daccs` | 1 | `move` | `remove_co2_through_engineered_removals` | `pathway_bundle` | Keep DACCS as engineered-removal coverage. Storage/transport remains a separate role gap. |
 | `account_residual_residential_buildings` | `residential_other__residual_incumbent` | 1 | `temporary_residual` | `account_remaining_residential_building_services` | residual method | Keep until residential end uses or remaining building services are decomposed. |
 | `account_residual_commercial_buildings` | `commercial_other__residual_incumbent` | 1 | `temporary_residual` | `account_remaining_commercial_building_services` | residual method | Keep until commercial end uses or remaining building services are decomposed. |
-| `account_residual_transport` | `transport_other__residual_incumbent` | 1 | `temporary_residual` | `account_remaining_transport_activity` | residual method | Keep until non-road passenger and freight roles are represented. |
+| `move_passengers_by_rail` | `transport_rail_passenger__residual_incumbent` | 1 | `temporary_residual` | `move_passengers_by_rail` | residual method | Minimum passenger rail coverage split from the former transport-other bucket. |
+| `move_freight_by_rail` | `transport_rail_freight__residual_incumbent` | 1 | `temporary_residual` | `move_freight_by_rail` | residual method | Minimum freight rail coverage split from the former transport-other bucket. |
+| `move_passengers_by_air` | `transport_air_passenger__residual_incumbent` | 1 | `temporary_residual` | `move_passengers_by_air` | residual method | Minimum passenger aviation coverage split from the former transport-other bucket. |
+| `move_freight_by_marine` | `transport_marine_freight__residual_incumbent` | 1 | `temporary_residual` | `move_freight_by_marine` | residual method | Minimum marine freight coverage split from the former transport-other bucket. |
+| `account_other_non_road_transport_activity` | `transport_other_non_road__residual_incumbent` | 1 | `temporary_residual` | `account_other_non_road_transport_activity` | residual method | Remaining non-road transport coverage split from the former transport-other bucket. |
+| `account_residual_transport` | `transport_other__residual_incumbent` | 1 | `temporary_residual` | `account_remaining_transport_activity` | residual method | Compatibility residual only; calibrated quantities now live on explicit non-road transport roles. |
 | `account_residual_manufacturing` | `manufacturing_other__residual_incumbent` | 1 | `temporary_residual` | `account_remaining_manufacturing_activity` | residual method | Keep until chemicals, other materials, and manufacturing subroles are represented. |
 | `account_residual_ippu` | `residual_ippu_other__residual_incumbent` | 1 | `temporary_residual` | `account_remaining_industrial_process_emissions` | residual method | Keep until non-cement/non-steel process emissions are assigned to physical production roles. |
 | `account_residual_construction` | `construction_other__residual_incumbent` | 1 | `temporary_residual` | `construct_built_assets` | residual method | Keep as construction coverage until a real construction pathway exists. |
@@ -67,7 +72,7 @@ The inventory leaves these gaps explicit for the migration sequence:
 
 - `supply_domestic_gas`, `supply_domestic_liquid_fuels`, and `supply_domestic_solid_fuels` have no direct non-residual pathway methods yet.
 - Export-gate roles for thermal coal, metallurgical coal, LNG, iron ore, bauxite/alumina, critical minerals, and remaining export resource supply have no methods yet.
-- Non-road passenger and freight transport are only covered by `account_residual_transport`.
+- Non-road passenger and freight transport now have explicit residual roles for rail, aviation, marine freight, and other non-road activity; pathway methods remain a later gap.
 - Chemicals, other materials, and most manufacturing activity are only covered by residual methods.
 - Biological emissions, soils, residues, and land-stock adjustments are only partly covered by agriculture and LULUCF residual methods.
 - Water, wastewater, and waste management have residual methods but no explicit pathway alternatives.

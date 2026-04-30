@@ -27,11 +27,11 @@ describe('Residual role migration', () => {
     assert.equal(overlayRows.length, 0);
   });
 
-  it('loads 23 residual roles with one 2025 incumbent row each', () => {
-    assert.equal(residualRoleIds.size, 23);
-    assert.equal(residualRoleRows.length, 23);
+  it('loads 28 residual roles with one 2025 incumbent row each', () => {
+    assert.equal(residualRoleIds.size, 28);
+    assert.equal(residualRoleRows.length, 28);
     for (const row of residualRoleRows) {
-      assert.equal(row.method_label, 'Residual incumbent');
+      assert.match(row.method_label.toLowerCase(), /residual|compatibility/);
     }
   });
 

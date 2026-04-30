@@ -1,0 +1,2 @@
+role_id,anchor_year,anchor_value,unit,demand_growth_curve_id,anchor_status,source_role,coverage_note,notes
+move_passengers_by_rail,2025,1,residual_activity,simple_role_growth_central__move_passengers_by_rail,derived_residual_stub,Transport residual split,Passenger rail uses a residual_activity anchor of 1; quantities live on the residual incumbent method.,Growth proxy is flat until passenger rail demand evidence is authored. Confidence: low.

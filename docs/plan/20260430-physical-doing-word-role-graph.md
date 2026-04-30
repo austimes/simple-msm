@@ -74,9 +74,12 @@ The graph starts from one required root role and decomposes into doing-word chil
 | --- | --- | --- | --- |
 | `move_passengers_by_road` | `move_people_and_freight` | Move passengers by road | Migrates current passenger road transport coverage. |
 | `move_freight_by_road` | `move_people_and_freight` | Move freight by road | Migrates current freight road transport coverage. |
-| `move_passengers_by_nonroad_modes` | `move_people_and_freight` | Move passengers by non-road modes | Explicit role or residual for aviation, rail, maritime, and other passenger movement. |
-| `move_freight_by_nonroad_modes` | `move_people_and_freight` | Move freight by non-road modes | Explicit role or residual for rail, domestic shipping, aviation, and other freight movement. |
-| `account_remaining_transport_activity` | `move_people_and_freight` | Account remaining transport activity | Residual coverage while non-road roles mature. |
+| `move_passengers_by_rail` | `move_people_and_freight` | Move passengers by rail | Minimum residual coverage until passenger rail pathways are authored. |
+| `move_freight_by_rail` | `move_people_and_freight` | Move freight by rail | Minimum residual coverage until freight rail pathways are authored. |
+| `move_passengers_by_air` | `move_people_and_freight` | Move passengers by air | Minimum residual coverage until aviation pathways are authored. |
+| `move_freight_by_marine` | `move_people_and_freight` | Move freight by marine | Minimum residual coverage until marine freight pathways are authored. |
+| `account_other_non_road_transport_activity` | `move_people_and_freight` | Account other non-road transport activity | Explicit residual for remaining off-road and other non-road transport. |
+| `account_remaining_transport_activity` | `move_people_and_freight` | Account remaining transport activity | Compatibility residual after non-road roles are split out. |
 
 ## Material And Product Roles
 

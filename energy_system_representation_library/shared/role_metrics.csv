@@ -6,7 +6,12 @@ account_remaining_residential_building_services,2025,1,residual_activity,0.006,0
 account_remaining_commercial_building_services,2025,1,residual_activity,0.001,0.001,very_low,incumbent_activity_anchor,Derived from 2025 incumbent method emissions intensity and baseline activity anchor.
 move_passengers_by_road,2025,293414730000,pkm,51.934407,51.934407,very_high,incumbent_activity_anchor,Derived from 2025 incumbent method emissions intensity and baseline activity anchor.
 move_freight_by_road,2025,249000000000,tkm,35.109,35.109,high,incumbent_activity_anchor,Derived from 2025 incumbent method emissions intensity and baseline activity anchor.
-account_residual_transport,2025,1,residual_activity,11.657,11.657,medium,incumbent_activity_anchor,Derived from 2025 incumbent method emissions intensity and baseline activity anchor.
+move_passengers_by_rail,2025,1,residual_activity,0.58285,0.58285,very_low,incumbent_activity_anchor,Residual transport calibration split into an explicit passenger rail placeholder.
+move_freight_by_rail,2025,1,residual_activity,1.1657,1.1657,low,incumbent_activity_anchor,Residual transport calibration split into an explicit freight rail placeholder.
+move_passengers_by_air,2025,1,residual_activity,6.41135,6.41135,medium,incumbent_activity_anchor,Residual transport calibration split into an explicit passenger aviation placeholder.
+move_freight_by_marine,2025,1,residual_activity,2.3314,2.3314,low,incumbent_activity_anchor,Residual transport calibration split into an explicit marine freight placeholder.
+account_other_non_road_transport_activity,2025,1,residual_activity,1.1657,1.1657,low,incumbent_activity_anchor,Residual transport calibration split into an explicit other non-road placeholder.
+account_residual_transport,2025,1,residual_activity,0,0,zero,compatibility_residual_zero_quantity,Compatibility residual retained for old configuration surfaces; calibrated quantities moved to explicit non-road transport roles.
 deliver_low_temperature_heat,2025,120000000,GJ_useful_heat,6.80196,6.80196,medium,incumbent_activity_anchor,Derived from 2025 incumbent method emissions intensity and baseline activity anchor.
 deliver_medium_temperature_heat,2025,140000000,GJ_useful_heat,6.30966,6.30966,medium,incumbent_activity_anchor,Derived from 2025 incumbent method emissions intensity and baseline activity anchor.
 deliver_high_temperature_heat,2025,170000000,GJ_useful_heat,6.23662,6.23662,medium,incumbent_activity_anchor,Derived from 2025 incumbent method emissions intensity and baseline activity anchor.
