@@ -10,8 +10,8 @@
     2050
   ],
   "role_count": 32,
-  "method_count": 63,
-  "method_year_row_count": 378,
+  "method_count": 67,
+  "method_year_row_count": 402,
   "files": [
     "README.md",
     "roles/account_grid_losses_and_own_use/demand.csv",

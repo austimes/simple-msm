@@ -464,8 +464,8 @@ test('energy system representation library package structure is internally consi
   assert.equal(roleMetrics.length, roles.length);
   assert.equal(roles.filter((role) => role.role_kind === 'residual').length, 14);
   assert.equal(roles.filter((role) => role.coverage_obligation === 'explicit_residual_top_level').length, 14);
-  assert.equal(representations.length, roles.length + 2);
-  assert.equal(representationIncumbents.length, roles.length);
+  assert.equal(representations.length, roles.length + 3);
+  assert.equal(representationIncumbents.length, roles.length + 1);
   assert.equal(reportingAllocations.length, roles.length);
   assert.equal(roleValidationSummary.length, roles.length);
   assertAcyclicRoleTopology(roles);
@@ -817,8 +817,8 @@ test('energy system representation library package structure is internally consi
     }
   }
 
-  assert.equal(totalMethods, 63);
-  assert.equal(totalMethodYearRows, 378);
+  assert.equal(totalMethods, 67);
+  assert.equal(totalMethodYearRows, 402);
   assert.equal(autonomousTrackRowCount > 0, true, 'expected at least one autonomous efficiency track row');
   assert.equal(efficiencyPackageRowCount > 0, true, 'expected at least one efficiency package row');
 
