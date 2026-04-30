@@ -69,8 +69,8 @@ describe('LibraryPage efficiency search and filters', () => {
       ...structuredClone(DEFAULT_APP_UI_STATE),
       library: {
         ...structuredClone(DEFAULT_APP_UI_STATE.library),
-        selectedRoleId: 'supply_electricity',
-        selectedRepresentationId: 'supply_electricity__pathway_bundle',
+        selectedRoleId: 'supply_grid_electricity',
+        selectedRepresentationId: 'supply_grid_electricity__pathway_bundle',
         selectedMethodId: 'electricity__grid_supply__policy_frontier',
       },
     };
@@ -86,7 +86,7 @@ describe('LibraryPage efficiency search and filters', () => {
       .map((family) => ({
         family,
         overview: buildFamilyEfficiencyOverview(
-          family.representative.family_id,
+          family.representative.role_id,
           packageState.resolvedMethodYears,
           packageState.autonomousEfficiencyTracks,
           packageState.efficiencyPackages,

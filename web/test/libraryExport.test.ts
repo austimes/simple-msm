@@ -33,8 +33,8 @@ const pkg = loadPkg();
 function buildElectricityTrajectories(): RoleMethodTrajectory[] {
   return buildRoleMethodFamilies(pkg.resolvedMethodYears)
     .filter((family) =>
-      family.representative.role_id === 'supply_electricity'
-      && family.representative.representation_id === 'supply_electricity__pathway_bundle')
+      family.representative.role_id === 'supply_grid_electricity'
+      && family.representative.representation_id === 'supply_grid_electricity__pathway_bundle')
     .map((family) => buildRoleMethodTrajectory(family));
 }
 
@@ -48,8 +48,8 @@ function buildElectricityBundle(): {
     trajectories,
     bundle: buildLibraryExportBundle({
       scope: {
-        roleId: 'supply_electricity',
-        representationId: 'supply_electricity__pathway_bundle',
+        roleId: 'supply_grid_electricity',
+        representationId: 'supply_grid_electricity__pathway_bundle',
         methodId: 'electricity__grid_supply__policy_frontier',
         filters: {
           ...DEFAULT_APP_UI_STATE.library.filters,
@@ -87,13 +87,13 @@ describe('library export bundle', () => {
 
     assert.ok(trajectories.length > 0, 'expected electricity supply trajectories');
     assert.equal(
-      trajectories.every((trajectory) => trajectory.representative.role_id === 'supply_electricity'),
+      trajectories.every((trajectory) => trajectory.representative.role_id === 'supply_grid_electricity'),
       true,
     );
     assert.deepEqual(Object.keys(bundle.files), EXPECTED_FILES);
-    assert.equal(bundle.filename, 'simple-msm-library-supply-electricity-electricity-grid-supply-policy-frontier-20260429.zip');
-    assert.equal(manifest.scope.role_id, 'supply_electricity');
-    assert.equal(manifest.scope.representation_id, 'supply_electricity__pathway_bundle');
+    assert.equal(bundle.filename, 'simple-msm-library-supply-grid-electricity-electricity-grid-supply-policy-frontier-20260429.zip');
+    assert.equal(manifest.scope.role_id, 'supply_grid_electricity');
+    assert.equal(manifest.scope.representation_id, 'supply_grid_electricity__pathway_bundle');
     assert.equal(manifest.scope.method_id, 'electricity__grid_supply__policy_frontier');
     assert.deepEqual(manifest.scope.active_filters, { search: 'grid' });
     assert.equal(manifest.trajectory_count, trajectories.length);

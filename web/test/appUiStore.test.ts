@@ -182,7 +182,7 @@ describe('appUiStore route persistence', () => {
       }
 
       const efficiency = buildFamilyEfficiencyOverview(
-        family.representative.family_id,
+        family.representative.role_id,
         packageState.resolvedMethodYears,
         packageState.autonomousEfficiencyTracks,
         packageState.efficiencyPackages,

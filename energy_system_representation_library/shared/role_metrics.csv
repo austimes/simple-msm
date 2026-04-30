@@ -16,8 +16,8 @@ melt_refine_dri_crude_steel,2025,0,t_crude_steel,,,unknown,linked_parent_activit
 produce_cement_equivalent,2025,9600000,t_cement_equivalent,7.134835,7.134835,medium,incumbent_activity_anchor,Derived from 2025 incumbent method emissions intensity and baseline activity anchor.
 account_residual_manufacturing,2025,1,residual_activity,9.452,9.452,medium,incumbent_activity_anchor,Derived from 2025 incumbent method emissions intensity and baseline activity anchor.
 account_residual_ippu,2025,1,residual_activity,22.0692,22.0692,high,incumbent_activity_anchor,Derived from 2025 incumbent method emissions intensity and baseline activity anchor.
-supply_electricity,2025,283920000,MWh,149.799883,149.799883,very_high,electricity_output_benchmark,Uses the 2025 electricity output benchmark with incumbent grid-supply intensity.
-account_electricity_grid_losses_own_use,2025,1,residual_activity,0,0,zero,incumbent_activity_anchor,Derived from 2025 incumbent method emissions intensity and baseline activity anchor.
+supply_grid_electricity,2025,283920000,MWh,149.799883,149.799883,very_high,electricity_output_benchmark,Uses the 2025 electricity output benchmark with incumbent grid-supply intensity.
+account_grid_losses_and_own_use,2025,1,residual_activity,0,0,zero,incumbent_activity_anchor,Derived from 2025 incumbent method emissions intensity and baseline activity anchor.
 account_residual_mining_energy,2025,1,residual_activity,31.046,31.046,high,incumbent_activity_anchor,Derived from 2025 incumbent method emissions intensity and baseline activity anchor.
 account_residual_fugitives,2025,1,residual_activity,46.3,46.3,high,incumbent_activity_anchor,Derived from 2025 incumbent method emissions intensity and baseline activity anchor.
 produce_livestock_output,2025,31134.94,A$m_output_2024,61.719262,61.719262,very_high,incumbent_activity_anchor,Derived from 2025 incumbent method emissions intensity and baseline activity anchor.

@@ -10,7 +10,7 @@
     2050
   ],
   "representation_by_role": {
-    "account_electricity_grid_losses_own_use": "account_electricity_grid_losses_own_use__pathway_bundle",
+    "account_grid_losses_and_own_use": "account_grid_losses_and_own_use__pathway_bundle",
     "account_residual_agriculture": "account_residual_agriculture__pathway_bundle",
     "account_residual_commercial_buildings": "account_residual_commercial_buildings__pathway_bundle",
     "account_residual_construction": "account_residual_construction__pathway_bundle",
@@ -37,10 +37,10 @@
     "produce_livestock_output": "produce_livestock_output__pathway_bundle",
     "remove_co2_engineered_removals": "remove_co2_engineered_removals__pathway_bundle",
     "remove_co2_land_sequestration": "remove_co2_land_sequestration__pathway_bundle",
-    "supply_electricity": "supply_electricity__pathway_bundle"
+    "supply_grid_electricity": "supply_grid_electricity__pathway_bundle"
   },
   "role_controls": {
-    "account_electricity_grid_losses_own_use": {
+    "account_grid_losses_and_own_use": {
       "mode": "optimize",
       "active_method_ids": [
         "electricity_grid_losses_own_use__residual_incumbent"
@@ -196,7 +196,7 @@
       "mode": "optimize",
       "active_method_ids": null
     },
-    "supply_electricity": {
+    "supply_grid_electricity": {
       "mode": "optimize",
       "active_method_ids": [
         "electricity__grid_supply__incumbent_thermal_mix"

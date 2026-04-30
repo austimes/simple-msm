@@ -1,0 +1,2 @@
+role_id,anchor_year,anchor_value,unit,demand_growth_curve_id,anchor_status,source_role,coverage_note,notes
+supply_grid_electricity,2025,0,MWh,flat_2025__supply_grid_electricity,synthetic_migrated,Migrated role default,Migrated from the Phase 1 package without changing anchor semantics.,For supply roles this is the current packaged activity benchmark rather than an exogenous service-demand anchor.

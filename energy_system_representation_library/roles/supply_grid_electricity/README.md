@@ -1,14 +1,16 @@
-# Supply electricity
+# Supply grid electricity
 
 ## What the role represents
 
-This role covers `electricity` in sector `electricity_supply` / subsector `grid_supply` for region `AUS`. The canonical balance type is `commodity_supply`, with output measured in `MWh`. - **Output**: `electricity`
+This role covers delivered grid `electricity` in reporting sector `electricity_supply` / subsector `grid_supply` for region `AUS`. The canonical balance type is `commodity_supply`, with output measured in `MWh`.
+
+- **Output**: `electricity`
 - **Unit**: `MWh`
 - **Region in Phase 1**: `AUS`
 
 ## Role definition
 
-- Role id: `supply_electricity`
+- Role id: `supply_grid_electricity`
 - Balance type: `commodity_supply`
 - Output unit: `MWh`
 - Output quantity basis: One MWh of delivered grid electricity at national-average reduced-form system boundary.

@@ -1,5 +1,5 @@
 official_category,official_mtco2e_2025,explicit_model_mtco2e_2025,residual_energy_role_mtco2e_2025,residual_nonenergy_role_mtco2e_2025,balanced_total_mtco2e_2025,difference_to_official_mtco2e_2025,note
-Energy – Electricity,149.8,149.8,0.0,0.0,149.8,-0.000117,Closed directly by the 2025 incumbent supply_electricity intensity and generation benchmark.
+Energy – Electricity,149.8,149.8,0.0,0.0,149.8,-0.000117,Closed directly by the 2025 incumbent supply_grid_electricity intensity and generation benchmark.
 Energy – Stationary energy excluding electricity,95.6,50.087,45.513,0.0,95.6,0.0,Residual energy closure is now carried by residual role method emissions fields.
 Energy – Transport,98.7,87.043,11.657,0.0,98.7,0.0,Residual transport closure is now carried by residual role method inputs and emissions fields.
 Energy – Fugitive emissions,46.3,0.0,0.0,46.3,46.3,0.0,Residual fugitive emissions are now carried by the account_residual_fugitives role method.
