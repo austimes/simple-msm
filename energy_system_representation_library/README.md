@@ -9,7 +9,7 @@ The package keeps role data, explanation, evidence hooks, and validation materia
 - 54 authored roles in `roles/<role_id>/`
 - 89 distinct methods
 - 534 method-year rows across milestone years 2025, 2030, 2035, 2040, 2045, and 2050
-- Shared role topology, physical node graph, activity drivers, role metrics, representation choices, representation incumbents, reporting allocations, ledgers, commodity taxonomy, growth curves, price curves, carbon price curves, schemas, and validation diagnostics
+- Shared role topology, physical node graph, activity drivers, role metrics, representation choices, representation incumbents, reporting allocations, ledgers, commodity taxonomy, growth curves, price curves, carbon price curves, schemas, validation diagnostics, and decomposition boundary designs
 - A crude-steel role-decomposition pilot that keeps the aggregate pathway bundle available while testing a granular H2 DRI process-chain branch
 
 ## Public Ontology
@@ -59,6 +59,8 @@ The current pilot is `make_crude_steel`. Its default representation remains the 
 - `melt_and_refine_dri_into_crude_steel`
 
 That pilot proves the package can keep complete crude-steel coverage without making every steel route process-chain detailed at once.
+
+`validation/cement_decomposition_boundary.csv` records the planned cement/clinker decomposition before the child role files are authored. It fixes the parent aggregate mutual-exclusion boundary, planned child roles, parent-activity links, host-owned kiln heat placement, calcination and fuel-emissions ownership, and CCS/double-counting guardrails for the follow-on implementation issues.
 
 ### Methods
 
