@@ -1,0 +1,2 @@
+role_id,anchor_year,anchor_value,unit,demand_growth_curve_id,anchor_status,source_role,coverage_note,notes
+make_clinker_intermediate,2025,0,t_clinker,simple_role_growth_central__make_clinker_intermediate,derived_decomposition_child,make_cement_equivalent__clinker_decomposition,Activity is induced by the decomposed cement-equivalent route rather than direct top-level demand.,Zero direct anchor prevents this child from becoming a top-level exogenous demand before topology solving is selected.

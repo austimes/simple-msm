@@ -53,3 +53,6 @@ supply_iron_ore_to_export_gate,supply_iron_ore_to_export_gate,residual_role,true
 capture_point_source_co2,capture_point_source_co2,modeled_role,true,Capture point-source CO2 maps directly to its carbon-management physical node.
 transport_captured_co2,transport_captured_co2,modeled_role,true,Transport captured CO2 maps directly to its carbon-management physical node.
 store_captured_co2,store_captured_co2,modeled_role,true,Store captured CO2 maps directly to its carbon-management physical node.
+make_clinker_intermediate,make_clinker_intermediate,decomposition_child,true,Primary physical node for cement decomposition child role.
+generate_cement_kiln_heat,generate_cement_kiln_heat,decomposition_child,true,Primary physical node for cement decomposition child role.
+grind_blend_cement_equivalent,grind_blend_cement_equivalent,decomposition_child,true,Primary physical node for cement decomposition child role.

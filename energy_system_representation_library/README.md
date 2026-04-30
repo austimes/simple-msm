@@ -6,9 +6,9 @@ The package keeps role data, explanation, evidence hooks, and validation materia
 
 ## What Is Included
 
-- 54 authored roles in `roles/<role_id>/`
-- 89 distinct methods
-- 534 method-year rows across milestone years 2025, 2030, 2035, 2040, 2045, and 2050
+- 57 authored roles in `roles/<role_id>/`
+- 97 distinct methods
+- 582 method-year rows across milestone years 2025, 2030, 2035, 2040, 2045, and 2050
 - Shared role topology, physical node graph, activity drivers, role metrics, representation choices, representation incumbents, reporting allocations, ledgers, commodity taxonomy, growth curves, price curves, carbon price curves, schemas, validation diagnostics, and decomposition boundary designs
 - A crude-steel role-decomposition pilot that keeps the aggregate pathway bundle available while testing a granular H2 DRI process-chain branch
 
@@ -63,6 +63,8 @@ That pilot proves the package can keep complete crude-steel coverage without mak
 `validation/cement_aggregate_representation_summary.csv` records the active aggregate cement pathway representation. It ties the direct method bundle to its incumbent method, product-demand activity driver, emissions metric, integrated kiln heat/fuel boundary, cement-equivalent calcination basis, bundled CCS proxy, and mutual-exclusion guardrail.
 
 `validation/cement_decomposition_boundary.csv` records the planned cement/clinker decomposition before the child role files are authored. It fixes the parent aggregate mutual-exclusion boundary, planned child roles, parent-activity links, host-owned kiln heat placement, calcination and fuel-emissions ownership, and CCS/double-counting guardrails for the follow-on implementation issues.
+
+`make_cement_equivalent` now also exposes the optional `make_cement_equivalent__clinker_decomposition` representation. It activates child pathway bundles for clinker production, host-specific kiln heat, and final grinding/blending while leaving the aggregate pathway bundle as the default representation.
 
 ### Methods
 

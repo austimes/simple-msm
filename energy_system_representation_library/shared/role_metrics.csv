@@ -53,3 +53,6 @@ supply_iron_ore_to_export_gate,2025,1,residual_activity,,,unknown,placeholder_bo
 capture_point_source_co2,2025,0,tCO2_captured,0,0,zero,placeholder_zero_activity,Low-confidence carbon-management placeholder; no calibrated baseline activity is forced for capture point-source co2.
 transport_captured_co2,2025,0,tCO2_transported,0,0,zero,placeholder_zero_activity,Low-confidence carbon-management placeholder; no calibrated baseline activity is forced for transport captured co2.
 store_captured_co2,2025,0,tCO2_stored,0,0,zero,placeholder_zero_activity,Low-confidence carbon-management placeholder; no calibrated baseline activity is forced for store captured co2.
+make_clinker_intermediate,2025,6912000,t_clinker,6.2208,6.2208,medium,decomposition_boundary_allocation,Indicative split of aggregate cement baseline process emissions to clinker calcination.
+generate_cement_kiln_heat,2025,24000000,GJ_kiln_heat,0.914035,0.914035,low,decomposition_boundary_allocation,Indicative split of aggregate cement baseline direct fuel emissions to host-specific kiln heat.
+grind_blend_cement_equivalent,2025,9600000,t_cement_equivalent,0,0,zero,decomposition_boundary_allocation,Final grinding has no direct process emissions in the decomposed boundary. Electricity emissions remain upstream.

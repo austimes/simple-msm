@@ -9,9 +9,9 @@
     2045,
     2050
   ],
-  "role_count": 54,
-  "method_count": 89,
-  "method_year_row_count": 534,
+  "role_count": 57,
+  "method_count": 97,
+  "method_year_row_count": 582,
   "files": [
     "README.md",
     "roles/account_grid_losses_and_own_use/demand.csv",
@@ -344,6 +344,21 @@
     "roles/transport_captured_co2/validation.md",
     "validation/cement_aggregate_representation_summary.csv",
     "validation/cement_decomposition_boundary.csv",
-    "validation/whole_system_coverage_summary.csv"
+    "validation/whole_system_coverage_summary.csv",
+    "roles/make_clinker_intermediate/demand.csv",
+    "roles/make_clinker_intermediate/method_years.csv",
+    "roles/make_clinker_intermediate/methods.csv",
+    "roles/make_clinker_intermediate/README.md",
+    "roles/make_clinker_intermediate/validation.md",
+    "roles/generate_cement_kiln_heat/demand.csv",
+    "roles/generate_cement_kiln_heat/method_years.csv",
+    "roles/generate_cement_kiln_heat/methods.csv",
+    "roles/generate_cement_kiln_heat/README.md",
+    "roles/generate_cement_kiln_heat/validation.md",
+    "roles/grind_blend_cement_equivalent/demand.csv",
+    "roles/grind_blend_cement_equivalent/method_years.csv",
+    "roles/grind_blend_cement_equivalent/methods.csv",
+    "roles/grind_blend_cement_equivalent/README.md",
+    "roles/grind_blend_cement_equivalent/validation.md"
   ]
 }

@@ -296,6 +296,9 @@ const EXPECTED_ROLE_IDS = new Set([
   'make_direct_reduced_iron',
   'melt_and_refine_dri_into_crude_steel',
   'make_cement_equivalent',
+  'make_clinker_intermediate',
+  'generate_cement_kiln_heat',
+  'grind_blend_cement_equivalent',
   'make_chemical_products',
   'make_other_material_products',
   'account_residual_manufacturing',
@@ -481,12 +484,12 @@ test('energy system representation library package structure is internally consi
   assertUnique(reportingAllocations, (allocation) => allocation.reporting_allocation_id, 'reporting_allocation_id');
   assertUnique(roleValidationSummary, (summary) => summary.role_id, 'validation summary role_id');
   assert.deepEqual(roleIds, EXPECTED_ROLE_IDS);
-  assert.equal(roles.length, 54);
+  assert.equal(roles.length, 57);
   assert.equal(roleActivityDrivers.length, roles.length);
   assert.equal(roleMetrics.length, roles.length);
   assert.equal(roles.filter((role) => role.role_kind === 'residual').length, 33);
   assert.equal(roles.filter((role) => role.coverage_obligation === 'explicit_residual_top_level').length, 33);
-  assert.equal(representations.length, roles.length + 3);
+  assert.equal(representations.length, roles.length + 4);
   assert.equal(representationIncumbents.length, roles.length + 4);
   assert.equal(reportingAllocations.length, roles.length);
   assert.equal(roleValidationSummary.length, roles.length);
@@ -715,6 +718,33 @@ test('energy system representation library package structure is internally consi
     'melt/refine child should expose finishing methods',
   );
 
+  const cementRepresentations = representations.filter((representation) => representation.role_id === 'make_cement_equivalent');
+  assert.deepEqual(
+    new Set(cementRepresentations.map((representation) => representation.representation_kind)),
+    new Set(['pathway_bundle', 'role_decomposition']),
+    'make_cement_equivalent should expose aggregate and decomposed representations',
+  );
+  const cementDecomposition = representationById.get('make_cement_equivalent__clinker_decomposition');
+  assert.ok(cementDecomposition, 'cement decomposition representation must exist');
+  assert.equal(cementDecomposition.is_default, 'false', 'cement decomposition should not replace the aggregate default');
+  const cementChildren = roleDecompositionEdges
+    .filter((edge) => edge.parent_representation_id === 'make_cement_equivalent__clinker_decomposition')
+    .sort((left, right) => Number(left.display_order) - Number(right.display_order));
+  assert.deepEqual(
+    cementChildren.map((edge) => edge.child_role_id),
+    [
+      'make_clinker_intermediate',
+      'generate_cement_kiln_heat',
+      'grind_blend_cement_equivalent',
+    ],
+    'cement decomposition should activate clinker, kiln heat, and finish grinding children',
+  );
+  for (const edge of cementChildren) {
+    assert.equal(edge.edge_kind, 'required_child', `${edge.child_role_id} should be required`);
+    assert.equal(edge.is_required, 'true', `${edge.child_role_id} should be required`);
+    assert.equal(roleById.get(edge.child_role_id)?.parent_role_id, 'make_cement_equivalent', `${edge.child_role_id} should point back to make_cement_equivalent`);
+  }
+
   const reportingRoleIds = new Set(reportingAllocations.map((allocation) => allocation.role_id));
   for (const allocation of reportingAllocations) {
     assert.equal(roleIds.has(allocation.role_id), true, `${allocation.role_id} reporting allocation must resolve`);
@@ -839,8 +869,8 @@ test('energy system representation library package structure is internally consi
     }
   }
 
-  assert.equal(totalMethods, 89);
-  assert.equal(totalMethodYearRows, 534);
+  assert.equal(totalMethods, 97);
+  assert.equal(totalMethodYearRows, 582);
   assert.equal(autonomousTrackRowCount > 0, true, 'expected at least one autonomous efficiency track row');
   assert.equal(efficiencyPackageRowCount > 0, true, 'expected at least one efficiency package row');
 
