@@ -145,7 +145,7 @@ function persistActiveConfigurationMeta(state: {
 
 function materializeConfiguration(
   configuration: ConfigurationDocument,
-  _resolvedMethodYears: PackageData['resolvedMethodYears'],
+  resolvedMethodYears: PackageData['resolvedMethodYears'],
   autonomousEfficiencyTracks: PackageData['autonomousEfficiencyTracks'],
   efficiencyPackages: PackageData['efficiencyPackages'],
   residualOverlays2025: PackageData['residualOverlays2025'],
@@ -157,6 +157,7 @@ function materializeConfiguration(
     ),
     autonomousEfficiencyTracks,
     efficiencyPackages,
+    resolvedMethodYears,
   );
 }
 

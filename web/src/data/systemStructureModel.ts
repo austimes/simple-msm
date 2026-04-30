@@ -357,6 +357,7 @@ export function buildGeneratedIncumbentBaseConfiguration(
     }),
     packageData.autonomousEfficiencyTracks,
     packageData.efficiencyPackages,
+    packageData.resolvedMethodYears,
   );
   const allMethodIdsByOutput = collectMethodIdsByOutput(packageData.resolvedMethodYears);
   const incumbentMethodIdsByOutput = collectIncumbentMethodIdsByOutput(packageData.resolvedMethodYears);

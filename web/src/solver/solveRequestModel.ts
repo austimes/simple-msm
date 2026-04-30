@@ -166,11 +166,13 @@ function resolveEfficiencyControlsForSolve(
   configuration: ConfigurationDocument,
   autonomousEfficiencyTracks: Pick<AutonomousEfficiencyTrack, 'family_id' | 'track_id'>[],
   efficiencyPackages: Pick<EfficiencyPackage, 'family_id' | 'package_id'>[],
+  resolvedMethodYears?: Pick<ResolvedMethodYearRow, 'role_id' | 'output_id'>[],
 ): ResolvedConfigurationEfficiencyControls {
   const materializedConfiguration = materializeEfficiencyConfiguration(
     configuration,
     autonomousEfficiencyTracks,
     efficiencyPackages,
+    resolvedMethodYears,
   );
   const controls = materializedConfiguration.efficiency_controls;
   const autonomousModesByRole = controls?.autonomous_modes_by_role ?? {};
@@ -634,6 +636,7 @@ export function resolveConfigurationForSolve(
     resolvedConfiguration,
     efficiencyArtifacts?.autonomousEfficiencyTracks ?? [],
     efficiencyArtifacts?.efficiencyPackages ?? [],
+    resolvedMethodYears,
   );
   const controlsByOutput = Object.entries(appConfig.output_roles).reduce<
     Record<string, Record<string, ResolvedSolveControl>>

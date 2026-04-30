@@ -14,6 +14,7 @@ import type {
   ConfigurationDocument,
   ConfigurationResidualOverlays,
   EfficiencyPackage,
+  ResolvedMethodYearRow,
   ResidualOverlayRow,
 } from './types.ts';
 
@@ -192,12 +193,54 @@ function normalizeConfiguredPackageIds(packageIds: string[] | null | undefined):
   ).sort((left, right) => left.localeCompare(right));
 }
 
+function buildAutonomousControlIdByLegacyRoleId(
+  resolvedMethodYears: Pick<ResolvedMethodYearRow, 'role_id' | 'output_id'>[] | undefined,
+): Map<string, string> {
+  const controlIdByLegacyRoleId = new Map<string, string>();
+
+  for (const row of resolvedMethodYears ?? []) {
+    if (!row.role_id || !row.output_id) {
+      continue;
+    }
+
+    const existing = controlIdByLegacyRoleId.get(row.role_id);
+    if (existing && existing !== row.output_id) {
+      throw new Error(
+        `Role ${JSON.stringify(row.role_id)} maps to multiple autonomous efficiency families: ${JSON.stringify(existing)} and ${JSON.stringify(row.output_id)}.`,
+      );
+    }
+
+    controlIdByLegacyRoleId.set(row.role_id, row.output_id);
+  }
+
+  return controlIdByLegacyRoleId;
+}
+
 function normalizeAutonomousModesByRole(
   autonomousModesByRole: Record<string, ConfigurationAutonomousEfficiencyMode> | null | undefined,
+  autonomousFamilyIds: Set<string>,
+  controlIdByLegacyRoleId = new Map<string, string>(),
 ): Record<string, ConfigurationAutonomousEfficiencyMode> {
+  const canonicalModesByFamilyId = new Map<string, ConfigurationAutonomousEfficiencyMode>();
+
+  for (const [rawControlId, mode] of Object.entries(autonomousModesByRole ?? {})) {
+    const controlId = rawControlId.trim();
+    if (!controlId) {
+      continue;
+    }
+
+    const isCanonicalFamilyId = autonomousFamilyIds.has(controlId);
+    const familyId = isCanonicalFamilyId
+      ? controlId
+      : controlIdByLegacyRoleId.get(controlId) ?? controlId;
+
+    if (!canonicalModesByFamilyId.has(familyId) || isCanonicalFamilyId) {
+      canonicalModesByFamilyId.set(familyId, mode);
+    }
+  }
+
   return Object.fromEntries(
-    Object.entries(autonomousModesByRole ?? {})
-      .filter(([outputId]) => outputId.trim().length > 0)
+    Array.from(canonicalModesByFamilyId.entries())
       .sort(([left], [right]) => left.localeCompare(right)),
   );
 }
@@ -223,16 +266,19 @@ export function materializeEfficiencyConfiguration(
   configuration: ConfigurationDocument,
   autonomousEfficiencyTracks: Pick<AutonomousEfficiencyTrack, 'family_id'>[],
   efficiencyPackages: Pick<EfficiencyPackage, 'family_id' | 'package_id'>[],
+  resolvedMethodYears?: Pick<ResolvedMethodYearRow, 'role_id' | 'output_id'>[],
 ): ConfigurationDocument {
   const autonomousMode = configuration.efficiency_controls?.autonomous_mode ?? 'baseline';
+  const autonomousFamilyIds = buildAutonomousFamilyIds(autonomousEfficiencyTracks);
   const autonomousModesByRole = normalizeAutonomousModesByRole(
     configuration.efficiency_controls?.autonomous_modes_by_role,
+    autonomousFamilyIds,
+    buildAutonomousControlIdByLegacyRoleId(resolvedMethodYears),
   );
   const packageMode = configuration.efficiency_controls?.package_mode ?? 'off';
   const configuredPackageIds = normalizeConfiguredPackageIds(
     configuration.efficiency_controls?.package_ids,
   );
-  const autonomousFamilyIds = buildAutonomousFamilyIds(autonomousEfficiencyTracks);
   const packageFamiliesById = buildPackageFamiliesById(efficiencyPackages);
 
   for (const outputId of Object.keys(autonomousModesByRole)) {

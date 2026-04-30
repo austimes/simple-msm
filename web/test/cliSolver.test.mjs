@@ -5,10 +5,12 @@ import path from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import {
+  listCliConfigurations,
   materializeConfigurationForRuntime,
   resolveCliConfigurationReference,
 } from '../src/cli/configurationRefs.mjs';
 import { loadPackage } from '../src/data/packageLoader.ts';
+import { runScenario } from '../src/results/runScenario.ts';
 
 const WEB_DIR = fileURLToPath(new URL('..', import.meta.url));
 const USER_CONFIG_DIR = fileURLToPath(new URL('../src/configurations/user/', import.meta.url));
@@ -17,6 +19,7 @@ function runCli(args) {
   const result = spawnSync('bun', ['./solve.mjs', ...args], {
     cwd: WEB_DIR,
     encoding: 'utf8',
+    maxBuffer: 50 * 1024 * 1024,
   });
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
@@ -70,4 +73,59 @@ test('prime can include base comparison context for agent workflows', () => {
   assert.ok(Array.isArray(output.base.validationIssues));
   assert.ok(output.comparison);
   assert.match(output.reproduce.compareCommand, /compare/);
+});
+
+test('all listed CLI configurations materialize and solve through the shared runtime path', () => {
+  const pkg = loadPackage();
+
+  for (const entry of listCliConfigurations()) {
+    const configuration = materializeConfigurationForRuntime(
+      structuredClone(entry.configuration),
+      pkg,
+    );
+    const snapshot = runScenario(pkg, configuration);
+
+    assert.equal(
+      snapshot.result.status,
+      'solved',
+      `${entry.canonicalRef} should solve after runtime materialization`,
+    );
+  }
+});
+
+test('repo-backed user configurations with legacy autonomous role ids materialize and solve', () => {
+  mkdirSync(USER_CONFIG_DIR, { recursive: true });
+  const tempConfigId = 'tmp-cli-legacy-autonomous-user-config';
+  const tempFile = path.join(USER_CONFIG_DIR, `${tempConfigId}.json`);
+  const tempConfiguration = structuredClone(resolveCliConfigurationReference('reference-baseline').configuration);
+  tempConfiguration.name = 'Temporary legacy autonomous user config';
+  tempConfiguration.app_metadata = {
+    ...(tempConfiguration.app_metadata ?? {}),
+    id: tempConfigId,
+    readonly: false,
+  };
+  tempConfiguration.efficiency_controls = {
+    autonomous_mode: 'baseline',
+    package_mode: 'off',
+    package_ids: [],
+    autonomous_modes_by_role: {
+      deliver_commercial_building_services: 'off',
+      deliver_residential_building_services: 'off',
+    },
+  };
+
+  writeFileSync(tempFile, JSON.stringify(tempConfiguration, null, 2) + '\n');
+
+  try {
+    const output = JSON.parse(runCli([`user:${tempConfigId}`, '--json']));
+
+    assert.equal(output.ok, true);
+    assert.equal(output.result.status, 'solved');
+    assert.deepEqual(output.configuration.efficiency_controls.autonomous_modes_by_role, {
+      commercial_building_services: 'off',
+      residential_building_services: 'off',
+    });
+  } finally {
+    rmSync(tempFile, { force: true });
+  }
 });

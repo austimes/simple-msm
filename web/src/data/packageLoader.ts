@@ -1539,6 +1539,7 @@ export function loadPackage(): PackageData {
     ),
     autonomousEfficiencyTracks,
     efficiencyPackages,
+    resolvedMethodYears,
   );
 
   return {

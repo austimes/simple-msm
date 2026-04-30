@@ -3089,6 +3089,7 @@ body {
 
 .system-flow-graph {
   position: relative;
+  height: min(70vh, 720px);
   min-height: 620px;
   overflow: hidden;
   border: 1px solid #dbe4ef;

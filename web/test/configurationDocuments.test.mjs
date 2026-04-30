@@ -244,6 +244,48 @@ test('efficiency materialization backfills defaults, normalizes package ids, and
   );
 });
 
+test('efficiency materialization migrates legacy autonomous role ids to family ids', async () => {
+  const { materializeEfficiencyConfiguration } = await loadViteModule('/src/data/configurationDocumentLoader.ts');
+  const configuration = structuredClone(readJson('../src/configurations/reference-baseline.json'));
+  const tracks = [
+    { family_id: 'commercial_building_services', track_id: 'commercial_background_efficiency' },
+    { family_id: 'residential_building_services', track_id: 'residential_background_efficiency' },
+  ];
+  const resolvedMethodYears = [
+    {
+      role_id: 'deliver_commercial_building_services',
+      output_id: 'commercial_building_services',
+    },
+    {
+      role_id: 'deliver_residential_building_services',
+      output_id: 'residential_building_services',
+    },
+  ];
+
+  configuration.efficiency_controls = {
+    autonomous_mode: 'baseline',
+    autonomous_modes_by_role: {
+      deliver_commercial_building_services: 'off',
+      residential_building_services: 'baseline',
+      deliver_residential_building_services: 'off',
+    },
+    package_mode: 'off',
+    package_ids: [],
+  };
+
+  const materialized = materializeEfficiencyConfiguration(
+    configuration,
+    tracks,
+    [],
+    resolvedMethodYears,
+  );
+
+  assert.deepEqual(materialized.efficiency_controls.autonomous_modes_by_role, {
+    commercial_building_services: 'off',
+    residential_building_services: 'baseline',
+  });
+});
+
 test('buildSolveRequest resolves efficiency controls into active track and package ids', () => {
   const configuration = structuredClone(readJson('../src/configurations/demo-buildings-efficiency.json'));
   configuration.efficiency_controls = {

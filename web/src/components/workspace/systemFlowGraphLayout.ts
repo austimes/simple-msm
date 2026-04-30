@@ -25,6 +25,8 @@ const COLLAPSED_SEGMENT_WIDTH = 238;
 const COLLAPSED_SEGMENT_HEIGHT = 88;
 const VISIBLE_VARIANT_LIMIT = 3;
 const PORT_SIZE = 8;
+const FALLBACK_ROOT_GAP = 76;
+const FALLBACK_CHILD_GAP = 28;
 
 export type SystemFlowPortSide = 'left' | 'right';
 
@@ -1075,6 +1077,111 @@ function applyElkLayout(layout: SystemFlowDiagramLayout, elkGraph: ElkNode): Sys
   };
 }
 
+function parseDimension(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    const parsed = Number.parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+}
+
+function nodeFallbackWidth(node: SystemFlowDiagramNode): number {
+  return parseDimension(node.width)
+    ?? parseDimension(node.style?.width)
+    ?? (node.type === SYSTEM_FLOW_ROUTE_NODE_TYPE
+      ? ROUTE_NODE_WIDTH
+      : node.type === SYSTEM_FLOW_SEGMENT_NODE_TYPE
+        ? COLLAPSED_SEGMENT_WIDTH
+        : TERMINAL_NODE_WIDTH);
+}
+
+function nodeFallbackHeight(node: SystemFlowDiagramNode): number {
+  return parseDimension(node.height)
+    ?? parseDimension(node.style?.height)
+    ?? (node.type === SYSTEM_FLOW_ROUTE_NODE_TYPE
+      ? routeNodeHeight(node.data.variants?.length ?? 0)
+      : node.type === SYSTEM_FLOW_SEGMENT_NODE_TYPE
+        ? COLLAPSED_SEGMENT_HEIGHT
+        : TERMINAL_NODE_HEIGHT);
+}
+
+function fallbackPadding(node: SystemFlowDiagramNode): { top: number; right: number; bottom: number; left: number } {
+  if (node.data.kind === 'sector') {
+    return { top: 58, right: 24, bottom: 24, left: 24 };
+  }
+
+  if (node.data.kind === 'segment') {
+    return { top: 58, right: 20, bottom: 20, left: 20 };
+  }
+
+  return { top: 0, right: 0, bottom: 0, left: 0 };
+}
+
+function buildFallbackLayoutNode(
+  node: SystemFlowDiagramNode,
+  childrenByParent: Map<string, SystemFlowDiagramNode[]>,
+  nextNodeById: Map<string, SystemFlowDiagramNode>,
+): { width: number; height: number } {
+  const children = childrenByParent.get(node.id) ?? [];
+  const ownWidth = nodeFallbackWidth(node);
+  const ownHeight = nodeFallbackHeight(node);
+
+  if (children.length === 0) {
+    nextNodeById.set(node.id, {
+      ...node,
+      style: {
+        ...node.style,
+        width: ownWidth,
+        height: ownHeight,
+      },
+    });
+
+    return { width: ownWidth, height: ownHeight };
+  }
+
+  const padding = fallbackPadding(node);
+  let cursorY = padding.top;
+  let maxChildWidth = 0;
+
+  for (const child of children) {
+    const childBox = buildFallbackLayoutNode(child, childrenByParent, nextNodeById);
+    const laidOutChild = nextNodeById.get(child.id) ?? child;
+
+    nextNodeById.set(child.id, {
+      ...laidOutChild,
+      position: {
+        x: padding.left,
+        y: cursorY,
+      },
+    });
+
+    cursorY += childBox.height + FALLBACK_CHILD_GAP;
+    maxChildWidth = Math.max(maxChildWidth, childBox.width);
+  }
+
+  const childrenHeight = children.length > 0
+    ? cursorY - FALLBACK_CHILD_GAP + padding.bottom
+    : ownHeight;
+  const width = Math.max(ownWidth, padding.left + maxChildWidth + padding.right);
+  const height = Math.max(ownHeight, childrenHeight);
+
+  nextNodeById.set(node.id, {
+    ...node,
+    style: {
+      ...node.style,
+      width,
+      height,
+    },
+  });
+
+  return { width, height };
+}
+
 function fallbackPortOffset(port: SystemFlowDiagramPort, ports: SystemFlowDiagramPort[], nodeHeight: number): number {
   const portsOnSide = ports.filter((candidate) => candidate.side === port.side);
   const index = portsOnSide.findIndex((candidate) => candidate.id === port.id);
@@ -1083,21 +1190,51 @@ function fallbackPortOffset(port: SystemFlowDiagramPort, ports: SystemFlowDiagra
   return ((resolvedIndex + 1) / (portsOnSide.length + 1)) * nodeHeight;
 }
 
-function applyFallbackPortOffsets(layout: SystemFlowDiagramLayout): SystemFlowDiagramLayout {
+function applyFallbackLayout(layout: SystemFlowDiagramLayout): SystemFlowDiagramLayout {
+  const childrenByParent = new Map<string, SystemFlowDiagramNode[]>();
+  const topLevelNodes: SystemFlowDiagramNode[] = [];
+
+  for (const node of layout.nodes) {
+    if (node.parentId) {
+      const children = childrenByParent.get(node.parentId) ?? [];
+      children.push(node);
+      childrenByParent.set(node.parentId, children);
+    } else {
+      topLevelNodes.push(node);
+    }
+  }
+
+  const nextNodeById = new Map<string, SystemFlowDiagramNode>();
+  let cursorX = 0;
+
+  for (const node of topLevelNodes) {
+    const box = buildFallbackLayoutNode(node, childrenByParent, nextNodeById);
+    const laidOutNode = nextNodeById.get(node.id) ?? node;
+    nextNodeById.set(node.id, {
+      ...laidOutNode,
+      position: {
+        x: cursorX,
+        y: 0,
+      },
+    });
+    cursorX += box.width + FALLBACK_ROOT_GAP;
+  }
+
   return {
     nodes: layout.nodes.map((node) => {
+      const nextNode = nextNodeById.get(node.id) ?? node;
       const ports = node.data.ports;
 
       if (!ports || ports.length === 0) {
-        return node;
+        return nextNode;
       }
 
-      const nodeHeight = Number(node.height ?? node.style?.height ?? TERMINAL_NODE_HEIGHT);
+      const nodeHeight = nodeFallbackHeight(nextNode);
 
       return {
-        ...node,
+        ...nextNode,
         data: {
-          ...node.data,
+          ...nextNode.data,
           ports: ports.map((port) => ({
             ...port,
             offsetY: port.offsetY ?? fallbackPortOffset(port, ports, nodeHeight),
@@ -1118,7 +1255,8 @@ export async function layoutSystemFlowDiagram(
   try {
     const elkGraph = await (await getElk()).layout(toElkGraph(layoutInput));
     return applyElkLayout(layoutInput, elkGraph);
-  } catch {
-    return applyFallbackPortOffsets(layoutInput);
+  } catch (error) {
+    console.warn('Failed to layout system flow graph with ELK; using deterministic fallback layout.', error);
+    return applyFallbackLayout(layoutInput);
   }
 }

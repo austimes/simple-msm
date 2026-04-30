@@ -142,5 +142,6 @@ export function materializeConfigurationForRuntime(configuration, pkg) {
     ),
     pkg.autonomousEfficiencyTracks,
     pkg.efficiencyPackages,
+    pkg.resolvedMethodYears,
   )
 }

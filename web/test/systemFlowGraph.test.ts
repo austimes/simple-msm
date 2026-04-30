@@ -10,8 +10,10 @@ import {
 } from '../src/components/workspace/systemFlowGraphLayout.ts';
 import { getSystemFlowPortEdgePath } from '../src/components/workspace/systemFlowGraphEdges.ts';
 import { buildSystemFlowGraphData } from '../src/results/systemFlowGraph.ts';
+import { runScenario } from '../src/results/runScenario.ts';
 import { SOLVER_CONTRACT_VERSION, type SolveRequest, type SolveResult } from '../src/solver/contract.ts';
 import { solveWithLpAdapter } from '../src/solver/lpAdapter.ts';
+import { loadPkg } from './solverTestUtils.mjs';
 
 function createRow({
   rowId,
@@ -438,6 +440,28 @@ test('layoutSystemFlowDiagram returns finite port offsets after layout', async (
   assert.equal(result.status, 'solved');
   assert.ok(ports.length > 0);
   assert.ok(ports.every((port) => port.offsetY != null && Number.isFinite(port.offsetY)));
+});
+
+test('layoutSystemFlowDiagram produces non-degenerate positions for the reference system flow graph', async () => {
+  const pkg = loadPkg();
+  const snapshot = runScenario(pkg, structuredClone(pkg.defaultConfiguration));
+  const graph = buildSystemFlowGraphData(snapshot.request, snapshot.result, {
+    year: 2050,
+    systemStructureGroups: pkg.systemStructureGroups,
+    systemStructureMembers: pkg.systemStructureMembers,
+  });
+  const diagram = await layoutSystemFlowDiagram(graph, 'both');
+  const positions = diagram.nodes.map((node) => node.position);
+  const uniquePositions = new Set(positions.map((position) => `${position.x}:${position.y}`));
+  const maxX = Math.max(...positions.map((position) => position.x));
+  const maxY = Math.max(...positions.map((position) => position.y));
+
+  assert.equal(snapshot.result.status, 'solved');
+  assert.ok(diagram.nodes.length > 100);
+  assert.ok(diagram.edges.length > 100);
+  assert.ok(uniquePositions.size > 20, 'reference layout should not stack most nodes at one position');
+  assert.ok(maxX > 300, `reference layout should span multiple columns, got maxX ${maxX}`);
+  assert.ok(maxY > 300, `reference layout should span multiple rows, got maxY ${maxY}`);
 });
 
 test('custom port edge path separates parallel lanes', () => {
