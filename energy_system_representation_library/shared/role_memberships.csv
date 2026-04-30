@@ -31,3 +31,9 @@ account_residual_other_sectors,account_remaining_other_sectors,residual_role,tru
 remove_co2_through_land_sequestration,remove_co2_through_land_sequestration,modeled_role,true,Current land sequestration role maps to physical removal node.
 remove_co2_through_engineered_removals,remove_co2_through_engineered_removals,modeled_role,true,Current engineered removals role maps to physical removal node.
 account_remaining_land_sink_adjustment,account_remaining_land_sink_adjustment,residual_role,true,Residual land sink adjustment remains explicit in the physical graph.
+supply_domestic_gas,supply_domestic_gas,residual_role,true,Supply domestic gas maps to its domestic carrier supply node as residual coverage.
+supply_domestic_liquid_fuels,supply_domestic_liquid_fuels,residual_role,true,Supply domestic liquid fuels maps to its domestic carrier supply node as residual coverage.
+supply_domestic_solid_fuels,supply_domestic_solid_fuels,residual_role,true,Supply domestic solid fuels maps to its domestic carrier supply node as residual coverage.
+supply_domestic_bioenergy,supply_domestic_bioenergy,residual_role,true,Supply domestic bioenergy maps to its domestic carrier supply node as residual coverage.
+supply_domestic_hydrogen,supply_domestic_hydrogen,residual_role,true,Supply domestic hydrogen maps to its domestic carrier supply node as residual coverage.
+supply_domestic_derived_fuels,supply_domestic_derived_fuels,residual_role,true,Supply domestic derived fuels maps to its domestic carrier supply node as residual coverage.

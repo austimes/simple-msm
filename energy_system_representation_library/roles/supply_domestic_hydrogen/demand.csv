@@ -1,0 +1,2 @@
+role_id,anchor_year,anchor_value,unit,demand_growth_curve_id,anchor_status,source_role,coverage_note,notes
+supply_domestic_hydrogen,2025,1,residual_activity,simple_role_growth_central__supply_domestic_hydrogen,derived_residual_stub,Domestic fuel supply boundary decision,Supply domestic hydrogen uses a residual_activity anchor of 1; physical carrier quantities will live on future explicit supply methods.,Growth proxy: flat where evidence is weak. Confidence: low.

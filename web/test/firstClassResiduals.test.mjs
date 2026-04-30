@@ -28,17 +28,17 @@ function electricityInputForOutput(request, outputId) {
 test('residual stubs load as first-class families with library grouping', () => {
   const pkg = loadPackage();
   const residualFamilies = pkg.rolePresentationMetadata.filter((role) => role.role_kind === 'residual');
-  const memberCountByFamily = new Map();
+  const primaryMembershipCountByRole = new Map();
 
-  for (const member of pkg.systemStructureMembers) {
-    memberCountByFamily.set(member.family_id, (memberCountByFamily.get(member.family_id) ?? 0) + 1);
+  for (const member of pkg.roleMemberships.filter((membership) => membership.is_primary)) {
+    primaryMembershipCountByRole.set(member.role_id, (primaryMembershipCountByRole.get(member.role_id) ?? 0) + 1);
   }
 
-  assert.equal(residualFamilies.length, 14);
+  assert.equal(residualFamilies.length, 20);
   assert.equal(pkg.residualOverlays2025.length, 0);
   assert.equal(pkg.appConfig.output_roles.electricity_grid_losses_own_use?.display_group, 'Energy supply');
   for (const role of pkg.rolePresentationMetadata) {
-    assert.equal(memberCountByFamily.get(role.output_id), 1, `${role.output_id} should have exactly one group`);
+    assert.equal(primaryMembershipCountByRole.get(role.role_id), 1, `${role.role_id} should have exactly one primary physical membership`);
   }
 });
 

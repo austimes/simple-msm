@@ -297,6 +297,12 @@ const EXPECTED_ROLE_IDS = new Set([
   'account_grid_losses_and_own_use',
   'account_residual_mining_energy',
   'account_residual_fugitives',
+  'supply_domestic_gas',
+  'supply_domestic_liquid_fuels',
+  'supply_domestic_solid_fuels',
+  'supply_domestic_bioenergy',
+  'supply_domestic_hydrogen',
+  'supply_domestic_derived_fuels',
   'raise_livestock_output',
   'grow_crops_and_horticulture_output',
   'account_remaining_agricultural_activity',
@@ -459,11 +465,11 @@ test('energy system representation library package structure is internally consi
   assertUnique(reportingAllocations, (allocation) => allocation.reporting_allocation_id, 'reporting_allocation_id');
   assertUnique(roleValidationSummary, (summary) => summary.role_id, 'validation summary role_id');
   assert.deepEqual(roleIds, EXPECTED_ROLE_IDS);
-  assert.equal(roles.length, 32);
+  assert.equal(roles.length, 38);
   assert.equal(roleActivityDrivers.length, roles.length);
   assert.equal(roleMetrics.length, roles.length);
-  assert.equal(roles.filter((role) => role.role_kind === 'residual').length, 14);
-  assert.equal(roles.filter((role) => role.coverage_obligation === 'explicit_residual_top_level').length, 14);
+  assert.equal(roles.filter((role) => role.role_kind === 'residual').length, 20);
+  assert.equal(roles.filter((role) => role.coverage_obligation === 'explicit_residual_top_level').length, 20);
   assert.equal(representations.length, roles.length + 3);
   assert.equal(representationIncumbents.length, roles.length + 4);
   assert.equal(reportingAllocations.length, roles.length);
@@ -817,8 +823,8 @@ test('energy system representation library package structure is internally consi
     }
   }
 
-  assert.equal(totalMethods, 67);
-  assert.equal(totalMethodYearRows, 402);
+  assert.equal(totalMethods, 73);
+  assert.equal(totalMethodYearRows, 438);
   assert.equal(autonomousTrackRowCount > 0, true, 'expected at least one autonomous efficiency track row');
   assert.equal(efficiencyPackageRowCount > 0, true, 'expected at least one efficiency package row');
 
