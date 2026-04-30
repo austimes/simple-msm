@@ -1,7 +1,7 @@
 import React, { type ReactNode, useMemo } from 'react';
 import { type MethodsTab } from '../data/appUiState.ts';
 import { useAppUiStore } from '../data/appUiStore.ts';
-import { buildSectorStateFamilies } from '../data/libraryInsights';
+import { buildRoleMethodFamilies } from '../data/libraryInsights';
 import { usePackageStore } from '../data/packageStore';
 import BaselineClosureDiagnosticsCard from './BaselineClosureDiagnosticsCard';
 import MethodsSchemaSummaryCard from './MethodsSchemaSummaryCard';
@@ -197,7 +197,7 @@ export default function MethodsPage() {
   const readme = usePackageStore((state) => state.readme);
   const phase2Memo = usePackageStore((state) => state.phase2Memo);
   const enrichment = usePackageStore((state) => state.enrichment);
-  const sectorStates = usePackageStore((state) => state.sectorStates);
+  const resolvedMethodYears = usePackageStore((state) => state.resolvedMethodYears);
   const {
     activeTab,
     evidenceSearch,
@@ -206,7 +206,7 @@ export default function MethodsPage() {
   } = useAppUiStore((state) => state.methods);
   const updateMethodsUi = useAppUiStore((state) => state.updateMethodsUi);
 
-  const families = useMemo(() => buildSectorStateFamilies(sectorStates), [sectorStates]);
+  const families = useMemo(() => buildRoleMethodFamilies(resolvedMethodYears), [resolvedMethodYears]);
   const introParagraphs = useMemo(() => getDocumentIntro(readme), [readme]);
   const sections = useMemo(() => {
     return {
@@ -241,14 +241,14 @@ export default function MethodsPage() {
   ]);
 
   const confidenceCounts = useMemo(() => {
-    return sectorStates.reduce<Record<string, number>>((counts, row) => {
+    return resolvedMethodYears.reduce<Record<string, number>>((counts, row) => {
       counts[row.confidence_rating] = (counts[row.confidence_rating] ?? 0) + 1;
       return counts;
     }, {});
-  }, [sectorStates]);
+  }, [resolvedMethodYears]);
 
   const confidenceBySector = useMemo<ConfidenceBreakdown[]>(() => {
-    const grouped = sectorStates.reduce<Record<string, ConfidenceBreakdown>>((acc, row) => {
+    const grouped = resolvedMethodYears.reduce<Record<string, ConfidenceBreakdown>>((acc, row) => {
       const existing = acc[row.sector] ?? {
         sector: row.sector,
         total: 0,
@@ -271,7 +271,7 @@ export default function MethodsPage() {
         share: entry.total === 0 ? 0 : entry.lowOrExploratory / entry.total,
       }))
       .sort((left, right) => right.share - left.share || left.sector.localeCompare(right.sector));
-  }, [sectorStates]);
+  }, [resolvedMethodYears]);
 
   const evidenceFamilies = useMemo(() => {
     const search = evidenceSearch.toLowerCase().trim();
@@ -356,7 +356,7 @@ export default function MethodsPage() {
           <div className="configuration-stat-grid">
             <div className="configuration-stat-card">
               <span>Method-year rows</span>
-              <strong>{sectorStates.length}</strong>
+              <strong>{resolvedMethodYears.length}</strong>
             </div>
             <div className="configuration-stat-card">
               <span>Method trajectories</span>
@@ -364,7 +364,7 @@ export default function MethodsPage() {
             </div>
             <div className="configuration-stat-card">
               <span>Sector groups</span>
-              <strong>{new Set(sectorStates.map((row) => row.sector)).size}</strong>
+              <strong>{new Set(resolvedMethodYears.map((row) => row.sector)).size}</strong>
             </div>
             <div className="configuration-stat-card">
               <span>Confidence classes</span>
@@ -498,8 +498,8 @@ export default function MethodsPage() {
               </section>
             ) : null}
 
-            {enrichment.sectorStatesSchema ? (
-              <MethodsSchemaSummaryCard schemaInfo={enrichment.sectorStatesSchema} />
+            {enrichment.resolvedMethodYearsSchema ? (
+              <MethodsSchemaSummaryCard schemaInfo={enrichment.resolvedMethodYearsSchema} />
             ) : null}
           </div>
         ) : null}
@@ -665,7 +665,7 @@ export default function MethodsPage() {
                   : '';
 
                 return (
-                  <article key={family.stateId} className="methods-evidence-card">
+                  <article key={family.methodId} className="methods-evidence-card">
                   <div className="library-badge-row">
                     <span className="configuration-badge">{family.sector}</span>
                     {family.confidenceRatings.map((rating) => (

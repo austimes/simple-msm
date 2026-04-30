@@ -8,39 +8,43 @@ import { getEmbodiedEfficiencyPathwayEntry } from '../data/efficiencyAttribution
 import { buildLibraryExportBundle } from '../data/libraryExport.ts';
 import { downloadLibraryExportBundle } from '../data/libraryExportDownload.ts';
 import {
+  buildRoleLibraryModel,
+  type RoleLibraryGraphNode,
+} from '../data/roleLibraryModel.ts';
+import {
   buildInputCommoditySeries,
   buildFamilyEfficiencyOverview,
-  buildSectorStateFamilies,
-  buildSectorStateFamilySearchText,
-  buildSectorStateTrajectory,
-  buildSectorSubsectorIndex,
+  buildRoleMethodFamilies,
+  buildRoleMethodFamilySearchText,
+  buildRoleMethodTrajectory,
   type FamilyAutonomousTrackSummary,
   type FamilyEfficiencyOverview,
   type FamilyEfficiencyPackageSummary,
-  type SectorStateTrajectory,
+  type RoleMethodTrajectory,
 } from '../data/libraryInsights';
 import { type LibraryFilters } from '../data/appUiState.ts';
 import { useAppUiStore } from '../data/appUiStore.ts';
 import { getCommodityMetadata } from '../data/commodityMetadata.ts';
 import { usePackageStore } from '../data/packageStore';
-import type { AssumptionLedgerEntry, SectorState, SourceLedgerEntry } from '../data/types';
+import type { AssumptionLedgerEntry, ResolvedMethodYearRow, SourceLedgerEntry } from '../data/types';
 import LineChart, { type LineChartSeries } from './library/LineChart';
 import { buildAdaptiveAxisNumberFormatter } from './library/axisFormatting.ts';
 import LibrarySidebarFrame from './library/LibrarySidebarFrame';
+import LibraryRoleGraph from '../components/library/LibraryRoleGraph.tsx';
 
 void React;
 
 interface MetricConfig {
   key: 'cost' | 'energy' | 'process' | 'maxShare' | 'maxActivity';
   label: string;
-  pick: (trajectory: SectorStateTrajectory, year: number) => number | null;
-  formatCell: (value: number | null, trajectory: SectorStateTrajectory) => string;
+  pick: (trajectory: RoleMethodTrajectory, year: number) => number | null;
+  formatCell: (value: number | null, trajectory: RoleMethodTrajectory) => string;
 }
 
 interface TrajectoryNarrativeProps {
   label: string;
-  rows: SectorState[];
-  pick: (row: SectorState) => string;
+  rows: ResolvedMethodYearRow[];
+  pick: (row: ResolvedMethodYearRow) => string;
 }
 
 const COEFFICIENT_DASH_PATTERNS = [undefined, '7 5', '3 4', '10 4 2 4', '2 3'];
@@ -124,16 +128,16 @@ function hasFamilyEfficiencyArtifacts(familyEfficiency: FamilyEfficiencyOverview
 }
 
 function buildTrajectoryEfficiencyMetadata(
-  trajectory: ReturnType<typeof buildSectorStateFamilies>[number],
+  trajectory: ReturnType<typeof buildRoleMethodFamilies>[number],
   familyEfficiency: FamilyEfficiencyOverview | null,
 ): TrajectoryEfficiencyMetadata {
   const applicableTracks = familyEfficiency?.tracks.filter((track) =>
-    track.applicableStateIds.includes(trajectory.stateId)) ?? [];
+    track.applicableMethodIds.includes(trajectory.methodId)) ?? [];
   const applicablePackages = familyEfficiency?.packages.filter((pkg) =>
-    pkg.applicableStateIds.includes(trajectory.stateId)) ?? [];
+    pkg.applicableMethodIds.includes(trajectory.methodId)) ?? [];
   const hasFamilyArtifacts = hasFamilyEfficiencyArtifacts(familyEfficiency);
   const hasApplicableArtifacts = applicableTracks.length > 0 || applicablePackages.length > 0;
-  const embodiedEntry = getEmbodiedEfficiencyPathwayEntry(trajectory.stateId);
+  const embodiedEntry = getEmbodiedEfficiencyPathwayEntry(trajectory.methodId);
 
   return {
     familyEfficiency,
@@ -190,7 +194,7 @@ function collectChartSeriesValues(series: LineChartSeries[]): number[] {
     entry.values.flatMap((point) => (typeof point.value === 'number' && Number.isFinite(point.value) ? [point.value] : [])));
 }
 
-function buildNarrativeEntries(rows: SectorState[], pick: (row: SectorState) => string) {
+function buildNarrativeEntries(rows: ResolvedMethodYearRow[], pick: (row: ResolvedMethodYearRow) => string) {
   const entries = rows
     .map((row) => ({ year: row.year, value: pick(row).trim() }))
     .filter((entry) => entry.value.length > 0);
@@ -242,20 +246,20 @@ function formatPackageClassification(label: FamilyEfficiencyPackageSummary['clas
     : 'Pure efficiency overlay';
 }
 
-function resolveStateLabels(stateIds: string[], stateLabelById: Record<string, string>): string[] {
-  return stateIds.map((stateId) => stateLabelById[stateId] ?? stateId);
+function resolveStateLabels(methodIds: string[], methodLabelById: Record<string, string>): string[] {
+  return methodIds.map((methodId) => methodLabelById[methodId] ?? methodId);
 }
 
 function FamilyAutonomousTrackCard({
   track,
-  stateLabelById,
-  selectedStateId,
+  methodLabelById,
+  selectedMethodId,
 }: {
   track: FamilyAutonomousTrackSummary;
-  stateLabelById: Record<string, string>;
-  selectedStateId: string;
+  methodLabelById: Record<string, string>;
+  selectedMethodId: string;
 }) {
-  const appliesToSelectedTrajectory = track.applicableStateIds.includes(selectedStateId);
+  const appliesToSelectedTrajectory = track.applicableMethodIds.includes(selectedMethodId);
 
   return (
     <article className="library-artifact-card">
@@ -278,7 +282,7 @@ function FamilyAutonomousTrackCard({
         <div>
           <span className="library-tag-group-title">Applicable methods</span>
           <div className="library-tag-list">
-            {resolveStateLabels(track.applicableStateIds, stateLabelById).map((label) => (
+            {resolveStateLabels(track.applicableMethodIds, methodLabelById).map((label) => (
               <span key={`${track.trackId}:${label}`} className="library-tag">
                 {label}
               </span>
@@ -317,14 +321,14 @@ function FamilyAutonomousTrackCard({
 
 function FamilyEfficiencyPackageCard({
   pkg,
-  stateLabelById,
-  selectedStateId,
+  methodLabelById,
+  selectedMethodId,
 }: {
   pkg: FamilyEfficiencyPackageSummary;
-  stateLabelById: Record<string, string>;
-  selectedStateId: string;
+  methodLabelById: Record<string, string>;
+  selectedMethodId: string;
 }) {
-  const appliesToSelectedTrajectory = pkg.applicableStateIds.includes(selectedStateId);
+  const appliesToSelectedTrajectory = pkg.applicableMethodIds.includes(selectedMethodId);
 
   return (
     <article className="library-artifact-card">
@@ -347,7 +351,7 @@ function FamilyEfficiencyPackageCard({
         <div>
           <span className="library-tag-group-title">Applicable methods</span>
           <div className="library-tag-list">
-            {resolveStateLabels(pkg.applicableStateIds, stateLabelById).map((label) => (
+            {resolveStateLabels(pkg.applicableMethodIds, methodLabelById).map((label) => (
               <span key={`${pkg.packageId}:${label}`} className="library-tag">
                 {label}
               </span>
@@ -389,20 +393,10 @@ function FamilyEfficiencyPackageCard({
 }
 
 function matchesTrajectoryFilters(
-  trajectory: ReturnType<typeof buildSectorStateFamilies>[number],
-  selectedSector: string,
-  selectedSubsector: string,
+  trajectory: ReturnType<typeof buildRoleMethodFamilies>[number],
   filters: LibraryFilters,
   efficiency: TrajectoryEfficiencyMetadata,
 ) {
-  if (selectedSector && trajectory.sector !== selectedSector) {
-    return false;
-  }
-
-  if (selectedSubsector && trajectory.subsector !== selectedSubsector) {
-    return false;
-  }
-
   if (filters.confidence && !trajectory.confidenceRatings.includes(filters.confidence)) {
     return false;
   }
@@ -444,7 +438,7 @@ function matchesTrajectoryFilters(
   }
 
   if (filters.search) {
-    const searchText = `${buildSectorStateFamilySearchText(trajectory)} ${buildTrajectoryEfficiencySearchText(efficiency)}`;
+    const searchText = `${buildRoleMethodFamilySearchText(trajectory)} ${buildTrajectoryEfficiencySearchText(efficiency)}`;
     const tokens = filters.search
       .toLowerCase()
       .split(/\s+/)
@@ -486,41 +480,110 @@ function TrajectoryNarrative({ label, rows, pick }: TrajectoryNarrativeProps) {
 
 export default function LibraryPage() {
   const enrichment = usePackageStore((state) => state.enrichment);
-  const sectorStates = usePackageStore((state) => state.sectorStates);
+  const resolvedMethodYears = usePackageStore((state) => state.resolvedMethodYears);
+  const roleMetadata = usePackageStore((state) => state.roleMetadata);
+  const representations = usePackageStore((state) => state.representations);
+  const roleDecompositionEdges = usePackageStore((state) => state.roleDecompositionEdges);
+  const reportingAllocations = usePackageStore((state) => state.reportingAllocations);
+  const methods = usePackageStore((state) => state.methods);
   const autonomousEfficiencyTracks = usePackageStore((state) => state.autonomousEfficiencyTracks);
   const efficiencyPackages = usePackageStore((state) => state.efficiencyPackages);
   const {
     filters,
     sidebarCollapsed,
-    selectedSector,
-    selectedSubsector,
-    selectedTrajectoryId,
+    roleGraphExpandedNodeIds,
+    selectedRoleId,
+    selectedRepresentationId,
+    selectedMethodId,
   } = useAppUiStore((state) => state.library);
   const updateLibraryUi = useAppUiStore((state) => state.updateLibraryUi);
   const setLibraryFilters = useAppUiStore((state) => state.setLibraryFilters);
   const resetLibraryUi = useAppUiStore((state) => state.resetLibraryUi);
 
-  const families = useMemo(() => buildSectorStateFamilies(sectorStates), [sectorStates]);
-  const sectorIndex = useMemo(() => buildSectorSubsectorIndex(sectorStates), [sectorStates]);
+  const families = useMemo(() => buildRoleMethodFamilies(resolvedMethodYears), [resolvedMethodYears]);
+  const roleSelectedFamily = useMemo(() => {
+    return families.find((family) =>
+      (selectedMethodId && family.methodId === selectedMethodId)
+      || (selectedRoleId && family.representative.role_id === selectedRoleId)
+    ) ?? null;
+  }, [families, selectedMethodId, selectedRoleId]);
+  const roleLibraryModel = useMemo(() => buildRoleLibraryModel({
+    roleMetadata,
+    representations,
+    roleDecompositionEdges,
+    reportingAllocations,
+    methods,
+  }), [methods, reportingAllocations, representations, roleDecompositionEdges, roleMetadata]);
+  const expandedRoleGraphNodeIds = useMemo(
+    () => new Set(roleGraphExpandedNodeIds),
+    [roleGraphExpandedNodeIds],
+  );
+  const resolvedSelectedRole = useMemo(() => {
+    if (selectedRoleId) {
+      const selected = roleLibraryModel.roleById.get(selectedRoleId);
+      if (selected) {
+        return selected;
+      }
+    }
 
-  const resolvedSelectedSector =
-    selectedSector && sectorIndex.sectors.includes(selectedSector)
-      ? selectedSector
-      : sectorIndex.sectors[0] ?? '';
-  const visibleSubsectors = resolvedSelectedSector ? sectorIndex.subsectorsBySector[resolvedSelectedSector] ?? [] : [];
-  const resolvedSelectedSubsector =
-    selectedSubsector && visibleSubsectors.includes(selectedSubsector)
-      ? selectedSubsector
-      : visibleSubsectors[0] ?? '';
+    if (roleSelectedFamily) {
+      const role = roleLibraryModel.roleById.get(roleSelectedFamily.representative.role_id);
+      if (role) {
+        return role;
+      }
+    }
+
+    return roleLibraryModel.topLevelRoles[0] ?? null;
+  }, [roleLibraryModel, roleSelectedFamily, selectedRoleId]);
+  const resolvedSelectedRepresentation = useMemo(() => {
+    if (!resolvedSelectedRole) {
+      return null;
+    }
+
+    if (selectedRepresentationId) {
+      const selected = resolvedSelectedRole.representations.find(
+        (representation) => representation.representationId === selectedRepresentationId,
+      );
+      if (selected) {
+        return selected;
+      }
+    }
+
+    if (roleSelectedFamily?.representative.role_id === resolvedSelectedRole.roleId) {
+      const selected = resolvedSelectedRole.representations.find(
+        (representation) => representation.representationId === roleSelectedFamily.representative.representation_id,
+      );
+      if (selected) {
+        return selected;
+      }
+    }
+
+    return (
+      resolvedSelectedRole.representations.find(
+        (representation) => representation.isDefault && representation.representationKind !== 'role_decomposition',
+      )
+      ?? resolvedSelectedRole.representations.find((representation) => representation.representationKind !== 'role_decomposition')
+      ?? resolvedSelectedRole.representations.find((representation) => representation.isDefault)
+      ?? resolvedSelectedRole.representations[0]
+      ?? null
+    );
+  }, [resolvedSelectedRole, roleSelectedFamily, selectedRepresentationId]);
+  const isSelectedRepresentationDecomposition =
+    resolvedSelectedRepresentation?.representationKind === 'role_decomposition';
+  const selectedChildRoles = useMemo(() => {
+    return (resolvedSelectedRepresentation?.childRoleIds ?? [])
+      .map((roleId) => roleLibraryModel.roleById.get(roleId))
+      .filter((role): role is NonNullable<typeof role> => role != null);
+  }, [resolvedSelectedRepresentation, roleLibraryModel]);
 
   const filterOptions = useMemo(() => {
     return {
-      confidenceRatings: Array.from(new Set(sectorStates.map((row) => row.confidence_rating))).sort((left, right) => left.localeCompare(right)),
-      regions: Array.from(new Set(sectorStates.map((row) => row.region))).sort((left, right) => left.localeCompare(right)),
-      sourceIds: Array.from(new Set(sectorStates.flatMap((row) => row.source_ids))).sort((left, right) => left.localeCompare(right)),
-      assumptionIds: Array.from(new Set(sectorStates.flatMap((row) => row.assumption_ids))).sort((left, right) => left.localeCompare(right)),
+      confidenceRatings: Array.from(new Set(resolvedMethodYears.map((row) => row.confidence_rating))).sort((left, right) => left.localeCompare(right)),
+      regions: Array.from(new Set(resolvedMethodYears.map((row) => row.region))).sort((left, right) => left.localeCompare(right)),
+      sourceIds: Array.from(new Set(resolvedMethodYears.flatMap((row) => row.source_ids))).sort((left, right) => left.localeCompare(right)),
+      assumptionIds: Array.from(new Set(resolvedMethodYears.flatMap((row) => row.assumption_ids))).sort((left, right) => left.localeCompare(right)),
     };
-  }, [sectorStates]);
+  }, [resolvedMethodYears]);
 
   const familyEfficiencyByFamilyId = useMemo(() => {
     return new Map(
@@ -528,18 +591,18 @@ export default function LibraryPage() {
         familyId,
         buildFamilyEfficiencyOverview(
           familyId,
-          sectorStates,
+          resolvedMethodYears,
           autonomousEfficiencyTracks,
           efficiencyPackages,
         ),
       ]),
     );
-  }, [autonomousEfficiencyTracks, efficiencyPackages, families, sectorStates]);
+  }, [autonomousEfficiencyTracks, efficiencyPackages, families, resolvedMethodYears]);
 
-  const trajectoryEfficiencyByStateId = useMemo(() => {
+  const trajectoryEfficiencyByMethodId = useMemo(() => {
     return new Map(
       families.map((family) => [
-        family.stateId,
+        family.methodId,
         buildTrajectoryEfficiencyMetadata(
           family,
           familyEfficiencyByFamilyId.get(family.representative.family_id) ?? null,
@@ -549,28 +612,43 @@ export default function LibraryPage() {
   }, [families, familyEfficiencyByFamilyId]);
 
   const filteredFamilies = useMemo(() => {
-    return families.filter((family) =>
-      matchesTrajectoryFilters(
+    return families.filter((family) => {
+      if (resolvedSelectedRole && family.representative.role_id !== resolvedSelectedRole.roleId) {
+        return false;
+      }
+
+      if (
+        resolvedSelectedRepresentation
+        && family.representative.representation_id !== resolvedSelectedRepresentation.representationId
+      ) {
+        return false;
+      }
+
+      if (isSelectedRepresentationDecomposition) {
+        return false;
+      }
+
+      return matchesTrajectoryFilters(
         family,
-        resolvedSelectedSector,
-        resolvedSelectedSubsector,
         filters,
-        trajectoryEfficiencyByStateId.get(family.stateId)
+        trajectoryEfficiencyByMethodId.get(family.methodId)
           ?? buildTrajectoryEfficiencyMetadata(
             family,
             familyEfficiencyByFamilyId.get(family.representative.family_id) ?? null,
           ),
-      ));
+      );
+    });
   }, [
     families,
     familyEfficiencyByFamilyId,
     filters,
-    resolvedSelectedSector,
-    resolvedSelectedSubsector,
-    trajectoryEfficiencyByStateId,
+    isSelectedRepresentationDecomposition,
+    resolvedSelectedRepresentation,
+    resolvedSelectedRole,
+    trajectoryEfficiencyByMethodId,
   ]);
 
-  const visibleTrajectories = useMemo(() => filteredFamilies.map((family) => buildSectorStateTrajectory(family)), [filteredFamilies]);
+  const visibleTrajectories = useMemo(() => filteredFamilies.map((family) => buildRoleMethodTrajectory(family)), [filteredFamilies]);
 
   const visibleYears = useMemo(() => {
     return Array.from(new Set(visibleTrajectories.flatMap((trajectory) => trajectory.points.map((point) => point.year)))).sort(
@@ -579,29 +657,29 @@ export default function LibraryPage() {
   }, [visibleTrajectories]);
 
   const resolvedSelectedTrajectoryId =
-    selectedTrajectoryId && visibleTrajectories.some((trajectory) => trajectory.stateId === selectedTrajectoryId)
-      ? selectedTrajectoryId
-      : visibleTrajectories[0]?.stateId ?? null;
+    selectedMethodId && visibleTrajectories.some((trajectory) => trajectory.methodId === selectedMethodId)
+      ? selectedMethodId
+      : visibleTrajectories[0]?.methodId ?? null;
 
   const selectedTrajectory =
-    visibleTrajectories.find((trajectory) => trajectory.stateId === resolvedSelectedTrajectoryId) ?? null;
+    visibleTrajectories.find((trajectory) => trajectory.methodId === resolvedSelectedTrajectoryId) ?? null;
 
   const colorByTrajectoryId = useMemo(() => {
     return new Map(
       visibleTrajectories.map((trajectory) => [
-        trajectory.stateId,
-        getPresentation('state', trajectory.stateId, trajectory.label).color,
+        trajectory.methodId,
+        getPresentation('state', trajectory.methodId, trajectory.label).color,
       ]),
     );
   }, [visibleTrajectories]);
 
   const metricSeries = useMemo(() => {
-    const selectSeries = (trajectory: SectorStateTrajectory, metricKey: string): LineChartSeries => ({
-      key: `${trajectory.stateId}::${metricKey}`,
+    const selectSeries = (trajectory: RoleMethodTrajectory, metricKey: string): LineChartSeries => ({
+      key: `${trajectory.methodId}::${metricKey}`,
       label: trajectory.label,
-      legendLabel: getPresentation('state', trajectory.stateId, trajectory.label).legendLabel,
-      color: colorByTrajectoryId.get(trajectory.stateId) ?? getPresentation('state', trajectory.stateId, trajectory.label).color,
-      active: trajectory.stateId === resolvedSelectedTrajectoryId,
+      legendLabel: getPresentation('state', trajectory.methodId, trajectory.label).legendLabel,
+      color: colorByTrajectoryId.get(trajectory.methodId) ?? getPresentation('state', trajectory.methodId, trajectory.label).color,
+      active: trajectory.methodId === resolvedSelectedTrajectoryId,
       values: trajectory.points.map((point) => ({
         year: point.year,
         value:
@@ -624,15 +702,15 @@ export default function LibraryPage() {
       emissions: visibleTrajectories.flatMap((trajectory) => [
         {
           ...selectSeries(trajectory, 'energy'),
-          key: `${trajectory.stateId}::energy`,
+          key: `${trajectory.methodId}::energy`,
           label: `${trajectory.label} · energy`,
-          legendLabel: buildStateMetricLegendLabel(trajectory.stateId, 'energy'),
+          legendLabel: buildStateMetricLegendLabel(trajectory.methodId, 'energy'),
         },
         {
           ...selectSeries(trajectory, 'process'),
-          key: `${trajectory.stateId}::process`,
+          key: `${trajectory.methodId}::process`,
           label: `${trajectory.label} · process`,
-          legendLabel: buildStateMetricLegendLabel(trajectory.stateId, 'process'),
+          legendLabel: buildStateMetricLegendLabel(trajectory.methodId, 'process'),
           dashArray: '7 5',
         },
       ]),
@@ -641,10 +719,10 @@ export default function LibraryPage() {
 
   const trajectorySelectionItems = useMemo(() => {
     return visibleTrajectories.map((trajectory) => ({
-      stateId: trajectory.stateId,
+      methodId: trajectory.methodId,
       label: trajectory.label,
-      color: colorByTrajectoryId.get(trajectory.stateId) ?? getPresentation('state', trajectory.stateId, trajectory.label).color,
-      active: trajectory.stateId === resolvedSelectedTrajectoryId,
+      color: colorByTrajectoryId.get(trajectory.methodId) ?? getPresentation('state', trajectory.methodId, trajectory.label).color,
+      active: trajectory.methodId === resolvedSelectedTrajectoryId,
     }));
   }, [colorByTrajectoryId, resolvedSelectedTrajectoryId, visibleTrajectories]);
 
@@ -739,12 +817,12 @@ export default function LibraryPage() {
     const series = filteredFamilies
       .flatMap((family) => {
         return buildInputCommoditySeries(family).map<LineChartSeries>((entry) => ({
-          key: `${family.stateId}::${entry.commodity}`,
+          key: `${family.methodId}::${entry.commodity}`,
           label: `${family.label} · ${resolveCommodityLabel(entry.commodity)}`,
-          legendLabel: buildStateCommodityLegendLabel(family.stateId, entry.commodity),
-          color: colorByTrajectoryId.get(family.stateId) ?? getPresentation('state', family.stateId, family.label).color,
+          legendLabel: buildStateCommodityLegendLabel(family.methodId, entry.commodity),
+          color: colorByTrajectoryId.get(family.methodId) ?? getPresentation('state', family.methodId, family.label).color,
           dashArray: dashByCommodity.get(entry.commodity),
-          active: family.stateId === resolvedSelectedTrajectoryId,
+          active: family.methodId === resolvedSelectedTrajectoryId,
           values: entry.values,
         }));
       })
@@ -779,7 +857,7 @@ export default function LibraryPage() {
   }, [coefficientChart.units, visibleTrajectories]);
 
   const selectedTrajectoryEfficiency = selectedTrajectory
-    ? trajectoryEfficiencyByStateId.get(selectedTrajectory.stateId) ?? null
+    ? trajectoryEfficiencyByMethodId.get(selectedTrajectory.methodId) ?? null
     : null;
   const selectedFamilyEfficiency = selectedTrajectoryEfficiency?.familyEfficiency ?? null;
   const hasSelectedFamilyEfficiencyArtifacts = selectedTrajectoryEfficiency?.hasFamilyArtifacts ?? false;
@@ -793,10 +871,10 @@ export default function LibraryPage() {
   const handleDownloadLibraryExport = () => {
     const bundle = buildLibraryExportBundle({
       scope: {
-        sector: resolvedSelectedSector,
-        subsector: resolvedSelectedSubsector,
+        roleId: resolvedSelectedRole?.roleId ?? null,
+        representationId: resolvedSelectedRepresentation?.representationId ?? null,
+        methodId: resolvedSelectedTrajectoryId,
         filters: { ...filters },
-        selectedTrajectoryId: resolvedSelectedTrajectoryId,
         generatedAt: new Date().toISOString(),
       },
       trajectories: visibleTrajectories,
@@ -807,13 +885,29 @@ export default function LibraryPage() {
     downloadLibraryExportBundle(bundle);
   };
 
+  const handleSelectRoleGraphNode = (node: RoleLibraryGraphNode) => {
+    updateLibraryUi({
+      selectedRoleId: node.roleId,
+      selectedRepresentationId: node.representationId ?? null,
+      selectedMethodId: node.methodId ?? null,
+    });
+  };
+
   return (
     <div className="page page--library">
       <h1>Library</h1>
       <p>
-        Compare method trajectories over time, then drill into the notes, assumptions,
-        sources, and input coefficient curves behind each available method for the selected subsector.
+        Compare roles, representations, and method trajectories over time, then drill into
+        notes, assumptions, sources, and input coefficient curves.
       </p>
+
+      <LibraryRoleGraph
+        model={roleLibraryModel}
+        expandedNodeIds={expandedRoleGraphNodeIds}
+        filters={{ search: filters.search }}
+        onExpandedNodeIdsChange={(nextIds) => updateLibraryUi({ roleGraphExpandedNodeIds: nextIds })}
+        onSelectNode={handleSelectRoleGraphNode}
+      />
 
       <div className={`library-sidebar-layout${sidebarCollapsed ? ' library-sidebar-layout--collapsed' : ''}`}>
         <LibrarySidebarFrame
@@ -825,55 +919,11 @@ export default function LibraryPage() {
           <section className="library-filter-strip">
             <div className="library-sidebar-intro">
               <p>
-                Click a sector to refresh the available subsectors, then use the advanced filters
-                to narrow the comparison.
+                Select a role or representation in the graph, then use filters to narrow the method comparison.
               </p>
               <button type="button" className="library-clear-button" onClick={resetFilters}>
                 Reset view
               </button>
-            </div>
-
-            <div className="library-chip-section">
-              <span className="library-chip-label">Sector</span>
-              <div className="library-chip-row">
-                {sectorIndex.sectors.map((sector) => (
-                  <button
-                    key={sector}
-                    type="button"
-                    className={`library-chip${sector === resolvedSelectedSector ? ' library-chip--active' : ''}`}
-                    onClick={() => {
-                      updateLibraryUi({
-                        selectedSector: sector,
-                        selectedSubsector: '',
-                        selectedTrajectoryId: null,
-                      });
-                    }}
-                  >
-                    {sector}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="library-chip-section">
-              <span className="library-chip-label">Subsector</span>
-              <div className="library-chip-row">
-                {visibleSubsectors.map((subsector) => (
-                  <button
-                    key={subsector}
-                    type="button"
-                    className={`library-chip${subsector === resolvedSelectedSubsector ? ' library-chip--active' : ''}`}
-                    onClick={() => {
-                      updateLibraryUi({
-                        selectedSubsector: subsector,
-                        selectedTrajectoryId: null,
-                      });
-                    }}
-                  >
-                    {subsector}
-                  </button>
-                ))}
-              </div>
             </div>
 
             <div className="library-filter-grid">
@@ -980,7 +1030,36 @@ export default function LibraryPage() {
         </LibrarySidebarFrame>
 
         <div className="library-main-content">
-          {visibleTrajectories.length > 0 ? (
+          {isSelectedRepresentationDecomposition ? (
+            <section className="configuration-panel library-empty-state">
+              <h2>{resolvedSelectedRole?.label ?? 'Selected role'} uses a role decomposition.</h2>
+              <p>
+                This representation is defined by child roles, so direct parent method charts are suppressed.
+                Expand the representation in the graph or select a child role to inspect its methods.
+              </p>
+              {selectedChildRoles.length > 0 ? (
+                <div className="library-state-selector-grid">
+                  {selectedChildRoles.map((role) => (
+                    <button
+                      key={role.roleId}
+                      type="button"
+                      className="library-state-selector-button"
+                      onClick={() => updateLibraryUi({
+                        selectedRoleId: role.roleId,
+                        selectedRepresentationId: null,
+                        selectedMethodId: null,
+                      })}
+                    >
+                      <span className="library-state-selector-copy">
+                        <strong>{role.label}</strong>
+                        <span>{role.roleKind.replaceAll('_', ' ')} · {role.balanceType.replaceAll('_', ' ')}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </section>
+          ) : visibleTrajectories.length > 0 ? (
             <>
               <section className="configuration-panel library-state-selector-panel">
                 <div className="library-panel-heading">
@@ -1003,16 +1082,16 @@ export default function LibraryPage() {
                 <div className="library-state-selector-grid">
                   {trajectorySelectionItems.map((trajectory) => (
                     <button
-                      key={trajectory.stateId}
+                      key={trajectory.methodId}
                       type="button"
                       className={`library-state-selector-button${trajectory.active ? ' library-state-selector-button--active' : ''}`}
-                      onClick={() => updateLibraryUi({ selectedTrajectoryId: trajectory.stateId })}
+                      onClick={() => updateLibraryUi({ selectedMethodId: trajectory.methodId })}
                       aria-pressed={trajectory.active}
                     >
                       <span className="library-state-selector-swatch" style={{ backgroundColor: trajectory.color }} />
                       <span className="library-state-selector-copy">
                         <strong>{trajectory.label}</strong>
-                        <span>{trajectory.stateId}</span>
+                        <span>{trajectory.methodId}</span>
                       </span>
                     </button>
                   ))}
@@ -1181,25 +1260,25 @@ export default function LibraryPage() {
                     </thead>
                     {visibleTrajectories.map((trajectory) => (
                       <tbody
-                        key={trajectory.stateId}
-                        className={trajectory.stateId === resolvedSelectedTrajectoryId ? 'library-comparison-group library-comparison-group--selected' : 'library-comparison-group'}
+                        key={trajectory.methodId}
+                        className={trajectory.methodId === resolvedSelectedTrajectoryId ? 'library-comparison-group library-comparison-group--selected' : 'library-comparison-group'}
                       >
                         {comparisonMetrics.map((metric, index) => (
                           <tr
-                            key={`${trajectory.stateId}:${metric.key}`}
+                            key={`${trajectory.methodId}:${metric.key}`}
                             className="library-comparison-row"
-                            onClick={() => updateLibraryUi({ selectedTrajectoryId: trajectory.stateId })}
+                            onClick={() => updateLibraryUi({ selectedMethodId: trajectory.methodId })}
                           >
                             {index === 0 ? (
                               <th rowSpan={comparisonMetrics.length} className="library-comparison-trajectory-cell">
                                 <strong>{trajectory.label}</strong>
-                                <small>{trajectory.stateId}</small>
+                                <small>{trajectory.methodId}</small>
                                 <span>{trajectory.serviceOrOutputName}</span>
                               </th>
                             ) : null}
                             <th className="library-comparison-metric-cell">{metric.label}</th>
                             {visibleYears.map((year) => (
-                              <td key={`${trajectory.stateId}:${metric.key}:${year}`}>{metric.formatCell(metric.pick(trajectory, year), trajectory)}</td>
+                              <td key={`${trajectory.methodId}:${metric.key}:${year}`}>{metric.formatCell(metric.pick(trajectory, year), trajectory)}</td>
                             ))}
                           </tr>
                         ))}
@@ -1228,19 +1307,19 @@ export default function LibraryPage() {
                       <dl className="library-detail-summary">
                         <div>
                           <dt>Method ID</dt>
-                          <dd>{selectedTrajectory.stateId}</dd>
+                          <dd>{selectedTrajectory.methodId}</dd>
                         </div>
                         <div>
-                          <dt>Sector</dt>
-                          <dd>{selectedTrajectory.sector}</dd>
+                          <dt>Role</dt>
+                          <dd>{selectedTrajectory.representative.role_label}</dd>
                         </div>
                         <div>
-                          <dt>Subsector</dt>
-                          <dd>{selectedTrajectory.subsector}</dd>
+                          <dt>Representation</dt>
+                          <dd>{resolvedSelectedRepresentation?.label ?? selectedTrajectory.representative.representation_id}</dd>
                         </div>
                         <div>
-                          <dt>Service/output</dt>
-                          <dd>{selectedTrajectory.serviceOrOutputName}</dd>
+                          <dt>Output identity</dt>
+                          <dd>{selectedTrajectory.representative.output_id}</dd>
                         </div>
                         <div>
                           <dt>Years</dt>
@@ -1264,6 +1343,36 @@ export default function LibraryPage() {
                         </dl>
                       </section>
                     </div>
+
+                    <section className="library-detail-section">
+                      <h3>Reporting allocation</h3>
+                      {selectedTrajectory.representative.reporting_allocations.length > 0 ? (
+                        <div className="library-comparison-shell">
+                          <table className="library-comparison-table">
+                            <thead>
+                              <tr>
+                                <th>Reporting sector</th>
+                                <th>Reporting subsector</th>
+                                <th>Bucket</th>
+                                <th>Share</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {selectedTrajectory.representative.reporting_allocations.map((allocation) => (
+                                <tr key={allocation.reporting_allocation_id}>
+                                  <td>{allocation.sector}</td>
+                                  <td>{allocation.subsector}</td>
+                                  <td>{allocation.reporting_bucket}</td>
+                                  <td>{percentFormatter.format(allocation.allocation_share)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <p className="library-inline-note">No reporting allocation metadata is packaged for this method.</p>
+                      )}
+                    </section>
 
                     <div className="library-detail-grid">
                       <section className="library-detail-section">
@@ -1294,8 +1403,8 @@ export default function LibraryPage() {
                               <FamilyAutonomousTrackCard
                                 key={track.trackId}
                                 track={track}
-                                stateLabelById={selectedFamilyEfficiency.stateLabelById}
-                                selectedStateId={selectedTrajectory.stateId}
+                                methodLabelById={selectedFamilyEfficiency.methodLabelById}
+                                selectedMethodId={selectedTrajectory.methodId}
                               />
                             ))}
 
@@ -1303,8 +1412,8 @@ export default function LibraryPage() {
                               <FamilyEfficiencyPackageCard
                                 key={pkg.packageId}
                                 pkg={pkg}
-                                stateLabelById={selectedFamilyEfficiency.stateLabelById}
-                                selectedStateId={selectedTrajectory.stateId}
+                                methodLabelById={selectedFamilyEfficiency.methodLabelById}
+                                selectedMethodId={selectedTrajectory.methodId}
                               />
                             ))}
                           </div>
@@ -1458,16 +1567,16 @@ export default function LibraryPage() {
                   </>
                 ) : (
                   <div className="library-empty-state">
-                    <h3>No trajectory selected</h3>
-                    <p>Choose a subsector with visible methods to populate the detail view.</p>
+                    <h3>No method selected</h3>
+                    <p>Choose a role with visible methods to populate the detail view.</p>
                   </div>
                 )}
               </article>
             </>
           ) : (
             <section className="configuration-panel library-empty-state">
-              <h2>No trajectories match the current filters.</h2>
-              <p>Clear one or two advanced filters or switch subsectors to restore the comparison views.</p>
+              <h2>No methods match the current filters.</h2>
+              <p>Clear one or two advanced filters or select another role to restore the comparison views.</p>
             </section>
           )}
         </div>

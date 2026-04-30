@@ -1,5 +1,5 @@
 import { solve, type Model, type Solution } from 'yalps';
-import { derivePathwayStateIds } from '../data/pathwaySemantics.ts';
+import { derivePathwayMethodIds } from '../data/pathwaySemantics.ts';
 import type {
   CommoditySolveMode,
   NormalizedSolverRow,
@@ -14,7 +14,7 @@ import type {
   SolveRequest,
   SolveRequestSummary,
   SolveResult,
-  SolveStateShareSummary,
+  SolveMethodShareSummary,
   SolveSoftConstraintViolationSummary,
 } from './contract.ts';
 
@@ -81,8 +81,8 @@ interface TrackedConstraint {
   outputId: string;
   outputLabel: string;
   year: number;
-  stateId?: string;
-  stateLabel?: string;
+  methodId?: string;
+  methodLabel?: string;
   rowId?: string;
   commodityId?: string;
   mode?: ResolvedSolveControl['mode'];
@@ -117,8 +117,8 @@ interface PackageNonStackingGroup {
   outputId: string;
   outputLabel: string;
   year: number;
-  baseStateId: string;
-  baseStateLabel: string;
+  baseMethodId: string;
+  baseMethodLabel: string;
   nonStackingGroup: string;
   effectiveMaxShare: number;
   rows: NormalizedSolverRow[];
@@ -191,7 +191,7 @@ function summarizeRequest(request: SolveRequest): SolveRequestSummary {
 function emptyReporting(): SolveReportingSummary {
   return {
     commodityBalances: [],
-    stateShares: [],
+    methodShares: [],
     bindingConstraints: [],
     softConstraintViolations: [],
   };
@@ -710,13 +710,13 @@ function formatNumber(value: number): string {
 function buildConstraintContext(
   outputId: string,
   year: number,
-  stateId?: string,
+  methodId?: string,
   rowId?: string,
-): Pick<SolveDiagnostic, 'outputId' | 'year' | 'stateId' | 'rowId'> {
+): Pick<SolveDiagnostic, 'outputId' | 'year' | 'methodId' | 'rowId'> {
   return {
     outputId,
     year,
-    stateId,
+    methodId,
     rowId,
   };
 }
@@ -753,12 +753,12 @@ function buildEffectiveMaxShareLookup(
   control: ResolvedSolveControl,
 ): Map<string, ResolvedMaxShareBounds> {
   const lookup = new Map<string, ResolvedMaxShareBounds>();
-  const pathwayStateIds = derivePathwayStateIds(
-    rows.map((row) => row.stateId),
+  const pathwayMethodIds = derivePathwayMethodIds(
+    rows.map((row) => row.methodId),
     control,
   );
-  const activeStateIds = new Set(pathwayStateIds.activeStateIds);
-  const activeRows = rows.filter((row) => activeStateIds.has(row.stateId));
+  const activeMethodIds = new Set(pathwayMethodIds.activeMethodIds);
+  const activeRows = rows.filter((row) => activeMethodIds.has(row.methodId));
 
   for (const row of rows) {
     lookup.set(row.rowId, {
@@ -780,7 +780,7 @@ function buildEffectiveMaxShareLookup(
           'efficiency_non_stacking_group',
           row.outputId,
           String(row.year),
-          row.provenance.baseStateId,
+          row.provenance.baseMethodId,
           nonStackingGroup,
         ].join(':')
       : row.rowId;
@@ -819,7 +819,7 @@ function nonStackingConstraintId(group: PackageNonStackingGroup): string {
     'efficiency_non_stacking_group',
     group.outputId,
     String(group.year),
-    group.baseStateId,
+    group.baseMethodId,
     group.nonStackingGroup,
   ].join(':');
 }
@@ -829,11 +829,11 @@ function collectPackageNonStackingGroups(
   control: ResolvedSolveControl,
   maxShareLookup: Map<string, ResolvedMaxShareBounds>,
 ): PackageNonStackingGroup[] {
-  const pathwayStateIds = derivePathwayStateIds(
-    rows.map((row) => row.stateId),
+  const pathwayMethodIds = derivePathwayMethodIds(
+    rows.map((row) => row.methodId),
     control,
   );
-  const activeStateIds = new Set(pathwayStateIds.activeStateIds);
+  const activeMethodIds = new Set(pathwayMethodIds.activeMethodIds);
   const groups = new Map<string, MutablePackageNonStackingGroup>();
 
   for (const row of rows) {
@@ -845,15 +845,15 @@ function collectPackageNonStackingGroups(
     const key = [
       row.outputId,
       String(row.year),
-      row.provenance.baseStateId,
+      row.provenance.baseMethodId,
       nonStackingGroup,
     ].join('::');
     const existing: MutablePackageNonStackingGroup = groups.get(key) ?? {
       outputId: row.outputId,
       outputLabel: row.outputLabel,
       year: row.year,
-      baseStateId: row.provenance.baseStateId,
-      baseStateLabel: row.provenance.baseStateLabel,
+      baseMethodId: row.provenance.baseMethodId,
+      baseMethodLabel: row.provenance.baseMethodLabel,
       nonStackingGroup,
       effectiveMaxShare: null,
       rows: [],
@@ -861,7 +861,7 @@ function collectPackageNonStackingGroups(
 
     existing.rows.push(row);
 
-    if (activeStateIds.has(row.stateId)) {
+    if (activeMethodIds.has(row.methodId)) {
       const effectiveMaxShare = maxShareLookup.get(row.rowId)?.effectiveMaxShare
         ?? (row.bounds.maxShare == null ? 1 : clampShare(row.bounds.maxShare));
       existing.effectiveMaxShare = Math.max(existing.effectiveMaxShare ?? 0, effectiveMaxShare);
@@ -881,7 +881,7 @@ function collectPackageNonStackingGroups(
     .sort((left, right) => {
       return left.year - right.year
         || left.outputId.localeCompare(right.outputId)
-        || left.baseStateId.localeCompare(right.baseStateId)
+        || left.baseMethodId.localeCompare(right.baseMethodId)
         || left.nonStackingGroup.localeCompare(right.nonStackingGroup);
     });
 }
@@ -893,17 +893,17 @@ function buildRowShareProfiles(
   request: SolveRequest,
   commodityId?: string,
 ): RowShareProfile[] {
-  const pathwayStateIds = derivePathwayStateIds(
-    rows.map((row) => row.stateId),
+  const pathwayMethodIds = derivePathwayMethodIds(
+    rows.map((row) => row.methodId),
     control,
   );
-  const activeStateIds = new Set(pathwayStateIds.activeStateIds);
+  const activeMethodIds = new Set(pathwayMethodIds.activeMethodIds);
   const maxShareLookup = buildEffectiveMaxShareLookup(rows, control);
 
   return [...rows]
-    .sort((left, right) => left.stateLabel.localeCompare(right.stateLabel))
+    .sort((left, right) => left.methodLabel.localeCompare(right.methodLabel))
     .map((row) => {
-      const inactive = !activeStateIds.has(row.stateId);
+      const inactive = !activeMethodIds.has(row.methodId);
       const resolvedMaxShare = maxShareLookup.get(row.rowId) ?? {
         rawMaxShare: row.bounds.maxShare == null ? null : clampShare(row.bounds.maxShare),
         effectiveMaxShare: null,
@@ -952,15 +952,15 @@ function buildDecomposedRowShareProfiles(
   }, new Map());
 
   return [...group.rows]
-    .sort((left, right) => left.stateLabel.localeCompare(right.stateLabel))
+    .sort((left, right) => left.methodLabel.localeCompare(right.methodLabel))
     .map((row) => {
       const outputRows = rowsByOutput.get(row.outputId) ?? [row];
       const control = requireResolvedControl(request, row.outputId, row.year, 'decomposition child');
-      const pathwayStateIds = derivePathwayStateIds(
-        outputRows.map((candidate) => candidate.stateId),
+      const pathwayMethodIds = derivePathwayMethodIds(
+        outputRows.map((candidate) => candidate.methodId),
         control,
       );
-      const inactive = !new Set(pathwayStateIds.activeStateIds).has(row.stateId);
+      const inactive = !new Set(pathwayMethodIds.activeMethodIds).has(row.methodId);
       const rawMaxShare = row.bounds.maxShare == null ? null : clampShare(row.bounds.maxShare);
       const maxShareLimit = request.configuration.options.respectMaxShare ? rawMaxShare : null;
       const maxActivityLimit = request.configuration.options.respectMaxActivity ? row.bounds.maxActivity : null;
@@ -1027,7 +1027,7 @@ function estimateMinimumCommodityDemandForGroup(
       return left.commodityCoefficient - right.commodityCoefficient;
     }
 
-    return left.row.stateLabel.localeCompare(right.row.stateLabel);
+    return left.row.methodLabel.localeCompare(right.row.methodLabel);
   })) {
     if (remainingShare <= SHARE_TOLERANCE) {
       break;
@@ -1085,7 +1085,7 @@ function estimateMinimumCommodityDemandForDecomposedGroup(
       return left.commodityCoefficient - right.commodityCoefficient;
     }
 
-    return left.row.stateLabel.localeCompare(right.row.stateLabel);
+    return left.row.methodLabel.localeCompare(right.row.methodLabel);
   })) {
     if (remainingShare <= SHARE_TOLERANCE) {
       break;
@@ -1166,11 +1166,11 @@ function estimateMaximumSupplyActivity(
     return 0;
   }
 
-  const activeStateIds = group.control.activeStateIds ? new Set(group.control.activeStateIds) : null;
+  const activeMethodIds = group.control.activeMethodIds ? new Set(group.control.activeMethodIds) : null;
   const rows = includeInactiveStates
     ? group.rows
-    : activeStateIds
-      ? group.rows.filter((row) => activeStateIds.has(row.stateId))
+    : activeMethodIds
+      ? group.rows.filter((row) => activeMethodIds.has(row.methodId))
       : group.rows;
 
   if (rows.length === 0) {
@@ -1204,7 +1204,7 @@ function buildRequiredServiceInfeasibilityDiagnostics(build: ConfigurationLpBuil
       diagnostics.push({
         code: 'service_states_inactive',
         severity: 'error',
-        reason: 'inactive_states',
+        reason: 'inactive_methods',
         message: `${group.outputLabel} in ${group.year} has positive demand but every available method is inactive.`,
         ...buildConstraintContext(group.outputId, group.year),
         relatedConstraintIds: inactiveProfiles.map((profile) => stateConstraintId('inactive', profile.row)),
@@ -1235,9 +1235,9 @@ function buildRequiredServiceInfeasibilityDiagnostics(build: ConfigurationLpBuil
 
       if (inactiveProfiles.length > 0 && upperWithInactiveStates >= 1 - SHARE_TOLERANCE) {
         diagnostics.push({
-          code: 'service_inactive_states_exhausted',
+          code: 'service_inactive_methods_exhausted',
           severity: 'error',
-          reason: 'inactive_states',
+          reason: 'inactive_methods',
           message: `${group.outputLabel} in ${group.year} would have enough eligible share if inactive methods were activated.`,
           ...buildConstraintContext(group.outputId, group.year),
           relatedConstraintIds: inactiveProfiles.map((profile) => stateConstraintId('inactive', profile.row)),
@@ -1326,7 +1326,7 @@ function buildDecomposedServiceInfeasibilityDiagnostics(build: ConfigurationLpBu
         diagnostics.push({
           code: 'decomposition_child_inactive_coverage',
           severity: 'error',
-          reason: 'inactive_states',
+          reason: 'inactive_methods',
           message: `${group.outputLabel} in ${group.year} would have enough child-role coverage if inactive child methods were activated.`,
           ...buildConstraintContext(group.outputId, group.year),
           relatedConstraintIds: inactiveProfiles.map((profile) => stateConstraintId('inactive', profile.row)),
@@ -1411,7 +1411,7 @@ function buildSupplyCommodityInfeasibilityDiagnostics(build: ConfigurationLpBuil
         diagnostics.push({
           code: group.balanceKind === 'intermediate_material' ? inactiveSupplyCode : 'supply_states_inactive',
           severity: 'error',
-          reason: 'inactive_states',
+          reason: 'inactive_methods',
           message: `${group.commodityLabel} in ${group.year} is required, but every supply method is inactive.`,
           ...buildConstraintContext(group.commodityId, group.year),
           relatedConstraintIds: inactiveProfiles.map((profile) => stateConstraintId('inactive', profile.row)),
@@ -1462,7 +1462,7 @@ function buildSupplyCommodityInfeasibilityDiagnostics(build: ConfigurationLpBuil
         diagnostics.push({
           code: inactiveSupplyCode,
           severity: 'error',
-          reason: 'inactive_states',
+          reason: 'inactive_methods',
           message: `${group.commodityLabel} in ${group.year} would meet the minimum required ${formatNumber(minimumRequiredSupply)} units if inactive supply methods were activated.`,
           ...buildConstraintContext(group.commodityId, group.year),
           relatedConstraintIds: inactiveProfiles.map((profile) => stateConstraintId('inactive', profile.row)),
@@ -1491,7 +1491,7 @@ function compareDiagnostics(left: SolveDiagnostic, right: SolveDiagnostic): numb
   return severityRank[left.severity] - severityRank[right.severity]
     || (left.year ?? 0) - (right.year ?? 0)
     || (left.outputId ?? '').localeCompare(right.outputId ?? '')
-    || (left.stateId ?? '').localeCompare(right.stateId ?? '')
+    || (left.methodId ?? '').localeCompare(right.methodId ?? '')
     || left.code.localeCompare(right.code)
     || left.message.localeCompare(right.message);
 }
@@ -1506,7 +1506,7 @@ function dedupeAndSortDiagnostics(diagnostics: SolveDiagnostic[]): SolveDiagnost
       diagnostic.reason ?? '',
       diagnostic.outputId ?? '',
       diagnostic.year ?? '',
-      diagnostic.stateId ?? '',
+      diagnostic.methodId ?? '',
       diagnostic.rowId ?? '',
       diagnostic.message,
     ].join('|');
@@ -1613,7 +1613,7 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
 
   for (const group of requiredServiceGroups) {
     const demandId = demandConstraintId(group.outputId, group.year);
-    const activeStateIds = group.control.activeStateIds ? new Set(group.control.activeStateIds) : null;
+    const activeMethodIds = group.control.activeMethodIds ? new Set(group.control.activeMethodIds) : null;
     const maxShareLookup = buildEffectiveMaxShareLookup(group.rows, group.control);
 
     trackConstraint(
@@ -1635,7 +1635,7 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
       const variableId = activityVariableId(row);
       setVariableConstraintCoefficient(variables, variableId, demandId, 1);
 
-      if (activeStateIds && !activeStateIds.has(row.stateId)) {
+      if (activeMethodIds && !activeMethodIds.has(row.methodId)) {
         addConstraint(
           constraints,
           trackedConstraints,
@@ -1644,15 +1644,15 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
           stateConstraintId('inactive', row),
           scaleConstraintBounds({ equal: 0 }, activityScale),
           {
-            kind: 'inactive_state',
+            kind: 'inactive_method',
             outputId: row.outputId,
             outputLabel: row.outputLabel,
             year: row.year,
-            stateId: row.stateId,
-            stateLabel: row.stateLabel,
+            methodId: row.methodId,
+            methodLabel: row.methodLabel,
             rowId: row.rowId,
             mode: group.control.mode,
-            message: `${row.stateLabel} is inactive for ${row.outputLabel} in ${row.year}.`,
+            message: `${row.methodLabel} is inactive for ${row.outputLabel} in ${row.year}.`,
           },
         );
         continue;
@@ -1671,11 +1671,11 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
             outputId: row.outputId,
             outputLabel: row.outputLabel,
             year: row.year,
-            stateId: row.stateId,
-            stateLabel: row.stateLabel,
+            methodId: row.methodId,
+            methodLabel: row.methodLabel,
             rowId: row.rowId,
             mode: group.control.mode,
-            message: `${row.stateLabel} keeps at least its minimum share in ${row.outputLabel} ${row.year}.`,
+            message: `${row.methodLabel} keeps at least its minimum share in ${row.outputLabel} ${row.year}.`,
           },
         );
       }
@@ -1695,11 +1695,11 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
             outputId: row.outputId,
             outputLabel: row.outputLabel,
             year: row.year,
-            stateId: row.stateId,
-            stateLabel: row.stateLabel,
+            methodId: row.methodId,
+            methodLabel: row.methodLabel,
             rowId: row.rowId,
             mode: group.control.mode,
-            message: `${row.stateLabel} stays within its max share for ${row.outputLabel} in ${row.year}.`,
+            message: `${row.methodLabel} stays within its max share for ${row.outputLabel} in ${row.year}.`,
           },
         );
 
@@ -1728,11 +1728,11 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
             outputId: row.outputId,
             outputLabel: row.outputLabel,
             year: row.year,
-            stateId: row.stateId,
-            stateLabel: row.stateLabel,
+            methodId: row.methodId,
+            methodLabel: row.methodLabel,
             rowId: row.rowId,
             mode: group.control.mode,
-            message: `${row.stateLabel} stays within its max activity for ${row.outputLabel} in ${row.year}.`,
+            message: `${row.methodLabel} stays within its max activity for ${row.outputLabel} in ${row.year}.`,
           },
         );
 
@@ -1762,10 +1762,10 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
           outputId: group.outputId,
           outputLabel: group.outputLabel,
           year: group.year,
-          stateId: packageGroup.baseStateId,
-          stateLabel: packageGroup.baseStateLabel,
+          methodId: packageGroup.baseMethodId,
+          methodLabel: packageGroup.baseMethodLabel,
           mode: group.control.mode,
-          message: `${packageGroup.baseStateLabel} efficiency packages in non-stacking group ${packageGroup.nonStackingGroup} stay within their shared cap for ${group.outputLabel} in ${group.year}.`,
+          message: `${packageGroup.baseMethodLabel} efficiency packages in non-stacking group ${packageGroup.nonStackingGroup} stay within their shared cap for ${group.outputLabel} in ${group.year}.`,
         },
       );
     }
@@ -1807,11 +1807,11 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
             outputId: group.outputId,
             outputLabel: group.outputLabel,
             year: group.year,
-            stateId: row.stateId,
-            stateLabel: row.stateLabel,
+            methodId: row.methodId,
+            methodLabel: row.methodLabel,
             rowId: row.rowId,
             mode: control.mode,
-            message: `${row.stateLabel} keeps at least its minimum child-role share for ${group.outputLabel} in ${group.year}.`,
+            message: `${row.methodLabel} keeps at least its minimum child-role share for ${group.outputLabel} in ${group.year}.`,
           },
         );
       }
@@ -1831,11 +1831,11 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
             outputId: group.outputId,
             outputLabel: group.outputLabel,
             year: group.year,
-            stateId: row.stateId,
-            stateLabel: row.stateLabel,
+            methodId: row.methodId,
+            methodLabel: row.methodLabel,
             rowId: row.rowId,
             mode: control.mode,
-            message: `${row.stateLabel} stays within its child-role max share for ${group.outputLabel} in ${group.year}.`,
+            message: `${row.methodLabel} stays within its child-role max share for ${group.outputLabel} in ${group.year}.`,
           },
         );
 
@@ -1854,7 +1854,7 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
 
   for (const group of supplyGroups) {
     const variableIds = group.rows.map((row) => activityVariableId(row));
-    const activeStateIds = group.control.activeStateIds ? new Set(group.control.activeStateIds) : null;
+    const activeMethodIds = group.control.activeMethodIds ? new Set(group.control.activeMethodIds) : null;
     const maxShareLookup = buildEffectiveMaxShareLookup(group.rows, group.control);
 
     if (group.control.mode === 'externalized') {
@@ -1871,12 +1871,12 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
             outputId: row.outputId,
             outputLabel: row.outputLabel,
             year: row.year,
-            stateId: row.stateId,
-            stateLabel: row.stateLabel,
+            methodId: row.methodId,
+            methodLabel: row.methodLabel,
             rowId: row.rowId,
             commodityId: group.commodityId,
             mode: group.control.mode,
-            message: `${row.stateLabel} is bypassed because ${row.outputLabel} is externalized in ${row.year}.`,
+            message: `${row.methodLabel} is bypassed because ${row.outputLabel} is externalized in ${row.year}.`,
           },
         );
       }
@@ -1916,7 +1916,7 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
       const variableId = activityVariableId(row);
       setVariableConstraintCoefficient(variables, variableId, balanceId, 1);
 
-      if (activeStateIds && !activeStateIds.has(row.stateId)) {
+      if (activeMethodIds && !activeMethodIds.has(row.methodId)) {
         addConstraint(
           constraints,
           trackedConstraints,
@@ -1925,16 +1925,16 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
           stateConstraintId('inactive', row),
           scaleConstraintBounds({ equal: 0 }, activityScale),
           {
-            kind: 'inactive_state',
+            kind: 'inactive_method',
             outputId: row.outputId,
             outputLabel: row.outputLabel,
             year: row.year,
-            stateId: row.stateId,
-            stateLabel: row.stateLabel,
+            methodId: row.methodId,
+            methodLabel: row.methodLabel,
             rowId: row.rowId,
             commodityId: group.commodityId,
             mode: group.control.mode,
-            message: `${row.stateLabel} is inactive for ${row.outputLabel} in ${row.year}.`,
+            message: `${row.methodLabel} is inactive for ${row.outputLabel} in ${row.year}.`,
           },
         );
         continue;
@@ -1955,12 +1955,12 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
             outputId: row.outputId,
             outputLabel: row.outputLabel,
             year: row.year,
-            stateId: row.stateId,
-            stateLabel: row.stateLabel,
+            methodId: row.methodId,
+            methodLabel: row.methodLabel,
             rowId: row.rowId,
             commodityId: group.commodityId,
             mode: group.control.mode,
-            message: `${row.stateLabel} keeps at least its minimum share in ${row.outputLabel} ${row.year}.`,
+            message: `${row.methodLabel} keeps at least its minimum share in ${row.outputLabel} ${row.year}.`,
           },
         );
       }
@@ -1982,12 +1982,12 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
             outputId: row.outputId,
             outputLabel: row.outputLabel,
             year: row.year,
-            stateId: row.stateId,
-            stateLabel: row.stateLabel,
+            methodId: row.methodId,
+            methodLabel: row.methodLabel,
             rowId: row.rowId,
             commodityId: group.commodityId,
             mode: group.control.mode,
-            message: `${row.stateLabel} stays within its max share for ${row.outputLabel} in ${row.year}.`,
+            message: `${row.methodLabel} stays within its max share for ${row.outputLabel} in ${row.year}.`,
           },
         );
 
@@ -2016,12 +2016,12 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
             outputId: row.outputId,
             outputLabel: row.outputLabel,
             year: row.year,
-            stateId: row.stateId,
-            stateLabel: row.stateLabel,
+            methodId: row.methodId,
+            methodLabel: row.methodLabel,
             rowId: row.rowId,
             commodityId: group.commodityId,
             mode: group.control.mode,
-            message: `${row.stateLabel} stays within its max activity for ${row.outputLabel} in ${row.year}.`,
+            message: `${row.methodLabel} stays within its max activity for ${row.outputLabel} in ${row.year}.`,
           },
         );
 
@@ -2053,23 +2053,23 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
           outputId: group.commodityId,
           outputLabel: group.commodityLabel,
           year: group.year,
-          stateId: packageGroup.baseStateId,
-          stateLabel: packageGroup.baseStateLabel,
+          methodId: packageGroup.baseMethodId,
+          methodLabel: packageGroup.baseMethodLabel,
           commodityId: group.commodityId,
           mode: group.control.mode,
-          message: `${packageGroup.baseStateLabel} efficiency packages in non-stacking group ${packageGroup.nonStackingGroup} stay within their shared supply share for ${group.commodityLabel} in ${group.year}.`,
+          message: `${packageGroup.baseMethodLabel} efficiency packages in non-stacking group ${packageGroup.nonStackingGroup} stay within their shared supply share for ${group.commodityLabel} in ${group.year}.`,
         },
       );
     }
   }
 
   for (const group of optionalActivityGroups) {
-    const activeStateIds = group.control.activeStateIds ? new Set(group.control.activeStateIds) : null;
+    const activeMethodIds = group.control.activeMethodIds ? new Set(group.control.activeMethodIds) : null;
 
     for (const row of group.rows) {
       const variableId = activityVariableId(row);
 
-      if (activeStateIds && !activeStateIds.has(row.stateId)) {
+      if (activeMethodIds && !activeMethodIds.has(row.methodId)) {
         addConstraint(
           constraints,
           trackedConstraints,
@@ -2078,15 +2078,15 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
           stateConstraintId('inactive', row),
           scaleConstraintBounds({ equal: 0 }, activityScale),
           {
-            kind: 'inactive_state',
+            kind: 'inactive_method',
             outputId: row.outputId,
             outputLabel: row.outputLabel,
             year: row.year,
-            stateId: row.stateId,
-            stateLabel: row.stateLabel,
+            methodId: row.methodId,
+            methodLabel: row.methodLabel,
             rowId: row.rowId,
             mode: group.control.mode,
-            message: `${row.stateLabel} is inactive for ${row.outputLabel} in ${row.year}.`,
+            message: `${row.methodLabel} is inactive for ${row.outputLabel} in ${row.year}.`,
           },
         );
         continue;
@@ -2107,11 +2107,11 @@ function buildConfigurationLpModel(request: SolveRequest): ConfigurationLpBuild 
             outputId: row.outputId,
             outputLabel: row.outputLabel,
             year: row.year,
-            stateId: row.stateId,
-            stateLabel: row.stateLabel,
+            methodId: row.methodId,
+            methodLabel: row.methodLabel,
             rowId: row.rowId,
             mode: group.control.mode,
-            message: `${row.stateLabel} stays within its max activity for ${row.outputLabel} in ${row.year}.`,
+            message: `${row.methodLabel} stays within its max activity for ${row.outputLabel} in ${row.year}.`,
           },
         );
       }
@@ -2245,8 +2245,8 @@ function buildSoftConstraintDiagnostics(
       code: violation.kind === 'max_share' ? 'soft_max_share_relaxed' : 'soft_max_activity_relaxed',
       severity: 'warning',
       reason: violation.kind === 'max_share' ? 'share_exhaustion' : 'activity_exhaustion',
-      message: `Soft-constraint mode let ${violation.stateLabel ?? violation.outputLabel} exceed its ${kindLabel} for ${violation.outputLabel} in ${violation.year} by ${formatNumber(violation.slack)} units at a penalty of ${formatNumber(violation.totalPenalty)}.`,
-      ...buildConstraintContext(violation.outputId, violation.year, violation.stateId, violation.rowId),
+      message: `Soft-constraint mode let ${violation.methodLabel ?? violation.outputLabel} exceed its ${kindLabel} for ${violation.outputLabel} in ${violation.year} by ${formatNumber(violation.slack)} units at a penalty of ${formatNumber(violation.totalPenalty)}.`,
+      ...buildConstraintContext(violation.outputId, violation.year, violation.methodId, violation.rowId),
       relatedConstraintIds: [violation.constraintId],
       suggestion: violation.kind === 'max_share'
         ? 'Raise the max-share cap, add more eligible methods, or switch back to hard constraints once the diagnosis is complete.'
@@ -2265,11 +2265,11 @@ function buildVariableValueMap(solution: Solution<string>, activityScale: number
   return new Map(solution.variables.map(([id, value]) => [id, unscaleActivityValue(value, activityScale)]));
 }
 
-function buildStateShareSummary(
+function buildMethodShareSummary(
   request: SolveRequest,
   rows: NormalizedSolverRow[],
   variableValues: Map<string, number>,
-): SolveStateShareSummary[] {
+): SolveMethodShareSummary[] {
   const groupedRows = new Map<string, { outputId: string; outputLabel: string; year: number; rows: NormalizedSolverRow[] }>();
 
   for (const row of rows) {
@@ -2309,7 +2309,7 @@ function buildStateShareSummary(
       }, 0);
 
       return [...group.rows]
-        .sort((left, right) => left.stateLabel.localeCompare(right.stateLabel))
+        .sort((left, right) => left.methodLabel.localeCompare(right.methodLabel))
         .map((row) => {
           const activity = variableValues.get(activityVariableId(row)) ?? 0;
           const resolvedMaxShare = maxShareLookup.get(row.rowId) ?? {
@@ -2321,16 +2321,16 @@ function buildStateShareSummary(
             outputLabel: group.outputLabel,
             year: group.year,
             rowId: row.rowId,
-            stateId: row.stateId,
-            stateLabel: row.stateLabel,
-            pathwayStateId: row.provenance?.baseStateId ?? row.stateId,
-            pathwayStateLabel: row.provenance?.baseStateLabel ?? row.stateLabel,
+            methodId: row.methodId,
+            methodLabel: row.methodLabel,
+            pathwayMethodId: row.provenance?.baseMethodId ?? row.methodId,
+            pathwayMethodLabel: row.provenance?.baseMethodLabel ?? row.methodLabel,
             provenance: row.provenance,
             activity,
             share: totalActivity > 0 ? activity / totalActivity : null,
             rawMaxShare: resolvedMaxShare.rawMaxShare,
             effectiveMaxShare: resolvedMaxShare.effectiveMaxShare,
-          } satisfies SolveStateShareSummary;
+          } satisfies SolveMethodShareSummary;
         });
     });
 }
@@ -2444,8 +2444,8 @@ function buildBindingConstraintSummary(
         outputId: constraint.outputId,
         outputLabel: constraint.outputLabel,
         year: constraint.year,
-        stateId: constraint.stateId,
-        stateLabel: constraint.stateLabel,
+        methodId: constraint.methodId,
+        methodLabel: constraint.methodLabel,
         rowId: constraint.rowId,
         commodityId: constraint.commodityId,
         mode: constraint.mode,
@@ -2457,7 +2457,7 @@ function buildBindingConstraintSummary(
       return left.year - right.year
         || left.outputId.localeCompare(right.outputId)
         || left.kind.localeCompare(right.kind)
-        || (left.stateId ?? '').localeCompare(right.stateId ?? '')
+        || (left.methodId ?? '').localeCompare(right.methodId ?? '')
         || left.constraintId.localeCompare(right.constraintId);
     });
 }
@@ -2494,8 +2494,8 @@ function buildSoftConstraintViolationSummary(
         outputId: constraint.outputId,
         outputLabel: constraint.outputLabel,
         year: constraint.year,
-        stateId: constraint.stateId,
-        stateLabel: constraint.stateLabel,
+        methodId: constraint.methodId,
+        methodLabel: constraint.methodLabel,
         rowId: constraint.rowId,
         commodityId: constraint.commodityId,
         mode: constraint.mode,
@@ -2507,7 +2507,7 @@ function buildSoftConstraintViolationSummary(
       return left.year - right.year
         || left.outputId.localeCompare(right.outputId)
         || left.kind.localeCompare(right.kind)
-        || (left.stateId ?? '').localeCompare(right.stateId ?? '')
+        || (left.methodId ?? '').localeCompare(right.methodId ?? '')
         || left.constraintId.localeCompare(right.constraintId);
     });
 }
@@ -2521,7 +2521,7 @@ function buildReportingSummary(
 
   return {
     commodityBalances: buildCommodityBalanceSummary(request, build, variableValues),
-    stateShares: buildStateShareSummary(request, build.activeRows, variableValues),
+    methodShares: buildMethodShareSummary(request, build.activeRows, variableValues),
     bindingConstraints: buildBindingConstraintSummary(solution, build),
     softConstraintViolations: buildSoftConstraintViolationSummary(solution, build),
   };
@@ -2560,7 +2560,7 @@ export function inspectConfigurationLpBuild(request: SolveRequest) {
       year: group.year,
       demand: group.demand,
       mode: group.control.mode,
-      activeStateIds: group.control.activeStateIds,
+      activeMethodIds: group.control.activeMethodIds,
       rowCount: group.rows.length,
     })),
     decomposedServiceGroups: build.decomposedServiceGroups.map((group) => ({
@@ -2579,7 +2579,7 @@ export function inspectConfigurationLpBuild(request: SolveRequest) {
       year: group.year,
       externalDemand: group.externalDemand,
       mode: group.control.mode,
-      activeStateIds: group.control.activeStateIds,
+      activeMethodIds: group.control.activeMethodIds,
       rowCount: group.rows.length,
     })),
     optionalActivityGroups: build.optionalActivityGroups.map((group) => ({
@@ -2587,7 +2587,7 @@ export function inspectConfigurationLpBuild(request: SolveRequest) {
       outputLabel: group.outputLabel,
       year: group.year,
       mode: group.control.mode,
-      activeStateIds: group.control.activeStateIds,
+      activeMethodIds: group.control.activeMethodIds,
       rowCount: group.rows.length,
     })),
     variableCount: Object.keys(build.model.variables).length,

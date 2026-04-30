@@ -264,7 +264,7 @@ function nodeColor(node: SystemFlowNode): string {
   }
 
   if (node.kind === 'route') {
-    return getPresentation('state', node.baseStateId ?? node.stateId ?? node.id, node.label).color;
+    return getPresentation('state', node.baseMethodId ?? node.methodId ?? node.id, node.label).color;
   }
 
   if (node.outputId) {
@@ -358,7 +358,7 @@ function routeNodeHeight(variantCount: number): number {
 }
 
 function routeLabel(primary: SystemFlowNode): string {
-  return primary.variantOfBaseRoute ? primary.baseStateLabel ?? primary.label : primary.label;
+  return primary.variantOfBaseRoute ? primary.baseMethodLabel ?? primary.label : primary.label;
 }
 
 function buildRouteItems(nodes: SystemFlowNode[], viewMode: SystemFlowViewMode): DiagramItem[] {

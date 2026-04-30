@@ -75,7 +75,7 @@ test('canonical configuration and app-config surfaces do not use removed model t
     ...listJsonFiles('src/app_config'),
     ...listJsonFiles('public/app_config'),
   ];
-  const removedTerm = /\b(service_controls|active_state_ids|sector_states|simple_sector_growth|family|families|state|states)\b/i;
+  const removedTerm = /\b(service_controls|active_state_ids|resolved_method_years|simple_sector_growth|family|families|state|states)\b/i;
 
   for (const relativePath of [...configPaths, ...appConfigPaths]) {
     const json = readJson(relativePath);
@@ -176,7 +176,7 @@ test('canonical package docs keep removed model terms out of active surfaces', (
       `energy_system_representation_library/roles/${roleId}/validation.md`,
     ]),
   ];
-  const removedTerm = /\b(family_id|state_id|family_states|sector_states|service_controls|active_state_ids|SectorState|state-year|family\/state)\b/i;
+  const removedTerm = /\b(family_id|state_id|family_states|resolved_method_years|service_controls|active_state_ids|ResolvedMethodYearRow|state-year|family\/state)\b/i;
 
   for (const relativePath of docPaths) {
     assert.doesNotMatch(readFileSync(join(REPO_ROOT, relativePath), 'utf8'), removedTerm, relativePath);

@@ -19,7 +19,7 @@ import {
 } from './appUiState.ts';
 import { PRICE_LEVELS, type PriceLevel } from './types.ts';
 
-export const APP_UI_STATE_STORAGE_KEY = 'simple-msm.app-ui-state.v1';
+export const APP_UI_STATE_STORAGE_KEY = 'simple-msm.app-ui-state.v2';
 
 function cloneDefaultAppUiState(): AppUiState {
   return structuredClone(DEFAULT_APP_UI_STATE);
@@ -265,14 +265,15 @@ function sanitizeParsedAppUiState(value: unknown): AppUiState {
         fallback.library.sidebarCollapsed,
       ),
       filters: sanitizeLibraryFilters(library.filters),
-      selectedSector: readString(library.selectedSector, fallback.library.selectedSector),
-      selectedSubsector: readString(
-        library.selectedSubsector,
-        fallback.library.selectedSubsector,
+      selectedRoleId: readNullableString(library.selectedRoleId, fallback.library.selectedRoleId),
+      selectedRepresentationId: readNullableString(
+        library.selectedRepresentationId,
+        fallback.library.selectedRepresentationId,
       ),
-      selectedTrajectoryId: readNullableString(
-        library.selectedTrajectoryId,
-        fallback.library.selectedTrajectoryId,
+      selectedMethodId: readNullableString(library.selectedMethodId, fallback.library.selectedMethodId),
+      roleGraphExpandedNodeIds: readStringArray(
+        library.roleGraphExpandedNodeIds,
+        fallback.library.roleGraphExpandedNodeIds,
       ),
     },
     methods: {

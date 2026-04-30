@@ -4,11 +4,11 @@
  * Provides data loading, configuration building, and assertion helpers.
  */
 import { readFileSync } from 'node:fs';
-import { materializeServiceControlsFromRoleControls } from '../src/data/configurationRoleControls.ts';
 import { loadPackage } from '../src/data/packageLoader.ts';
 import { resolveConfigurationDocument as resolveConfigurationDocument } from '../src/data/demandResolution.ts';
 import { buildSolveRequest } from '../src/solver/buildSolveRequest.ts';
 import { solveWithLpAdapter } from '../src/solver/lpAdapter.ts';
+import { materializeServiceControlsFromRoleControls } from './roleControlTestUtils.mjs';
 
 // --- Incumbent state IDs ---
 
@@ -61,7 +61,7 @@ export function loadReferenceConfiguration() {
   const pkg = loadPkg();
   return materializeServiceControlsFromRoleControls(
     readJson('../src/configurations/reference-baseline.json'),
-    { sectorStates: pkg.sectorStates },
+    { resolvedMethodYears: pkg.resolvedMethodYears },
   );
 }
 
@@ -114,7 +114,7 @@ export function solveScoped(pkg, configuration, seedOutputIds) {
 
   const request = buildSolveRequest(
     {
-      sectorStates: pkg.sectorStates,
+      resolvedMethodYears: pkg.resolvedMethodYears,
       appConfig: pkg.appConfig,
       autonomousEfficiencyTracks: pkg.autonomousEfficiencyTracks,
       efficiencyPackages: pkg.efficiencyPackages,

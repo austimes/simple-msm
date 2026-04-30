@@ -16,11 +16,11 @@ const pkg = loadPkg();
 const overlayRows = pkg.residualOverlays2025;
 const commodityBalanceRows = pkg.commodityBalance2025;
 const emissionsBalanceRows = pkg.emissionsBalance2025;
-const residualFamilyRows = pkg.sectorStates.filter(
+const residualFamilyRows = pkg.resolvedMethodYears.filter(
   (row) => row.family_resolution === 'residual_stub' && row.year === 2025,
 );
 const residualFamilyIds = new Set(residualFamilyRows.map((row) => row.family_id));
-const totals = summarizeResidualFamilyTotals(pkg.sectorStates);
+const totals = summarizeResidualFamilyTotals(pkg.resolvedMethodYears);
 
 describe('Residual family migration', () => {
   it('residual overlays are removed from the canonical web package load', () => {

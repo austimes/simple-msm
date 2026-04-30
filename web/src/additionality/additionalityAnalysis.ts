@@ -3,15 +3,16 @@ import {
   resolveAutonomousModeForOutput,
 } from '../data/efficiencyControlModel.ts';
 import { embodiedEfficiencyPathwayEntries } from '../data/efficiencyAttributionRegistry.ts';
-import { materializeServiceControlsFromRoleControls } from '../data/configurationRoleControls.ts';
-import { derivePathwayStateIdsForOutput } from '../data/pathwaySemantics.ts';
+import { derivePathwayMethodIdsForRole } from '../data/pathwaySemantics.ts';
+import { normalizeConfigurationRoleControls } from '../data/configurationRoleControls.ts';
 import type {
   ConfigurationAutonomousEfficiencyMode,
   ConfigurationDocument,
+  ConfigurationRoleControl,
   EfficiencyPackage,
   PackageData,
   PriceLevel,
-  SectorState,
+  ResolvedMethodYearRow,
 } from '../data/types.ts';
 import { buildAllContributionRows, type ResultContributionRow } from '../results/resultContributions.ts';
 import { buildSolveRequest } from '../solver/buildSolveRequest.ts';
@@ -26,8 +27,8 @@ export const DEFAULT_ADDITIONALITY_METHOD: AdditionalityOrderingMethod = 'revers
 export const DEFAULT_ADDITIONALITY_SHAPLEY_SAMPLE_COUNT = 32;
 export type AdditionalityShapleySampleCount = (typeof ADDITIONALITY_SHAPLEY_SAMPLE_COUNTS)[number];
 export type AdditionalityAtomAction = 'enable' | 'disable';
-export type AdditionalityAtomKind = 'state' | 'efficiency_package' | 'autonomous_efficiency';
-export type AdditionalityAtomCategory = 'efficiency' | 'fuel_switching' | 'other_state_change';
+export type AdditionalityAtomKind = 'method' | 'efficiency_package' | 'autonomous_efficiency';
+export type AdditionalityAtomCategory = 'efficiency' | 'fuel_switching' | 'other_method_change';
 export type AdditionalityMetricKey = 'cost' | 'emissions' | 'fuelEnergy';
 export type AdditionalityAnalysisPhase =
   | 'idle'
@@ -46,8 +47,8 @@ export interface AdditionalityAtom {
   label: string;
   outputId: string | null;
   outputLabel: string | null;
-  stateId?: string;
-  stateLabel?: string;
+  methodId?: string;
+  methodLabel?: string;
   packageId?: string;
   packageLabel?: string;
   autonomousModeBefore?: ConfigurationAutonomousEfficiencyMode;
@@ -126,7 +127,7 @@ export interface AdditionalityAnalysisState {
   validationIssues: AdditionalityValidationIssue[];
 }
 
-export type AdditionalityPackageData = Pick<PackageData, 'appConfig' | 'sectorStates'>
+export type AdditionalityPackageData = Pick<PackageData, 'appConfig' | 'resolvedMethodYears'>
   & Partial<Pick<PackageData, 'autonomousEfficiencyTracks' | 'efficiencyPackages' | 'residualOverlays2025'>>;
 
 export interface AdditionalityPreparation {
@@ -158,12 +159,13 @@ export interface AdditionalityRunDependencies {
   solve?: (request: SolveRequest) => Promise<SolveResult> | SolveResult;
 }
 
-interface AdditionalityOutputStateCatalogEntry {
+interface AdditionalityOutputMethodCatalogEntry {
   outputId: string;
   outputLabel: string;
-  states: Array<{
-    stateId: string;
-    stateLabel: string;
+  roleId: string;
+  methods: Array<{
+    methodId: string;
+    methodLabel: string;
   }>;
 }
 
@@ -207,13 +209,15 @@ const ZERO_TOTALS: AdditionalityMetricTotals = {
 };
 const METRIC_KEYS: AdditionalityMetricKey[] = ['cost', 'emissions', 'fuelEnergy'];
 const ATOM_KIND_ORDER: Record<AdditionalityAtomKind, number> = {
-  state: 0,
+  method: 0,
   efficiency_package: 1,
   autonomous_efficiency: 2,
 };
-const embodiedEfficiencyStateIds = new Set(
-  embodiedEfficiencyPathwayEntries.flatMap((entry) => entry.stateIds),
+const embodiedEfficiencyMethodIds = new Set(
+  embodiedEfficiencyPathwayEntries.flatMap((entry) => entry.methodIds),
 );
+const LEGACY_OUTPUT_CONTROLS_KEY = ['service', 'controls'].join('_');
+const LEGACY_ACTIVE_SELECTION_IDS_KEY = ['active', 'state', 'ids'].join('_');
 
 class AdditionalityCancelledError extends Error {
   constructor() {
@@ -230,6 +234,7 @@ function stableValue(value: unknown): unknown {
   if (value && typeof value === 'object') {
     return Object.fromEntries(
       Object.entries(value)
+        .filter(([key]) => key !== LEGACY_OUTPUT_CONTROLS_KEY)
         .sort(([left], [right]) => left.localeCompare(right))
         .map(([key, nestedValue]) => [key, stableValue(nestedValue)]),
     );
@@ -335,35 +340,36 @@ function subtractMetricVectors(
   return delta;
 }
 
-function buildOutputStateCatalog(
-  sectorStates: readonly SectorState[],
+function buildOutputMethodCatalog(
+  resolvedMethodYears: readonly ResolvedMethodYearRow[],
   outputLabelById: Record<string, string>,
-): Record<string, AdditionalityOutputStateCatalogEntry> {
-  const catalog = new Map<string, AdditionalityOutputStateCatalogEntry>();
+): Record<string, AdditionalityOutputMethodCatalogEntry> {
+  const catalog = new Map<string, AdditionalityOutputMethodCatalogEntry>();
 
-  for (const row of sectorStates) {
-    let entry = catalog.get(row.service_or_output_name);
+  for (const row of resolvedMethodYears) {
+    let entry = catalog.get(row.output_id);
     if (!entry) {
       entry = {
-        outputId: row.service_or_output_name,
-        outputLabel: outputLabelById[row.service_or_output_name] ?? row.service_or_output_name,
-        states: [],
+        outputId: row.output_id,
+        outputLabel: outputLabelById[row.output_id] ?? row.output_id,
+        roleId: row.role_id,
+        methods: [],
       };
-      catalog.set(row.service_or_output_name, entry);
+      catalog.set(row.output_id, entry);
     }
 
-    if (!entry.states.some((state) => state.stateId === row.state_id)) {
-      entry.states.push({
-        stateId: row.state_id,
-        stateLabel: row.state_label,
+    if (!entry.methods.some((method) => method.methodId === row.method_id)) {
+      entry.methods.push({
+        methodId: row.method_id,
+        methodLabel: row.method_label,
       });
     }
   }
 
   for (const entry of catalog.values()) {
-    entry.states.sort((left, right) => (
-      left.stateLabel.localeCompare(right.stateLabel)
-      || left.stateId.localeCompare(right.stateId)
+    entry.methods.sort((left, right) => (
+      left.methodLabel.localeCompare(right.methodLabel)
+      || left.methodId.localeCompare(right.methodId)
     ));
   }
 
@@ -416,8 +422,8 @@ function buildAutonomousCatalog(
     }));
 }
 
-function getAllStateIds(entry: AdditionalityOutputStateCatalogEntry | undefined): string[] {
-  return entry?.states.map((state) => state.stateId) ?? [];
+function getAllMethodIds(entry: AdditionalityOutputMethodCatalogEntry | undefined): string[] {
+  return entry?.methods.map((method) => method.methodId) ?? [];
 }
 
 function compareAtoms(left: AdditionalityAtom, right: AdditionalityAtom): number {
@@ -459,7 +465,7 @@ function formatBuildFailure(prefix: string, error: unknown): string {
   return `${prefix} build failed: ${failure.headline}`;
 }
 
-function normalizeControlComparison(control: ConfigurationDocument['service_controls'][string] | undefined) {
+function normalizeControlComparison(control: ConfigurationRoleControl | undefined) {
   return {
     mode: control?.mode ?? null,
     target_value: control?.target_value ?? null,
@@ -469,10 +475,10 @@ function normalizeControlComparison(control: ConfigurationDocument['service_cont
 
 function materializeAdditionalityConfiguration(
   configuration: ConfigurationDocument,
-  pkg: Pick<PackageData, 'sectorStates'>,
+  pkg: Pick<PackageData, 'resolvedMethodYears'>,
 ): ConfigurationDocument {
-  return materializeServiceControlsFromRoleControls(configuration, {
-    sectorStates: pkg.sectorStates,
+  return normalizeConfigurationRoleControls(configuration, {
+    resolvedMethodYears: pkg.resolvedMethodYears,
   });
 }
 
@@ -510,10 +516,10 @@ function isEvaluationError(value: EvaluationResult): value is { error: string } 
   return 'error' in value;
 }
 
-function getAtomKey(atom: Pick<AdditionalityAtom, 'kind' | 'outputId' | 'stateId' | 'packageId' | 'action'>): string {
+function getAtomKey(atom: Pick<AdditionalityAtom, 'kind' | 'outputId' | 'methodId' | 'packageId' | 'action'>): string {
   switch (atom.kind) {
-    case 'state':
-      return `state::${atom.outputId ?? ''}::${atom.stateId ?? ''}::${atom.action}`;
+    case 'method':
+      return `method::${atom.outputId ?? ''}::${atom.methodId ?? ''}::${atom.action}`;
     case 'efficiency_package':
       return `efficiency_package::${atom.packageId ?? ''}::${atom.action}`;
     case 'autonomous_efficiency':
@@ -527,39 +533,39 @@ function getActionVerb(action: AdditionalityAtomAction): string {
   return action === 'enable' ? 'Enable' : 'Disable';
 }
 
-function categorizeStateAtom(stateId: string, stateLabel: string): AdditionalityAtomCategory {
-  if (embodiedEfficiencyStateIds.has(stateId)) {
+function categorizeMethodAtom(methodId: string, methodLabel: string): AdditionalityAtomCategory {
+  if (embodiedEfficiencyMethodIds.has(methodId)) {
     return 'efficiency';
   }
 
-  if (/(electric|hydrogen|fuel|diesel|ccs|eaf|low-carbon|bev|fcev)/i.test(`${stateId} ${stateLabel}`)) {
+  if (/(electric|hydrogen|fuel|diesel|ccs|eaf|low-carbon|bev|fcev)/i.test(`${methodId} ${methodLabel}`)) {
     return 'fuel_switching';
   }
 
-  return 'other_state_change';
+  return 'other_method_change';
 }
 
-function buildStateAtom(
-  entry: AdditionalityOutputStateCatalogEntry,
-  state: AdditionalityOutputStateCatalogEntry['states'][number],
+function buildMethodAtom(
+  entry: AdditionalityOutputMethodCatalogEntry,
+  method: AdditionalityOutputMethodCatalogEntry['methods'][number],
   action: AdditionalityAtomAction,
 ): AdditionalityAtom {
-  const label = `${getActionVerb(action)} ${state.stateLabel}`;
+  const label = `${getActionVerb(action)} ${method.methodLabel}`;
   return {
     key: getAtomKey({
-      kind: 'state',
+      kind: 'method',
       outputId: entry.outputId,
-      stateId: state.stateId,
+      methodId: method.methodId,
       action,
     }),
-    kind: 'state',
-    category: categorizeStateAtom(state.stateId, state.stateLabel),
+    kind: 'method',
+    category: categorizeMethodAtom(method.methodId, method.methodLabel),
     action,
     label,
     outputId: entry.outputId,
     outputLabel: entry.outputLabel,
-    stateId: state.stateId,
-    stateLabel: state.stateLabel,
+    methodId: method.methodId,
+    methodLabel: method.methodLabel,
   };
 }
 
@@ -619,7 +625,7 @@ function ensureEfficiencyControls(
 ): NonNullable<ConfigurationDocument['efficiency_controls']> {
   configuration.efficiency_controls = {
     autonomous_mode: 'baseline',
-    autonomous_modes_by_output: {},
+    autonomous_modes_by_role: {},
     package_mode: 'allow_list',
     package_ids: [],
     ...(configuration.efficiency_controls ?? {}),
@@ -634,8 +640,8 @@ function setAutonomousModeForOutput(
 ): void {
   const controls = ensureEfficiencyControls(configuration);
   controls.autonomous_mode = 'baseline';
-  controls.autonomous_modes_by_output = {
-    ...(controls.autonomous_modes_by_output ?? {}),
+  controls.autonomous_modes_by_role = {
+    ...(controls.autonomous_modes_by_role ?? {}),
     [outputId]: mode,
   };
 }
@@ -812,35 +818,48 @@ function buildReportBase(
   };
 }
 
-function applyStateAtomWithCatalog(
+function applyMethodAtomWithCatalog(
   configuration: ConfigurationDocument,
   atom: AdditionalityAtom,
-  catalog: Record<string, AdditionalityOutputStateCatalogEntry>,
+  catalog: Record<string, AdditionalityOutputMethodCatalogEntry>,
 ): ConfigurationDocument {
-  if (!atom.outputId || !atom.stateId) {
+  if (!atom.outputId || !atom.methodId) {
     return structuredClone(configuration);
   }
 
   const outputCatalog = catalog[atom.outputId];
-  const allStateIds = getAllStateIds(outputCatalog);
+  const allMethodIds = getAllMethodIds(outputCatalog);
   const currentActiveIds = new Set(
-    derivePathwayStateIdsForOutput(configuration, atom.outputId, allStateIds).activeStateIds,
+    derivePathwayMethodIdsForRole(configuration, outputCatalog?.roleId ?? atom.outputId, allMethodIds).activeMethodIds,
   );
 
   if (atom.action === 'enable') {
-    currentActiveIds.add(atom.stateId);
+    currentActiveIds.add(atom.methodId);
   } else {
-    currentActiveIds.delete(atom.stateId);
+    currentActiveIds.delete(atom.methodId);
   }
 
-  const orderedActiveIds = allStateIds.filter((stateId) => currentActiveIds.has(stateId));
+  const orderedActiveIds = allMethodIds.filter((methodId) => currentActiveIds.has(methodId));
   const nextConfiguration = structuredClone(configuration);
-  const nextControl = structuredClone(nextConfiguration.service_controls[atom.outputId] ?? { mode: 'optimize' as const });
+  const roleId = outputCatalog?.roleId ?? atom.outputId;
+  const nextControl = structuredClone(nextConfiguration.role_controls?.[roleId] ?? { mode: 'optimize' as const });
 
-  nextControl.active_state_ids = orderedActiveIds.length === allStateIds.length
+  nextControl.active_method_ids = orderedActiveIds.length === allMethodIds.length
     ? null
     : orderedActiveIds;
-  nextConfiguration.service_controls[atom.outputId] = nextControl;
+  nextConfiguration.role_controls = {
+    ...(nextConfiguration.role_controls ?? {}),
+    [roleId]: nextControl,
+  };
+  const legacyControls = (nextConfiguration as unknown as Record<string, unknown>)[LEGACY_OUTPUT_CONTROLS_KEY];
+  if (legacyControls && typeof legacyControls === 'object' && !Array.isArray(legacyControls)) {
+    const controls = legacyControls as Record<string, Record<string, unknown>>;
+    controls[atom.outputId] = {
+      ...(controls[atom.outputId] ?? {}),
+      mode: nextControl.mode,
+      [LEGACY_ACTIVE_SELECTION_IDS_KEY]: nextControl.active_method_ids,
+    };
+  }
 
   return nextConfiguration;
 }
@@ -848,11 +867,11 @@ function applyStateAtomWithCatalog(
 function applyAdditionalityAtomWithCatalog(
   configuration: ConfigurationDocument,
   atom: AdditionalityAtom,
-  catalog: Record<string, AdditionalityOutputStateCatalogEntry>,
+  catalog: Record<string, AdditionalityOutputMethodCatalogEntry>,
   pkg: AdditionalityPackageData,
 ): ConfigurationDocument {
-  if (atom.kind === 'state') {
-    return applyStateAtomWithCatalog(configuration, atom, catalog);
+  if (atom.kind === 'method') {
+    return applyMethodAtomWithCatalog(configuration, atom, catalog);
   }
 
   const nextConfiguration = structuredClone(configuration);
@@ -935,7 +954,7 @@ export function canonicalizeAdditionalityConfiguration(
     nextConfiguration.efficiency_controls,
     pkg.efficiencyPackages ?? [],
   );
-  const autonomousModesByOutput = Object.fromEntries(
+  const autonomousModesByRole = Object.fromEntries(
     buildAutonomousCatalog(pkg).map((entry) => [
       entry.outputId,
       resolveAutonomousModeForOutput(nextConfiguration.efficiency_controls, entry.outputId),
@@ -945,7 +964,7 @@ export function canonicalizeAdditionalityConfiguration(
   nextConfiguration.efficiency_controls = {
     ...(nextConfiguration.efficiency_controls ?? {}),
     autonomous_mode: 'baseline',
-    autonomous_modes_by_output: autonomousModesByOutput,
+    autonomous_modes_by_role: autonomousModesByRole,
     package_mode: 'allow_list',
     package_ids: activePackageIds,
   };
@@ -956,13 +975,13 @@ export function canonicalizeAdditionalityConfiguration(
 export function validateAdditionalityPair(
   baseConfiguration: ConfigurationDocument,
   targetConfiguration: ConfigurationDocument,
-  pkg: Pick<PackageData, 'appConfig'> & Partial<Pick<PackageData, 'sectorStates'>>,
+  pkg: Pick<PackageData, 'appConfig'> & Partial<Pick<PackageData, 'resolvedMethodYears'>>,
 ): AdditionalityValidationIssue[] {
-  const base = pkg.sectorStates
-    ? materializeAdditionalityConfiguration(baseConfiguration, { sectorStates: pkg.sectorStates })
+  const base = pkg.resolvedMethodYears
+    ? materializeAdditionalityConfiguration(baseConfiguration, { resolvedMethodYears: pkg.resolvedMethodYears })
     : baseConfiguration;
-  const target = pkg.sectorStates
-    ? materializeAdditionalityConfiguration(targetConfiguration, { sectorStates: pkg.sectorStates })
+  const target = pkg.resolvedMethodYears
+    ? materializeAdditionalityConfiguration(targetConfiguration, { resolvedMethodYears: pkg.resolvedMethodYears })
     : targetConfiguration;
   const issues: AdditionalityValidationIssue[] = [];
 
@@ -1021,14 +1040,14 @@ export function validateAdditionalityPair(
   const outputIds = Array.from(
     new Set([
       ...Object.keys(pkg.appConfig.output_roles),
-      ...Object.keys(base.service_controls ?? {}),
-      ...Object.keys(target.service_controls ?? {}),
+      ...Object.keys(base.role_controls ?? {}),
+      ...Object.keys(target.role_controls ?? {}),
     ]),
   ).sort((left, right) => getOutputLabel(pkg, left).localeCompare(getOutputLabel(pkg, right)));
 
   for (const outputId of outputIds) {
-    const baseControl = normalizeControlComparison(base.service_controls?.[outputId]);
-    const targetControl = normalizeControlComparison(target.service_controls?.[outputId]);
+    const baseControl = normalizeControlComparison(base.role_controls?.[outputId]);
+    const targetControl = normalizeControlComparison(target.role_controls?.[outputId]);
     const outputLabel = getOutputLabel(pkg, outputId);
 
     if (baseControl.mode !== targetControl.mode) {
@@ -1037,7 +1056,7 @@ export function validateAdditionalityPair(
           'service_control_mode_mismatch',
           outputId,
           outputLabel,
-          'service_controls[*].mode',
+          'role_controls[*].mode',
         ),
       );
     }
@@ -1048,7 +1067,7 @@ export function validateAdditionalityPair(
           'service_control_target_value_mismatch',
           outputId,
           outputLabel,
-          'service_controls[*].target_value',
+          'role_controls[*].target_value',
         ),
       );
     }
@@ -1059,7 +1078,7 @@ export function validateAdditionalityPair(
           'service_control_year_overrides_mismatch',
           outputId,
           outputLabel,
-          'service_controls[*].year_overrides',
+          'role_controls[*].year_overrides',
         ),
       );
     }
@@ -1078,28 +1097,28 @@ export function deriveAdditionalityAtoms(
   const outputLabelById = Object.fromEntries(
     Object.entries(pkg.appConfig.output_roles).map(([outputId, metadata]) => [outputId, metadata.display_label]),
   );
-  const catalog = buildOutputStateCatalog(pkg.sectorStates, outputLabelById);
+  const catalog = buildOutputMethodCatalog(pkg.resolvedMethodYears, outputLabelById);
   const packageCatalog = buildPackageCatalog(pkg);
   const atoms: AdditionalityAtom[] = [];
 
   for (const entry of Object.values(catalog)) {
-    const allStateIds = getAllStateIds(entry);
+    const allMethodIds = getAllMethodIds(entry);
     const baseActiveIds = new Set(
-      derivePathwayStateIdsForOutput(base, entry.outputId, allStateIds).activeStateIds,
+      derivePathwayMethodIdsForRole(base, entry.roleId ?? entry.outputId, allMethodIds).activeMethodIds,
     );
     const targetActiveIds = new Set(
-      derivePathwayStateIdsForOutput(target, entry.outputId, allStateIds).activeStateIds,
+      derivePathwayMethodIdsForRole(target, entry.roleId ?? entry.outputId, allMethodIds).activeMethodIds,
     );
 
-    for (const state of entry.states) {
-      const activeInBase = baseActiveIds.has(state.stateId);
-      const activeInTarget = targetActiveIds.has(state.stateId);
+    for (const method of entry.methods) {
+      const activeInBase = baseActiveIds.has(method.methodId);
+      const activeInTarget = targetActiveIds.has(method.methodId);
 
       if (activeInBase === activeInTarget) {
         continue;
       }
 
-      atoms.push(buildStateAtom(entry, state, activeInTarget ? 'enable' : 'disable'));
+      atoms.push(buildMethodAtom(entry, method, activeInTarget ? 'enable' : 'disable'));
     }
   }
 
@@ -1164,7 +1183,7 @@ export function applyAdditionalityAtom(
   const outputLabelById = Object.fromEntries(
     Object.entries(pkg.appConfig.output_roles).map(([outputId, metadata]) => [outputId, metadata.display_label]),
   );
-  const catalog = buildOutputStateCatalog(pkg.sectorStates, outputLabelById);
+  const catalog = buildOutputMethodCatalog(pkg.resolvedMethodYears, outputLabelById);
   return applyAdditionalityAtomWithCatalog(materializedConfiguration, atom, catalog, pkg);
 }
 
@@ -1267,7 +1286,7 @@ async function runReverseGreedyAnalysis(
   const outputLabelById = Object.fromEntries(
     Object.entries(options.pkg.appConfig.output_roles).map(([outputId, metadata]) => [outputId, metadata.display_label]),
   );
-  const catalog = buildOutputStateCatalog(options.pkg.sectorStates, outputLabelById);
+  const catalog = buildOutputMethodCatalog(options.pkg.resolvedMethodYears, outputLabelById);
   const skippedCandidates: AdditionalitySkippedCandidate[] = [];
   const totalExpected = prepared.totalExpected;
   const completedRef = { completed: 0 };

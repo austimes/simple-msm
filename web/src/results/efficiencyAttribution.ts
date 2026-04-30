@@ -1,7 +1,7 @@
 import type { StackedChartData } from './chartData.ts';
 import type { ResultContributionRow } from './resultContributions.ts';
 import type { EfficiencyAttributionCategory } from './efficiencyAttributionTypes.ts';
-import { embodiedEfficiencyPathwayStateIds } from '../data/efficiencyAttributionRegistry.ts';
+import { embodiedEfficiencyPathwayMethodIds } from '../data/efficiencyAttributionRegistry.ts';
 
 const ATTRIBUTION_EPSILON = 1e-9;
 
@@ -28,7 +28,7 @@ interface EfficiencyAttributionOutputMetric {
   outputId: string;
   totalsByRun: Record<RunSide, number>;
   componentTotalsByRun: Record<RunSide, Map<EfficiencyAttributionCategory, number>>;
-  hasEmbodiedPathwayState: boolean;
+  hasEmbodiedPathwayMethod: boolean;
 }
 
 export interface EfficiencyAttributionRow {
@@ -89,12 +89,12 @@ function addToMap<T extends string>(map: Map<T, number>, key: T, value: number):
   map.set(key, (map.get(key) ?? 0) + value);
 }
 
-function getTaggedStateId(row: ResultContributionRow): string | null {
-  return row.pathwayStateId ?? row.provenance?.baseStateId ?? row.sourceId;
+function getTaggedMethodId(row: ResultContributionRow): string | null {
+  return row.pathwayMethodId ?? row.provenance?.baseMethodId ?? row.sourceId;
 }
 
-function hasEmbodiedPathwayState(row: ResultContributionRow): boolean {
-  return embodiedEfficiencyPathwayStateIds.has(getTaggedStateId(row) ?? '');
+function hasEmbodiedPathwayMethod(row: ResultContributionRow): boolean {
+  return embodiedEfficiencyPathwayMethodIds.has(getTaggedMethodId(row) ?? '');
 }
 
 function buildOutputMetricKey(row: ResultContributionRow): string {
@@ -120,7 +120,7 @@ function collectOutputMetrics(
         outputId: row.outputId,
         totalsByRun: { base: 0, focus: 0 },
         componentTotalsByRun: { base: new Map(), focus: new Map() },
-        hasEmbodiedPathwayState: false,
+        hasEmbodiedPathwayMethod: false,
       } satisfies EfficiencyAttributionOutputMetric;
 
       outputMetric.totalsByRun[runSide] += row.value;
@@ -131,7 +131,7 @@ function collectOutputMetrics(
           value,
         );
       }
-      outputMetric.hasEmbodiedPathwayState ||= hasEmbodiedPathwayState(row);
+      outputMetric.hasEmbodiedPathwayMethod ||= hasEmbodiedPathwayMethod(row);
       outputMetrics.set(key, outputMetric);
     }
   }
@@ -196,7 +196,7 @@ function collapseOutputMetric(
         Math.abs(totals.get(category) ?? 0) > ATTRIBUTION_EPSILON),
       residual,
     );
-  } else if (outputMetric.hasEmbodiedPathwayState) {
+  } else if (outputMetric.hasEmbodiedPathwayMethod) {
     addToMap(totals, 'embodied_efficiency', residual);
   } else {
     totals.set('none', residual);

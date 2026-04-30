@@ -12,8 +12,8 @@ import {
 
 const pkg = loadPkg();
 
-function findNonIncumbentStateId(outputId) {
-  const row = pkg.sectorStates.find((candidate) =>
+function findNonIncumbentMethodId(outputId) {
+  const row = pkg.resolvedMethodYears.find((candidate) =>
     candidate.service_or_output_name === outputId
     && !candidate.is_default_incumbent_2025,
   );
@@ -27,7 +27,7 @@ describe('systemStructureModel', () => {
       serviceControls: {
         residential_building_services: {
           mode: 'optimize',
-          active_state_ids: [findNonIncumbentStateId('residential_building_services')],
+          active_state_ids: [findNonIncumbentMethodId('residential_building_services')],
         },
         passenger_road_transport: {
           mode: 'optimize',
@@ -51,7 +51,7 @@ describe('systemStructureModel', () => {
     };
     focus.efficiency_controls = {
       autonomous_mode: 'off',
-      autonomous_modes_by_output: {
+      autonomous_modes_by_role: {
         residential_building_services: 'off',
       },
       package_mode: 'allow_list',
@@ -71,20 +71,20 @@ describe('systemStructureModel', () => {
     assert.deepEqual(generated.presentation_options, focus.presentation_options);
 
     assert.deepEqual(
-      generated.service_controls.residential_building_services.active_state_ids,
+      generated.role_controls.deliver_residential_building_services.active_method_ids,
       [INCUMBENT_STATE_IDS.residential_building_services],
     );
     assert.deepEqual(
-      generated.service_controls.passenger_road_transport.active_state_ids,
+      generated.role_controls.deliver_passenger_road_transport.active_method_ids,
       [],
     );
     assert.deepEqual(
-      generated.service_controls.freight_road_transport.active_state_ids,
+      generated.role_controls.deliver_freight_road_transport.active_method_ids,
       [],
     );
     assert.deepEqual(generated.efficiency_controls, {
       autonomous_mode: 'baseline',
-      autonomous_modes_by_output: {},
+      autonomous_modes_by_role: {},
       package_mode: 'off',
       package_ids: [],
     });
@@ -119,11 +119,11 @@ describe('systemStructureModel', () => {
 
     const generated = buildGeneratedIncumbentBaseConfiguration(focus, pkg);
 
-    assert.deepEqual(generated.service_controls.residential_other.active_state_ids, []);
-    assert.deepEqual(generated.service_controls.transport_other.active_state_ids, [
+    assert.deepEqual(generated.role_controls.account_residual_residential_buildings.active_method_ids, []);
+    assert.deepEqual(generated.role_controls.account_residual_transport.active_method_ids, [
       'transport_other__residual_incumbent',
     ]);
-    assert.deepEqual(generated.service_controls.residual_lulucf_sink.active_state_ids, []);
+    assert.deepEqual(generated.role_controls.account_residual_lulucf_sink.active_method_ids, []);
     assert.equal(generated.residual_overlays, undefined);
   });
 });

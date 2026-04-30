@@ -6,17 +6,17 @@ import {
 } from '../src/components/workspace/rightSidebarTree.ts';
 
 function buildStatus(outputId, overrides = {}) {
-  const activeStateIds = overrides.activeStateIds ?? ['pathway-a'];
+  const activeMethodIds = overrides.activeMethodIds ?? ['pathway-a'];
   const isExcludedFromRun = overrides.isExcludedFromRun ?? false;
   const inRun = overrides.inRun ?? !isExcludedFromRun;
-  const isDisabled = overrides.isDisabled ?? activeStateIds.length === 0;
+  const isDisabled = overrides.isDisabled ?? activeMethodIds.length === 0;
 
   return {
     outputId,
     outputRole: overrides.outputRole ?? 'required_service',
     controlMode: overrides.controlMode ?? 'optimize',
-    activeStateIds,
-    activeStateCount: overrides.activeStateCount ?? activeStateIds.length,
+    activeMethodIds,
+    activeStateCount: overrides.activeStateCount ?? activeMethodIds.length,
     isDisabled,
     inRun,
     runParticipation: overrides.runParticipation ?? (isExcludedFromRun ? 'excluded_from_run' : 'active_pathways'),
@@ -42,8 +42,8 @@ function buildSubsector(outputId, label = outputId, overrides = {}) {
     parentRoleId: overrides.parentRoleId ?? null,
     defaultRepresentationKind: 'pathway_bundle',
     states: [{
-      stateId: methodId,
-      stateLabel: `${label} method`,
+      methodId: methodId,
+      methodLabel: `${label} method`,
       roleId,
       representationId,
       methodId,
@@ -123,7 +123,7 @@ describe('deriveRightSidebarTree', () => {
     ];
     const statuses = {
       land_sequestration: buildStatus('land_sequestration', {
-        activeStateIds: [],
+        activeMethodIds: [],
         activeStateCount: 0,
         isDisabled: true,
         demandParticipation: 'not_applicable',
@@ -137,7 +137,7 @@ describe('deriveRightSidebarTree', () => {
     assert.equal(sector.isCollapsed, false);
     assert.equal(sector.subsectors[0].allDisabled, true);
     assert.equal(sector.subsectors[0].isCollapsed, true);
-    assert.deepEqual(sector.subsectors[0].activeStateIds, []);
+    assert.deepEqual(sector.subsectors[0].activeMethodIds, []);
   });
 
   test('attaches efficiency controls to matching subsectors', () => {
@@ -160,7 +160,7 @@ describe('deriveRightSidebarTree', () => {
         hasControls: true,
         autonomousTracks: [],
         packages: [],
-        embodiedStateIds: ['buildings__residential__deep_electric'],
+        embodiedMethodIds: ['buildings__residential__deep_electric'],
       },
     ];
 
@@ -453,7 +453,7 @@ describe('deriveRightSidebarTree', () => {
 
     const [directSector] = deriveRightSidebarTree(
       catalog,
-      { crude_steel: buildStatus('crude_steel', { activeStateIds: ['steel_pathway'] }) },
+      { crude_steel: buildStatus('crude_steel', { activeMethodIds: ['steel_pathway'] }) },
       new Set(),
       new Set(),
       [],
@@ -476,8 +476,8 @@ describe('deriveRightSidebarTree', () => {
     const [decomposedSector] = deriveRightSidebarTree(
       catalog,
       {
-        produce_direct_reduced_iron: buildStatus('produce_direct_reduced_iron', { activeStateIds: ['h2_dri'] }),
-        melt_refine_dri_crude_steel: buildStatus('melt_refine_dri_crude_steel', { activeStateIds: ['eaf_finishing'] }),
+        produce_direct_reduced_iron: buildStatus('produce_direct_reduced_iron', { activeMethodIds: ['h2_dri'] }),
+        melt_refine_dri_crude_steel: buildStatus('melt_refine_dri_crude_steel', { activeMethodIds: ['eaf_finishing'] }),
       },
       new Set(),
       new Set(),

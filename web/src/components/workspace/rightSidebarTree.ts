@@ -1,7 +1,7 @@
 import type {
-  SectorCatalogEntry,
-  StateCatalogEntry,
-  SubsectorCatalogEntry,
+  RoleAreaNavigationEntry,
+  RoleMethodNavigationEntry,
+  RoleNodeNavigationEntry,
 } from '../../data/configurationWorkspaceModel.ts';
 import type { OutputEfficiencyControlNode } from '../../data/efficiencyControlModel.ts';
 import { resolveActiveRoleStructure } from '../../data/roleTopologyResolver.ts';
@@ -30,7 +30,7 @@ import {
   type RightSidebarStatusPresentation,
 } from './rightSidebarStatus.ts';
 
-export interface RightSidebarCatalogEntry extends SectorCatalogEntry {
+export interface RightSidebarCatalogEntry extends RoleAreaNavigationEntry {
   label?: string;
   residualOverlayIds?: string[];
   systemGroupId?: string;
@@ -47,7 +47,7 @@ export interface RightSidebarRepresentationOption {
   isSelected: boolean;
 }
 
-export interface RightSidebarSubsectorNode extends SubsectorCatalogEntry {
+export interface RightSidebarRoleNode extends RoleNodeNavigationEntry {
   roleId: string;
   roleLabel: string;
   parentRoleId: string | null;
@@ -57,12 +57,12 @@ export interface RightSidebarSubsectorNode extends SubsectorCatalogEntry {
   selectedRepresentationLabel: string | null;
   selectedRepresentationDescription: string | null;
   activeChildRoleIds: string[];
-  childRoles: RightSidebarSubsectorNode[];
+  childRoles: RightSidebarRoleNode[];
   isDecompositionChild: boolean;
   status: DerivedOutputRunStatus | undefined;
   presentation: RightSidebarStatusPresentation;
   badges: RightSidebarBadge[];
-  activeStateIds: string[];
+  activeMethodIds: string[];
   allDisabled: boolean;
   pathwaysInactive: boolean;
   outOfScope: boolean;
@@ -86,11 +86,11 @@ export interface RightSidebarResidualGroupNode {
   allExcluded: boolean;
 }
 
-export interface RightSidebarSectorNode extends SectorCatalogEntry {
+export interface RightSidebarAreaNode extends RoleAreaNavigationEntry {
   label?: string;
   residualOverlayIds?: string[];
   systemGroupId?: string;
-  subsectors: RightSidebarSubsectorNode[];
+  subsectors: RightSidebarRoleNode[];
   residualGroup?: RightSidebarResidualGroupNode;
   isExcluded: boolean;
   isCollapsed: boolean;
@@ -116,12 +116,12 @@ interface DerivedRolePresentationContext {
 }
 
 export function buildSystemStructureCatalog(
-  catalog: SectorCatalogEntry[],
+  catalog: RoleAreaNavigationEntry[],
   residualOverlays2025: ResidualOverlayRow[] = [],
   systemStructureGroups: SystemStructureGroupRow[] = [],
   systemStructureMembers: SystemStructureMemberRow[] = [],
 ): RightSidebarCatalogEntry[] {
-  const subsectorsByOutput = new Map<string, SubsectorCatalogEntry>();
+  const subsectorsByOutput = new Map<string, RoleNodeNavigationEntry>();
   for (const sectorEntry of catalog) {
     for (const subsector of sectorEntry.subsectors) {
       subsectorsByOutput.set(subsector.outputId, subsector);
@@ -154,7 +154,7 @@ export function buildSystemStructureCatalog(
           }
           return subsector ?? null;
         })
-        .filter((subsector): subsector is SubsectorCatalogEntry => subsector != null);
+        .filter((subsector): subsector is RoleNodeNavigationEntry => subsector != null);
 
       if (subsectors.length === 0) {
         continue;
@@ -178,7 +178,7 @@ export function buildSystemStructureCatalog(
           }
           return subsector ?? null;
         })
-        .filter((subsector): subsector is SubsectorCatalogEntry => subsector != null);
+        .filter((subsector): subsector is RoleNodeNavigationEntry => subsector != null);
       const availableResidualIds = group.residualOverlayIds.filter((overlayId) => residualIds.has(overlayId));
 
       if (subsectors.length === 0 && availableResidualIds.length === 0) {
@@ -372,7 +372,7 @@ export function deriveRightSidebarTree(
   residualOverlays2025: ResidualOverlayRow[] = [],
   residualControls: Record<string, ConfigurationResidualOverlayControl> = {},
   roleContext?: RightSidebarRoleContext,
-): RightSidebarSectorNode[] {
+): RightSidebarAreaNode[] {
   const rolePresentationContext = buildRolePresentationContext(roleContext);
   const efficiencyControlsByOutput = new Map(
     efficiencyControls.map((node) => [node.outputId, node]),
@@ -388,7 +388,7 @@ export function deriveRightSidebarTree(
   }
 
   return catalog.map((sectorEntry) => {
-    const visibleNodes = sectorEntry.subsectors.map((subsectorEntry): RightSidebarSubsectorNode | null => {
+    const visibleNodes = sectorEntry.subsectors.map((subsectorEntry): RightSidebarRoleNode | null => {
       const role = rolePresentationContext?.roleById.get(subsectorEntry.roleId);
       const roleId = role?.role_id ?? subsectorEntry.roleId;
       const parentRoleId = role?.parent_role_id ?? subsectorEntry.parentRoleId ?? null;
@@ -418,7 +418,7 @@ export function deriveRightSidebarTree(
           ? []
           : rolePresentationContext?.methodIdsByRepresentation.get(selectedRepresentationId ?? '') ?? [],
       );
-      const states: StateCatalogEntry[] = selectedRepresentationId
+      const states: RoleMethodNavigationEntry[] = selectedRepresentationId
         ? subsectorEntry.states.filter((state) =>
             state.representationId === selectedRepresentationId
             && (directMethodIds.size === 0 || directMethodIds.has(state.methodId)),
@@ -448,7 +448,7 @@ export function deriveRightSidebarTree(
         status,
         presentation,
         badges: presentation.badges,
-        activeStateIds: status?.activeStateIds ?? [],
+        activeMethodIds: status?.activeMethodIds ?? [],
         allDisabled,
         pathwaysInactive: presentation.arePathwaysInactive,
         outOfScope,
@@ -456,9 +456,9 @@ export function deriveRightSidebarTree(
         isCollapsed: canCollapse && !expandedSubsectors.has(subsectorEntry.outputId),
         efficiencyControls: efficiencyControlsByOutput.get(subsectorEntry.outputId),
       };
-    }).filter((subsector): subsector is RightSidebarSubsectorNode => subsector != null);
+    }).filter((subsector): subsector is RightSidebarRoleNode => subsector != null);
 
-    const childNodesByParentRoleId = visibleNodes.reduce<Map<string, RightSidebarSubsectorNode[]>>((result, node) => {
+    const childNodesByParentRoleId = visibleNodes.reduce<Map<string, RightSidebarRoleNode[]>>((result, node) => {
       if (!node.parentRoleId || !node.isDecompositionChild) {
         return result;
       }

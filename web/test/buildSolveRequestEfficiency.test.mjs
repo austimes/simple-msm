@@ -45,18 +45,39 @@ function buildConfiguration(appConfig, overrides = {}) {
   );
 }
 
-function makeSectorState(year, overrides = {}) {
+function makeResolvedMethodYearRow(year, overrides = {}) {
+  const outputId = overrides.output_id ?? overrides.service_or_output_name ?? OUTPUT_ID;
+  const methodId = overrides.method_id ?? overrides.state_id ?? BASE_STATE_ID;
+  const roleId = overrides.role_id ?? outputId;
+  const methodLabel = overrides.method_label ?? overrides.state_label ?? 'Residential base';
   return {
+    role_id: roleId,
+    representation_id: overrides.representation_id ?? `${roleId}__pathway_bundle`,
+    method_id: methodId,
+    method_kind: overrides.method_kind ?? 'pathway',
+    method_label: methodLabel,
+    method_description: overrides.method_description ?? methodLabel,
+    role_kind: overrides.role_kind ?? 'modeled',
+    balance_type: overrides.balance_type ?? 'service_demand',
+    output_id: outputId,
+    outputId,
+    role_label: overrides.role_label ?? 'Residential building services',
+    topology_area_id: overrides.topology_area_id ?? 'buildings',
+    topology_area_label: overrides.topology_area_label ?? 'Buildings',
+    parent_role_id: overrides.parent_role_id ?? null,
+    coverage_obligation: overrides.coverage_obligation ?? 'required_top_level',
+    default_representation_kind: overrides.default_representation_kind ?? 'pathway_bundle',
+    reporting_allocations: overrides.reporting_allocations ?? [],
     family_id: FAMILY_ID,
     sector: 'buildings',
     subsector: 'residential',
-    service_or_output_name: OUTPUT_ID,
+    service_or_output_name: outputId,
     region: 'AUS',
     year,
-    state_id: BASE_STATE_ID,
-    state_label: 'Residential base',
-    state_label_standardized: 'Residential base',
-    state_option_label: 'Residential base',
+    state_id: methodId,
+    state_label: methodLabel,
+    state_label_standardized: methodLabel,
+    state_option_label: methodLabel,
     state_sort_key: '01_base',
     state_option_rank: 0,
     output_unit: 'GJ_service_eq',
@@ -77,13 +98,16 @@ function makeSectorState(year, overrides = {}) {
 }
 
 function makeAutonomousTrack(year, multiplier, deltaCost, overrides = {}) {
+  const applicableMethodIds = overrides.applicable_method_ids ?? overrides.applicable_state_ids ?? [BASE_STATE_ID];
   return {
+    role_id: overrides.role_id ?? overrides.family_id ?? OUTPUT_ID,
     family_id: FAMILY_ID,
     track_id: 'background_drift',
     year,
     track_label: 'Background drift',
     track_description: 'Applies a background efficiency improvement.',
-    applicable_state_ids: [BASE_STATE_ID],
+    applicable_state_ids: applicableMethodIds,
+    applicable_method_ids: applicableMethodIds,
     affected_input_commodities: ['natural_gas'],
     input_multipliers: [multiplier],
     delta_output_cost_per_unit: deltaCost,
@@ -101,14 +125,17 @@ function makeAutonomousTrack(year, multiplier, deltaCost, overrides = {}) {
 }
 
 function makeEfficiencyPackage(year, multiplier, deltaCost, overrides = {}) {
+  const applicableMethodIds = overrides.applicable_method_ids ?? overrides.applicable_state_ids ?? [BASE_STATE_ID];
   return {
+    role_id: overrides.role_id ?? overrides.family_id ?? OUTPUT_ID,
     family_id: FAMILY_ID,
     package_id: PACKAGE_ID,
     year,
     package_label: 'Shell retrofit',
     package_description: 'Adds a retrofit candidate row.',
     classification: 'pure_efficiency_overlay',
-    applicable_state_ids: [BASE_STATE_ID],
+    applicable_state_ids: applicableMethodIds,
+    applicable_method_ids: applicableMethodIds,
     affected_input_commodities: ['natural_gas'],
     input_multipliers: [multiplier],
     delta_output_cost_per_unit: deltaCost,
@@ -148,7 +175,7 @@ test('buildSolveRequest materializes autonomous and package efficiency rows', ()
 
   const request = buildSolveRequest(
     {
-      sectorStates: [makeSectorState(2025), makeSectorState(2030)],
+      resolvedMethodYears: [makeResolvedMethodYearRow(2025), makeResolvedMethodYearRow(2030)],
       appConfig,
       autonomousEfficiencyTracks: [makeAutonomousTrack(2030, 0.9, -1)],
       efficiencyPackages: [
@@ -164,29 +191,29 @@ test('buildSolveRequest materializes autonomous and package efficiency rows', ()
   assert.equal(base2030.inputs[0].coefficient, 0.9);
   assert.equal(base2030.conversionCostPerUnit, 10);
   assert.ok(Math.abs(base2030.directEmissions[0].value - 0.18) < 1e-9);
-  assert.equal(base2030.provenance?.kind, 'base_state');
+  assert.equal(base2030.provenance?.kind, 'base_method');
   assert.deepEqual(base2030.provenance?.autonomousTrackIds, ['background_drift']);
 
   const package2030 = request.rows.find(
     (row) => row.provenance?.kind === 'efficiency_package' && row.year === 2030,
   );
   assert.ok(package2030, 'expected the 2030 package row to be present');
-  assert.equal(package2030.stateId, `effpkg:${BASE_STATE_ID}::${PACKAGE_ID}`);
+  assert.equal(package2030.methodId, `effpkg:${BASE_STATE_ID}::${PACKAGE_ID}`);
   assert.ok(Math.abs(package2030.inputs[0].coefficient - 0.72) < 1e-9);
   assert.equal(package2030.conversionCostPerUnit, 12);
   assert.ok(Math.abs(package2030.directEmissions[0].value - 0.144) < 1e-9);
   assert.equal(package2030.bounds.maxShare, 0.35);
-  assert.equal(package2030.provenance?.baseStateId, BASE_STATE_ID);
-  assert.equal(package2030.provenance?.baseStateLabel, 'Residential base');
+  assert.equal(package2030.provenance?.baseMethodId, BASE_STATE_ID);
+  assert.equal(package2030.provenance?.baseMethodLabel, 'Residential base');
   assert.equal(package2030.provenance?.packageId, PACKAGE_ID);
   assert.deepEqual(package2030.provenance?.autonomousTrackIds, ['background_drift']);
   assert.equal(package2030.provenance?.packageNonStackingGroup, 'retrofit_group');
 
   const control2025 = request.configuration.controlsByOutput[OUTPUT_ID]['2025'];
   const control2030 = request.configuration.controlsByOutput[OUTPUT_ID]['2030'];
-  assert.deepEqual(control2025.activeStateIds, [BASE_STATE_ID]);
+  assert.deepEqual(control2025.activeMethodIds, [BASE_STATE_ID]);
   assert.deepEqual(
-    control2030.activeStateIds,
+    control2030.activeMethodIds,
     [BASE_STATE_ID, `effpkg:${BASE_STATE_ID}::${PACKAGE_ID}`],
   );
 });
@@ -194,7 +221,7 @@ test('buildSolveRequest materializes autonomous and package efficiency rows', ()
 test('per-output autonomous off removes only that output track family', () => {
   const appConfig = loadAppConfig();
   const commercialOutputId = 'commercial_building_services';
-  const commercialStateId = 'commercial_base';
+  const commercialMethodId = 'commercial_base';
   const configuration = {
     ...buildConfiguration(appConfig, {
       name: 'Per-output autonomous test',
@@ -205,13 +232,13 @@ test('per-output autonomous off removes only that output track family', () => {
         },
         [commercialOutputId]: {
           mode: 'optimize',
-          active_state_ids: [commercialStateId],
+          active_state_ids: [commercialMethodId],
         },
       },
     }),
     efficiency_controls: {
       autonomous_mode: 'baseline',
-      autonomous_modes_by_output: {
+      autonomous_modes_by_role: {
         [OUTPUT_ID]: 'off',
       },
       package_mode: 'off',
@@ -221,12 +248,12 @@ test('per-output autonomous off removes only that output track family', () => {
 
   const request = buildSolveRequest(
     {
-      sectorStates: [
-        makeSectorState(2030),
-        makeSectorState(2030, {
+      resolvedMethodYears: [
+        makeResolvedMethodYearRow(2030),
+        makeResolvedMethodYearRow(2030, {
           family_id: commercialOutputId,
           service_or_output_name: commercialOutputId,
-          state_id: commercialStateId,
+          state_id: commercialMethodId,
           state_label: 'Commercial base',
           state_label_standardized: 'Commercial base',
           state_option_label: 'Commercial base',
@@ -241,7 +268,7 @@ test('per-output autonomous off removes only that output track family', () => {
         makeAutonomousTrack(2030, 0.8, 0, {
           track_id: 'commercial_track',
           family_id: commercialOutputId,
-          applicable_state_ids: [commercialStateId],
+          applicable_state_ids: [commercialMethodId],
         }),
       ],
       efficiencyPackages: [],
@@ -250,9 +277,9 @@ test('per-output autonomous off removes only that output track family', () => {
   );
 
   const residentialRow = request.rows.find((row) => row.rowId === `${BASE_STATE_ID}::2030`);
-  const commercialRow = request.rows.find((row) => row.rowId === `${commercialStateId}::2030`);
+  const commercialRow = request.rows.find((row) => row.rowId === `${commercialMethodId}::2030`);
 
-  assert.deepEqual(request.configuration.efficiency?.autonomousModesByOutput, {
+  assert.deepEqual(request.configuration.efficiency?.autonomousModesByRole, {
     [OUTPUT_ID]: 'off',
   });
   assert.deepEqual(request.configuration.efficiency?.activeTrackIds, ['commercial_track']);
@@ -283,7 +310,7 @@ test('solver reporting and contribution rows carry efficiency provenance', () =>
 
   const request = buildSolveRequest(
     {
-      sectorStates: [makeSectorState(2025), makeSectorState(2030)],
+      resolvedMethodYears: [makeResolvedMethodYearRow(2025), makeResolvedMethodYearRow(2030)],
       appConfig,
       autonomousEfficiencyTracks: [makeAutonomousTrack(2030, 0.9, -1)],
       efficiencyPackages: [
@@ -296,15 +323,15 @@ test('solver reporting and contribution rows carry efficiency provenance', () =>
 
   assert.equal(result.status, 'solved');
 
-  const packageStateId = `effpkg:${BASE_STATE_ID}::${PACKAGE_ID}`;
-  const packageShare = result.reporting.stateShares.find((share) => {
-    return share.outputId === OUTPUT_ID && share.year === 2030 && share.stateId === packageStateId;
+  const packageMethodId = `effpkg:${BASE_STATE_ID}::${PACKAGE_ID}`;
+  const packageShare = result.reporting.methodShares.find((share) => {
+    return share.outputId === OUTPUT_ID && share.year === 2030 && share.methodId === packageMethodId;
   });
 
   assert.ok(packageShare, 'expected a reporting row for the package pathway');
-  assert.equal(packageShare.rowId, `${packageStateId}::2030`);
-  assert.equal(packageShare.pathwayStateId, BASE_STATE_ID);
-  assert.equal(packageShare.pathwayStateLabel, 'Residential base');
+  assert.equal(packageShare.rowId, `${packageMethodId}::2030`);
+  assert.equal(packageShare.pathwayMethodId, BASE_STATE_ID);
+  assert.equal(packageShare.pathwayMethodLabel, 'Residential base');
   assert.equal(packageShare.provenance?.kind, 'efficiency_package');
   assert.equal(packageShare.provenance?.packageId, PACKAGE_ID);
   assert.equal(packageShare.provenance?.packageClassification, 'pure_efficiency_overlay');
@@ -314,13 +341,13 @@ test('solver reporting and contribution rows carry efficiency provenance', () =>
 
   const contributionRows = buildSolverContributionRows(request, result);
   const packageFuelContribution = contributionRows.find((row) => {
-    return row.metric === 'fuel' && row.year === 2030 && row.sourceId === packageStateId;
+    return row.metric === 'fuel' && row.year === 2030 && row.sourceId === packageMethodId;
   });
 
   assert.ok(packageFuelContribution, 'expected a package fuel contribution row');
-  assert.equal(packageFuelContribution.rowId, `${packageStateId}::2030`);
-  assert.equal(packageFuelContribution.pathwayStateId, BASE_STATE_ID);
-  assert.equal(packageFuelContribution.pathwayStateLabel, 'Residential base');
+  assert.equal(packageFuelContribution.rowId, `${packageMethodId}::2030`);
+  assert.equal(packageFuelContribution.pathwayMethodId, BASE_STATE_ID);
+  assert.equal(packageFuelContribution.pathwayMethodLabel, 'Residential base');
   assert.equal(packageFuelContribution.provenance?.kind, 'efficiency_package');
   assert.equal(packageFuelContribution.provenance?.packageId, PACKAGE_ID);
   assert.equal(packageFuelContribution.provenance?.packageClassification, 'pure_efficiency_overlay');
@@ -342,7 +369,7 @@ test('runScenario uses the shared solve path for package non-stacking enforcemen
     }),
     efficiency_controls: {
       autonomous_mode: 'baseline',
-      autonomous_modes_by_output: {},
+      autonomous_modes_by_role: {},
       package_mode: 'allow_list',
       package_ids: ['shell_a', 'shell_b'],
     },
@@ -350,7 +377,7 @@ test('runScenario uses the shared solve path for package non-stacking enforcemen
 
   const snapshot = runScenario(
     {
-      sectorStates: [makeSectorState(2030)],
+      resolvedMethodYears: [makeResolvedMethodYearRow(2030)],
       appConfig,
       autonomousEfficiencyTracks: [],
       efficiencyPackages: [

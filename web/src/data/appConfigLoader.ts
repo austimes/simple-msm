@@ -1,4 +1,3 @@
-import outputRolesText from '../app_config/output_roles.json?raw';
 import explanationTagRulesText from '../app_config/explanation_tag_rules.json?raw';
 import type { AppConfigRegistry } from './types.ts';
 
@@ -17,7 +16,7 @@ function parseJsonObject<T>(raw: unknown, label: string): T {
 
 export function loadAppConfig(): AppConfigRegistry {
   return {
-    output_roles: parseJsonObject(outputRolesText, 'output_roles.json'),
+    output_roles: {},
     baseline_activity_anchors: {},
     demand_growth_presets: {},
     commodity_price_presets: {},

@@ -10,7 +10,7 @@ import type {
   NormalizedSolverRow,
   SolveRequest,
   SolveResult,
-  SolveStateShareSummary,
+  SolveMethodShareSummary,
 } from '../solver/contract.ts';
 
 const FUEL_SWITCH_EPSILON_PJ = 1e-6;
@@ -120,7 +120,7 @@ interface RouteActivityEntry {
   outputId: string;
   outputLabel: string;
   year: number;
-  pathwayStateId: string;
+  pathwayMethodId: string;
   activity: number;
 }
 
@@ -136,8 +136,8 @@ function buildOutputYearKey(year: number, outputId: string): string {
   return `${year}::${outputId}`;
 }
 
-function buildRouteKey(outputId: string, year: number, pathwayStateId: string): string {
-  return `${outputId}::${year}::${pathwayStateId}`;
+function buildRouteKey(outputId: string, year: number, pathwayMethodId: string): string {
+  return `${outputId}::${year}::${pathwayMethodId}`;
 }
 
 function convertFuelConsumptionToPj(value: number, unit: string): number {
@@ -145,14 +145,14 @@ function convertFuelConsumptionToPj(value: number, unit: string): number {
   return convertUnitQuantity(value, numerator as 'GJ' | 'MWh' | 'PJ', 'PJ');
 }
 
-function resolvePathwayStateId(
-  row: Pick<NormalizedSolverRow, 'stateId' | 'provenance'>,
+function resolvePathwayMethodId(
+  row: Pick<NormalizedSolverRow, 'methodId' | 'provenance'>,
 ): string {
-  return row.provenance?.baseStateId ?? row.stateId;
+  return row.provenance?.baseMethodId ?? row.methodId;
 }
 
-function resolveStateSharePathwayStateId(stateShare: SolveStateShareSummary): string {
-  return stateShare.pathwayStateId ?? stateShare.provenance?.baseStateId ?? stateShare.stateId;
+function resolveMethodSharePathwayMethodId(stateShare: SolveMethodShareSummary): string {
+  return stateShare.pathwayMethodId ?? stateShare.provenance?.baseMethodId ?? stateShare.methodId;
 }
 
 function shouldIncludeRouteReferenceRow(row: NormalizedSolverRow): boolean {
@@ -430,8 +430,8 @@ function buildRouteFuelVectors(request: SolveRequest): Map<string, RouteFuelVect
       continue;
     }
 
-    const pathwayStateId = resolvePathwayStateId(row);
-    const key = buildRouteKey(row.outputId, row.year, pathwayStateId);
+    const pathwayMethodId = resolvePathwayMethodId(row);
+    const key = buildRouteKey(row.outputId, row.year, pathwayMethodId);
     const vector = vectors.get(key) ?? {
       fuels: new Map<string, number>(),
     };
@@ -468,21 +468,21 @@ function buildReferenceRouteFuelVectors(
   return referenceVectors;
 }
 
-function buildRouteActivityEntries(stateShares: SolveStateShareSummary[]): Map<string, RouteActivityEntry> {
+function buildRouteActivityEntries(methodShares: SolveMethodShareSummary[]): Map<string, RouteActivityEntry> {
   const activities = new Map<string, RouteActivityEntry>();
 
-  for (const stateShare of stateShares) {
+  for (const stateShare of methodShares) {
     if (Math.abs(stateShare.activity) <= FUEL_SWITCH_EPSILON_PJ) {
       continue;
     }
 
-    const pathwayStateId = resolveStateSharePathwayStateId(stateShare);
-    const key = buildRouteKey(stateShare.outputId, stateShare.year, pathwayStateId);
+    const pathwayMethodId = resolveMethodSharePathwayMethodId(stateShare);
+    const key = buildRouteKey(stateShare.outputId, stateShare.year, pathwayMethodId);
     const entry = activities.get(key) ?? {
       outputId: stateShare.outputId,
       outputLabel: stateShare.outputLabel,
       year: stateShare.year,
-      pathwayStateId,
+      pathwayMethodId,
       activity: 0,
     };
 
@@ -500,11 +500,11 @@ function buildSwitchBasisRowsForResult(
 ): FuelSwitchFuelTotalRow[] {
   const rowsByKey = new Map<string, FuelSwitchFuelTotalRow>();
 
-  for (const activity of buildRouteActivityEntries(result.reporting.stateShares).values()) {
+  for (const activity of buildRouteActivityEntries(result.reporting.methodShares).values()) {
     const vector = referenceVectors.get(buildRouteKey(
       activity.outputId,
       activity.year,
-      activity.pathwayStateId,
+      activity.pathwayMethodId,
     ));
 
     if (vector == null) {

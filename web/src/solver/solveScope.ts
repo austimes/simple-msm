@@ -1,6 +1,6 @@
-import { derivePathwayStateIds } from '../data/pathwaySemantics.ts';
-import { materializeServiceControlsFromRoleControls } from '../data/configurationRoleControls.ts';
-import { resolveActiveSectorStatesForConfiguration } from '../data/roleTopologyResolver.ts';
+import { derivePathwayMethodIds } from '../data/pathwaySemantics.ts';
+import { normalizeConfigurationRoleControls } from '../data/configurationRoleControls.ts';
+import { resolveActiveResolvedMethodYearRowsForConfiguration } from '../data/roleTopologyResolver.ts';
 import type {
   AppConfigRegistry,
   OutputRole,
@@ -35,7 +35,7 @@ export interface DerivedOutputRunStatus {
   outputId: string;
   outputRole: OutputRole;
   controlMode: ConfigurationControlMode;
-  activeStateIds: string[];
+  activeMethodIds: string[];
   activeStateCount: number;
   isDisabled: boolean;
   inRun: boolean;
@@ -48,20 +48,20 @@ export interface DerivedOutputRunStatus {
   isExcludedFromRun: boolean;
 }
 
-function collectStateIdsByOutput(rows: NormalizedSolverRow[]): Map<string, string[]> {
+function collectMethodIdsByOutput(rows: NormalizedSolverRow[]): Map<string, string[]> {
   const byOutput = new Map<string, Set<string>>();
 
   for (const row of rows) {
-    let stateIds = byOutput.get(row.outputId);
-    if (!stateIds) {
-      stateIds = new Set<string>();
-      byOutput.set(row.outputId, stateIds);
+    let methodIds = byOutput.get(row.outputId);
+    if (!methodIds) {
+      methodIds = new Set<string>();
+      byOutput.set(row.outputId, methodIds);
     }
-    stateIds.add(row.stateId);
+    methodIds.add(row.methodId);
   }
 
   return new Map(
-    Array.from(byOutput.entries()).map(([outputId, stateIds]) => [outputId, Array.from(stateIds)]),
+    Array.from(byOutput.entries()).map(([outputId, methodIds]) => [outputId, Array.from(methodIds)]),
   );
 }
 
@@ -69,19 +69,20 @@ function getControlMode(
   configuration: ConfigurationDocument,
   appConfig: AppConfigRegistry,
   outputId: string,
+  roleId: string,
 ): ConfigurationControlMode {
   return (
-    configuration.service_controls[outputId]?.mode
+    configuration.role_controls?.[roleId]?.mode
     ?? appConfig.output_roles[outputId]?.default_control_mode
     ?? 'optimize'
   );
 }
 
-function filterOrderedStateIds(allStateIds: string[], includedStateIds: ReadonlySet<string>): string[] {
-  return allStateIds.filter((stateId) => includedStateIds.has(stateId));
+function filterOrderedMethodIds(allMethodIds: string[], includedMethodIds: ReadonlySet<string>): string[] {
+  return allMethodIds.filter((methodId) => includedMethodIds.has(methodId));
 }
 
-function collectStateIdsByOutputYear(rows: NormalizedSolverRow[]): Map<string, Map<number, string[]>> {
+function collectMethodIdsByOutputYear(rows: NormalizedSolverRow[]): Map<string, Map<number, string[]>> {
   const byOutputYear = new Map<string, Map<number, Set<string>>>();
 
   for (const row of rows) {
@@ -91,20 +92,20 @@ function collectStateIdsByOutputYear(rows: NormalizedSolverRow[]): Map<string, M
       byOutputYear.set(row.outputId, byYear);
     }
 
-    let stateIds = byYear.get(row.year);
-    if (!stateIds) {
-      stateIds = new Set<string>();
-      byYear.set(row.year, stateIds);
+    let methodIds = byYear.get(row.year);
+    if (!methodIds) {
+      methodIds = new Set<string>();
+      byYear.set(row.year, methodIds);
     }
 
-    stateIds.add(row.stateId);
+    methodIds.add(row.methodId);
   }
 
   return new Map(
     Array.from(byOutputYear.entries()).map(([outputId, byYear]) => [
       outputId,
       new Map(
-        Array.from(byYear.entries()).map(([year, stateIds]) => [year, Array.from(stateIds)]),
+        Array.from(byYear.entries()).map(([year, methodIds]) => [year, Array.from(methodIds)]),
       ),
     ]),
   );
@@ -113,31 +114,31 @@ function collectStateIdsByOutputYear(rows: NormalizedSolverRow[]): Map<string, M
 function isRowActiveInSolveControl(
   row: NormalizedSolverRow,
   control: ResolvedSolveControl | undefined,
-  stateIdsForOutputYear: string[],
+  methodIdsForOutputYear: string[],
 ): boolean {
-  return derivePathwayStateIds(stateIdsForOutputYear, control).activeStateIds.includes(row.stateId);
+  return derivePathwayMethodIds(methodIdsForOutputYear, control).activeMethodIds.includes(row.methodId);
 }
 
-function deriveOutputPathwayStateIds(
+function deriveOutputPathwayMethodIds(
   outputId: string,
-  allStateIds: string[],
+  allMethodIds: string[],
   resolvedConfiguration: ResolvedConfigurationForSolve,
-): Pick<DerivedOutputRunStatus, 'activeStateIds' | 'activeStateCount'> {
-  const activeStateIdSet = new Set<string>();
+): Pick<DerivedOutputRunStatus, 'activeMethodIds' | 'activeStateCount'> {
+  const activeMethodIdSet = new Set<string>();
 
   for (const year of resolvedConfiguration.years) {
     const control = resolvedConfiguration.controlsByOutput[outputId]?.[yearKey(year)];
-    const pathwayStateIds = derivePathwayStateIds(allStateIds, control);
-    for (const stateId of pathwayStateIds.activeStateIds) {
-      activeStateIdSet.add(stateId);
+    const pathwayMethodIds = derivePathwayMethodIds(allMethodIds, control);
+    for (const methodId of pathwayMethodIds.activeMethodIds) {
+      activeMethodIdSet.add(methodId);
     }
   }
 
-  const activeStateIds = filterOrderedStateIds(allStateIds, activeStateIdSet);
+  const activeMethodIds = filterOrderedMethodIds(allMethodIds, activeMethodIdSet);
 
   return {
-    activeStateIds,
-    activeStateCount: activeStateIds.length,
+    activeMethodIds,
+    activeStateCount: activeMethodIds.length,
   };
 }
 
@@ -148,7 +149,7 @@ export function expandIncludedOutputsForDependencies(
   seedOutputIds: Set<string>,
 ): Set<string> {
   const included = new Set(seedOutputIds);
-  const stateIdsByOutputYear = collectStateIdsByOutputYear(rows);
+  const methodIdsByOutputYear = collectMethodIdsByOutputYear(rows);
   let changed = true;
 
   while (changed) {
@@ -165,8 +166,8 @@ export function expandIncludedOutputsForDependencies(
         }
 
         const control = configuration.controlsByOutput[row.outputId]?.[yearKey(year)];
-        const stateIdsForOutputYear = stateIdsByOutputYear.get(row.outputId)?.get(year) ?? [];
-        if (!isRowActiveInSolveControl(row, control, stateIdsForOutputYear)) {
+        const methodIdsForOutputYear = methodIdsByOutputYear.get(row.outputId)?.get(year) ?? [];
+        if (!isRowActiveInSolveControl(row, control, methodIdsForOutputYear)) {
           continue;
         }
 
@@ -192,10 +193,10 @@ export function deriveDirectlyIncludedOutputIds(
   rows: NormalizedSolverRow[],
   resolvedConfiguration: ResolvedConfigurationForSolve,
 ): Set<string> {
-  const stateIdsByOutput = collectStateIdsByOutput(rows);
+  const methodIdsByOutput = collectMethodIdsByOutput(rows);
   const included = new Set<string>();
-  for (const [outputId, allStateIds] of stateIdsByOutput) {
-    const { activeStateCount } = deriveOutputPathwayStateIds(outputId, allStateIds, resolvedConfiguration);
+  for (const [outputId, allMethodIds] of methodIdsByOutput) {
+    const { activeStateCount } = deriveOutputPathwayMethodIds(outputId, allMethodIds, resolvedConfiguration);
     if (activeStateCount > 0) {
       included.add(outputId);
     }
@@ -218,18 +219,19 @@ export function deriveOutputRunStatuses(
   resolvedConfiguration: ResolvedConfigurationForSolve,
   appConfig: AppConfigRegistry,
 ): Record<string, DerivedOutputRunStatus> {
-  const stateIdsByOutput = collectStateIdsByOutput(rows);
+  const methodIdsByOutput = collectMethodIdsByOutput(rows);
   const includedOutputIds = deriveIncludedOutputIds(rows, resolvedConfiguration, appConfig);
+  const roleIdByOutput = new Map(rows.map((row) => [row.outputId, row.roleId ?? row.outputId] as const));
 
-  return Array.from(stateIdsByOutput.entries()).reduce<Record<string, DerivedOutputRunStatus>>(
-    (statuses, [outputId, allStateIds]) => {
+  return Array.from(methodIdsByOutput.entries()).reduce<Record<string, DerivedOutputRunStatus>>(
+    (statuses, [outputId, allMethodIds]) => {
       const outputMetadata = appConfig.output_roles[outputId];
-      const pathwayStateIds = deriveOutputPathwayStateIds(
+      const pathwayMethodIds = deriveOutputPathwayMethodIds(
         outputId,
-        allStateIds,
+        allMethodIds,
         resolvedConfiguration,
       );
-      const directlyActive = pathwayStateIds.activeStateCount > 0;
+      const directlyActive = pathwayMethodIds.activeStateCount > 0;
       const isAutoIncludedDependency = !directlyActive && includedOutputIds.has(outputId);
       const inRun = directlyActive || isAutoIncludedDependency;
       const hasDemand = !!resolvedConfiguration.serviceDemandByOutput[outputId];
@@ -246,9 +248,9 @@ export function deriveOutputRunStatuses(
       statuses[outputId] = {
         outputId,
         outputRole: outputMetadata.output_role,
-        controlMode: getControlMode(configuration, appConfig, outputId),
-        ...pathwayStateIds,
-        isDisabled: pathwayStateIds.activeStateCount === 0,
+        controlMode: getControlMode(configuration, appConfig, outputId, roleIdByOutput.get(outputId) ?? outputId),
+        ...pathwayMethodIds,
+        isDisabled: pathwayMethodIds.activeStateCount === 0,
         inRun,
         runParticipation,
         demandParticipation: hasDemand
@@ -256,7 +258,7 @@ export function deriveOutputRunStatuses(
           : 'not_applicable',
         supplyParticipation: outputMetadata.output_role === 'endogenous_supply_commodity'
           ? (inRun
-              ? (getControlMode(configuration, appConfig, outputId) === 'externalized'
+              ? (getControlMode(configuration, appConfig, outputId, roleIdByOutput.get(outputId) ?? outputId) === 'externalized'
                   ? 'externalized_in_run'
                   : 'endogenous_in_run')
               : 'excluded_from_run')
@@ -275,7 +277,7 @@ export function deriveOutputRunStatuses(
 export function deriveOutputRunStatusesForConfiguration(
   pkg: Pick<
     PackageData,
-    | 'sectorStates'
+    | 'resolvedMethodYears'
     | 'appConfig'
     | 'autonomousEfficiencyTracks'
     | 'efficiencyPackages'
@@ -288,15 +290,15 @@ export function deriveOutputRunStatusesForConfiguration(
   >>,
   configuration: ConfigurationDocument,
 ): Record<string, DerivedOutputRunStatus> {
-  const configurationWithServiceControls = materializeServiceControlsFromRoleControls(configuration, {
-    sectorStates: pkg.sectorStates,
+  const roleNativeConfiguration = normalizeConfigurationRoleControls(configuration, {
+    resolvedMethodYears: pkg.resolvedMethodYears,
   });
-  const sectorStates = resolveActiveSectorStatesForConfiguration(pkg, configuration);
-  const rows = normalizeSolverRows({ ...pkg, sectorStates });
+  const resolvedMethodYears = resolveActiveResolvedMethodYearRowsForConfiguration(pkg, roleNativeConfiguration);
+  const rows = normalizeSolverRows({ ...pkg, resolvedMethodYears });
   const resolvedConfiguration = resolveConfigurationForSolve(
-    configurationWithServiceControls,
+    roleNativeConfiguration,
     pkg.appConfig,
-    sectorStates,
+    resolvedMethodYears,
     {
       autonomousEfficiencyTracks: pkg.autonomousEfficiencyTracks,
       efficiencyPackages: pkg.efficiencyPackages,
@@ -304,7 +306,7 @@ export function deriveOutputRunStatusesForConfiguration(
   );
   return deriveOutputRunStatuses(
     rows,
-    configurationWithServiceControls,
+    roleNativeConfiguration,
     resolvedConfiguration,
     pkg.appConfig,
   );

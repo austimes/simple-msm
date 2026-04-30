@@ -65,7 +65,7 @@ test('web package loader removes old family/state package file paths', () => {
 
 test('canonical role/method rows are bridged into the current app harness', () => {
   const pkg = loadPackage();
-  const electricity = pkg.sectorStates.find((row) =>
+  const electricity = pkg.resolvedMethodYears.find((row) =>
     row.role_id === 'supply_electricity'
     && row.method_id === 'electricity__grid_supply__incumbent_thermal_mix'
     && row.year === 2025

@@ -2,18 +2,18 @@ import type {
   AutonomousEfficiencyTrack,
   EfficiencyPackage,
   EmissionEntry,
-  SectorState,
+  ResolvedMethodYearRow,
 } from './types.ts';
 
-export interface SectorStateFamily {
-  stateId: string;
+export interface RoleMethodFamily {
+  methodId: string;
   label: string;
   sector: string;
   subsector: string;
   serviceOrOutputName: string;
   years: number[];
-  representative: SectorState;
-  rows: SectorState[];
+  representative: ResolvedMethodYearRow;
+  rows: ResolvedMethodYearRow[];
   confidenceRatings: string[];
   sourceIds: string[];
   assumptionIds: string[];
@@ -32,11 +32,11 @@ export interface TrajectoryPoint {
   processTotal: number | null;
   maxShare: number | null;
   maxActivity: number | null;
-  row: SectorState;
+  row: ResolvedMethodYearRow;
 }
 
-export interface SectorStateTrajectory {
-  stateId: string;
+export interface RoleMethodTrajectory {
+  methodId: string;
   label: string;
   sector: string;
   subsector: string;
@@ -45,8 +45,8 @@ export interface SectorStateTrajectory {
   outputUnit: string;
   emissionsUnit: string;
   currency: string;
-  representative: SectorState;
-  rows: SectorState[];
+  representative: ResolvedMethodYearRow;
+  rows: ResolvedMethodYearRow[];
   points: TrajectoryPoint[];
   confidenceRatings: string[];
   sourceIds: string[];
@@ -67,7 +67,7 @@ export interface FamilyAutonomousTrackSummary {
   label: string;
   description: string;
   years: number[];
-  applicableStateIds: string[];
+  applicableMethodIds: string[];
   affectedInputCommodities: string[];
   confidenceRatings: string[];
   sourceIds: string[];
@@ -81,7 +81,7 @@ export interface FamilyEfficiencyPackageSummary {
   description: string;
   classification: EfficiencyPackage['classification'];
   years: number[];
-  applicableStateIds: string[];
+  applicableMethodIds: string[];
   affectedInputCommodities: string[];
   confidenceRatings: string[];
   sourceIds: string[];
@@ -92,12 +92,12 @@ export interface FamilyEfficiencyPackageSummary {
 
 export interface FamilyEfficiencyOverview {
   familyId: string;
-  orderedStateIds: string[];
-  stateLabelById: Record<string, string>;
+  orderedMethodIds: string[];
+  methodLabelById: Record<string, string>;
   tracks: FamilyAutonomousTrackSummary[];
   packages: FamilyEfficiencyPackageSummary[];
-  applicableTrackIdsByStateId: Record<string, string[]>;
-  applicablePackageIdsByStateId: Record<string, string[]>;
+  applicableTrackIdsByMethodId: Record<string, string[]>;
+  applicablePackageIdsByMethodId: Record<string, string[]>;
 }
 
 const referencePatterns = [
@@ -130,7 +130,7 @@ function compareStateOptionRank(left: number | null, right: number | null): numb
   return left - right;
 }
 
-function compareSectorStateDisplayOrder(left: SectorState, right: SectorState): number {
+function compareResolvedMethodYearRowDisplayOrder(left: ResolvedMethodYearRow, right: ResolvedMethodYearRow): number {
   return (
     compareStateSortKey(left.state_sort_key, right.state_sort_key) ||
     compareStateOptionRank(left.state_option_rank, right.state_option_rank) ||
@@ -147,10 +147,10 @@ function orderedUniqueStrings(values: string[]): string[] {
   return Array.from(new Set(values.filter(Boolean)));
 }
 
-function orderStateIds(stateIds: string[], orderedStateIds: string[]): string[] {
-  const ids = new Set(stateIds);
+function orderMethodIds(methodIds: string[], orderedMethodIds: string[]): string[] {
+  const ids = new Set(methodIds);
 
-  return orderedStateIds.filter((stateId) => ids.has(stateId));
+  return orderedMethodIds.filter((methodId) => ids.has(methodId));
 }
 
 function compareEfficiencyPackageSummaries(
@@ -169,7 +169,7 @@ export function sumEmissionEntries(entries: EmissionEntry[]): number {
   return entries.reduce((total, entry) => total + entry.value, 0);
 }
 
-export function buildSectorStateSearchText(row: SectorState): string {
+export function buildResolvedMethodYearSearchText(row: ResolvedMethodYearRow): string {
   return [
     row.sector,
     row.subsector,
@@ -192,12 +192,12 @@ export function buildSectorStateSearchText(row: SectorState): string {
     .toLowerCase();
 }
 
-export function buildSectorStateFamilySearchText(family: SectorStateFamily): string {
-  return family.rows.map((row) => buildSectorStateSearchText(row)).join(' ');
+export function buildRoleMethodFamilySearchText(family: RoleMethodFamily): string {
+  return family.rows.map((row) => buildResolvedMethodYearSearchText(row)).join(' ');
 }
 
-export function buildSectorSubsectorIndex(sectorStates: SectorState[]): SectorSubsectorIndex {
-  const subsectorsBySector = sectorStates.reduce<Record<string, Set<string>>>((result, row) => {
+export function buildSectorSubsectorIndex(resolvedMethodYears: ResolvedMethodYearRow[]): SectorSubsectorIndex {
+  const subsectorsBySector = resolvedMethodYears.reduce<Record<string, Set<string>>>((result, row) => {
     if (!result[row.sector]) {
       result[row.sector] = new Set<string>();
     }
@@ -217,10 +217,10 @@ export function buildSectorSubsectorIndex(sectorStates: SectorState[]): SectorSu
   };
 }
 
-export function buildSectorStateFamilies(sectorStates: SectorState[]): SectorStateFamily[] {
-  const grouped = new Map<string, SectorState[]>();
+export function buildRoleMethodFamilies(resolvedMethodYears: ResolvedMethodYearRow[]): RoleMethodFamily[] {
+  const grouped = new Map<string, ResolvedMethodYearRow[]>();
 
-  sectorStates.forEach((row) => {
+  resolvedMethodYears.forEach((row) => {
     const existing = grouped.get(row.state_id);
     if (existing) {
       existing.push(row);
@@ -231,12 +231,12 @@ export function buildSectorStateFamilies(sectorStates: SectorState[]): SectorSta
   });
 
   return Array.from(grouped.entries())
-    .map(([stateId, rows]) => {
+    .map(([methodId, rows]) => {
       const sortedRows = [...rows].sort((left, right) => left.year - right.year);
       const representative = sortedRows[0];
 
       return {
-        stateId,
+        methodId,
         label: representative.state_label,
         sector: representative.sector,
         subsector: representative.subsector,
@@ -254,16 +254,16 @@ export function buildSectorStateFamilies(sectorStates: SectorState[]): SectorSta
         left.sector.localeCompare(right.sector) ||
         left.subsector.localeCompare(right.subsector) ||
         left.serviceOrOutputName.localeCompare(right.serviceOrOutputName) ||
-        compareSectorStateDisplayOrder(left.representative, right.representative)
+        compareResolvedMethodYearRowDisplayOrder(left.representative, right.representative)
       );
     });
 }
 
-export function buildSectorStateTrajectory(family: SectorStateFamily): SectorStateTrajectory {
+export function buildRoleMethodTrajectory(family: RoleMethodFamily): RoleMethodTrajectory {
   const representative = family.representative;
 
   return {
-    stateId: family.stateId,
+    methodId: family.methodId,
     label: family.label,
     sector: family.sector,
     subsector: family.subsector,
@@ -290,7 +290,7 @@ export function buildSectorStateTrajectory(family: SectorStateFamily): SectorSta
   };
 }
 
-export function buildInputCommoditySeries(family: SectorStateFamily): InputCommoditySeries[] {
+export function buildInputCommoditySeries(family: RoleMethodFamily): InputCommoditySeries[] {
   const commodityUnits = new Map<string, string>();
 
   family.rows.forEach((row) => {
@@ -318,27 +318,27 @@ export function buildInputCommoditySeries(family: SectorStateFamily): InputCommo
 
 export function buildFamilyEfficiencyOverview(
   familyId: string,
-  sectorStates: SectorState[],
+  resolvedMethodYears: ResolvedMethodYearRow[],
   autonomousEfficiencyTracks: AutonomousEfficiencyTrack[],
   efficiencyPackages: EfficiencyPackage[],
 ): FamilyEfficiencyOverview | null {
-  const stateFamilies = buildSectorStateFamilies(
-    sectorStates.filter((row) => row.family_id === familyId),
+  const stateFamilies = buildRoleMethodFamilies(
+    resolvedMethodYears.filter((row) => row.family_id === familyId),
   );
 
   if (stateFamilies.length === 0) {
     return null;
   }
 
-  const orderedStateIds = stateFamilies.map((family) => family.stateId);
-  const stateLabelById = Object.fromEntries(
-    stateFamilies.map((family) => [family.stateId, family.label]),
+  const orderedMethodIds = stateFamilies.map((family) => family.methodId);
+  const methodLabelById = Object.fromEntries(
+    stateFamilies.map((family) => [family.methodId, family.label]),
   );
-  const applicableTrackIdsByStateId = Object.fromEntries(
-    orderedStateIds.map((stateId) => [stateId, [] as string[]]),
+  const applicableTrackIdsByMethodId = Object.fromEntries(
+    orderedMethodIds.map((methodId) => [methodId, [] as string[]]),
   );
-  const applicablePackageIdsByStateId = Object.fromEntries(
-    orderedStateIds.map((stateId) => [stateId, [] as string[]]),
+  const applicablePackageIdsByMethodId = Object.fromEntries(
+    orderedMethodIds.map((methodId) => [methodId, [] as string[]]),
   );
 
   const tracks = Array.from(
@@ -356,13 +356,13 @@ export function buildFamilyEfficiencyOverview(
     .map(([trackId, rows]) => {
       const sortedRows = [...rows].sort((left, right) => left.year - right.year);
       const representative = sortedRows[0];
-      const applicableStateIds = orderStateIds(
+      const applicableMethodIds = orderMethodIds(
         orderedUniqueStrings(sortedRows.flatMap((row) => row.applicable_state_ids)),
-        orderedStateIds,
+        orderedMethodIds,
       );
 
-      applicableStateIds.forEach((stateId) => {
-        applicableTrackIdsByStateId[stateId]?.push(trackId);
+      applicableMethodIds.forEach((methodId) => {
+        applicableTrackIdsByMethodId[methodId]?.push(trackId);
       });
 
       return {
@@ -370,7 +370,7 @@ export function buildFamilyEfficiencyOverview(
         label: representative.track_label,
         description: representative.track_description,
         years: sortedRows.map((row) => row.year),
-        applicableStateIds,
+        applicableMethodIds,
         affectedInputCommodities: uniqueStrings(
           sortedRows.flatMap((row) => row.affected_input_commodities),
         ),
@@ -397,13 +397,13 @@ export function buildFamilyEfficiencyOverview(
     .map(([packageId, rows]) => {
       const sortedRows = [...rows].sort((left, right) => left.year - right.year);
       const representative = sortedRows[0];
-      const applicableStateIds = orderStateIds(
+      const applicableMethodIds = orderMethodIds(
         orderedUniqueStrings(sortedRows.flatMap((row) => row.applicable_state_ids)),
-        orderedStateIds,
+        orderedMethodIds,
       );
 
-      applicableStateIds.forEach((stateId) => {
-        applicablePackageIdsByStateId[stateId]?.push(packageId);
+      applicableMethodIds.forEach((methodId) => {
+        applicablePackageIdsByMethodId[methodId]?.push(packageId);
       });
 
       return {
@@ -412,7 +412,7 @@ export function buildFamilyEfficiencyOverview(
         description: representative.package_description,
         classification: representative.classification,
         years: sortedRows.map((row) => row.year),
-        applicableStateIds,
+        applicableMethodIds,
         affectedInputCommodities: uniqueStrings(
           sortedRows.flatMap((row) => row.affected_input_commodities),
         ),
@@ -427,16 +427,16 @@ export function buildFamilyEfficiencyOverview(
 
   return {
     familyId,
-    orderedStateIds,
-    stateLabelById,
+    orderedMethodIds,
+    methodLabelById,
     tracks,
     packages,
-    applicableTrackIdsByStateId,
-    applicablePackageIdsByStateId,
+    applicableTrackIdsByMethodId,
+    applicablePackageIdsByMethodId,
   };
 }
 
-function scoreReferenceCandidate(row: SectorState): number {
+function scoreReferenceCandidate(row: ResolvedMethodYearRow): number {
   const haystack = `${row.state_id} ${row.state_label}`;
 
   return referencePatterns.reduce((score, { pattern, score: weight }) => {
@@ -444,11 +444,11 @@ function scoreReferenceCandidate(row: SectorState): number {
   }, 0);
 }
 
-export function findReferenceSectorState(
-  selected: SectorState,
-  sectorStates: SectorState[],
-): SectorState | null {
-  const candidates = sectorStates.filter((row) => {
+export function findReferenceMethodRow(
+  selected: ResolvedMethodYearRow,
+  resolvedMethodYears: ResolvedMethodYearRow[],
+): ResolvedMethodYearRow | null {
+  const candidates = resolvedMethodYears.filter((row) => {
     return (
       row.service_or_output_name === selected.service_or_output_name &&
       row.year === selected.year &&
@@ -463,13 +463,13 @@ export function findReferenceSectorState(
   const explicitIncumbents = candidates.filter((row) => row.is_default_incumbent_2025);
 
   if (explicitIncumbents.length > 0) {
-    return [...explicitIncumbents].sort(compareSectorStateDisplayOrder)[0] ?? null;
+    return [...explicitIncumbents].sort(compareResolvedMethodYearRowDisplayOrder)[0] ?? null;
   }
 
   return [...candidates].sort((left, right) => {
     return (
       scoreReferenceCandidate(right) - scoreReferenceCandidate(left) ||
-      compareSectorStateDisplayOrder(left, right)
+      compareResolvedMethodYearRowDisplayOrder(left, right)
     );
   })[0] ?? null;
 }

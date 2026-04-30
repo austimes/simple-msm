@@ -7,29 +7,29 @@ import {
   resolveAutonomousModeForOutput,
 } from '../src/data/efficiencyControlModel.ts';
 
-function sectorState(outputId, stateId) {
+function sectorState(outputId, methodId) {
   return {
     service_or_output_name: outputId,
-    state_id: stateId,
+    state_id: methodId,
   };
 }
 
-function autonomousTrack(outputId, trackId, stateId) {
+function autonomousTrack(outputId, trackId, methodId) {
   return {
     family_id: outputId,
     track_id: trackId,
     track_label: `${trackId} label`,
-    applicable_state_ids: [stateId],
+    applicable_state_ids: [methodId],
   };
 }
 
-function efficiencyPackage(outputId, packageId, stateId, overrides = {}) {
+function efficiencyPackage(outputId, packageId, methodId, overrides = {}) {
   return {
     family_id: outputId,
     package_id: packageId,
     package_label: `${packageId} label`,
     classification: 'pure_efficiency_overlay',
-    applicable_state_ids: [stateId],
+    applicable_state_ids: [methodId],
     non_stacking_group: null,
     max_share: 0.25,
     year: 2030,
@@ -41,7 +41,7 @@ test('builds subsector efficiency control catalog', () => {
   const configuration = {
     efficiency_controls: {
       autonomous_mode: 'baseline',
-      autonomous_modes_by_output: {
+      autonomous_modes_by_role: {
         low_temperature_heat: 'off',
       },
       package_mode: 'allow_list',
@@ -79,7 +79,7 @@ test('builds subsector efficiency control catalog', () => {
     2030: 0.25,
     2035: 0.4,
   });
-  assert.deepEqual(heat.embodiedStateIds, [
+  assert.deepEqual(heat.embodiedMethodIds, [
     'generic_industrial_heat__low_temperature_heat__electrified',
   ]);
   assert.equal(empty?.hasControls, false);
@@ -94,7 +94,7 @@ test('resolves autonomous mode for output from global and per-output controls', 
   assert.equal(
     resolveAutonomousModeForOutput({
       autonomous_mode: 'off',
-      autonomous_modes_by_output: { low_temperature_heat: 'baseline' },
+      autonomous_modes_by_role: { low_temperature_heat: 'baseline' },
     }, 'low_temperature_heat'),
     'baseline',
   );

@@ -68,7 +68,7 @@ function formatAction(action: AdditionalityAtomAction): string {
 
 function formatAtomKind(kind: AdditionalityAtomKind): string {
   switch (kind) {
-    case 'state':
+    case 'method':
       return 'Method';
     case 'efficiency_package':
       return 'Efficiency package';
@@ -85,7 +85,7 @@ function formatAtomCategory(category: AdditionalityAtomCategory): string {
       return 'Efficiency';
     case 'fuel_switching':
       return 'Fuel switching';
-    case 'other_state_change':
+    case 'other_method_change':
       return 'Other method change';
     default:
       return category;
@@ -631,7 +631,7 @@ function updateFocusSelection(
 
 export default function AdditionalityPage() {
   const appConfig = usePackageStore((state) => state.appConfig);
-  const sectorStates = usePackageStore((state) => state.sectorStates);
+  const resolvedMethodYears = usePackageStore((state) => state.resolvedMethodYears);
   const autonomousEfficiencyTracks = usePackageStore((state) => state.autonomousEfficiencyTracks);
   const efficiencyPackages = usePackageStore((state) => state.efficiencyPackages);
   const residualOverlays2025 = usePackageStore((state) => state.residualOverlays2025);
@@ -690,9 +690,9 @@ export default function AdditionalityPage() {
       autonomousEfficiencyTracks,
       efficiencyPackages,
       residualOverlays2025,
-      sectorStates,
+      resolvedMethodYears,
     }),
-    [appConfig, autonomousEfficiencyTracks, efficiencyPackages, residualOverlays2025, sectorStates],
+    [appConfig, autonomousEfficiencyTracks, efficiencyPackages, residualOverlays2025, resolvedMethodYears],
   );
   const analysis0 = useAdditionalityAnalysis({
     baseConfiguration,

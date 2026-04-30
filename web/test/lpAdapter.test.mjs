@@ -7,10 +7,9 @@ function createRow({
   rowId,
   outputId,
   year,
-  stateId,
+  methodId,
   roleId = outputId,
   representationId = `${roleId}__bundle`,
-  methodId = stateId,
   balanceType = 'service_demand',
   cost,
   outputRole = 'required_service',
@@ -31,8 +30,8 @@ function createRow({
     outputRole,
     outputLabel: outputId,
     year,
-    stateId,
-    stateLabel: stateId,
+    methodId,
+    methodLabel: methodId,
     sector: 'test',
     subsector: 'test',
     region: 'national',
@@ -70,19 +69,19 @@ function findSoftConstraint(result, constraintId) {
   return result.reporting.softConstraintViolations.find((constraint) => constraint.constraintId === constraintId);
 }
 
-function findStateShare(result, outputId, year, stateId) {
-  return result.reporting.stateShares.find((share) => {
-    return share.outputId === outputId && share.year === year && share.stateId === stateId;
+function findMethodShare(result, outputId, year, methodId) {
+  return result.reporting.methodShares.find((share) => {
+    return share.outputId === outputId && share.year === year && share.methodId === methodId;
   });
 }
 
-function packageProvenance(baseStateId, packageId, group) {
+function packageProvenance(baseMethodId, packageId, group) {
   return {
     kind: 'efficiency_package',
     familyId: 'service',
-    baseStateId,
-    baseStateLabel: baseStateId,
-    baseRowId: `${baseStateId}::2030`,
+    baseMethodId,
+    baseMethodLabel: baseMethodId,
+    baseRowId: `${baseMethodId}::2030`,
     autonomousTrackIds: [],
     packageId,
     packageClassification: 'pure_efficiency_overlay',
@@ -99,21 +98,21 @@ test('required-service LP solves exact-share and optimize controls generically',
         rowId: 'heat_fossil::2025',
         outputId: 'heat',
         year: 2025,
-        stateId: 'heat_fossil',
+        methodId: 'heat_fossil',
         cost: 5,
       }),
       createRow({
         rowId: 'heat_electric::2025',
         outputId: 'heat',
         year: 2025,
-        stateId: 'heat_electric',
+        methodId: 'heat_electric',
         cost: 2,
       }),
       createRow({
         rowId: 'heat_fossil::2030',
         outputId: 'heat',
         year: 2030,
-        stateId: 'heat_fossil',
+        methodId: 'heat_fossil',
         cost: 5,
         maxShare: 0.25,
       }),
@@ -121,7 +120,7 @@ test('required-service LP solves exact-share and optimize controls generically',
         rowId: 'heat_electric::2030',
         outputId: 'heat',
         year: 2030,
-        stateId: 'heat_electric',
+        methodId: 'heat_electric',
         cost: 2,
         maxShare: 0.75,
       }),
@@ -129,56 +128,56 @@ test('required-service LP solves exact-share and optimize controls generically',
         rowId: 'transport_diesel::2025',
         outputId: 'transport',
         year: 2025,
-        stateId: 'transport_diesel',
+        methodId: 'transport_diesel',
         cost: 4,
       }),
       createRow({
         rowId: 'transport_ev::2025',
         outputId: 'transport',
         year: 2025,
-        stateId: 'transport_ev',
+        methodId: 'transport_ev',
         cost: 1,
       }),
       createRow({
         rowId: 'transport_diesel::2030',
         outputId: 'transport',
         year: 2030,
-        stateId: 'transport_diesel',
+        methodId: 'transport_diesel',
         cost: 4,
       }),
       createRow({
         rowId: 'transport_ev::2030',
         outputId: 'transport',
         year: 2030,
-        stateId: 'transport_ev',
+        methodId: 'transport_ev',
         cost: 1,
       }),
       createRow({
         rowId: 'process_incumbent::2025',
         outputId: 'process',
         year: 2025,
-        stateId: 'process_incumbent',
+        methodId: 'process_incumbent',
         cost: 3,
       }),
       createRow({
         rowId: 'process_transition::2025',
         outputId: 'process',
         year: 2025,
-        stateId: 'process_transition',
+        methodId: 'process_transition',
         cost: 2,
       }),
       createRow({
         rowId: 'process_hydrogen::2025',
         outputId: 'process',
         year: 2025,
-        stateId: 'process_hydrogen',
+        methodId: 'process_hydrogen',
         cost: 1,
       }),
       createRow({
         rowId: 'process_incumbent::2030',
         outputId: 'process',
         year: 2030,
-        stateId: 'process_incumbent',
+        methodId: 'process_incumbent',
         cost: 1,
         maxShare: 0.6,
       }),
@@ -186,14 +185,14 @@ test('required-service LP solves exact-share and optimize controls generically',
         rowId: 'process_transition::2030',
         outputId: 'process',
         year: 2030,
-        stateId: 'process_transition',
+        methodId: 'process_transition',
         cost: 3,
       }),
       createRow({
         rowId: 'process_hydrogen::2030',
         outputId: 'process',
         year: 2030,
-        stateId: 'process_hydrogen',
+        methodId: 'process_hydrogen',
         cost: 0.5,
       }),
     ],
@@ -205,36 +204,36 @@ test('required-service LP solves exact-share and optimize controls generically',
         heat: {
           2025: {
             mode: 'optimize',
-            activeStateIds: ['heat_fossil'],
+            activeMethodIds: ['heat_fossil'],
             targetValue: null,
           },
           2030: {
             mode: 'optimize',
-            activeStateIds: ['heat_fossil', 'heat_electric'],
+            activeMethodIds: ['heat_fossil', 'heat_electric'],
             targetValue: null,
           },
         },
         transport: {
           2025: {
             mode: 'optimize',
-            activeStateIds: ['transport_diesel'],
+            activeMethodIds: ['transport_diesel'],
             targetValue: null,
           },
           2030: {
             mode: 'optimize',
-            activeStateIds: ['transport_ev'],
+            activeMethodIds: ['transport_ev'],
             targetValue: null,
           },
         },
         process: {
           2025: {
             mode: 'optimize',
-            activeStateIds: ['process_transition'],
+            activeMethodIds: ['process_transition'],
             targetValue: null,
           },
           2030: {
             mode: 'optimize',
-            activeStateIds: ['process_incumbent', 'process_transition'],
+            activeMethodIds: ['process_incumbent', 'process_transition'],
             targetValue: null,
           },
         },
@@ -283,8 +282,8 @@ test('required-service LP solves exact-share and optimize controls generically',
   assertClose(variables.get('activity:process_transition::2030'), 40, '2030 process optimize residual row');
   assertClose(variables.get('activity:process_hydrogen::2030'), 0, '2030 process inactive row');
 
-  const incumbentShare = findStateShare(result, 'process', 2030, 'process_incumbent');
-  const transitionShare = findStateShare(result, 'process', 2030, 'process_transition');
+  const incumbentShare = findMethodShare(result, 'process', 2030, 'process_incumbent');
+  const transitionShare = findMethodShare(result, 'process', 2030, 'process_transition');
   assertClose(incumbentShare?.rawMaxShare, 0.6, 'raw incumbent max share is reported');
   assertClose(incumbentShare?.effectiveMaxShare, 0.6, 'effective incumbent max share when total weight > 1');
   assert.equal(transitionShare?.rawMaxShare, null);
@@ -309,7 +308,7 @@ test('endogenous electricity enforces balance and removes exogenous electricity 
         rowId: 'process_fossil::2030',
         outputId: 'process',
         year: 2030,
-        stateId: 'process_fossil',
+        methodId: 'process_fossil',
         cost: 5,
         maxShare: 0,
       }),
@@ -317,7 +316,7 @@ test('endogenous electricity enforces balance and removes exogenous electricity 
         rowId: 'process_electric::2030',
         outputId: 'process',
         year: 2030,
-        stateId: 'process_electric',
+        methodId: 'process_electric',
         cost: 1,
         maxShare: 1,
         inputs: [
@@ -333,7 +332,7 @@ test('endogenous electricity enforces balance and removes exogenous electricity 
         outputId: 'electricity',
         outputRole: 'endogenous_supply_commodity',
         year: 2030,
-        stateId: 'grid_clean',
+        methodId: 'grid_clean',
         cost: 1,
         maxShare: 0.25,
       }),
@@ -342,7 +341,7 @@ test('endogenous electricity enforces balance and removes exogenous electricity 
         outputId: 'electricity',
         outputRole: 'endogenous_supply_commodity',
         year: 2030,
-        stateId: 'grid_firmed',
+        methodId: 'grid_firmed',
         cost: 1,
         maxShare: 0.75,
       }),
@@ -355,14 +354,14 @@ test('endogenous electricity enforces balance and removes exogenous electricity 
         process: {
           2030: {
             mode: 'optimize',
-            activeStateIds: null,
+            activeMethodIds: null,
             targetValue: null,
           },
         },
         electricity: {
           2030: {
             mode: 'optimize',
-            activeStateIds: ['grid_clean', 'grid_firmed'],
+            activeMethodIds: ['grid_clean', 'grid_firmed'],
             targetValue: null,
           },
         },
@@ -423,7 +422,7 @@ test('externalized electricity bypasses supply states and prices electricity exo
         rowId: 'process_fossil::2030',
         outputId: 'process',
         year: 2030,
-        stateId: 'process_fossil',
+        methodId: 'process_fossil',
         cost: 5,
         maxShare: 1,
       }),
@@ -431,7 +430,7 @@ test('externalized electricity bypasses supply states and prices electricity exo
         rowId: 'process_electric::2030',
         outputId: 'process',
         year: 2030,
-        stateId: 'process_electric',
+        methodId: 'process_electric',
         cost: 1,
         maxShare: 0,
         inputs: [
@@ -447,7 +446,7 @@ test('externalized electricity bypasses supply states and prices electricity exo
         outputId: 'electricity',
         outputRole: 'endogenous_supply_commodity',
         year: 2030,
-        stateId: 'grid_clean',
+        methodId: 'grid_clean',
         cost: 1,
       }),
       createRow({
@@ -455,7 +454,7 @@ test('externalized electricity bypasses supply states and prices electricity exo
         outputId: 'electricity',
         outputRole: 'endogenous_supply_commodity',
         year: 2030,
-        stateId: 'grid_firmed',
+        methodId: 'grid_firmed',
         cost: 1,
       }),
     ],
@@ -467,14 +466,14 @@ test('externalized electricity bypasses supply states and prices electricity exo
         process: {
           2030: {
             mode: 'optimize',
-            activeStateIds: null,
+            activeMethodIds: null,
             targetValue: null,
           },
         },
         electricity: {
           2030: {
             mode: 'externalized',
-            activeStateIds: null,
+            activeMethodIds: null,
             targetValue: null,
           },
         },
@@ -537,7 +536,7 @@ function createDecomposedSteelRequest(overrides = {}) {
       outputUnit: 't_crude_steel',
       balanceType: 'service_demand',
       year: 2030,
-      stateId: 'non_h2',
+      methodId: 'non_h2',
       cost: 5,
       maxShare: 0.5,
     }),
@@ -549,7 +548,7 @@ function createDecomposedSteelRequest(overrides = {}) {
       outputUnit: 't_dri',
       balanceType: 'intermediate_material',
       year: 2030,
-      stateId: 'dri_h2',
+      methodId: 'dri_h2',
       cost: 1,
     }),
     createRow({
@@ -560,7 +559,7 @@ function createDecomposedSteelRequest(overrides = {}) {
       outputUnit: 't_crude_steel',
       balanceType: 'intermediate_conversion',
       year: 2030,
-      stateId: 'dri_finish',
+      methodId: 'dri_finish',
       cost: 1,
       maxShare: 0.5,
       inputs: [
@@ -585,28 +584,28 @@ function createDecomposedSteelRequest(overrides = {}) {
         crude_steel: {
           2030: {
             mode: 'optimize',
-            activeStateIds: null,
+            activeMethodIds: null,
             targetValue: null,
           },
         },
         produce_crude_steel_non_h2_dri_residual: {
           2030: {
             mode: 'optimize',
-            activeStateIds: null,
+            activeMethodIds: null,
             targetValue: null,
           },
         },
         produce_direct_reduced_iron: {
           2030: {
             mode: 'optimize',
-            activeStateIds: null,
+            activeMethodIds: null,
             targetValue: null,
           },
         },
         melt_refine_dri_crude_steel: {
           2030: {
             mode: 'optimize',
-            activeStateIds: null,
+            activeMethodIds: null,
             targetValue: null,
           },
         },
@@ -729,7 +728,7 @@ test('decomposed role topology reports missing child-role parent coverage', () =
         outputUnit: 't_crude_steel',
         balanceType: 'service_demand',
         year: 2030,
-        stateId: 'non_h2',
+        methodId: 'non_h2',
         cost: 5,
         maxShare: 0.4,
       }),
@@ -770,7 +769,7 @@ test('infeasible runs report deterministic service-year and electricity diagnost
         rowId: 'pin_locked::2030',
         outputId: 'pin_service',
         year: 2030,
-        stateId: 'pin_locked',
+        methodId: 'pin_locked',
         cost: 1,
         maxShare: 0.5,
       }),
@@ -778,14 +777,14 @@ test('infeasible runs report deterministic service-year and electricity diagnost
         rowId: 'pin_flexible::2030',
         outputId: 'pin_service',
         year: 2030,
-        stateId: 'pin_flexible',
+        methodId: 'pin_flexible',
         cost: 2,
       }),
       createRow({
         rowId: 'share_a::2030',
         outputId: 'share_service',
         year: 2030,
-        stateId: 'share_a',
+        methodId: 'share_a',
         cost: 1,
         minShare: 0.6,
       }),
@@ -793,7 +792,7 @@ test('infeasible runs report deterministic service-year and electricity diagnost
         rowId: 'share_b::2030',
         outputId: 'share_service',
         year: 2030,
-        stateId: 'share_b',
+        methodId: 'share_b',
         cost: 2,
         minShare: 0.6,
       }),
@@ -801,7 +800,7 @@ test('infeasible runs report deterministic service-year and electricity diagnost
         rowId: 'activity_a::2030',
         outputId: 'activity_service',
         year: 2030,
-        stateId: 'activity_a',
+        methodId: 'activity_a',
         cost: 1,
         maxShare: 0.8,
         maxActivity: 30,
@@ -810,7 +809,7 @@ test('infeasible runs report deterministic service-year and electricity diagnost
         rowId: 'activity_b::2030',
         outputId: 'activity_service',
         year: 2030,
-        stateId: 'activity_b',
+        methodId: 'activity_b',
         cost: 2,
         maxShare: 0.2,
         maxActivity: 20,
@@ -819,21 +818,21 @@ test('infeasible runs report deterministic service-year and electricity diagnost
         rowId: 'disabled_a::2030',
         outputId: 'disabled_service',
         year: 2030,
-        stateId: 'disabled_a',
+        methodId: 'disabled_a',
         cost: 1,
       }),
       createRow({
         rowId: 'disabled_b::2030',
         outputId: 'disabled_service',
         year: 2030,
-        stateId: 'disabled_b',
+        methodId: 'disabled_b',
         cost: 2,
       }),
       createRow({
         rowId: 'process_grid::2030',
         outputId: 'process_service',
         year: 2030,
-        stateId: 'process_grid',
+        methodId: 'process_grid',
         cost: 1,
         inputs: [
           {
@@ -848,7 +847,7 @@ test('infeasible runs report deterministic service-year and electricity diagnost
         outputId: 'electricity',
         outputRole: 'endogenous_supply_commodity',
         year: 2030,
-        stateId: 'grid_limited',
+        methodId: 'grid_limited',
         cost: 1,
         maxActivity: 40,
       }),
@@ -861,42 +860,42 @@ test('infeasible runs report deterministic service-year and electricity diagnost
         pin_service: {
           2030: {
             mode: 'optimize',
-            activeStateIds: ['pin_locked', 'pin_flexible'],
+            activeMethodIds: ['pin_locked', 'pin_flexible'],
             targetValue: null,
           },
         },
         share_service: {
           2030: {
             mode: 'optimize',
-            activeStateIds: null,
+            activeMethodIds: null,
             targetValue: null,
           },
         },
         activity_service: {
           2030: {
             mode: 'optimize',
-            activeStateIds: null,
+            activeMethodIds: null,
             targetValue: null,
           },
         },
         disabled_service: {
           2030: {
             mode: 'optimize',
-            activeStateIds: [],
+            activeMethodIds: [],
             targetValue: null,
           },
         },
         process_service: {
           2030: {
             mode: 'optimize',
-            activeStateIds: null,
+            activeMethodIds: null,
             targetValue: null,
           },
         },
         electricity: {
           2030: {
             mode: 'optimize',
-            activeStateIds: null,
+            activeMethodIds: null,
             targetValue: null,
           },
         },
@@ -947,7 +946,7 @@ test('infeasible runs report deterministic service-year and electricity diagnost
   );
   assert.equal(
     findDiagnostic(result, 'service_states_inactive', 'disabled_service')?.reason,
-    'inactive_states',
+    'inactive_methods',
   );
   assert.equal(
     findDiagnostic(result, 'electricity_balance_shortfall', 'electricity')?.reason,
@@ -968,7 +967,7 @@ test('soft-constraint mode restores feasibility and reports slack penalties', ()
         rowId: 'share_a::2030',
         outputId: 'share_service',
         year: 2030,
-        stateId: 'share_a',
+        methodId: 'share_a',
         cost: 1,
         maxShare: 0.4,
       }),
@@ -976,14 +975,14 @@ test('soft-constraint mode restores feasibility and reports slack penalties', ()
         rowId: 'share_b::2030',
         outputId: 'share_service',
         year: 2030,
-        stateId: 'share_b',
+        methodId: 'share_b',
         cost: 2,
       }),
       createRow({
         rowId: 'activity_a::2030',
         outputId: 'activity_service',
         year: 2030,
-        stateId: 'activity_a',
+        methodId: 'activity_a',
         cost: 1,
         maxShare: 0.8,
         maxActivity: 30,
@@ -992,7 +991,7 @@ test('soft-constraint mode restores feasibility and reports slack penalties', ()
         rowId: 'activity_b::2030',
         outputId: 'activity_service',
         year: 2030,
-        stateId: 'activity_b',
+        methodId: 'activity_b',
         cost: 2,
         maxShare: 0.2,
         maxActivity: 20,
@@ -1001,7 +1000,7 @@ test('soft-constraint mode restores feasibility and reports slack penalties', ()
         rowId: 'process_grid::2030',
         outputId: 'process_service',
         year: 2030,
-        stateId: 'process_grid',
+        methodId: 'process_grid',
         cost: 1,
         inputs: [
           {
@@ -1016,7 +1015,7 @@ test('soft-constraint mode restores feasibility and reports slack penalties', ()
         outputId: 'electricity',
         outputRole: 'endogenous_supply_commodity',
         year: 2030,
-        stateId: 'grid_limited',
+        methodId: 'grid_limited',
         cost: 1,
         maxActivity: 40,
       }),
@@ -1029,28 +1028,28 @@ test('soft-constraint mode restores feasibility and reports slack penalties', ()
         share_service: {
           2030: {
             mode: 'optimize',
-            activeStateIds: ['share_a', 'share_b'],
+            activeMethodIds: ['share_a', 'share_b'],
             targetValue: null,
           },
         },
         activity_service: {
           2030: {
             mode: 'optimize',
-            activeStateIds: null,
+            activeMethodIds: null,
             targetValue: null,
           },
         },
         process_service: {
           2030: {
             mode: 'optimize',
-            activeStateIds: null,
+            activeMethodIds: null,
             targetValue: null,
           },
         },
         electricity: {
           2030: {
             mode: 'optimize',
-            activeStateIds: null,
+            activeMethodIds: null,
             targetValue: null,
           },
         },
@@ -1126,7 +1125,7 @@ test('max-share normalization keeps subset runs feasible and reports raw versus 
         rowId: 'subset_enabled::2030',
         outputId: 'subset_service',
         year: 2030,
-        stateId: 'subset_enabled',
+        methodId: 'subset_enabled',
         cost: 1,
         maxShare: 0.03,
       }),
@@ -1134,7 +1133,7 @@ test('max-share normalization keeps subset runs feasible and reports raw versus 
         rowId: 'subset_disabled::2030',
         outputId: 'subset_service',
         year: 2030,
-        stateId: 'subset_disabled',
+        methodId: 'subset_disabled',
         cost: 2,
         maxShare: 0.97,
       }),
@@ -1147,7 +1146,7 @@ test('max-share normalization keeps subset runs feasible and reports raw versus 
         subset_service: {
           2030: {
             mode: 'optimize',
-            activeStateIds: ['subset_enabled'],
+            activeMethodIds: ['subset_enabled'],
             targetValue: null,
           },
         },
@@ -1172,8 +1171,8 @@ test('max-share normalization keeps subset runs feasible and reports raw versus 
 
   const result = solveWithLpAdapter(request);
   const variables = getVariableMap(result);
-  const enabledShare = findStateShare(result, 'subset_service', 2030, 'subset_enabled');
-  const disabledShare = findStateShare(result, 'subset_service', 2030, 'subset_disabled');
+  const enabledShare = findMethodShare(result, 'subset_service', 2030, 'subset_enabled');
+  const disabledShare = findMethodShare(result, 'subset_service', 2030, 'subset_disabled');
   const maxConstraint = result.reporting.bindingConstraints.find(
     (constraint) => constraint.constraintId === 'max_share:subset_enabled::2030',
   );
@@ -1197,7 +1196,7 @@ test('zero raw max shares with both states active results in infeasibility when 
         rowId: 'equal_a::2030',
         outputId: 'equal_service',
         year: 2030,
-        stateId: 'equal_a',
+        methodId: 'equal_a',
         cost: 1,
         maxShare: 0,
       }),
@@ -1205,7 +1204,7 @@ test('zero raw max shares with both states active results in infeasibility when 
         rowId: 'equal_b::2030',
         outputId: 'equal_service',
         year: 2030,
-        stateId: 'equal_b',
+        methodId: 'equal_b',
         cost: 2,
         maxShare: 0,
       }),
@@ -1218,7 +1217,7 @@ test('zero raw max shares with both states active results in infeasibility when 
         equal_service: {
           2030: {
             mode: 'optimize',
-            activeStateIds: ['equal_a', 'equal_b'],
+            activeMethodIds: ['equal_a', 'equal_b'],
             targetValue: null,
           },
         },
@@ -1256,7 +1255,7 @@ test('one-hot exact-share controls normalize caps over active states', () => {
         rowId: 'selected_a::2030',
         outputId: 'exact_share_service',
         year: 2030,
-        stateId: 'selected_a',
+        methodId: 'selected_a',
         cost: 1,
         maxShare: 0.2,
       }),
@@ -1264,7 +1263,7 @@ test('one-hot exact-share controls normalize caps over active states', () => {
         rowId: 'available_b::2030',
         outputId: 'exact_share_service',
         year: 2030,
-        stateId: 'available_b',
+        methodId: 'available_b',
         cost: 3,
       }),
     ],
@@ -1276,7 +1275,7 @@ test('one-hot exact-share controls normalize caps over active states', () => {
         exact_share_service: {
           2030: {
             mode: 'optimize',
-            activeStateIds: ['selected_a', 'available_b'],
+            activeMethodIds: ['selected_a', 'available_b'],
             targetValue: null,
           },
         },
@@ -1301,8 +1300,8 @@ test('one-hot exact-share controls normalize caps over active states', () => {
 
   const result = solveWithLpAdapter(request);
   const variables = getVariableMap(result);
-  const selectedShare = findStateShare(result, 'exact_share_service', 2030, 'selected_a');
-  const availableShare = findStateShare(result, 'exact_share_service', 2030, 'available_b');
+  const selectedShare = findMethodShare(result, 'exact_share_service', 2030, 'selected_a');
+  const availableShare = findMethodShare(result, 'exact_share_service', 2030, 'available_b');
 
   assert.equal(result.status, 'solved');
   assertClose(variables.get('activity:selected_a::2030'), 20, 'cheaper state capped at its effective max share');
@@ -1320,14 +1319,14 @@ test('efficiency package rows in the same non-stacking group share the group cap
         rowId: 'base::2030',
         outputId: 'service',
         year: 2030,
-        stateId: 'base',
+        methodId: 'base',
         cost: 10,
       }),
       createRow({
         rowId: 'effpkg:base::pkg_a::2030',
         outputId: 'service',
         year: 2030,
-        stateId: 'effpkg:base::pkg_a',
+        methodId: 'effpkg:base::pkg_a',
         cost: 1,
         maxShare: 0.35,
         provenance: packageProvenance('base', 'pkg_a', 'retrofit'),
@@ -1336,7 +1335,7 @@ test('efficiency package rows in the same non-stacking group share the group cap
         rowId: 'effpkg:base::pkg_b::2030',
         outputId: 'service',
         year: 2030,
-        stateId: 'effpkg:base::pkg_b',
+        methodId: 'effpkg:base::pkg_b',
         cost: 0.5,
         maxShare: 0.35,
         provenance: packageProvenance('base', 'pkg_b', 'retrofit'),
@@ -1350,7 +1349,7 @@ test('efficiency package rows in the same non-stacking group share the group cap
         service: {
           2030: {
             mode: 'optimize',
-            activeStateIds: ['base', 'effpkg:base::pkg_a', 'effpkg:base::pkg_b'],
+            activeMethodIds: ['base', 'effpkg:base::pkg_a', 'effpkg:base::pkg_b'],
             targetValue: null,
           },
         },
@@ -1397,14 +1396,14 @@ test('efficiency package rows in different non-stacking groups remain independen
         rowId: 'base::2030',
         outputId: 'service',
         year: 2030,
-        stateId: 'base',
+        methodId: 'base',
         cost: 10,
       }),
       createRow({
         rowId: 'effpkg:base::pkg_a::2030',
         outputId: 'service',
         year: 2030,
-        stateId: 'effpkg:base::pkg_a',
+        methodId: 'effpkg:base::pkg_a',
         cost: 1,
         maxShare: 0.35,
         provenance: packageProvenance('base', 'pkg_a', 'retrofit_a'),
@@ -1413,7 +1412,7 @@ test('efficiency package rows in different non-stacking groups remain independen
         rowId: 'effpkg:base::pkg_b::2030',
         outputId: 'service',
         year: 2030,
-        stateId: 'effpkg:base::pkg_b',
+        methodId: 'effpkg:base::pkg_b',
         cost: 0.5,
         maxShare: 0.35,
         provenance: packageProvenance('base', 'pkg_b', 'retrofit_b'),
@@ -1427,7 +1426,7 @@ test('efficiency package rows in different non-stacking groups remain independen
         service: {
           2030: {
             mode: 'optimize',
-            activeStateIds: ['base', 'effpkg:base::pkg_a', 'effpkg:base::pkg_b'],
+            activeMethodIds: ['base', 'effpkg:base::pkg_a', 'effpkg:base::pkg_b'],
             targetValue: null,
           },
         },
@@ -1469,7 +1468,7 @@ test('endogenous supply efficiency package non-stacking groups use total supply 
         rowId: 'process::2030',
         outputId: 'process',
         year: 2030,
-        stateId: 'process',
+        methodId: 'process',
         cost: 1,
         inputs: [
           {
@@ -1484,7 +1483,7 @@ test('endogenous supply efficiency package non-stacking groups use total supply 
         outputId: 'electricity',
         outputRole: 'endogenous_supply_commodity',
         year: 2030,
-        stateId: 'grid_base',
+        methodId: 'grid_base',
         cost: 10,
       }),
       createRow({
@@ -1492,7 +1491,7 @@ test('endogenous supply efficiency package non-stacking groups use total supply 
         outputId: 'electricity',
         outputRole: 'endogenous_supply_commodity',
         year: 2030,
-        stateId: 'effpkg:grid_base::grid_pkg_a',
+        methodId: 'effpkg:grid_base::grid_pkg_a',
         cost: 1,
         maxShare: 0.35,
         provenance: packageProvenance('grid_base', 'grid_pkg_a', 'grid_retrofit'),
@@ -1502,7 +1501,7 @@ test('endogenous supply efficiency package non-stacking groups use total supply 
         outputId: 'electricity',
         outputRole: 'endogenous_supply_commodity',
         year: 2030,
-        stateId: 'effpkg:grid_base::grid_pkg_b',
+        methodId: 'effpkg:grid_base::grid_pkg_b',
         cost: 0.5,
         maxShare: 0.35,
         provenance: packageProvenance('grid_base', 'grid_pkg_b', 'grid_retrofit'),
@@ -1516,14 +1515,14 @@ test('endogenous supply efficiency package non-stacking groups use total supply 
         process: {
           2030: {
             mode: 'optimize',
-            activeStateIds: ['process'],
+            activeMethodIds: ['process'],
             targetValue: null,
           },
         },
         electricity: {
           2030: {
             mode: 'optimize',
-            activeStateIds: ['grid_base', 'effpkg:grid_base::grid_pkg_a', 'effpkg:grid_base::grid_pkg_b'],
+            activeMethodIds: ['grid_base', 'effpkg:grid_base::grid_pkg_a', 'effpkg:grid_base::grid_pkg_b'],
             targetValue: null,
           },
         },

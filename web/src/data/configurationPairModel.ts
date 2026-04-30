@@ -44,7 +44,7 @@ interface ResolveWorkspacePairOptions {
   focusConfigId: string | null;
   packageData: Pick<
     PackageData,
-    'appConfig' | 'sectorStates' | 'autonomousEfficiencyTracks' | 'efficiencyPackages' | 'residualOverlays2025'
+    'appConfig' | 'resolvedMethodYears' | 'autonomousEfficiencyTracks' | 'efficiencyPackages' | 'residualOverlays2025'
   >;
   selectedBaseConfigId: string | null;
 }

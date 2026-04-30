@@ -58,7 +58,7 @@ export default function ConfigurationDocumentPanel() {
   const externalCommodityEntries = Object.entries(
     currentConfiguration.external_commodity_demands ?? {},
   );
-  const controlsByMode = Object.values(currentConfiguration.service_controls).reduce<
+  const controlsByMode = Object.values(currentConfiguration.role_controls ?? {}).reduce<
     Record<string, number>
   >((counts, control) => {
     counts[control.mode] = (counts[control.mode] ?? 0) + 1;

@@ -2,17 +2,18 @@ import {
   materializeEfficiencyConfiguration,
   materializeResidualOverlayConfiguration,
 } from './configurationDocumentLoader.ts';
+import { normalizeConfigurationRoleControls } from './configurationRoleControls.ts';
 import { OVERLAY_GROWTH_PROXY } from './overlayProjection.ts';
-import { derivePathwayStateIdsForOutput } from './pathwaySemantics.ts';
+import { derivePathwayMethodIdsForRole } from './pathwaySemantics.ts';
 import type {
   AppConfigRegistry,
   ConfigurationDocument,
-  ConfigurationServiceControl,
-  ConfigurationServiceControlYearOverride,
+  ConfigurationRoleControl,
+  ConfigurationRoleControlYearOverride,
   PackageData,
   ResidualOverlayDomain,
   ResidualOverlayRow,
-  SectorState,
+  ResolvedMethodYearRow,
 } from './types.ts';
 
 export const GENERATED_INCUMBENT_BASE_LABEL = 'Generated incumbent base';
@@ -165,34 +166,40 @@ function cloneConfiguration(configuration: ConfigurationDocument): Configuration
   return structuredClone(configuration);
 }
 
-function collectStateIdsByOutput(
-  sectorStates: SectorState[],
+function collectMethodIdsByOutput(
+  resolvedMethodYears: ResolvedMethodYearRow[],
 ): Map<string, string[]> {
   const byOutput = new Map<string, Set<string>>();
 
-  for (const row of sectorStates) {
-    let stateIds = byOutput.get(row.service_or_output_name);
-    if (!stateIds) {
-      stateIds = new Set<string>();
-      byOutput.set(row.service_or_output_name, stateIds);
+  for (const row of resolvedMethodYears) {
+    let methodIds = byOutput.get(row.service_or_output_name);
+    if (!methodIds) {
+      methodIds = new Set<string>();
+      byOutput.set(row.service_or_output_name, methodIds);
     }
-    stateIds.add(row.state_id);
+    methodIds.add(row.state_id);
   }
 
   return new Map(
-    Array.from(byOutput.entries()).map(([outputId, stateIds]) => [
+    Array.from(byOutput.entries()).map(([outputId, methodIds]) => [
       outputId,
-      Array.from(stateIds),
+      Array.from(methodIds),
     ]),
   );
 }
 
-function collectIncumbentStateIdsByOutput(
-  sectorStates: SectorState[],
+function collectRoleIdByOutput(
+  resolvedMethodYears: ResolvedMethodYearRow[],
+): Map<string, string> {
+  return new Map(resolvedMethodYears.map((row) => [row.output_id, row.role_id] as const));
+}
+
+function collectIncumbentMethodIdsByOutput(
+  resolvedMethodYears: ResolvedMethodYearRow[],
 ): Map<string, string> {
   const incumbents = new Map<string, string>();
 
-  for (const row of sectorStates) {
+  for (const row of resolvedMethodYears) {
     if (!row.is_default_incumbent_2025) {
       continue;
     }
@@ -210,58 +217,59 @@ function resolveFocusControl(
   configuration: ConfigurationDocument,
   appConfig: AppConfigRegistry,
   outputId: string,
-): ConfigurationServiceControl {
-  const configuredControl = configuration.service_controls[outputId];
+  roleId: string,
+): ConfigurationRoleControl {
+  const configuredControl = configuration.role_controls?.[roleId];
   return {
     ...(configuredControl ?? {}),
     mode: configuredControl?.mode ?? appConfig.output_roles[outputId]?.default_control_mode ?? 'optimize',
   };
 }
 
-function controlHasExplicitDisabledRoutes(control: ConfigurationServiceControl): boolean {
-  return Array.isArray(control.active_state_ids) && control.active_state_ids.length === 0;
+function controlHasExplicitDisabledRoutes(control: ConfigurationRoleControl): boolean {
+  return Array.isArray(control.active_method_ids) && control.active_method_ids.length === 0;
 }
 
 function buildGeneratedYearOverride(
-  override: ConfigurationServiceControlYearOverride,
-  incumbentStateId: string,
+  override: ConfigurationRoleControlYearOverride,
+  incumbentMethodId: string,
   forceDisabled: boolean,
-): ConfigurationServiceControlYearOverride {
-  const nextOverride: ConfigurationServiceControlYearOverride = { ...override };
+): ConfigurationRoleControlYearOverride {
+  const nextOverride: ConfigurationRoleControlYearOverride = { ...override };
   const mode = override.mode;
 
-  if (forceDisabled || (Array.isArray(override.active_state_ids) && override.active_state_ids.length === 0)) {
-    nextOverride.active_state_ids = [];
+  if (forceDisabled || (Array.isArray(override.active_method_ids) && override.active_method_ids.length === 0)) {
+    nextOverride.active_method_ids = [];
   } else if (mode === 'externalized') {
-    delete nextOverride.active_state_ids;
+    delete nextOverride.active_method_ids;
   } else {
-    nextOverride.active_state_ids = [incumbentStateId];
+    nextOverride.active_method_ids = [incumbentMethodId];
   }
 
   return nextOverride;
 }
 
 function buildGeneratedControl(
-  focusControl: ConfigurationServiceControl,
-  incumbentStateId: string,
-): ConfigurationServiceControl {
+  focusControl: ConfigurationRoleControl,
+  incumbentMethodId: string,
+): ConfigurationRoleControl {
   const disabled = controlHasExplicitDisabledRoutes(focusControl);
-  const nextControl: ConfigurationServiceControl = {
+  const nextControl: ConfigurationRoleControl = {
     ...focusControl,
-    active_state_ids: disabled ? [] : [incumbentStateId],
+    active_method_ids: disabled ? [] : [incumbentMethodId],
   };
 
   if (focusControl.mode === 'externalized' && !disabled) {
-    delete nextControl.active_state_ids;
+    delete nextControl.active_method_ids;
   }
 
   if (focusControl.year_overrides) {
     nextControl.year_overrides = Object.fromEntries(
       Object.entries(focusControl.year_overrides)
-        .filter((entry): entry is [string, ConfigurationServiceControlYearOverride] => entry[1] != null)
+        .filter((entry): entry is [string, ConfigurationRoleControlYearOverride] => entry[1] != null)
         .map(([year, override]) => [
           year,
-          buildGeneratedYearOverride(override, incumbentStateId, disabled),
+          buildGeneratedYearOverride(override, incumbentMethodId, disabled),
         ]),
     );
   }
@@ -271,25 +279,26 @@ function buildGeneratedControl(
 
 function outputHasEnabledRoutes(
   configuration: ConfigurationDocument,
+  roleId: string,
   outputId: string,
-  allStateIdsByOutput: Map<string, string[]>,
+  allMethodIdsByOutput: Map<string, string[]>,
 ): boolean {
-  const allStateIds = allStateIdsByOutput.get(outputId) ?? [];
-  if (allStateIds.length === 0) {
+  const allMethodIds = allMethodIdsByOutput.get(outputId) ?? [];
+  if (allMethodIds.length === 0) {
     return false;
   }
 
-  return derivePathwayStateIdsForOutput(
+  return derivePathwayMethodIdsForRole(
     configuration,
-    outputId,
-    allStateIds,
-  ).activeStateIds.length > 0;
+    roleId,
+    allMethodIds,
+  ).activeMethodIds.length > 0;
 }
 
 function buildGeneratedResidualControls(
   focusConfiguration: ConfigurationDocument,
-  generatedServiceControls: ConfigurationDocument['service_controls'],
-  packageData: Pick<PackageData, 'sectorStates' | 'residualOverlays2025'>,
+  generatedRoleControls: NonNullable<ConfigurationDocument['role_controls']>,
+  packageData: Pick<PackageData, 'resolvedMethodYears' | 'residualOverlays2025'>,
 ): NonNullable<ConfigurationDocument['residual_overlays']> {
   const materializedFocus = materializeResidualOverlayConfiguration(
     focusConfiguration,
@@ -297,10 +306,11 @@ function buildGeneratedResidualControls(
   );
   const focusControls = materializedFocus.residual_overlays?.controls_by_overlay_id ?? {};
   const residualCatalog = buildResidualOverlayCatalog(packageData.residualOverlays2025);
-  const allStateIdsByOutput = collectStateIdsByOutput(packageData.sectorStates);
+  const allMethodIdsByOutput = collectMethodIdsByOutput(packageData.resolvedMethodYears);
+  const roleIdByOutput = collectRoleIdByOutput(packageData.resolvedMethodYears);
   const generatedRouteConfiguration: ConfigurationDocument = {
     ...focusConfiguration,
-    service_controls: generatedServiceControls,
+    role_controls: generatedRoleControls,
   };
   const controlsByOverlayId: Record<string, { included: boolean }> = {};
 
@@ -315,7 +325,12 @@ function buildGeneratedResidualControls(
 
     controlsByOverlayId[residual.overlayId] = {
       included: group.outputIds.some((outputId) =>
-        outputHasEnabledRoutes(generatedRouteConfiguration, outputId, allStateIdsByOutput),
+        outputHasEnabledRoutes(
+          generatedRouteConfiguration,
+          roleIdByOutput.get(outputId) ?? outputId,
+          outputId,
+          allMethodIdsByOutput,
+        ),
       ),
     };
   }
@@ -327,7 +342,7 @@ export function buildGeneratedIncumbentBaseConfiguration(
   focusConfiguration: ConfigurationDocument,
   packageData: Pick<
     PackageData,
-    'appConfig' | 'sectorStates' | 'autonomousEfficiencyTracks' | 'efficiencyPackages' | 'residualOverlays2025'
+    'appConfig' | 'resolvedMethodYears' | 'autonomousEfficiencyTracks' | 'efficiencyPackages' | 'residualOverlays2025'
   >,
 ): ConfigurationDocument {
   const focusWithResidualCompatibility = packageData.residualOverlays2025.length > 0
@@ -337,25 +352,29 @@ export function buildGeneratedIncumbentBaseConfiguration(
     )
     : cloneConfiguration(focusConfiguration);
   const materializedFocus = materializeEfficiencyConfiguration(
-    focusWithResidualCompatibility,
+    normalizeConfigurationRoleControls(focusWithResidualCompatibility, {
+      resolvedMethodYears: packageData.resolvedMethodYears,
+    }),
     packageData.autonomousEfficiencyTracks,
     packageData.efficiencyPackages,
   );
-  const allStateIdsByOutput = collectStateIdsByOutput(packageData.sectorStates);
-  const incumbentStateIdsByOutput = collectIncumbentStateIdsByOutput(packageData.sectorStates);
-  const serviceControls: ConfigurationDocument['service_controls'] = {
-    ...materializedFocus.service_controls,
+  const allMethodIdsByOutput = collectMethodIdsByOutput(packageData.resolvedMethodYears);
+  const incumbentMethodIdsByOutput = collectIncumbentMethodIdsByOutput(packageData.resolvedMethodYears);
+  const roleIdByOutput = collectRoleIdByOutput(packageData.resolvedMethodYears);
+  const roleControls: NonNullable<ConfigurationDocument['role_controls']> = {
+    ...(materializedFocus.role_controls ?? {}),
   };
 
-  for (const [outputId, allStateIds] of allStateIdsByOutput) {
-    const incumbentStateId = incumbentStateIdsByOutput.get(outputId) ?? allStateIds[0];
-    if (!incumbentStateId) {
+  for (const [outputId, allMethodIds] of allMethodIdsByOutput) {
+    const incumbentMethodId = incumbentMethodIdsByOutput.get(outputId) ?? allMethodIds[0];
+    if (!incumbentMethodId) {
       continue;
     }
 
-    serviceControls[outputId] = buildGeneratedControl(
-      resolveFocusControl(materializedFocus, packageData.appConfig, outputId),
-      incumbentStateId,
+    const roleId = roleIdByOutput.get(outputId) ?? outputId;
+    roleControls[roleId] = buildGeneratedControl(
+      resolveFocusControl(materializedFocus, packageData.appConfig, outputId, roleId),
+      incumbentMethodId,
     );
   }
 
@@ -363,10 +382,10 @@ export function buildGeneratedIncumbentBaseConfiguration(
     ...materializedFocus,
     name: GENERATED_INCUMBENT_BASE_LABEL,
     description: 'Generated comparison base using the focus levers with enabled modeled outputs held to incumbent routes, efficiency packages off, and residuals aligned to system structure.',
-    service_controls: serviceControls,
+    role_controls: roleControls,
     efficiency_controls: {
       autonomous_mode: 'baseline',
-      autonomous_modes_by_output: {},
+      autonomous_modes_by_role: {},
       package_mode: 'off',
       package_ids: [],
     },
@@ -375,7 +394,7 @@ export function buildGeneratedIncumbentBaseConfiguration(
   if (packageData.residualOverlays2025.length > 0) {
     generatedConfiguration.residual_overlays = buildGeneratedResidualControls(
       materializedFocus,
-      serviceControls,
+      roleControls,
       packageData,
     );
   } else {

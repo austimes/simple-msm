@@ -5,15 +5,17 @@ import type {
   EfficiencyPackage,
   PackageData,
   ConfigurationDocument,
-  ConfigurationServiceControl,
-  SectorState,
+  ResolvedMethodYearRow,
 } from '../data/types.ts';
 import { getCommodityMetadata, normalizeCommodityInput } from '../data/commodityMetadata.ts';
 import { materializeEfficiencyConfiguration } from '../data/configurationDocumentLoader.ts';
-import { materializeServiceControlsFromRoleControls } from '../data/configurationRoleControls.ts';
+import {
+  resolveOutputControlsFromRoleControls,
+  type SolverOutputControl,
+} from '../data/configurationRoleControls.ts';
 import { resolveConfigurationDocument } from '../data/demandResolution.ts';
 import { resolveActiveEfficiencyPackageIds } from '../data/efficiencyControlModel.ts';
-import { derivePathwayStateIds } from '../data/pathwaySemantics.ts';
+import { derivePathwayMethodIds } from '../data/pathwaySemantics.ts';
 import type {
   NormalizedSolverRow,
   NormalizedSolverRowProvenance,
@@ -27,8 +29,8 @@ export function yearKey(year: number): string {
   return String(year);
 }
 
-function stateYearKey(stateId: string, year: number): string {
-  return `${stateId}::${year}`;
+function methodYearKey(methodId: string, year: number): string {
+  return `${methodId}::${year}`;
 }
 
 function resolveYearValue(table: Record<string, number> | undefined, year: number): number {
@@ -37,30 +39,30 @@ function resolveYearValue(table: Record<string, number> | undefined, year: numbe
 }
 
 const BASE_YEAR = 2025;
-const EFFICIENCY_PACKAGE_STATE_PREFIX = 'effpkg';
+const EFFICIENCY_PACKAGE_METHOD_PREFIX = 'effpkg';
 
-function resolveStateDisplayLabel(row: SectorState): string {
-  const preferredLabel = (row.state_label_standardized ?? '').trim()
-    || (row.state_option_label ?? '').trim()
-    || (row.state_label ?? '').trim();
+function resolveMethodDisplayLabel(row: ResolvedMethodYearRow): string {
+  const preferredLabel = (row.method_label_standardized ?? '').trim()
+    || (row.method_option_label ?? '').trim()
+    || (row.method_label ?? '').trim();
 
-  return preferredLabel || row.state_id;
+  return preferredLabel || row.method_id;
 }
 
-function collectIncumbentStateIdsByOutput(
-  sectorStates: Pick<SectorState, 'service_or_output_name' | 'year' | 'state_id' | 'is_default_incumbent_2025'>[] | undefined,
+function collectIncumbentMethodIdsByOutput(
+  resolvedMethodYears: Pick<ResolvedMethodYearRow, 'output_id' | 'year' | 'method_id' | 'is_default_incumbent_2025'>[] | undefined,
 ): Map<string, string[]> {
   const byOutput = new Map<string, Set<string>>();
 
-  for (const row of sectorStates ?? []) {
+  for (const row of resolvedMethodYears ?? []) {
     if (row.year !== BASE_YEAR || !row.is_default_incumbent_2025) continue;
 
-    let ids = byOutput.get(row.service_or_output_name);
+    let ids = byOutput.get(row.output_id);
     if (!ids) {
       ids = new Set<string>();
-      byOutput.set(row.service_or_output_name, ids);
+      byOutput.set(row.output_id, ids);
     }
-    ids.add(row.state_id);
+    ids.add(row.method_id);
   }
 
   return new Map(
@@ -68,16 +70,16 @@ function collectIncumbentStateIdsByOutput(
   );
 }
 
-function collectStateIdsByOutputYear(
-  sectorStates: Pick<SectorState, 'service_or_output_name' | 'year' | 'state_id'>[] | undefined,
+function collectMethodIdsByOutputYear(
+  resolvedMethodYears: Pick<ResolvedMethodYearRow, 'output_id' | 'year' | 'method_id'>[] | undefined,
 ): Map<string, Map<number, string[]>> {
   const byOutputYear = new Map<string, Map<number, Set<string>>>();
 
-  for (const row of sectorStates ?? []) {
-    let byYear = byOutputYear.get(row.service_or_output_name);
+  for (const row of resolvedMethodYears ?? []) {
+    let byYear = byOutputYear.get(row.output_id);
     if (!byYear) {
       byYear = new Map();
-      byOutputYear.set(row.service_or_output_name, byYear);
+      byOutputYear.set(row.output_id, byYear);
     }
 
     let ids = byYear.get(row.year);
@@ -86,7 +88,7 @@ function collectStateIdsByOutputYear(
       byYear.set(row.year, ids);
     }
 
-    ids.add(row.state_id);
+    ids.add(row.method_id);
   }
 
   return new Map(
@@ -97,21 +99,21 @@ function collectStateIdsByOutputYear(
   );
 }
 
-function hasConfiguredActiveStates(
+function hasConfiguredActiveMethods(
   outputId: string,
   years: readonly number[],
-  control: ConfigurationServiceControl | undefined,
+  control: SolverOutputControl | undefined,
   defaultMode: AppConfigRegistry['output_roles'][string]['default_control_mode'],
-  stateIdsByOutputYear: Map<string, Map<number, string[]>>,
+  methodIdsByOutputYear: Map<string, Map<number, string[]>>,
 ): boolean {
-  const byYear = stateIdsByOutputYear.get(outputId);
+  const byYear = methodIdsByOutputYear.get(outputId);
 
   for (const year of years) {
-    const availableStateIds = byYear?.get(year) ?? [];
+    const availableMethodIds = byYear?.get(year) ?? [];
     const unforcedControl = resolveControlForYear(control, defaultMode, year);
-    const derived = derivePathwayStateIds(availableStateIds, unforcedControl);
+    const derived = derivePathwayMethodIds(availableMethodIds, unforcedControl);
 
-    if (derived.activeStateIds.length > 0) {
+    if (derived.activeMethodIds.length > 0) {
       return true;
     }
   }
@@ -120,21 +122,20 @@ function hasConfiguredActiveStates(
 }
 
 function resolveControlForYear(
-  control: ConfigurationServiceControl | undefined,
+  control: SolverOutputControl | undefined,
   defaultMode: AppConfigRegistry['output_roles'][string]['default_control_mode'],
   year: number,
-  forcedActiveStateIds?: string[],
+  forcedActiveMethodIds?: string[],
 ): ResolvedSolveControl {
-  const overrideKey = yearKey(year) as keyof NonNullable<ConfigurationServiceControl['year_overrides']>;
-  const override = control?.year_overrides?.[overrideKey] ?? null;
+  const override = control?.yearOverrides?.[yearKey(year)] ?? null;
 
   return {
     mode: override?.mode ?? control?.mode ?? defaultMode,
-    activeStateIds: forcedActiveStateIds
-      ?? override?.active_state_ids
-      ?? control?.active_state_ids
+    activeMethodIds: forcedActiveMethodIds
+      ?? override?.activeMethodIds
+      ?? control?.activeMethodIds
       ?? null,
-    targetValue: override?.target_value ?? control?.target_value ?? null,
+    targetValue: override?.targetValue ?? control?.targetValue ?? null,
   };
 }
 
@@ -172,13 +173,13 @@ function resolveEfficiencyControlsForSolve(
     efficiencyPackages,
   );
   const controls = materializedConfiguration.efficiency_controls;
-  const autonomousModesByOutput = controls?.autonomous_modes_by_output ?? {};
+  const autonomousModesByRole = controls?.autonomous_modes_by_role ?? {};
   const activeTrackIds = Array.from(
     new Set(
       autonomousEfficiencyTracks
         .filter((track) => {
           const effectiveMode =
-            autonomousModesByOutput[track.family_id]
+            autonomousModesByRole[track.family_id]
             ?? controls?.autonomous_mode
             ?? 'baseline';
           return effectiveMode === 'baseline';
@@ -190,7 +191,7 @@ function resolveEfficiencyControlsForSolve(
 
   return {
     autonomousMode: controls?.autonomous_mode ?? 'baseline',
-    autonomousModesByOutput,
+    autonomousModesByRole,
     activeTrackIds,
     packageMode: controls?.package_mode ?? 'off',
     configuredPackageIds,
@@ -198,7 +199,7 @@ function resolveEfficiencyControlsForSolve(
   };
 }
 
-function buildNormalizedInputs(row: SectorState): NormalizedSolverRow['inputs'] {
+function buildNormalizedInputs(row: ResolvedMethodYearRow): NormalizedSolverRow['inputs'] {
   return row.input_commodities.map((commodityId, index) => {
     const normalizedInput = normalizeCommodityInput(
       commodityId,
@@ -214,26 +215,26 @@ function buildNormalizedInputs(row: SectorState): NormalizedSolverRow['inputs'] 
   });
 }
 
-function buildBaseRowProvenance(row: SectorState): NormalizedSolverRowProvenance {
+function buildBaseRowProvenance(row: ResolvedMethodYearRow): NormalizedSolverRowProvenance {
   return {
-    kind: 'base_state',
-    familyId: row.family_id,
-    baseStateId: row.state_id,
-    baseStateLabel: resolveStateDisplayLabel(row),
-    baseRowId: stateYearKey(row.state_id, row.year),
+    kind: 'base_method',
+    familyId: row.output_id,
+    baseMethodId: row.method_id,
+    baseMethodLabel: resolveMethodDisplayLabel(row),
+    baseRowId: methodYearKey(row.method_id, row.year),
     autonomousTrackIds: [],
   };
 }
 
 function buildBaseNormalizedRow(
-  row: SectorState,
+  row: ResolvedMethodYearRow,
   appConfig: AppConfigRegistry,
 ): NormalizedSolverRow {
-  const outputMetadata = appConfig.output_roles[row.service_or_output_name];
+  const outputMetadata = appConfig.output_roles[row.output_id];
 
   if (!outputMetadata) {
     throw new Error(
-      `Missing output role metadata for ${JSON.stringify(row.service_or_output_name)}`,
+      `Missing output role metadata for ${JSON.stringify(row.output_id)}`,
     );
   }
 
@@ -251,23 +252,25 @@ function buildBaseNormalizedRow(
     })),
   ];
 
+  const reportingAllocation = row.reporting_allocations[0] ?? null;
+
   return {
-    rowId: stateYearKey(row.state_id, row.year),
+    rowId: methodYearKey(row.method_id, row.year),
     roleId: row.role_id,
     representationId: row.representation_id,
-    methodId: row.method_id,
     balanceType: row.balance_type,
-    outputId: row.service_or_output_name,
+    outputId: row.output_id,
     outputRole: outputMetadata.output_role,
     outputLabel: outputMetadata.display_label,
     year: row.year,
-    stateId: row.state_id,
-    stateLabel: row.state_label,
-    stateDisplayLabel: resolveStateDisplayLabel(row),
-    stateSortKey: (row.state_sort_key ?? '').trim(),
-    stateOptionRank: row.state_option_rank,
-    sector: row.sector,
-    subsector: row.subsector,
+    methodId: row.method_id,
+    methodLabel: row.method_label,
+    methodDisplayLabel: resolveMethodDisplayLabel(row),
+    methodSortKey: (row.method_sort_key ?? '').trim(),
+    methodOptionRank: row.method_option_rank,
+    reportingSectorId: reportingAllocation?.sector ?? null,
+    reportingSubsectorId: reportingAllocation?.subsector ?? null,
+    reportingBucketId: reportingAllocation?.reporting_bucket ?? null,
     region: row.region,
     outputUnit: row.output_unit,
     conversionCostPerUnit: row.output_cost_per_unit,
@@ -460,8 +463,8 @@ function applyAutonomousTracksToRow(
   };
 }
 
-function buildEfficiencyPackageStateId(baseStateId: string, packageId: string): string {
-  return `${EFFICIENCY_PACKAGE_STATE_PREFIX}:${baseStateId}::${packageId}`;
+function buildEfficiencyPackageMethodId(baseMethodId: string, packageId: string): string {
+  return `${EFFICIENCY_PACKAGE_METHOD_PREFIX}:${baseMethodId}::${packageId}`;
 }
 
 function minNullable(left: number | null, right: number | null): number | null {
@@ -476,8 +479,8 @@ function buildPackageRow(
 ): NormalizedSolverRow {
   const artifactLabel = `efficiency package ${JSON.stringify(pkg.package_id)}`;
   assertCostMetadataCompatible(baseRow, artifactLabel, pkg.currency, pkg.cost_basis_year);
-  const stateId = buildEfficiencyPackageStateId(baseRow.provenance?.baseStateId ?? baseRow.stateId, pkg.package_id);
-  const packageLabel = `${baseRow.stateDisplayLabel ?? baseRow.stateLabel} + ${pkg.package_label}`;
+  const methodId = buildEfficiencyPackageMethodId(baseRow.provenance?.baseMethodId ?? baseRow.methodId, pkg.package_id);
+  const packageLabel = `${baseRow.methodDisplayLabel ?? baseRow.methodLabel} + ${pkg.package_label}`;
   const energyEmissionMultiplier = resolveEnergyEmissionMultiplier(
     baseRow.inputs,
     pkg.affected_input_commodities,
@@ -486,11 +489,11 @@ function buildPackageRow(
 
   return {
     ...baseRow,
-    rowId: stateYearKey(stateId, baseRow.year),
-    stateId,
-    stateLabel: packageLabel,
-    stateDisplayLabel: packageLabel,
-    stateSortKey: `${baseRow.stateSortKey ?? baseRow.stateId}::pkg::${pkg.package_id}`,
+    rowId: methodYearKey(methodId, baseRow.year),
+    methodId,
+    methodLabel: packageLabel,
+    methodDisplayLabel: packageLabel,
+    methodSortKey: `${baseRow.methodSortKey ?? baseRow.methodId}::pkg::${pkg.package_id}`,
     conversionCostPerUnit: applyCostDelta(baseRow, pkg.delta_output_cost_per_unit, artifactLabel),
     inputs: applyInputMultipliers(
       baseRow.inputs,
@@ -501,9 +504,9 @@ function buildPackageRow(
     provenance: {
       kind: 'efficiency_package',
       familyId: pkg.family_id,
-      baseStateId: baseRow.provenance?.baseStateId ?? baseRow.stateId,
-      baseStateLabel: baseRow.provenance?.baseStateLabel ?? baseRow.stateDisplayLabel ?? baseRow.stateLabel,
-      baseRowId: baseRow.provenance?.baseRowId ?? stateYearKey(baseRow.stateId, baseRow.year),
+      baseMethodId: baseRow.provenance?.baseMethodId ?? baseRow.methodId,
+      baseMethodLabel: baseRow.provenance?.baseMethodLabel ?? baseRow.methodDisplayLabel ?? baseRow.methodLabel,
+      baseRowId: baseRow.provenance?.baseRowId ?? methodYearKey(baseRow.methodId, baseRow.year),
       autonomousTrackIds: [...(baseRow.provenance?.autonomousTrackIds ?? [])],
       packageId: pkg.package_id,
       packageClassification: pkg.classification,
@@ -517,11 +520,11 @@ function buildPackageRow(
   };
 }
 
-function collectAutonomousTracksByStateYear(
+function collectAutonomousTracksByMethodYear(
   tracks: AutonomousEfficiencyTrack[],
   efficiency: ResolvedConfigurationEfficiencyControls | undefined,
 ): Map<string, AutonomousEfficiencyTrack[]> {
-  const byStateYear = new Map<string, AutonomousEfficiencyTrack[]>();
+  const byMethodYear = new Map<string, AutonomousEfficiencyTrack[]>();
   const activeTrackIds = new Set(efficiency?.activeTrackIds ?? []);
 
   for (const track of tracks) {
@@ -530,84 +533,84 @@ function collectAutonomousTracksByStateYear(
     }
 
     const effectiveMode =
-      efficiency?.autonomousModesByOutput[track.family_id]
+      efficiency?.autonomousModesByRole[track.family_id]
       ?? efficiency?.autonomousMode
       ?? 'baseline';
     if (effectiveMode !== 'baseline') {
       continue;
     }
 
-    if (!Array.isArray(track.applicable_state_ids)) {
+    if (!Array.isArray(track.applicable_method_ids)) {
       continue;
     }
 
-    for (const stateId of track.applicable_state_ids) {
-      const key = stateYearKey(stateId, track.year);
-      const rows = byStateYear.get(key) ?? [];
+    for (const methodId of track.applicable_method_ids) {
+      const key = methodYearKey(methodId, track.year);
+      const rows = byMethodYear.get(key) ?? [];
       rows.push(track);
-      byStateYear.set(key, rows);
+      byMethodYear.set(key, rows);
     }
   }
 
-  for (const rows of byStateYear.values()) {
+  for (const rows of byMethodYear.values()) {
     rows.sort((left, right) => left.track_id.localeCompare(right.track_id));
   }
 
-  return byStateYear;
+  return byMethodYear;
 }
 
-function collectPackagesByStateYear(
+function collectPackagesByMethodYear(
   packages: EfficiencyPackage[],
   activePackageIds: Set<string>,
 ): Map<string, EfficiencyPackage[]> {
-  const byStateYear = new Map<string, EfficiencyPackage[]>();
+  const byMethodYear = new Map<string, EfficiencyPackage[]>();
 
   for (const pkg of packages) {
     if (!activePackageIds.has(pkg.package_id)) {
       continue;
     }
 
-    if (!Array.isArray(pkg.applicable_state_ids)) {
+    if (!Array.isArray(pkg.applicable_method_ids)) {
       continue;
     }
 
-    for (const stateId of pkg.applicable_state_ids) {
-      const key = stateYearKey(stateId, pkg.year);
-      const rows = byStateYear.get(key) ?? [];
+    for (const methodId of pkg.applicable_method_ids) {
+      const key = methodYearKey(methodId, pkg.year);
+      const rows = byMethodYear.get(key) ?? [];
       rows.push(pkg);
-      byStateYear.set(key, rows);
+      byMethodYear.set(key, rows);
     }
   }
 
-  for (const rows of byStateYear.values()) {
+  for (const rows of byMethodYear.values()) {
     rows.sort((left, right) => left.package_id.localeCompare(right.package_id));
   }
 
-  return byStateYear;
+  return byMethodYear;
 }
 
 export function normalizeSolverRows(
-  pkg: Pick<PackageData, 'sectorStates' | 'appConfig'>
+  pkg: Pick<PackageData, 'resolvedMethodYears' | 'appConfig'>
     & Partial<Pick<PackageData, 'autonomousEfficiencyTracks' | 'efficiencyPackages'>>,
   efficiency?: ResolvedConfigurationEfficiencyControls,
 ): NormalizedSolverRow[] {
-  const autonomousTracksByStateYear = collectAutonomousTracksByStateYear(
+  const autonomousTracksByMethodYear = collectAutonomousTracksByMethodYear(
     pkg.autonomousEfficiencyTracks ?? [],
     efficiency,
   );
-  const packagesByStateYear = collectPackagesByStateYear(
+  const packagesByMethodYear = collectPackagesByMethodYear(
     pkg.efficiencyPackages ?? [],
     new Set(efficiency?.activePackageIds ?? []),
   );
 
-  return pkg.sectorStates.flatMap((row) => {
+  return pkg.resolvedMethodYears.flatMap((row) => {
     const baseRow = buildBaseNormalizedRow(row, pkg.appConfig);
-    const stateYear = stateYearKey(row.state_id, row.year);
+    const methodYear = methodYearKey(row.method_id, row.year);
     const autonomousAdjustedRow = applyAutonomousTracksToRow(
       baseRow,
-      autonomousTracksByStateYear.get(stateYear) ?? [],
+      autonomousTracksByMethodYear.get(methodYear) ?? [],
     );
-    const packageRows = (packagesByStateYear.get(stateYear) ?? [])
+    const packageRows = (packagesByMethodYear.get(methodYear) ?? [])
       .map((pkgRow) => buildPackageRow(autonomousAdjustedRow, pkgRow));
 
     return [autonomousAdjustedRow, ...packageRows];
@@ -617,16 +620,16 @@ export function normalizeSolverRows(
 export function resolveConfigurationForSolve(
   configuration: ConfigurationDocument,
   appConfig: AppConfigRegistry,
-  sectorStates?: Pick<SectorState, 'role_id' | 'service_or_output_name' | 'year' | 'state_id' | 'is_default_incumbent_2025'>[],
+  resolvedMethodYears?: Pick<ResolvedMethodYearRow, 'role_id' | 'output_id' | 'year' | 'method_id' | 'is_default_incumbent_2025'>[],
   efficiencyArtifacts?: Partial<Pick<PackageData, 'autonomousEfficiencyTracks' | 'efficiencyPackages'>>,
 ): ResolvedConfigurationForSolve {
-  const configurationWithServiceControls = sectorStates
-    ? materializeServiceControlsFromRoleControls(configuration, { sectorStates })
-    : configuration;
-  const resolvedConfiguration = resolveConfigurationDocument(configurationWithServiceControls, appConfig);
+  const resolvedConfiguration = resolveConfigurationDocument(configuration, appConfig);
+  const outputControls = resolvedMethodYears
+    ? resolveOutputControlsFromRoleControls(resolvedConfiguration, { resolvedMethodYears })
+    : {};
   const years = [...resolvedConfiguration.years];
-  const incumbentByOutput = collectIncumbentStateIdsByOutput(sectorStates);
-  const stateIdsByOutputYear = collectStateIdsByOutputYear(sectorStates);
+  const incumbentByOutput = collectIncumbentMethodIdsByOutput(resolvedMethodYears);
+  const methodIdsByOutputYear = collectMethodIdsByOutputYear(resolvedMethodYears);
   const efficiency = resolveEfficiencyControlsForSolve(
     resolvedConfiguration,
     efficiencyArtifacts?.autonomousEfficiencyTracks ?? [],
@@ -635,19 +638,20 @@ export function resolveConfigurationForSolve(
   const controlsByOutput = Object.entries(appConfig.output_roles).reduce<
     Record<string, Record<string, ResolvedSolveControl>>
   >((resolved, [outputId, metadata]) => {
-    const shouldForceIncumbent = hasConfiguredActiveStates(
+    const outputControl = outputControls[outputId];
+    const shouldForceIncumbent = hasConfiguredActiveMethods(
       outputId,
       years,
-      resolvedConfiguration.service_controls[outputId],
+      outputControl,
       metadata.default_control_mode,
-      stateIdsByOutputYear,
+      methodIdsByOutputYear,
     );
     resolved[outputId] = years.reduce<Record<string, ResolvedSolveControl>>((controlsByYear, year) => {
       const forced = year === BASE_YEAR && shouldForceIncumbent
         ? incumbentByOutput.get(outputId)
         : undefined;
       controlsByYear[yearKey(year)] = resolveControlForYear(
-        resolvedConfiguration.service_controls[outputId],
+        outputControl,
         metadata.default_control_mode,
         year,
         forced,

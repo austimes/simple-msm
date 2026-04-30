@@ -7,7 +7,7 @@ import type {
   OutputRole,
 } from '../data/types.ts';
 
-export const SOLVER_CONTRACT_VERSION = 6 as const;
+export const SOLVER_CONTRACT_VERSION = 7 as const;
 
 export type SolverContractVersion = typeof SOLVER_CONTRACT_VERSION;
 export type SolveStatus = 'partial' | 'solved' | 'error';
@@ -15,7 +15,7 @@ export type SolveDiagnosticSeverity = 'info' | 'warning' | 'error';
 export type SolveDiagnosticReason =
   | 'share_exhaustion'
   | 'activity_exhaustion'
-  | 'inactive_states'
+  | 'inactive_methods'
   | 'commodity_balance_conflict'
   | 'decomposition_coverage_conflict'
   | 'electricity_balance_conflict';
@@ -51,10 +51,10 @@ export interface NormalizedSolverRowEfficiencyAttributionBasis {
 }
 
 export interface NormalizedSolverRowProvenance {
-  kind: 'base_state' | 'efficiency_package';
+  kind: 'base_method' | 'efficiency_package';
   familyId: string;
-  baseStateId: string;
-  baseStateLabel: string;
+  baseMethodId: string;
+  baseMethodLabel: string;
   baseRowId: string;
   autonomousTrackIds: string[];
   packageId?: string;
@@ -66,19 +66,19 @@ export interface NormalizedSolverRow {
   rowId: string;
   roleId?: string;
   representationId?: string;
-  methodId?: string;
   balanceType?: BalanceType;
   outputId: string;
   outputRole: OutputRole;
   outputLabel: string;
   year: number;
-  stateId: string;
-  stateLabel: string;
-  stateDisplayLabel?: string;
-  stateSortKey?: string;
-  stateOptionRank?: number | null;
-  sector: string;
-  subsector: string;
+  methodId: string;
+  methodLabel: string;
+  methodDisplayLabel?: string;
+  methodSortKey?: string;
+  methodOptionRank?: number | null;
+  reportingSectorId: string | null;
+  reportingSubsectorId: string | null;
+  reportingBucketId: string | null;
   region: string;
   outputUnit: string;
   conversionCostPerUnit: number | null;
@@ -97,7 +97,7 @@ export interface NormalizedSolverRow {
 
 export interface ResolvedSolveControl {
   mode: ConfigurationControlMode;
-  activeStateIds: string[] | null;
+  activeMethodIds: string[] | null;
   targetValue: number | null;
 }
 
@@ -108,7 +108,7 @@ export interface ResolvedCommodityPriceSeries {
 
 export interface ResolvedConfigurationEfficiencyControls {
   autonomousMode: ConfigurationAutonomousEfficiencyMode;
-  autonomousModesByOutput: Record<string, ConfigurationAutonomousEfficiencyMode>;
+  autonomousModesByRole: Record<string, ConfigurationAutonomousEfficiencyMode>;
   activeTrackIds: string[];
   packageMode: ConfigurationEfficiencyPackageMode;
   configuredPackageIds: string[];
@@ -180,7 +180,7 @@ export interface SolveDiagnostic {
   reason?: SolveDiagnosticReason;
   outputId?: string;
   year?: number;
-  stateId?: string;
+  methodId?: string;
   rowId?: string;
   relatedConstraintIds?: string[];
   suggestion?: string;
@@ -219,7 +219,7 @@ export type SolveConstraintKind =
   | 'min_share'
   | 'max_share'
   | 'max_activity'
-  | 'inactive_state'
+  | 'inactive_method'
   | 'externalized_supply'
   | 'efficiency_non_stacking_group';
 export type SolveSoftConstraintKind = Extract<SolveConstraintKind, 'max_share' | 'max_activity'>;
@@ -238,15 +238,15 @@ export interface SolveCommodityBalanceSummary {
   averageDirectEmissionsIntensity: number | null;
 }
 
-export interface SolveStateShareSummary {
+export interface SolveMethodShareSummary {
   outputId: string;
   outputLabel: string;
   year: number;
   rowId?: string;
-  stateId: string;
-  stateLabel: string;
-  pathwayStateId?: string;
-  pathwayStateLabel?: string;
+  methodId: string;
+  methodLabel: string;
+  pathwayMethodId?: string;
+  pathwayMethodLabel?: string;
   provenance?: NormalizedSolverRowProvenance;
   activity: number;
   share: number | null;
@@ -264,8 +264,8 @@ export interface SolveBindingConstraintSummary {
   outputId: string;
   outputLabel: string;
   year: number;
-  stateId?: string;
-  stateLabel?: string;
+  methodId?: string;
+  methodLabel?: string;
   rowId?: string;
   commodityId?: string;
   mode?: ConfigurationControlMode;
@@ -284,8 +284,8 @@ export interface SolveSoftConstraintViolationSummary {
   outputId: string;
   outputLabel: string;
   year: number;
-  stateId?: string;
-  stateLabel?: string;
+  methodId?: string;
+  methodLabel?: string;
   rowId?: string;
   commodityId?: string;
   mode?: ConfigurationControlMode;
@@ -294,7 +294,7 @@ export interface SolveSoftConstraintViolationSummary {
 
 export interface SolveReportingSummary {
   commodityBalances: SolveCommodityBalanceSummary[];
-  stateShares: SolveStateShareSummary[];
+  methodShares: SolveMethodShareSummary[];
   bindingConstraints: SolveBindingConstraintSummary[];
   softConstraintViolations: SolveSoftConstraintViolationSummary[];
 }

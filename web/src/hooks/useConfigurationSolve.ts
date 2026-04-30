@@ -25,7 +25,7 @@ export interface SolveState {
 export function useConfigurationSolve(
   configurationOverride?: ConfigurationDocument | null,
 ): SolveState {
-  const sectorStates = usePackageStore((state) => state.sectorStates);
+  const resolvedMethodYears = usePackageStore((state) => state.resolvedMethodYears);
   const appConfig = usePackageStore((state) => state.appConfig);
   const autonomousEfficiencyTracks = usePackageStore((state) => state.autonomousEfficiencyTracks);
   const efficiencyPackages = usePackageStore((state) => state.efficiencyPackages);
@@ -58,7 +58,7 @@ export function useConfigurationSolve(
     let builtRequest: SolveRequest;
     try {
       builtRequest = buildSolveRequest(
-        { sectorStates, appConfig, autonomousEfficiencyTracks, efficiencyPackages },
+        { resolvedMethodYears, appConfig, autonomousEfficiencyTracks, efficiencyPackages },
         configSnapshot,
       );
     } catch (err) {
@@ -110,7 +110,7 @@ export function useConfigurationSolve(
           result: null,
         });
       });
-  }, [appConfig, autonomousEfficiencyTracks, configuration, efficiencyPackages, sectorStates]);
+  }, [appConfig, autonomousEfficiencyTracks, configuration, efficiencyPackages, resolvedMethodYears]);
 
   // Auto-solve whenever the active document changes.
   useEffect(() => {

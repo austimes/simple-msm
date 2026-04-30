@@ -163,7 +163,7 @@ test('configuration documents accept the compact efficiency control shape', asyn
 
   configuration.efficiency_controls = {
     autonomous_mode: 'off',
-    autonomous_modes_by_output: {
+    autonomous_modes_by_role: {
       residential_building_services: 'baseline',
     },
     package_mode: 'allow_list',
@@ -204,14 +204,14 @@ test('efficiency materialization backfills defaults, normalizes package ids, and
 
   assert.deepEqual(defaults.efficiency_controls, {
     autonomous_mode: 'baseline',
-    autonomous_modes_by_output: {},
+    autonomous_modes_by_role: {},
     package_mode: 'off',
     package_ids: [],
   });
 
   configuration.efficiency_controls = {
     autonomous_mode: 'baseline',
-    autonomous_modes_by_output: {
+    autonomous_modes_by_role: {
       residential_building_services: 'off',
     },
     package_mode: 'allow_list',
@@ -221,22 +221,22 @@ test('efficiency materialization backfills defaults, normalizes package ids, and
   const allowList = materializeEfficiencyConfiguration(configuration, tracks, packages);
   assert.deepEqual(allowList.efficiency_controls, {
     autonomous_mode: 'baseline',
-    autonomous_modes_by_output: {
+    autonomous_modes_by_role: {
       residential_building_services: 'off',
     },
     package_mode: 'allow_list',
     package_ids: ['hvac_tuning', 'retrofit_shell'],
   });
 
-  configuration.efficiency_controls.autonomous_modes_by_output = {
+  configuration.efficiency_controls.autonomous_modes_by_role = {
     missing_output: 'off',
   };
   assert.throws(
     () => materializeEfficiencyConfiguration(configuration, tracks, packages),
-    /Unknown autonomous efficiency output id "missing_output"/,
+    /Unknown autonomous efficiency role id "missing_output"/,
   );
 
-  configuration.efficiency_controls.autonomous_modes_by_output = {};
+  configuration.efficiency_controls.autonomous_modes_by_role = {};
   configuration.efficiency_controls.package_ids = ['missing_package'];
   assert.throws(
     () => materializeEfficiencyConfiguration(configuration, tracks, packages),
@@ -248,7 +248,7 @@ test('buildSolveRequest resolves efficiency controls into active track and packa
   const configuration = structuredClone(readJson('../src/configurations/demo-buildings-efficiency.json'));
   configuration.efficiency_controls = {
     autonomous_mode: 'baseline',
-    autonomous_modes_by_output: {
+    autonomous_modes_by_role: {
       residential_building_services: 'off',
     },
     package_mode: 'deny_list',
@@ -273,7 +273,7 @@ test('buildSolveRequest resolves efficiency controls into active track and packa
 
   assert.deepEqual(request.configuration.efficiency, {
     autonomousMode: 'baseline',
-    autonomousModesByOutput: {
+    autonomousModesByRole: {
       residential_building_services: 'off',
     },
     activeTrackIds: ['background_commercial_efficiency_drift'],

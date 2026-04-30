@@ -243,7 +243,7 @@ export default function ModelFormulationPageContent({
             <div className="configuration-stat-grid">
               <div className="configuration-stat-card">
                 <span>Example row</span>
-                <strong>{model.objectiveExample.stateLabel}</strong>
+                <strong>{model.objectiveExample.methodLabel}</strong>
               </div>
               <div className="configuration-stat-card">
                 <span>Output / year</span>

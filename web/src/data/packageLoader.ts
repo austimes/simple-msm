@@ -6,7 +6,6 @@ import {
   materializeEfficiencyConfiguration,
   materializeResidualOverlayConfiguration,
 } from './configurationDocumentLoader.ts';
-import { materializeServiceControlsFromRoleControls } from './configurationRoleControls.ts';
 import type {
   AppConfigRegistry,
   AutonomousEfficiencyTrack,
@@ -21,8 +20,6 @@ import type {
   EfficiencyPackageClassification,
   EmissionEntry,
   EmissionsBalance2025Row,
-  FamilyMetadata,
-  FamilyResolution,
   Method,
   MethodKind,
   MethodYear,
@@ -36,8 +33,9 @@ import type {
   RoleDemand,
   RoleKind,
   RoleMetadata,
+  RolePresentationMetadata,
   RoleRepresentation,
-  SectorState,
+  ResolvedMethodYearRow,
   ServiceDemandAnchorRow,
   ServiceDemandAnchorType,
   SystemStructureGroupRow,
@@ -392,10 +390,6 @@ function parseEfficiencyPackageClassification(
   );
 }
 
-function familyResolutionFromRole(role: RoleMetadata): FamilyResolution {
-  return role.role_kind === 'residual' ? 'residual_stub' : 'modeled';
-}
-
 function outputRoleFromRole(role: RoleMetadata): OutputRole {
   if (role.balance_type === 'commodity_supply') {
     return 'endogenous_supply_commodity';
@@ -646,16 +640,38 @@ function buildRoleAppProjection(
     const reportingAllocation = allocationByRoleId.get(role.role_id) ?? null;
     const defaultMethodId = defaultMethodIdByRoleId.get(role.role_id) ?? '';
     const methodDerivedId = residualOutputIdFromMethodId(defaultMethodId);
+    const normalizedReportingBucket = normalizeLookupCandidate(reportingAllocation?.reporting_bucket);
+    const isResidualAccountingRole = role.role_kind === 'residual' || role.balance_type === 'residual_accounting';
     const candidates = role.coverage_obligation === 'required_decomposition_child'
       ? [role.role_id]
-      : [
-          reportingAllocation?.reporting_bucket,
-          methodDerivedId,
-          reportingAllocation?.subsector,
-          normalizeLookupCandidate(reportingAllocation?.reporting_bucket),
-          role.role_id,
-        ];
-    const appOutputId = candidates.find((candidate) => candidate && knownOutputIds.has(candidate)) ?? role.role_id;
+      : isResidualAccountingRole
+        ? [
+            methodDerivedId,
+            reportingAllocation?.subsector,
+            normalizedReportingBucket,
+            reportingAllocation?.reporting_bucket,
+            role.role_id,
+          ]
+        : [
+            reportingAllocation?.reporting_bucket,
+            normalizedReportingBucket,
+            methodDerivedId,
+            reportingAllocation?.subsector,
+            role.role_id,
+          ];
+    const knownAppOutputId = candidates.find((candidate) => candidate && knownOutputIds.has(candidate));
+    const appOutputId = knownAppOutputId
+      ?? (role.coverage_obligation === 'required_decomposition_child'
+        ? role.role_id
+        : isResidualAccountingRole
+          ? methodDerivedId
+            ?? reportingAllocation?.subsector
+            ?? normalizedReportingBucket
+            ?? role.role_id
+          : normalizedReportingBucket
+            ?? reportingAllocation?.subsector
+            ?? methodDerivedId
+            ?? role.role_id);
 
     result.set(role.role_id, {
       appOutputId,
@@ -768,31 +784,36 @@ function buildSystemStructureMembers(
   }));
 }
 
-function buildFamilyMetadata(
+function buildRolePresentationMetadata(
   roles: RoleMetadata[],
   appProjectionByRoleId: Map<string, RoleAppProjection>,
-): FamilyMetadata[] {
+  reportingAllocations: ReportingAllocation[],
+): RolePresentationMetadata[] {
+  const allocationsByRoleId = reportingAllocations.reduce<Map<string, ReportingAllocation[]>>((result, allocation) => {
+    const rows = result.get(allocation.role_id) ?? [];
+    rows.push(allocation);
+    result.set(allocation.role_id, rows);
+    return result;
+  }, new Map<string, ReportingAllocation[]>());
+
   return roles.map((role) => {
     const projection = appProjectionByRoleId.get(role.role_id);
-    const reporting = projection?.reportingAllocation;
     const appOutputId = projection?.appOutputId ?? role.role_id;
     return {
-      family_id: appOutputId,
-      sector: reporting?.sector ?? role.topology_area_id,
-      subsector: reporting?.subsector ?? appOutputId,
-      service_or_output_name: appOutputId,
+      role_id: role.role_id,
+      role_label: role.role_label,
+      topology_area_id: role.topology_area_id,
+      topology_area_label: role.topology_area_label,
+      output_id: appOutputId,
       region: 'Australia',
       output_role: outputRoleFromRole(role),
       output_unit: role.output_unit,
       output_quantity_basis: role.description,
-      default_incumbent_state_id: projection?.defaultMethodId ?? '',
-      maintainer_owner_id: '',
-      review_owner_id: '',
-      family_status: 'canonical_role',
-      family_maturity: role.role_kind,
-      family_resolution: familyResolutionFromRole(role),
-      coverage_scope_id: role.role_id,
-      coverage_scope_label: role.role_label,
+      default_method_id: projection?.defaultMethodId ?? '',
+      role_kind: role.role_kind,
+      balance_type: role.balance_type,
+      coverage_obligation: role.coverage_obligation,
+      reporting_allocations: allocationsByRoleId.get(role.role_id) ?? [],
       notes: role.notes,
     };
   });
@@ -802,12 +823,20 @@ function methodOptionCode(method: Method): string {
   return `${method.method_kind === 'residual' ? 'R' : 'O'}${method.sort_order}`;
 }
 
-function buildSectorStateRows(
+function buildResolvedMethodYearRows(
   methodYears: MethodYear[],
   rolesById: Map<string, RoleMetadata>,
   methodsByRoleAndId: Map<string, Method>,
   appProjectionByRoleId: Map<string, RoleAppProjection>,
-): SectorState[] {
+  reportingAllocations: ReportingAllocation[],
+): ResolvedMethodYearRow[] {
+  const allocationsByRoleId = reportingAllocations.reduce<Map<string, ReportingAllocation[]>>((result, allocation) => {
+    const rows = result.get(allocation.role_id) ?? [];
+    rows.push(allocation);
+    result.set(allocation.role_id, rows);
+    return result;
+  }, new Map<string, ReportingAllocation[]>());
+
   return methodYears.map((row) => {
     const role = rolesById.get(row.role_id);
     const method = methodsByRoleAndId.get(`${row.role_id}::${row.representation_id}::${row.method_id}`);
@@ -816,7 +845,6 @@ function buildSectorStateRows(
     }
 
     const projection = appProjectionByRoleId.get(row.role_id);
-    const reporting = projection?.reportingAllocation;
     const appOutputId = projection?.appOutputId ?? row.role_id;
     const optionCode = methodOptionCode(method);
     const energyCo2e = row.energy_emissions_by_pollutant.find((entry) => entry.pollutant === 'CO2e')?.value ?? null;
@@ -829,27 +857,43 @@ function buildSectorStateRows(
       method_description: method.method_description,
       role_kind: role.role_kind,
       balance_type: role.balance_type,
-      family_id: appOutputId,
-      family_resolution: familyResolutionFromRole(role),
-      coverage_scope_id: row.role_id,
-      coverage_scope_label: role.role_label,
-      sector: reporting?.sector ?? role.topology_area_id,
-      subsector: reporting?.subsector ?? appOutputId,
-      service_or_output_name: appOutputId,
+      output_id: appOutputId,
+      role_label: role.role_label,
+      topology_area_id: role.topology_area_id,
+      topology_area_label: role.topology_area_label,
+      parent_role_id: role.parent_role_id,
+      coverage_obligation: role.coverage_obligation,
+      default_representation_kind: role.default_representation_kind,
+      reporting_allocations: allocationsByRoleId.get(row.role_id) ?? [],
       region: 'Australia',
-      state_id: row.method_id,
-      state_label: method.method_label,
-      state_description: method.method_description,
       output_unit: role.output_unit,
       output_quantity_basis: role.description,
       energy_co2e: energyCo2e,
       process_co2e: processCo2e,
+      method_stage_family: method.method_kind,
+      method_stage_rank: method.sort_order,
+      method_stage_code: method.method_kind,
+      method_sort_key: `${appOutputId}:${String(method.sort_order).padStart(3, '0')}:${row.method_id}`,
+      method_label_standardized: method.method_label,
+      is_default_incumbent_2025: row.year === 2025 && row.method_id === projection?.defaultMethodId,
+      method_option_rank: method.sort_order,
+      method_option_code: optionCode,
+      method_option_label: optionCode,
+      family_id: appOutputId,
+      family_resolution: role.role_kind === 'residual' ? 'residual_stub' : 'modeled',
+      coverage_scope_id: row.role_id,
+      coverage_scope_label: role.role_label,
+      sector: (projection?.reportingAllocation?.sector ?? role.topology_area_id),
+      subsector: (projection?.reportingAllocation?.subsector ?? appOutputId),
+      service_or_output_name: appOutputId,
+      state_id: row.method_id,
+      state_label: method.method_label,
+      state_description: method.method_description,
       state_stage_family: method.method_kind,
       state_stage_rank: method.sort_order,
       state_stage_code: method.method_kind,
       state_sort_key: `${appOutputId}:${String(method.sort_order).padStart(3, '0')}:${row.method_id}`,
       state_label_standardized: method.method_label,
-      is_default_incumbent_2025: row.year === 2025 && row.method_id === projection?.defaultMethodId,
       state_option_rank: method.sort_order,
       state_option_code: optionCode,
       state_option_label: optionCode,
@@ -1360,7 +1404,7 @@ function emptyPackage(appConfig: AppConfigRegistry): PackageData {
   const enrichment = buildPackageEnrichment({});
   const defaultConfiguration = materializeEfficiencyConfiguration(
     materializeResidualOverlayConfiguration(
-      materializeServiceControlsFromRoleControls(loadDefaultConfiguration(appConfig), { sectorStates: [] }),
+      loadDefaultConfiguration(appConfig),
       [],
     ),
     [],
@@ -1375,10 +1419,10 @@ function emptyPackage(appConfig: AppConfigRegistry): PackageData {
     methods: [],
     methodYears: [],
     roleDemands: [],
-    familyMetadata: [],
+    rolePresentationMetadata: [],
     systemStructureGroups: [],
     systemStructureMembers: [],
-    sectorStates: [],
+    resolvedMethodYears: [],
     autonomousEfficiencyTracks: [],
     efficiencyPackages: [],
     serviceDemandAnchors2025: [],
@@ -1443,7 +1487,13 @@ export function loadPackage(): PackageData {
     parseCsv(requirePackageFile(path)).map((row) => toMethodYear(path, row)),
   );
   validateMethodYearReferences(methodYears, methodsByRoleAndId, sourceIds, assumptionIds);
-  const sectorStates = buildSectorStateRows(methodYears, rolesById, methodsByRoleAndId, appProjectionByRoleId);
+  const resolvedMethodYears = buildResolvedMethodYearRows(
+    methodYears,
+    rolesById,
+    methodsByRoleAndId,
+    appProjectionByRoleId,
+    reportingAllocations,
+  );
 
   const roleDemands = listPackageFiles('roles/', '/demand.csv').map((path) => {
     const rows = parseCsv(requirePackageFile(path));
@@ -1484,7 +1534,7 @@ export function loadPackage(): PackageData {
   const enrichment = buildPackageEnrichment(packageTextFiles);
   const defaultConfiguration = materializeEfficiencyConfiguration(
     materializeResidualOverlayConfiguration(
-      materializeServiceControlsFromRoleControls(loadDefaultConfiguration(appConfig), { sectorStates }),
+      loadDefaultConfiguration(appConfig),
       residualOverlays2025,
     ),
     autonomousEfficiencyTracks,
@@ -1499,10 +1549,14 @@ export function loadPackage(): PackageData {
     methods,
     methodYears,
     roleDemands,
-    familyMetadata: buildFamilyMetadata(roleMetadata, appProjectionByRoleId),
+    rolePresentationMetadata: buildRolePresentationMetadata(
+      roleMetadata,
+      appProjectionByRoleId,
+      reportingAllocations,
+    ),
     systemStructureGroups: buildSystemStructureGroups(roleMetadata),
     systemStructureMembers: buildSystemStructureMembers(roleMetadata, appProjectionByRoleId),
-    sectorStates,
+    resolvedMethodYears,
     autonomousEfficiencyTracks,
     efficiencyPackages,
     serviceDemandAnchors2025,

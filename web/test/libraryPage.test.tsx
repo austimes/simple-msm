@@ -6,7 +6,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { createServer } from 'vite';
 import {
   buildFamilyEfficiencyOverview,
-  buildSectorStateFamilies,
+  buildRoleMethodFamilies,
 } from '../src/data/libraryInsights.ts';
 import { DEFAULT_APP_UI_STATE, type AppUiState } from '../src/data/appUiState.ts';
 import { persistAppUiState } from '../src/data/appUiStateStorage.ts';
@@ -69,9 +69,9 @@ describe('LibraryPage efficiency search and filters', () => {
       ...structuredClone(DEFAULT_APP_UI_STATE),
       library: {
         ...structuredClone(DEFAULT_APP_UI_STATE.library),
-        selectedSector: 'electricity_supply',
-        selectedSubsector: 'grid_supply',
-        selectedTrajectoryId: 'electricity__grid_supply__policy_frontier',
+        selectedRoleId: 'supply_electricity',
+        selectedRepresentationId: 'supply_electricity__pathway_bundle',
+        selectedMethodId: 'electricity__grid_supply__policy_frontier',
       },
     };
 
@@ -82,12 +82,12 @@ describe('LibraryPage efficiency search and filters', () => {
 
   test('searches applicable efficiency artifacts and filters states by applicability and artifact type', async () => {
     const packageState = usePackageStore.getState();
-    const candidate = buildSectorStateFamilies(packageState.sectorStates)
+    const candidate = buildRoleMethodFamilies(packageState.resolvedMethodYears)
       .map((family) => ({
         family,
         overview: buildFamilyEfficiencyOverview(
           family.representative.family_id,
-          packageState.sectorStates,
+          packageState.resolvedMethodYears,
           packageState.autonomousEfficiencyTracks,
           packageState.efficiencyPackages,
         ),
@@ -96,8 +96,8 @@ describe('LibraryPage efficiency search and filters', () => {
         return Boolean(
           overview?.packages.find(
             (pkg) => pkg.classification === 'pure_efficiency_overlay'
-              && pkg.applicableStateIds.length > 0
-              && overview.orderedStateIds.some((stateId) => !pkg.applicableStateIds.includes(stateId)),
+              && pkg.applicableMethodIds.length > 0
+              && overview.orderedMethodIds.some((methodId) => !pkg.applicableMethodIds.includes(methodId)),
           ),
         );
       });
@@ -109,7 +109,7 @@ describe('LibraryPage efficiency search and filters', () => {
 
     const pkg = candidate.overview.packages.find(
       (entry) => entry.classification === 'pure_efficiency_overlay'
-        && candidate.overview?.orderedStateIds.some((stateId) => !entry.applicableStateIds.includes(stateId)),
+        && candidate.overview?.orderedMethodIds.some((methodId) => !entry.applicableMethodIds.includes(methodId)),
     );
 
     assert.ok(pkg, 'expected a pure efficiency package for the candidate family');
@@ -117,12 +117,12 @@ describe('LibraryPage efficiency search and filters', () => {
       return;
     }
 
-    const nonApplicableStateId = candidate.overview.orderedStateIds.find(
-      (stateId) => !pkg.applicableStateIds.includes(stateId),
+    const nonApplicableMethodId = candidate.overview.orderedMethodIds.find(
+      (methodId) => !pkg.applicableMethodIds.includes(methodId),
     );
 
-    assert.ok(nonApplicableStateId, 'expected a non-applicable state in the candidate family');
-    if (!nonApplicableStateId) {
+    assert.ok(nonApplicableMethodId, 'expected a non-applicable state in the candidate family');
+    if (!nonApplicableMethodId) {
       return;
     }
 
@@ -136,19 +136,20 @@ describe('LibraryPage efficiency search and filters', () => {
           efficiencyApplicability: 'with_applicable_artifacts',
           efficiencyArtifactType: 'pure_efficiency_overlay',
         },
-        selectedSector: candidate.family.sector,
-        selectedSubsector: candidate.family.subsector,
-        selectedTrajectoryId: pkg.applicableStateIds[0] ?? candidate.family.stateId,
+        selectedRoleId: candidate.family.representative.role_id,
+        selectedRepresentationId: candidate.family.representative.representation_id,
+        selectedMethodId: pkg.applicableMethodIds[0] ?? candidate.family.methodId,
+        roleGraphExpandedNodeIds: [`role:${candidate.family.representative.role_id}`],
       },
     };
 
     const html = await renderLibraryPage(persistedState);
 
     assert.doesNotMatch(html, /No trajectories match the current filters/);
-    for (const applicableStateId of pkg.applicableStateIds) {
-      assert.match(html, new RegExp(escapeForRegex(applicableStateId)));
+    for (const applicableMethodId of pkg.applicableMethodIds) {
+      assert.match(html, new RegExp(escapeForRegex(applicableMethodId)));
     }
-    assert.doesNotMatch(html, new RegExp(escapeForRegex(nonApplicableStateId)));
+    assert.doesNotMatch(html, new RegExp(escapeForRegex(nonApplicableMethodId)));
   });
 
   test('shows canonical embodied-efficiency copy for pathway states that use the shared registry', async () => {
@@ -156,9 +157,9 @@ describe('LibraryPage efficiency search and filters', () => {
       ...structuredClone(DEFAULT_APP_UI_STATE),
       library: {
         ...structuredClone(DEFAULT_APP_UI_STATE.library),
-        selectedSector: 'buildings',
-        selectedSubsector: 'commercial',
-        selectedTrajectoryId: 'buildings__commercial__deep_electric',
+        selectedRoleId: 'deliver_commercial_building_services',
+        selectedRepresentationId: 'deliver_commercial_building_services__pathway_bundle',
+        selectedMethodId: 'buildings__commercial__deep_electric',
       },
     };
 

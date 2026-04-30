@@ -2,7 +2,7 @@ import React from 'react';
 import {
   RIGHT_SIDEBAR_STATUS_LEGEND,
 } from './rightSidebarStatus';
-import type { RightSidebarSectorNode } from './rightSidebarTree';
+import type { RightSidebarAreaNode } from './rightSidebarTree';
 import { formatWorkspacePillLabel } from './workspacePillLabel';
 import type { RepresentationKind } from '../../data/types';
 
@@ -94,10 +94,10 @@ function formatMaxShareByYear(maxShareByYear: Record<string, number | null>): st
 }
 
 export interface RightSidebarContentProps {
-  tree: RightSidebarSectorNode[];
+  tree: RightSidebarAreaNode[];
   onToggleExpandedSector: (sector: string) => void;
   onToggleExpandedSubsector: (outputId: string) => void;
-  onToggleStateActive: (outputId: string, stateId: string) => void;
+  onToggleStateActive: (outputId: string, methodId: string) => void;
   onSetRoleRepresentation: (roleId: string, representationId: string) => void;
   onSetAutonomousEfficiencyForOutput: (outputId: string, mode: 'baseline' | 'off') => void;
   onSetEfficiencyPackageEnabled: (packageId: string, enabled: boolean) => void;
@@ -119,9 +119,9 @@ export default function RightSidebarContent({
   onSetResidualOverlayGroupIncluded,
 }: RightSidebarContentProps) {
   function renderRoleNode(
-    sub: RightSidebarSectorNode['subsectors'][number],
+    sub: RightSidebarAreaNode['subsectors'][number],
   ): React.ReactNode {
-    const activeStateIdSet = new Set(sub.activeStateIds);
+    const activeMethodIdSet = new Set(sub.activeMethodIds);
     const methodsInactive = sub.pathwaysInactive;
     const outOfScope = sub.outOfScope;
     const isCollapsed = sub.isCollapsed;
@@ -129,7 +129,7 @@ export default function RightSidebarContent({
     const efficiencyControls = sub.efficiencyControls;
     const hasEfficiencyControls = efficiencyControls?.hasControls === true;
     const autonomousEnabled = efficiencyControls?.autonomousTracks.some((track) => track.enabled) ?? false;
-    const embodiedStateIdSet = new Set(efficiencyControls?.embodiedStateIds ?? []);
+    const embodiedMethodIdSet = new Set(efficiencyControls?.embodiedMethodIds ?? []);
     const isResidualStub = sub.familyResolution === 'residual_stub';
     const isDecomposition = sub.selectedRepresentationKind === 'role_decomposition';
     const hasRepresentationControls = sub.representationOptions.length > 0;
@@ -232,27 +232,27 @@ export default function RightSidebarContent({
           {!isCollapsed && hasMethodControls && (
             <div className="workspace-method-chips">
               {sub.states.map((state) => {
-                const isActive = !methodsInactive && activeStateIdSet.has(state.stateId);
+                const isActive = !methodsInactive && activeMethodIdSet.has(state.methodId);
                 const chipClass = methodsInactive
                   ? 'workspace-method-chip--inactive'
                   : isActive
                     ? 'workspace-method-chip--on'
                     : 'workspace-method-chip--off';
-                const chipLabel = formatWorkspacePillLabel(state.stateLabel);
-                const hasEmbodiedEfficiency = embodiedStateIdSet.has(state.stateId);
+                const chipLabel = formatWorkspacePillLabel(state.methodLabel);
+                const hasEmbodiedEfficiency = embodiedMethodIdSet.has(state.methodId);
                 const chipTitle = methodsInactive
-                  ? `${state.stateLabel}. ${sub.presentation.detail}`
+                  ? `${state.methodLabel}. ${sub.presentation.detail}`
                   : hasEmbodiedEfficiency
-                    ? `${state.stateLabel}. Embodied efficiency method.`
-                    : state.stateLabel;
+                    ? `${state.methodLabel}. Embodied efficiency method.`
+                    : state.methodLabel;
 
                 return (
                   <button
-                    key={`${state.representationId}:${state.stateId}`}
+                    key={`${state.representationId}:${state.methodId}`}
                     type="button"
                     className={`workspace-method-chip ${chipClass}${outOfScope ? ' workspace-method-chip--dimmed' : ''}`}
                     onClick={() =>
-                      onToggleStateActive(sub.outputId, state.stateId)
+                      onToggleStateActive(sub.outputId, state.methodId)
                     }
                     aria-pressed={!methodsInactive && isActive}
                     disabled={methodsInactive}
@@ -342,7 +342,7 @@ export default function RightSidebarContent({
                   })}
                 </div>
               )}
-              {efficiencyControls.embodiedStateIds.length > 0 && (
+              {efficiencyControls.embodiedMethodIds.length > 0 && (
                 <div className="workspace-efficiency-readonly">
                   <span className="workspace-mode-badge workspace-mode-badge--muted">
                     Embodied

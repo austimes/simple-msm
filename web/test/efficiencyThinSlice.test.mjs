@@ -3,6 +3,7 @@ import test from 'node:test';
 import { resolveConfigurationDocument } from '../src/data/demandResolution.ts';
 import { loadPackage } from '../src/data/packageLoader.ts';
 import { runScenario } from '../src/results/runScenario.ts';
+import { materializeServiceControlsFromRoleControls } from './roleControlTestUtils.mjs';
 
 const RESIDENTIAL_OUTPUT_ID = 'residential_building_services';
 const LOW_TEMPERATURE_OUTPUT_ID = 'low_temperature_heat';
@@ -55,7 +56,10 @@ function expectCompleteMilestoneCoverage(rows, idField, ids) {
 }
 
 function buildThinSliceConfiguration(pkg) {
-  const configuration = structuredClone(pkg.defaultConfiguration);
+  const configuration = materializeServiceControlsFromRoleControls(
+    structuredClone(pkg.defaultConfiguration),
+    { resolvedMethodYears: pkg.resolvedMethodYears },
+  );
 
   for (const outputId of Object.keys(pkg.appConfig.output_roles)) {
     if (outputId === 'electricity') {
@@ -152,18 +156,18 @@ test('the real efficiency thin slice loads, solves, and carries attribution prov
   assert.ok(lowTemperatureEmissions2030, 'expected low-temperature fossil combustion emissions to be present');
   assert.ok(Math.abs(lowTemperatureEmissions2030.value - 0.0556524) < 1e-6);
 
-  const residentialPackageStateId = `effpkg:${RESIDENTIAL_INCUMBENT_STATE_ID}::${RESIDENTIAL_PACKAGE_ID}`;
-  const residentialPackageShare2050 = snapshot.result.reporting.stateShares.find((row) => {
-    return row.year === 2050 && row.outputId === RESIDENTIAL_OUTPUT_ID && row.stateId === residentialPackageStateId;
+  const residentialPackageMethodId = `effpkg:${RESIDENTIAL_INCUMBENT_STATE_ID}::${RESIDENTIAL_PACKAGE_ID}`;
+  const residentialPackageShare2050 = snapshot.result.reporting.methodShares.find((row) => {
+    return row.year === 2050 && row.outputId === RESIDENTIAL_OUTPUT_ID && row.methodId === residentialPackageMethodId;
   });
   assert.ok(residentialPackageShare2050, 'expected a residential package state-share row in 2050');
   assert.ok((residentialPackageShare2050.activity ?? 0) > 0, 'expected the residential package to carry activity in the thin slice');
   assert.equal(residentialPackageShare2050.provenance?.kind, 'efficiency_package');
   assert.equal(residentialPackageShare2050.provenance?.packageId, RESIDENTIAL_PACKAGE_ID);
 
-  const lowTemperaturePackageStateId = `effpkg:${LOW_TEMPERATURE_INCUMBENT_STATE_ID}::${LOW_TEMPERATURE_PACKAGE_ID}`;
+  const lowTemperaturePackageMethodId = `effpkg:${LOW_TEMPERATURE_INCUMBENT_STATE_ID}::${LOW_TEMPERATURE_PACKAGE_ID}`;
   const lowTemperaturePackageFuelContribution = snapshot.contributions.find((row) => {
-    return row.metric === 'fuel' && row.year === 2050 && row.sourceId === lowTemperaturePackageStateId;
+    return row.metric === 'fuel' && row.year === 2050 && row.sourceId === lowTemperaturePackageMethodId;
   });
   assert.ok(lowTemperaturePackageFuelContribution, 'expected a low-temperature package fuel contribution row in 2050');
   assert.equal(lowTemperaturePackageFuelContribution.provenance?.kind, 'efficiency_package');

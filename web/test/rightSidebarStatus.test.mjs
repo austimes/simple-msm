@@ -5,7 +5,7 @@ import {
   getRightSidebarStatusPresentation,
   RIGHT_SIDEBAR_STATUS_LEGEND,
 } from '../src/components/workspace/rightSidebarStatus.ts';
-import { materializeServiceControlsFromRoleControls } from '../src/data/configurationRoleControls.ts';
+import { materializeServiceControlsFromRoleControls } from './roleControlTestUtils.mjs';
 import { deriveOutputRunStatusesForConfiguration } from '../src/solver/solveScope.ts';
 import { buildConfiguration, loadPkg } from './solverTestUtils.mjs';
 
@@ -18,7 +18,7 @@ function readJson(relativePath) {
 
 function readConfiguration(relativePath) {
   return materializeServiceControlsFromRoleControls(readJson(relativePath), {
-    sectorStates: pkg.sectorStates,
+    resolvedMethodYears: pkg.resolvedMethodYears,
   });
 }
 

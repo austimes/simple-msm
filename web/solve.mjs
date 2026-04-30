@@ -262,16 +262,16 @@ function buildCommodityBalanceDiffs(leftRun, rightRun) {
   return rows.sort((a, b) => Math.max(Math.abs(b.totalDemandDelta ?? 0), Math.abs(b.supplyDelta ?? 0)) - Math.max(Math.abs(a.totalDemandDelta ?? 0), Math.abs(a.supplyDelta ?? 0)));
 }
 
-function buildStateShareDiffs(leftRun, rightRun) {
-  const leftMap = new Map(leftRun.result.reporting.stateShares.map((e) => [`${e.outputId}::${e.year}::${e.stateId}`, e]));
-  const rightMap = new Map(rightRun.result.reporting.stateShares.map((e) => [`${e.outputId}::${e.year}::${e.stateId}`, e]));
+function buildMethodShareDiffs(leftRun, rightRun) {
+  const leftMap = new Map(leftRun.result.reporting.methodShares.map((e) => [`${e.outputId}::${e.year}::${e.methodId}`, e]));
+  const rightMap = new Map(rightRun.result.reporting.methodShares.map((e) => [`${e.outputId}::${e.year}::${e.methodId}`, e]));
   const keys = uniqueSorted([...leftMap.keys(), ...rightMap.keys()]);
   const rows = [];
   for (const key of keys) {
     const l = leftMap.get(key), r = rightMap.get(key);
     const row = {
       outputId: r?.outputId ?? l?.outputId, outputLabel: r?.outputLabel ?? l?.outputLabel,
-      year: r?.year ?? l?.year, stateId: r?.stateId ?? l?.stateId, stateLabel: r?.stateLabel ?? l?.stateLabel,
+      year: r?.year ?? l?.year, methodId: r?.methodId ?? l?.methodId, methodLabel: r?.methodLabel ?? l?.methodLabel,
       activityDelta: (r?.activity ?? 0) - (l?.activity ?? 0),
       shareDelta: (r?.share ?? 0) - (l?.share ?? 0),
       leftShare: l?.share ?? 0, rightShare: r?.share ?? 0,
@@ -299,7 +299,7 @@ function buildComparison(leftRun, rightRun) {
       bindingConstraintCount: numericDelta(l.bindingConstraintCount, r.bindingConstraintCount, { defaultZero: true }),
     },
     commodityBalanceDiffs: buildCommodityBalanceDiffs(leftRun, rightRun),
-    stateShareDiffs: buildStateShareDiffs(leftRun, rightRun),
+    stateShareDiffs: buildMethodShareDiffs(leftRun, rightRun),
   };
 }
 
@@ -324,7 +324,7 @@ function buildPrimeNextActions(run) {
       diagnostic.suggestion,
       diagnostic.outputId ?? '',
       diagnostic.year ?? '',
-      diagnostic.stateId ?? '',
+      diagnostic.methodId ?? '',
       (diagnostic.relatedConstraintIds ?? []).join(','),
     ].join('::');
 
@@ -341,7 +341,7 @@ function buildPrimeNextActions(run) {
       location: {
         ...(diagnostic.outputId ? { outputId: diagnostic.outputId } : {}),
         ...(diagnostic.year != null ? { year: diagnostic.year } : {}),
-        ...(diagnostic.stateId ? { stateId: diagnostic.stateId } : {}),
+        ...(diagnostic.methodId ? { methodId: diagnostic.methodId } : {}),
       },
       supportingConstraintIds: diagnostic.relatedConstraintIds ?? [],
     });
@@ -362,7 +362,7 @@ function buildPrimeSolveSummary(run) {
   const commodityFindings = [...run.result.reporting.commodityBalances]
     .sort((left, right) => Math.abs(right.balanceGap ?? 0) - Math.abs(left.balanceGap ?? 0))
     .slice(0, 10);
-  const stateShares = [...run.result.reporting.stateShares]
+  const methodShares = [...run.result.reporting.methodShares]
     .filter((entry) => entry.activity > 1e-6)
     .sort((left, right) => right.activity - left.activity)
     .slice(0, 10);
@@ -385,7 +385,7 @@ function buildPrimeSolveSummary(run) {
     topBindingConstraints: run.result.reporting.bindingConstraints.slice(0, 12),
     topSoftConstraintViolations: run.result.reporting.softConstraintViolations.slice(0, 12),
     topCommodityBalanceFindings: commodityFindings,
-    topStateShares: stateShares,
+    topMethodShares: methodShares,
   };
 }
 
@@ -489,7 +489,7 @@ function printSingleRun(run, pkg, { quiet = false } = {}) {
     .filter((d) => d.severity !== 'info')
     .map((d) => ({
       severity: d.severity, code: d.code,
-      location: [d.outputId, d.year, d.stateId].filter(Boolean).join(' / ') || '—',
+      location: [d.outputId, d.year, d.methodId].filter(Boolean).join(' / ') || '—',
       message: d.message,
     }));
 
@@ -522,11 +522,11 @@ function printSingleRun(run, pkg, { quiet = false } = {}) {
     { header: 'state', key: 'state', maxWidth: 40 },
     { header: 'activity', key: 'activity', align: 'right' },
     { header: 'share', key: 'share', align: 'right' },
-  ], run.result.reporting.stateShares
+  ], run.result.reporting.methodShares
     .filter((e) => e.activity > 1e-6)
     .sort((a, b) => b.activity - a.activity)
     .map((e) => ({
-      output: e.outputLabel, year: e.year, state: e.stateLabel,
+      output: e.outputLabel, year: e.year, state: e.methodLabel,
       activity: fmtNumber(e.activity), share: fmtPercent(e.share),
     })),
   { limit: 25, noneMessage: 'No active state shares.' });
@@ -542,7 +542,7 @@ function printSingleRun(run, pkg, { quiet = false } = {}) {
     .sort((a, b) => Math.abs(a.slack) - Math.abs(b.slack))
     .map((e) => ({
       kind: e.kind,
-      location: [e.outputLabel, e.year, e.stateLabel].filter(Boolean).join(' / '),
+      location: [e.outputLabel, e.year, e.methodLabel].filter(Boolean).join(' / '),
       bound: `${e.boundType} ${fmtNumber(e.boundValue)}`,
       actual: fmtNumber(e.actualValue), slack: fmtNumber(e.slack), message: e.message,
     })),
@@ -559,7 +559,7 @@ function printSingleRun(run, pkg, { quiet = false } = {}) {
     .sort((a, b) => (b.totalPenalty ?? 0) - (a.totalPenalty ?? 0))
     .map((e) => ({
       kind: e.kind,
-      location: [e.outputLabel, e.year, e.stateLabel].filter(Boolean).join(' / '),
+      location: [e.outputLabel, e.year, e.methodLabel].filter(Boolean).join(' / '),
       bound: `${e.boundType} ${fmtNumber(e.boundValue)}`,
       actual: fmtNumber(e.actualValue), slack: fmtNumber(e.slack), penalty: fmtNumber(e.totalPenalty),
     })),
@@ -653,13 +653,13 @@ function printComparison(leftRun, rightRun, comparison, { quiet = false } = {}) 
   printTableSection('State-share deltas', [
     { header: 'output', key: 'outputLabel', maxWidth: 30 },
     { header: 'year', key: 'year', align: 'right' },
-    { header: 'state', key: 'stateLabel', maxWidth: 36 },
+    { header: 'state', key: 'methodLabel', maxWidth: 36 },
     { header: 'leftShare', key: 'leftShare', align: 'right' },
     { header: 'rightShare', key: 'rightShare', align: 'right' },
     { header: 'dShare', key: 'dShare', align: 'right' },
     { header: 'dActivity', key: 'dActivity', align: 'right' },
   ], comparison.stateShareDiffs.map((e) => ({
-    outputLabel: e.outputLabel, year: e.year, stateLabel: e.stateLabel,
+    outputLabel: e.outputLabel, year: e.year, methodLabel: e.methodLabel,
     leftShare: fmtPercent(e.leftShare), rightShare: fmtPercent(e.rightShare),
     dShare: fmtPpDelta(e.shareDelta), dActivity: fmtDelta(e.activityDelta),
   })), { limit: 25, noneMessage: 'No state-share changes.' });

@@ -6,8 +6,8 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { createServer } from 'vite';
 import {
   buildFamilyEfficiencyOverview,
-  buildSectorStateFamilies,
-  buildSectorStateTrajectory,
+  buildRoleMethodFamilies,
+  buildRoleMethodTrajectory,
 } from '../src/data/libraryInsights.ts';
 import { DEFAULT_APP_UI_STATE, type AppUiState } from '../src/data/appUiState.ts';
 import {
@@ -171,7 +171,7 @@ describe('appUiStore route persistence', () => {
 
   test('preserves library filters, scope selection, trajectory selection, and sidebar collapse across remount', async () => {
     const packageState = usePackageStore.getState();
-    const candidate = buildSectorStateFamilies(packageState.sectorStates).find((family) => {
+    const candidate = buildRoleMethodFamilies(packageState.resolvedMethodYears).find((family) => {
       if (
         family.confidenceRatings.length === 0
         || family.sourceIds.length === 0
@@ -183,7 +183,7 @@ describe('appUiStore route persistence', () => {
 
       const efficiency = buildFamilyEfficiencyOverview(
         family.representative.family_id,
-        packageState.sectorStates,
+        packageState.resolvedMethodYears,
         packageState.autonomousEfficiencyTracks,
         packageState.efficiencyPackages,
       );
@@ -193,8 +193,8 @@ describe('appUiStore route persistence', () => {
 
     assert.ok(candidate, 'expected at least one family with confidence, source, and assumption metadata');
 
-    const selectedTrajectoryId = buildSectorStateTrajectory(candidate).stateId;
-    const searchToken = candidate.label.split(/\s+/)[0]?.toLowerCase() ?? candidate.stateId;
+    const selectedTrajectoryId = buildRoleMethodTrajectory(candidate).methodId;
+    const searchToken = candidate.label.split(/\s+/)[0]?.toLowerCase() ?? candidate.methodId;
     const persistedState: AppUiState = {
       ...structuredClone(DEFAULT_APP_UI_STATE),
       library: {
@@ -208,9 +208,10 @@ describe('appUiStore route persistence', () => {
           efficiencyApplicability: 'with_applicable_artifacts',
           efficiencyArtifactType: 'pure_efficiency_overlay',
         },
-        selectedSector: candidate.sector,
-        selectedSubsector: candidate.subsector,
-        selectedTrajectoryId,
+        selectedRoleId: candidate.representative.role_id,
+        selectedRepresentationId: candidate.representative.representation_id,
+        selectedMethodId: selectedTrajectoryId,
+        roleGraphExpandedNodeIds: [`role:${candidate.representative.role_id}`],
       },
     };
 
@@ -218,14 +219,8 @@ describe('appUiStore route persistence', () => {
 
     assertMatchesBoth(htmls, /library-sidebar-layout library-sidebar-layout--collapsed/);
     assertMatchesBoth(htmls, new RegExp(`value="${escapeForRegex(searchToken)}"`));
-    assertMatchesBoth(
-      htmls,
-      new RegExp(`library-chip library-chip--active">${escapeForRegex(candidate.sector)}<`),
-    );
-    assertMatchesBoth(
-      htmls,
-      new RegExp(`library-chip library-chip--active">${escapeForRegex(candidate.subsector)}<`),
-    );
+    assertMatchesBoth(htmls, /Role Graph/);
+    assertMatchesBoth(htmls, new RegExp(`Role</dt><dd>${escapeForRegex(candidate.representative.role_label)}</dd>`));
     assertMatchesBoth(
       htmls,
       new RegExp(`option value="${escapeForRegex(candidate.confidenceRatings[0] ?? '')}" selected=""`),
@@ -251,10 +246,10 @@ describe('appUiStore route persistence', () => {
   });
 
   test('preserves methods tab and evidence filters across remount', async () => {
-    const candidate = buildSectorStateFamilies(usePackageStore.getState().sectorStates)[0];
+    const candidate = buildRoleMethodFamilies(usePackageStore.getState().resolvedMethodYears)[0];
     assert.ok(candidate, 'expected at least one sector-state family');
 
-    const searchToken = candidate.label.split(/\s+/)[0]?.toLowerCase() ?? candidate.stateId;
+    const searchToken = candidate.label.split(/\s+/)[0]?.toLowerCase() ?? candidate.methodId;
     const persistedState: AppUiState = {
       ...structuredClone(DEFAULT_APP_UI_STATE),
       methods: {

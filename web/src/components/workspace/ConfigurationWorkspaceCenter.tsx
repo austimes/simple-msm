@@ -35,7 +35,7 @@ import type {
 } from '../../data/appUiState.ts';
 import type { FuelSwitchBasis } from '../../data/types.ts';
 import type { SolveState } from '../../hooks/useConfigurationSolve.ts';
-import type { SolveStateShareSummary } from '../../solver/contract.ts';
+import type { SolveMethodShareSummary } from '../../solver/contract.ts';
 
 void React;
 
@@ -52,11 +52,11 @@ function formatNumber(value: number): string {
 }
 
 function buildFuelSwitchActivityRows(
-  stateShares: SolveStateShareSummary[] | undefined,
+  methodShares: SolveMethodShareSummary[] | undefined,
 ): FuelSwitchActivityRow[] {
   const rowsByKey = new Map<string, FuelSwitchActivityRow>();
 
-  for (const stateShare of stateShares ?? []) {
+  for (const stateShare of methodShares ?? []) {
     const key = `${stateShare.year}::${stateShare.outputId}`;
     const row = rowsByKey.get(key) ?? {
       outputId: stateShare.outputId,
@@ -325,11 +325,11 @@ export default function ConfigurationWorkspaceCenter({
     [focusSolve.request, focusSolve.result],
   );
   const baseFuelSwitchActivities = useMemo(
-    () => buildFuelSwitchActivityRows(baseSolve.result?.reporting.stateShares),
+    () => buildFuelSwitchActivityRows(baseSolve.result?.reporting.methodShares),
     [baseSolve.result],
   );
   const focusFuelSwitchActivities = useMemo(
-    () => buildFuelSwitchActivityRows(focusSolve.result?.reporting.stateShares),
+    () => buildFuelSwitchActivityRows(focusSolve.result?.reporting.methodShares),
     [focusSolve.result],
   );
   const fuelSwitchRouteBasis = useMemo(

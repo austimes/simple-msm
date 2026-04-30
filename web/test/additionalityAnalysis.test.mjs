@@ -7,7 +7,7 @@ import {
   runAdditionalityAnalysis,
   validateAdditionalityPair,
 } from '../src/additionality/additionalityAnalysis.ts';
-import { materializeServiceControlsFromRoleControls } from '../src/data/configurationRoleControls.ts';
+import { materializeServiceControlsFromRoleControls } from './roleControlTestUtils.mjs';
 import { resolveConfigurationDocument } from '../src/data/demandResolution.ts';
 import { buildAllContributionRows } from '../src/results/resultContributions.ts';
 import { buildSolveRequest } from '../src/solver/buildSolveRequest.ts';
@@ -16,7 +16,7 @@ import { solveWithLpAdapter } from '../src/solver/lpAdapter.ts';
 import { loadPkg } from './solverTestUtils.mjs';
 
 const pkg = loadPkg();
-const STATE_OPEN_TARGET_ID = 'reference-state-open';
+const METHOD_OPEN_TARGET_ID = 'reference-method-open';
 
 function readJson(relativePath) {
   const url = new URL(relativePath, import.meta.url);
@@ -81,7 +81,7 @@ function buildBaseCase() {
       pkg.appConfig,
       'reference-baseline',
     ),
-    { sectorStates: pkg.sectorStates },
+    { resolvedMethodYears: pkg.resolvedMethodYears },
   );
 }
 
@@ -89,7 +89,11 @@ function buildStateOpenCase() {
   const configuration = buildBaseCase();
 
   for (const control of Object.values(configuration.service_controls)) {
-    if (control?.mode === 'optimize' && 'active_state_ids' in control) {
+    if (
+      control?.mode === 'optimize'
+      && Array.isArray(control.active_state_ids)
+      && control.active_state_ids.length > 0
+    ) {
       control.active_state_ids = null;
     }
   }
@@ -109,7 +113,7 @@ function rowUnitCost(request, row) {
   return conversion + commodity + emissions * carbonPrice;
 }
 
-function buildMockStateSharesForObjective(request, objectiveValue) {
+function buildMockMethodSharesForObjective(request, objectiveValue) {
   if (objectiveValue === 0) {
     return [];
   }
@@ -124,10 +128,10 @@ function buildMockStateSharesForObjective(request, objectiveValue) {
       outputLabel: row.outputLabel,
       year: row.year,
       rowId: row.rowId,
-      stateId: row.stateId,
-      stateLabel: row.stateLabel,
-      pathwayStateId: row.provenance?.baseStateId ?? row.stateId,
-      pathwayStateLabel: row.provenance?.baseStateLabel ?? row.stateLabel,
+      methodId: row.methodId,
+      methodLabel: row.methodLabel,
+      pathwayMethodId: row.provenance?.baseMethodId ?? row.methodId,
+      pathwayMethodLabel: row.provenance?.baseMethodLabel ?? row.methodLabel,
       provenance: row.provenance,
       activity: objectiveValue / unitCost,
       share: null,
@@ -155,7 +159,7 @@ function buildSolvedResult(request, objectiveValue) {
     },
     reporting: {
       commodityBalances: [],
-      stateShares: buildMockStateSharesForObjective(request, objectiveValue),
+      methodShares: buildMockMethodSharesForObjective(request, objectiveValue),
       bindingConstraints: [],
       softConstraintViolations: [],
     },
@@ -199,7 +203,7 @@ function buildErroredResult(request, message) {
     },
     reporting: {
       commodityBalances: [],
-      stateShares: [],
+      methodShares: [],
       bindingConstraints: [],
       softConstraintViolations: [],
     },
@@ -228,44 +232,43 @@ function buildErroredResult(request, message) {
   };
 }
 
-function hasActiveState(request, outputId, stateId) {
+function hasActiveState(request, outputId, methodId) {
   const controlsByYear = request.configuration.controlsByOutput[outputId] ?? {};
-  return Object.values(controlsByYear).some((control) => (control.activeStateIds ?? []).includes(stateId));
+  return Object.values(controlsByYear).some((control) => (control.activeMethodIds ?? []).includes(methodId));
 }
 
 describe('additionality analysis', () => {
-  test('derives the expected state-toggle atoms for reference-baseline vs synthetic state-open target', () => {
+  test('derives the expected method-toggle atoms for reference-baseline vs synthetic state-open target', () => {
     const atoms = deriveAdditionalityAtoms(buildBaseCase(), buildStateOpenCase(), pkg);
 
-    assert.equal(atoms.length, 25);
+    assert.equal(atoms.length, 24);
     assert.deepEqual(
-      atoms.map((atom) => `${atom.outputLabel}|${atom.stateLabel}|${atom.action}`),
+      atoms.map((atom) => `${atom.outputLabel}|${atom.methodLabel}|${atom.action}`),
       [
-        'Cement equivalent|Deep-abatement cement with CCS|enable',
-        'Cement equivalent|Low-clinker and alternative-fuels cement|enable',
-        'Commercial building services|Deep electrification and efficiency commercial services|enable',
-        'Commercial building services|Electrified efficient commercial services|enable',
-        'Cropping and horticulture output bundle|Mitigated cropping and horticulture bundle|enable',
-        'Crude steel|CCS-influenced BF-BOF steel|enable',
-        'Crude steel|Hydrogen DRI-electric steel|enable',
-        'Crude steel|Scrap EAF steel|enable',
-        'Electricity supply|Deep-clean firmed grid supply|enable',
-        'Electricity supply|Policy frontier grid supply|enable',
-        'Freight road transport|Battery-electric road freight|enable',
-        'Freight road transport|Efficient diesel road freight|enable',
-        'Freight road transport|Hydrogen fuel-cell road freight|enable',
-        'High-temperature heat|High-temperature electrified heat|enable',
-        'High-temperature heat|High-temperature low-carbon fuels|enable',
-        'Livestock output bundle|Mitigated livestock output bundle|enable',
-        'Low-temperature heat|Low-temperature electrified heat|enable',
-        'Low-temperature heat|Low-temperature low-carbon fuels|enable',
-        'Medium-temperature heat|Medium-temperature electrified heat|enable',
-        'Medium-temperature heat|Medium-temperature low-carbon fuels|enable',
-        'Passenger road transport|Battery-electric passenger road fleet|enable',
-        'Passenger road transport|Hybrid-heavy passenger road fleet|enable',
-        'Residential building services|Deep-electric residential services|enable',
-        'Residential building services|Electrified efficient residential services|enable',
-        'Residual LULUCF sink|Residual incumbent|enable',
+        'Deliver commercial building services|Deep electrification and efficiency commercial services|enable',
+        'Deliver commercial building services|Electrified efficient commercial services|enable',
+        'Deliver freight road transport|Battery-electric road freight|enable',
+        'Deliver freight road transport|Efficient diesel road freight|enable',
+        'Deliver freight road transport|Hydrogen fuel-cell road freight|enable',
+        'Deliver high temperature heat|High-temperature electrified heat|enable',
+        'Deliver high temperature heat|High-temperature low-carbon fuels|enable',
+        'Deliver low temperature heat|Low-temperature electrified heat|enable',
+        'Deliver low temperature heat|Low-temperature low-carbon fuels|enable',
+        'Deliver medium temperature heat|Medium-temperature electrified heat|enable',
+        'Deliver medium temperature heat|Medium-temperature low-carbon fuels|enable',
+        'Deliver passenger road transport|Battery-electric passenger road fleet|enable',
+        'Deliver passenger road transport|Hybrid-heavy passenger road fleet|enable',
+        'Deliver residential building services|Deep-electric residential services|enable',
+        'Deliver residential building services|Electrified efficient residential services|enable',
+        'Produce cement equivalent|Deep-abatement cement with CCS|enable',
+        'Produce cement equivalent|Low-clinker and alternative-fuels cement|enable',
+        'Produce cropping and horticulture output|Mitigated cropping and horticulture bundle|enable',
+        'Produce crude steel|CCS-influenced BF-BOF steel|enable',
+        'Produce crude steel|Hydrogen DRI-electric steel|enable',
+        'Produce crude steel|Scrap EAF steel|enable',
+        'Produce livestock output|Mitigated livestock output bundle|enable',
+        'Supply electricity|Deep-clean firmed grid supply|enable',
+        'Supply electricity|Policy frontier grid supply|enable',
       ],
     );
   });
@@ -408,18 +411,18 @@ describe('additionality analysis', () => {
     assert.ok(issues.some((issue) => issue.code === 'solver_options_mismatch'));
   });
 
-  test('applying atoms updates active_state_ids and collapses fully active outputs to null', () => {
+  test('applying method atoms updates active selections and collapses fully active outputs to null', () => {
     const base = buildBaseCase();
     const first = applyAdditionalityAtom(
       base,
       {
         key: 'residential-1',
-        kind: 'state',
+        kind: 'method',
         category: 'efficiency',
         outputId: 'residential_building_services',
         outputLabel: 'Residential building services',
-        stateId: 'buildings__residential__electrified_efficiency',
-        stateLabel: 'Electrified efficient residential services',
+        methodId: 'buildings__residential__electrified_efficiency',
+        methodLabel: 'Electrified efficient residential services',
         label: 'Enable Electrified efficient residential services',
         action: 'enable',
       },
@@ -435,12 +438,12 @@ describe('additionality analysis', () => {
       first,
       {
         key: 'residential-2',
-        kind: 'state',
+        kind: 'method',
         category: 'efficiency',
         outputId: 'residential_building_services',
         outputLabel: 'Residential building services',
-        stateId: 'buildings__residential__deep_electric',
-        stateLabel: 'Deep-electric residential services',
+        methodId: 'buildings__residential__deep_electric',
+        methodLabel: 'Deep-electric residential services',
         label: 'Enable Deep-electric residential services',
         action: 'enable',
       },
@@ -493,7 +496,7 @@ describe('additionality analysis', () => {
     );
 
     assert.equal(
-      withAutonomousOff.efficiency_controls.autonomous_modes_by_output.residential_building_services,
+      withAutonomousOff.efficiency_controls.autonomous_modes_by_role.residential_building_services,
       'off',
     );
   });
@@ -506,7 +509,7 @@ describe('additionality analysis', () => {
         commoditySelections: {},
         pkg,
         targetConfiguration: buildStateOpenCase(),
-        targetConfigId: STATE_OPEN_TARGET_ID,
+        targetConfigId: METHOD_OPEN_TARGET_ID,
       },
       {
         solve: async (request) => solveWithLpAdapter(request),
@@ -540,7 +543,7 @@ describe('additionality analysis', () => {
         commoditySelections: {},
         pkg,
         targetConfiguration: buildStateOpenCase(),
-        targetConfigId: STATE_OPEN_TARGET_ID,
+        targetConfigId: METHOD_OPEN_TARGET_ID,
       },
       {
         buildRequest: (pkgArg, configuration) => {
@@ -620,12 +623,12 @@ describe('additionality analysis', () => {
     assert.equal(analysis.phase, 'success');
     assert.equal(analysis.report.sequence.length, 2);
     assert.ok(
-      analysis.report.sequence[0].atom.stateLabel.includes('Deep-electric'),
-      `expected first atom to contain "Deep-electric", got "${analysis.report.sequence[0].atom.stateLabel}"`,
+      analysis.report.sequence[0].atom.methodLabel.includes('Deep-electric'),
+      `expected first atom to contain "Deep-electric", got "${analysis.report.sequence[0].atom.methodLabel}"`,
     );
     assert.ok(
-      analysis.report.sequence[1].atom.stateLabel.includes('Electrified efficient'),
-      `expected second atom to contain "Electrified efficient", got "${analysis.report.sequence[1].atom.stateLabel}"`,
+      analysis.report.sequence[1].atom.methodLabel.includes('Electrified efficient'),
+      `expected second atom to contain "Electrified efficient", got "${analysis.report.sequence[1].atom.methodLabel}"`,
     );
     for (const entry of analysis.report.sequence) {
       assert.equal(entry.atom.action, 'enable');
@@ -640,7 +643,7 @@ describe('additionality analysis', () => {
         commoditySelections: {},
         pkg,
         targetConfiguration: buildStateOpenCase(),
-        targetConfigId: STATE_OPEN_TARGET_ID,
+        targetConfigId: METHOD_OPEN_TARGET_ID,
       },
       {
         solve: async (request) => solveWithLpAdapter(request),
@@ -660,7 +663,7 @@ describe('additionality analysis', () => {
     );
   });
 
-  test('disable-action atoms when target restricts states relative to base', async () => {
+  test('disable-action atoms when target restricts methods relative to base', async () => {
     function mockSolverForDisableTest(request) {
       const hasA = hasActiveState(request, 'residential_building_services', 'buildings__residential__electrified_efficiency');
       const hasB = hasActiveState(request, 'residential_building_services', 'buildings__residential__deep_electric');
@@ -730,17 +733,17 @@ describe('additionality analysis', () => {
 
     assert.equal(analysis.phase, 'success');
     assert.equal(analysis.report.sequence.length, 2);
-    // Both have same absCostDelta, tie-break is alphabetical by stateLabel.
+    // Both have same absCostDelta, tie-break is alphabetical by methodLabel.
     // During removal: "Deep-electric" < "Electrified efficient" alphabetically,
     // so Deep-electric is removed first. After presentation reversal:
     // Electrified efficient appears first, Deep-electric second.
     assert.ok(
-      analysis.report.sequence[0].atom.stateLabel.includes('Electrified efficient'),
-      `expected first atom to be "Electrified efficient", got "${analysis.report.sequence[0].atom.stateLabel}"`,
+      analysis.report.sequence[0].atom.methodLabel.includes('Electrified efficient'),
+      `expected first atom to be "Electrified efficient", got "${analysis.report.sequence[0].atom.methodLabel}"`,
     );
     assert.ok(
-      analysis.report.sequence[1].atom.stateLabel.includes('Deep-electric'),
-      `expected second atom to be "Deep-electric", got "${analysis.report.sequence[1].atom.stateLabel}"`,
+      analysis.report.sequence[1].atom.methodLabel.includes('Deep-electric'),
+      `expected second atom to be "Deep-electric", got "${analysis.report.sequence[1].atom.methodLabel}"`,
     );
     // Verify determinism by checking the deltas are actually tied
     assertClose(
@@ -752,9 +755,9 @@ describe('additionality analysis', () => {
 
   test('sampled Shapley is deterministic and matches an additive mock model', async () => {
     function mockSolverForAdditiveShapley(request) {
-      const activeResidentialStateIds = new Set(request.__activeResidentialStateIds ?? []);
-      const hasEfficiency = activeResidentialStateIds.has('buildings__residential__electrified_efficiency');
-      const hasDeepElectric = activeResidentialStateIds.has('buildings__residential__deep_electric');
+      const activeResidentialMethodIds = new Set(request.__activeResidentialMethodIds ?? []);
+      const hasEfficiency = activeResidentialMethodIds.has('buildings__residential__electrified_efficiency');
+      const hasDeepElectric = activeResidentialMethodIds.has('buildings__residential__deep_electric');
 
       return buildSolvedResult(
         request,
@@ -776,21 +779,21 @@ describe('additionality analysis', () => {
       targetConfiguration: target,
       targetConfigId: 'shapley-target',
     };
-    const residentialStateIds = Array.from(new Set(
-      pkg.sectorStates
+    const residentialMethodIds = Array.from(new Set(
+      pkg.resolvedMethodYears
         .filter((row) => row.service_or_output_name === 'residential_building_services')
         .map((row) => row.state_id),
     ));
     const buildAdditiveMockRequest = (pkgArg, configuration) => {
       const request = buildSolveRequest(pkgArg, configuration);
       const row = request.rows[0];
-      const activeResidentialStateIds = configuration
+      const activeResidentialMethodIds = configuration
         .service_controls
         .residential_building_services
-        .active_state_ids ?? residentialStateIds;
+        .active_state_ids ?? residentialMethodIds;
       return {
         ...request,
-        __activeResidentialStateIds: activeResidentialStateIds,
+        __activeResidentialMethodIds: activeResidentialMethodIds,
         rows: [
           {
             ...row,
@@ -820,7 +823,7 @@ describe('additionality analysis', () => {
       second.report.sequence.map((entry) => [entry.atom.key, entry.metricsDeltaFromCurrent.cost]),
     );
     assert.deepEqual(
-      first.report.sequence.map((entry) => entry.atom.stateId),
+      first.report.sequence.map((entry) => entry.atom.methodId),
       [
         'buildings__residential__electrified_efficiency',
         'buildings__residential__deep_electric',
@@ -842,17 +845,17 @@ describe('additionality analysis', () => {
     );
 
     const costByState = Object.fromEntries(
-      first.report.sequence.map((entry) => [entry.atom.stateId, entry.metricsDeltaFromCurrent.cost]),
+      first.report.sequence.map((entry) => [entry.atom.methodId, entry.metricsDeltaFromCurrent.cost]),
     );
     assertClose(
       costByState.buildings__residential__electrified_efficiency,
       10,
-      'efficiency state Shapley cost equals additive marginal',
+      'efficiency method Shapley cost equals additive marginal',
     );
     assertClose(
       costByState.buildings__residential__deep_electric,
       5,
-      'deep-electric state Shapley cost equals additive marginal',
+      'deep-electric method Shapley cost equals additive marginal',
     );
   });
 
@@ -864,7 +867,7 @@ describe('additionality analysis', () => {
         commoditySelections: {},
         pkg,
         targetConfiguration: buildStateOpenCase(),
-        targetConfigId: STATE_OPEN_TARGET_ID,
+        targetConfigId: METHOD_OPEN_TARGET_ID,
       },
       {
         solve: async (request) => {
@@ -911,8 +914,8 @@ describe('additionality analysis', () => {
             ['passenger_road_transport', 'road_transport__passenger_road__hybrid_transition', 3],
             ['residential_building_services', 'buildings__residential__deep_electric', 1],
             ['residential_building_services', 'buildings__residential__electrified_efficiency', 2],
-          ].reduce((sum, [outputId, stateId, weight]) => (
-            sum + (hasActiveState(request, outputId, stateId) ? weight : 0)
+          ].reduce((sum, [outputId, methodId, weight]) => (
+            sum + (hasActiveState(request, outputId, methodId) ? weight : 0)
           ), 100);
 
           return buildSolvedResult(request, score);

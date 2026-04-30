@@ -596,7 +596,7 @@ test('canonical ESRL documentation uses role-topology terminology', () => {
       `roles/${roleId}/validation.md`,
     ]),
   ];
-  const removedSemanticTerms = /family_id|state_id|family_states|sector_states|service_controls|active_state_ids|SectorState|state-year|state year|state rows|family rows|family artifacts|family\/state|subfamil(?:y|ies)/i;
+  const removedSemanticTerms = /family_id|state_id|family_states|resolved_method_years|service_controls|active_state_ids|ResolvedMethodYearRow|state-year|state year|state rows|family rows|family artifacts|family\/state|subfamil(?:y|ies)/i;
 
   for (const docPath of docPaths) {
     const text = readText(docPath);

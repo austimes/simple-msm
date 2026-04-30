@@ -54,14 +54,14 @@ function aggregateResidualOverlays(rows: ResidualOverlayRow[]): AggregatedResidu
 
 export default function BaselineClosureDiagnosticsCard() {
   const residualOverlays2025 = usePackageStore((state) => state.residualOverlays2025);
-  const sectorStates = usePackageStore((state) => state.sectorStates);
+  const resolvedMethodYears = usePackageStore((state) => state.resolvedMethodYears);
   const hasOverlayRows = residualOverlays2025.length > 0;
 
   const totals = useMemo(
     () => hasOverlayRows
       ? summarizeOverlayTotals(residualOverlays2025)
-      : summarizeResidualFamilyTotals(sectorStates),
-    [hasOverlayRows, residualOverlays2025, sectorStates],
+      : summarizeResidualFamilyTotals(resolvedMethodYears),
+    [hasOverlayRows, residualOverlays2025, resolvedMethodYears],
   );
 
   const aggregatedResiduals = useMemo(

@@ -12,7 +12,7 @@ test('optional companions can be absent without blocking package enrichment', ()
   assert.equal(enrichment.phase2Memo, '');
   assert.deepEqual(enrichment.sourceLedger, []);
   assert.deepEqual(enrichment.assumptionsLedger, []);
-  assert.equal(enrichment.sectorStatesSchema, null);
+  assert.equal(enrichment.resolvedMethodYearsSchema, null);
   assert.deepEqual(enrichment.sectorDerivations, {});
   assert.deepEqual(enrichment.warnings, []);
 });
@@ -53,14 +53,14 @@ test('optional companions are parsed into enrichment data when they are present'
   assert.equal(enrichment.uncertaintyConfidence, '');
   assert.equal(enrichment.sourceLedger[0].sourceId, 'S001');
   assert.equal(enrichment.assumptionsLedger[0].assumptionId, 'A001');
-  assert.equal(enrichment.sectorStatesSchema?.requiredFields.includes('source_ids'), true);
+  assert.equal(enrichment.resolvedMethodYearsSchema?.requiredFields.includes('source_ids'), true);
   assert.deepEqual(
-    enrichment.sectorStatesSchema?.fields.map((field) => field.name),
+    enrichment.resolvedMethodYearsSchema?.fields.map((field) => field.name),
     ['role_id', 'source_ids'],
   );
-  assert.equal(enrichment.sectorStatesSchema?.fields[0].description, 'Role id.');
+  assert.equal(enrichment.resolvedMethodYearsSchema?.fields[0].description, 'Role id.');
   assert.equal(
-    enrichment.sectorStatesSchema?.fields[1].description,
+    enrichment.resolvedMethodYearsSchema?.fields[1].description,
     'JSON-encoded source IDs.',
   );
   assert.equal(enrichment.sectorDerivations.produce_steel.title, 'Produce steel');

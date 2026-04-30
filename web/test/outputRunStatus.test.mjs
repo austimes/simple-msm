@@ -79,7 +79,7 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
 
     const statuses = deriveOutputRunStatusesForConfiguration(pkg, configuration);
 
-    assert.deepEqual(statuses.passenger_road_transport.activeStateIds, []);
+    assert.deepEqual(statuses.passenger_road_transport.activeMethodIds, []);
     assert.equal(statuses.passenger_road_transport.activeStateCount, 0);
     assert.equal(statuses.passenger_road_transport.isDisabled, true);
     assert.equal(statuses.passenger_road_transport.controlMode, 'optimize');
@@ -106,22 +106,22 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
   });
 
   test('keeps active pathways distinct from all available pathways under active_state_ids controls', () => {
-    const electricityStateIds = Array.from(
+    const electricityMethodIds = Array.from(
       new Set(
-        pkg.sectorStates
+        pkg.resolvedMethodYears
           .filter((row) => row.service_or_output_name === 'electricity')
           .map((row) => row.state_id),
       ),
     );
 
-    assert.ok(electricityStateIds.length >= 2, 'expected multiple electricity pathways');
+    assert.ok(electricityMethodIds.length >= 2, 'expected multiple electricity pathways');
 
     const configuration = buildConfiguration(pkg.appConfig, {
       name: 'Electricity active-state-ids status semantics',
       serviceControls: {
         electricity: {
           mode: 'optimize',
-          active_state_ids: [electricityStateIds[0]],
+          active_state_ids: [electricityMethodIds[0]],
         },
       },
     });
@@ -130,23 +130,23 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
 
     assert.equal(statuses.electricity.controlMode, 'optimize');
     assert.equal(statuses.electricity.isDisabled, false);
-    assert.ok(statuses.electricity.activeStateIds.includes(electricityStateIds[0]));
-    assert.ok(statuses.electricity.activeStateCount < electricityStateIds.length);
+    assert.ok(statuses.electricity.activeMethodIds.includes(electricityMethodIds[0]));
+    assert.ok(statuses.electricity.activeStateCount < electricityMethodIds.length);
   });
 
   test('keeps active pathways scoped to active_state_ids in status output', () => {
-    const residentialStateIds = Array.from(
+    const residentialMethodIds = Array.from(
       new Set(
-        pkg.sectorStates
+        pkg.resolvedMethodYears
           .filter((row) => row.service_or_output_name === 'residential_building_services')
           .map((row) => row.state_id),
       ),
     );
 
-    assert.ok(residentialStateIds.length >= 2, 'expected multiple residential pathways');
+    assert.ok(residentialMethodIds.length >= 2, 'expected multiple residential pathways');
 
-    const [selectedStateId, disabledStateId] = residentialStateIds;
-    const activeIds = residentialStateIds.filter((id) => id !== disabledStateId);
+    const [selectedMethodId, disabledMethodId] = residentialMethodIds;
+    const activeIds = residentialMethodIds.filter((id) => id !== disabledMethodId);
     const configuration = buildConfiguration(pkg.appConfig, {
       name: 'Residential active-state-ids status semantics',
       serviceControls: {
@@ -162,14 +162,14 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
     assert.equal(statuses.residential_building_services.controlMode, 'optimize');
     assert.equal(statuses.residential_building_services.isDisabled, false);
     assert.ok(
-      statuses.residential_building_services.activeStateIds.includes(selectedStateId),
+      statuses.residential_building_services.activeMethodIds.includes(selectedMethodId),
     );
     assert.ok(
-      !statuses.residential_building_services.activeStateIds.includes(disabledStateId),
+      !statuses.residential_building_services.activeMethodIds.includes(disabledMethodId),
     );
     assert.equal(
       statuses.residential_building_services.activeStateCount,
-      residentialStateIds.length - 1,
+      residentialMethodIds.length - 1,
     );
   });
 
@@ -181,8 +181,8 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
         outputRole: 'required_service',
         outputLabel: 'Service',
         year: 2030,
-        stateId: 'service_electric',
-        stateLabel: 'Service Electric',
+        methodId: 'service_electric',
+        methodLabel: 'Service Electric',
         sector: 'test',
         subsector: 'test',
         region: 'national',
@@ -198,8 +198,8 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
         outputRole: 'required_service',
         outputLabel: 'Service',
         year: 2030,
-        stateId: 'service_hydrogen',
-        stateLabel: 'Service Hydrogen',
+        methodId: 'service_hydrogen',
+        methodLabel: 'Service Hydrogen',
         sector: 'test',
         subsector: 'test',
         region: 'national',
@@ -215,8 +215,8 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
         outputRole: 'endogenous_supply_commodity',
         outputLabel: 'Electricity',
         year: 2030,
-        stateId: 'electricity_supply',
-        stateLabel: 'Electricity Supply',
+        methodId: 'electricity_supply',
+        methodLabel: 'Electricity Supply',
         sector: 'test',
         subsector: 'test',
         region: 'national',
@@ -232,8 +232,8 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
         outputRole: 'endogenous_supply_commodity',
         outputLabel: 'Hydrogen',
         year: 2030,
-        stateId: 'hydrogen_supply',
-        stateLabel: 'Hydrogen Supply',
+        methodId: 'hydrogen_supply',
+        methodLabel: 'Hydrogen Supply',
         sector: 'test',
         subsector: 'test',
         region: 'national',
@@ -260,21 +260,21 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
         service: {
           2030: {
             mode: 'optimize',
-            activeStateIds: ['service_electric'],
+            activeMethodIds: ['service_electric'],
             targetValue: null,
           },
         },
         electricity: {
           2030: {
             mode: 'optimize',
-            activeStateIds: null,
+            activeMethodIds: null,
             targetValue: null,
           },
         },
         hydrogen: {
           2030: {
             mode: 'optimize',
-            activeStateIds: null,
+            activeMethodIds: null,
             targetValue: null,
           },
         },
@@ -350,7 +350,7 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
     );
 
     assert.deepEqual(new Set(expandedOutputIds), new Set(['service', 'electricity']));
-    assert.deepEqual(statuses.service.activeStateIds, ['service_electric']);
+    assert.deepEqual(statuses.service.activeMethodIds, ['service_electric']);
     assert.equal(statuses.service.runParticipation, 'active_pathways');
     assert.equal(statuses.electricity.runParticipation, 'active_pathways');
     assert.equal(statuses.hydrogen.runParticipation, 'active_pathways');

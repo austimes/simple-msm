@@ -48,8 +48,8 @@ function buildBaselineConfiguration(
   const referenceConfiguration = readJson('../src/configurations/reference-baseline.json');
 
   const serviceControls = {};
-  for (const [outputId, stateId] of Object.entries(INCUMBENT_STATE_IDS)) {
-    serviceControls[outputId] = { mode: 'optimize', active_state_ids: [stateId] };
+  for (const [outputId, methodId] of Object.entries(INCUMBENT_STATE_IDS)) {
+    serviceControls[outputId] = { mode: 'optimize', active_state_ids: [methodId] };
   }
   serviceControls.electricity = electricityControl;
   serviceControls.land_sequestration = { mode: 'optimize', disabled_state_ids: ['removals_negative_emissions__land_sequestration__biological_sink'] };
@@ -89,7 +89,7 @@ const cappedIncumbentElectricityConfiguration = buildBaselineConfiguration(pkg.a
 
 test('baseline incumbent configuration solves optimally', () => {
   const request = buildSolveRequest({
-    sectorStates: pkg.sectorStates,
+    resolvedMethodYears: pkg.resolvedMethodYears,
     appConfig: pkg.appConfig,
   }, configuration);
 
@@ -102,14 +102,14 @@ test('baseline incumbent configuration solves optimally', () => {
 
 test('every required-service output has exactly one active state per year', () => {
   const request = buildSolveRequest({
-    sectorStates: pkg.sectorStates,
+    resolvedMethodYears: pkg.resolvedMethodYears,
     appConfig: pkg.appConfig,
   }, configuration);
 
   const result = solveWithLpAdapter(request);
-  const activeShares = result.reporting.stateShares.filter((s) => s.activity > 1e-6);
+  const activeShares = result.reporting.methodShares.filter((s) => s.activity > 1e-6);
 
-  for (const [outputId, stateId] of Object.entries(INCUMBENT_STATE_IDS)) {
+  for (const [outputId, methodId] of Object.entries(INCUMBENT_STATE_IDS)) {
     for (const year of configuration.years) {
       const matches = activeShares.filter((s) => s.outputId === outputId && s.year === year);
 
@@ -118,8 +118,8 @@ test('every required-service output has exactly one active state per year', () =
         `${outputId} in ${year}: expected 1 active state, got ${matches.length}`,
       );
       assert.equal(
-        matches[0].stateId, stateId,
-        `${outputId} in ${year}: expected ${stateId}, got ${matches[0].stateId}`,
+        matches[0].methodId, methodId,
+        `${outputId} in ${year}: expected ${methodId}, got ${matches[0].methodId}`,
       );
       assert.ok(
         matches[0].share != null && Math.abs(matches[0].share - 1) < 1e-6,
@@ -131,7 +131,7 @@ test('every required-service output has exactly one active state per year', () =
 
 test('electricity is externalized with zero supply', () => {
   const request = buildSolveRequest({
-    sectorStates: pkg.sectorStates,
+    resolvedMethodYears: pkg.resolvedMethodYears,
     appConfig: pkg.appConfig,
   }, configuration);
 
@@ -146,12 +146,12 @@ test('electricity is externalized with zero supply', () => {
 
 test('demand is met for all service outputs in every year', () => {
   const request = buildSolveRequest({
-    sectorStates: pkg.sectorStates,
+    resolvedMethodYears: pkg.resolvedMethodYears,
     appConfig: pkg.appConfig,
   }, configuration);
 
   const result = solveWithLpAdapter(request);
-  const activeShares = result.reporting.stateShares.filter((s) => s.activity > 1e-6);
+  const activeShares = result.reporting.methodShares.filter((s) => s.activity > 1e-6);
 
   for (const [outputId] of Object.entries(INCUMBENT_STATE_IDS)) {
     for (const year of configuration.years) {
@@ -172,7 +172,7 @@ test('demand is met for all service outputs in every year', () => {
 
 test('baseline incumbent configuration also solves with only incumbent endogenous electricity', () => {
   const request = buildSolveRequest({
-    sectorStates: pkg.sectorStates,
+    resolvedMethodYears: pkg.resolvedMethodYears,
     appConfig: pkg.appConfig,
   }, endogenousElectricityConfiguration);
 
@@ -192,7 +192,7 @@ test('baseline incumbent configuration also solves with only incumbent endogenou
 
 test('baseline incumbent configuration also solves with only incumbent endogenous electricity under max-share caps', () => {
   const request = buildSolveRequest({
-    sectorStates: pkg.sectorStates,
+    resolvedMethodYears: pkg.resolvedMethodYears,
     appConfig: pkg.appConfig,
   }, cappedIncumbentElectricityConfiguration);
 
@@ -212,18 +212,18 @@ test('baseline incumbent configuration also solves with only incumbent endogenou
 
 // --- Balanced-table metadata regression tests ---
 
-test('at least one parsed SectorState has is_default_incumbent_2025 === true', () => {
-  const incumbent = pkg.sectorStates.find((s) => s.is_default_incumbent_2025 === true);
+test('at least one parsed ResolvedMethodYearRow has is_default_incumbent_2025 === true', () => {
+  const incumbent = pkg.resolvedMethodYears.find((s) => s.is_default_incumbent_2025 === true);
   assert.ok(incumbent, 'no row found with is_default_incumbent_2025 === true');
 });
 
-test('at least one parsed SectorState has a non-empty state_sort_key', () => {
-  const withSortKey = pkg.sectorStates.find((s) => s.state_sort_key !== '');
+test('at least one parsed ResolvedMethodYearRow has a non-empty state_sort_key', () => {
+  const withSortKey = pkg.resolvedMethodYears.find((s) => s.state_sort_key !== '');
   assert.ok(withSortKey, 'no row found with a non-empty state_sort_key');
 });
 
 test('electricity incumbent 2025 state has energy_co2e populated', () => {
-  const elecIncumbent2025 = pkg.sectorStates.find(
+  const elecIncumbent2025 = pkg.resolvedMethodYears.find(
     (s) => s.state_id === INCUMBENT_ELECTRICITY_STATE_ID && s.year === 2025,
   );
   assert.ok(elecIncumbent2025, 'electricity incumbent 2025 row not found');
@@ -234,5 +234,5 @@ test('electricity incumbent 2025 state has energy_co2e populated', () => {
 });
 
 test('row count matches manifest expectation', () => {
-  assert.equal(pkg.sectorStates.length, 360, `expected 360 rows, got ${pkg.sectorStates.length}`);
+  assert.equal(pkg.resolvedMethodYears.length, 360, `expected 360 rows, got ${pkg.resolvedMethodYears.length}`);
 });

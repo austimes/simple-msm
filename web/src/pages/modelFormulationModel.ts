@@ -12,7 +12,7 @@ import type {
   EfficiencyPackage,
   EmissionsBalance2025Row,
   ResidualOverlayRow,
-  SectorState,
+  ResolvedMethodYearRow,
 } from '../data/types.ts';
 import {
   buildSolveRequest,
@@ -83,8 +83,8 @@ export interface ModelFormulationObjectiveExample {
   rowId: string;
   outputId: string;
   outputLabel: string;
-  stateId: string;
-  stateLabel: string;
+  methodId: string;
+  methodLabel: string;
   year: number;
   conversionCost: number;
   carbonIntensity: number;
@@ -303,7 +303,7 @@ export const MODEL_FORMULATION_CAVEATS: string[] = [
 ];
 
 interface ModelFormulationInput {
-  sectorStates: SectorState[];
+  resolvedMethodYears: ResolvedMethodYearRow[];
   appConfig: AppConfigRegistry;
   currentConfiguration: ConfigurationDocument;
   autonomousEfficiencyTracks: AutonomousEfficiencyTrack[];
@@ -363,7 +363,7 @@ function compareRows(left: NormalizedSolverRow, right: NormalizedSolverRow): num
     return left.outputId.localeCompare(right.outputId);
   }
 
-  return left.stateLabel.localeCompare(right.stateLabel);
+  return left.methodLabel.localeCompare(right.methodLabel);
 }
 
 function buildBalancedCommodityKeys(request: SolveRequest): Set<string> {
@@ -536,8 +536,8 @@ function buildObjectiveExample(
     rowId: row.rowId,
     outputId: row.outputId,
     outputLabel: row.outputLabel,
-    stateId: row.stateId,
-    stateLabel: row.stateLabel,
+    methodId: row.methodId,
+    methodLabel: row.methodLabel,
     year: row.year,
     conversionCost,
     carbonIntensity,
@@ -551,26 +551,27 @@ function buildObjectiveExample(
 }
 
 function buildOverlaySummary(
-  sectorStates: SectorState[],
+  resolvedMethodYears: ResolvedMethodYearRow[],
   currentConfiguration: ConfigurationDocument,
   residualOverlays2025: ResidualOverlayRow[],
   commodityBalance2025: CommodityBalance2025Row[],
   emissionsBalance2025: EmissionsBalance2025Row[],
 ): ModelFormulationOverlaySummary {
-  const residualFamilyRows = sectorStates.filter(
+  const residualFamilyRows = resolvedMethodYears.filter(
     (row) => row.family_resolution === 'residual_stub' && row.year === 2025,
   );
   const includedResidualFamilyIds = new Set(
     residualFamilyRows
       .map((row) => row.family_id)
       .filter((familyId) => {
-        const activeStateIds = currentConfiguration.service_controls[familyId]?.active_state_ids;
-        return !(Array.isArray(activeStateIds) && activeStateIds.length === 0);
+        const roleId = residualFamilyRows.find((row) => row.family_id === familyId)?.role_id ?? familyId;
+        const activeMethodIds = currentConfiguration.role_controls?.[roleId]?.active_method_ids;
+        return !(Array.isArray(activeMethodIds) && activeMethodIds.length === 0);
       }),
   );
   const totals = residualOverlays2025.length > 0
     ? summarizeOverlayTotals(residualOverlays2025)
-    : summarizeResidualFamilyTotals(sectorStates, includedResidualFamilyIds);
+    : summarizeResidualFamilyTotals(resolvedMethodYears, includedResidualFamilyIds);
   const includedOverlayIds = new Set(
     residualOverlays2025
       .filter((row) => row.default_include)
@@ -661,7 +662,7 @@ function buildStats(
 }
 
 export function buildModelFormulationViewModel({
-  sectorStates,
+  resolvedMethodYears,
   appConfig,
   currentConfiguration,
   autonomousEfficiencyTracks,
@@ -671,7 +672,7 @@ export function buildModelFormulationViewModel({
   emissionsBalance2025,
 }: ModelFormulationInput): ModelFormulationViewModel {
   const overlaySummary = buildOverlaySummary(
-    sectorStates,
+    resolvedMethodYears,
     currentConfiguration,
     residualOverlays2025,
     commodityBalance2025,
@@ -683,12 +684,12 @@ export function buildModelFormulationViewModel({
   let request: SolveRequest | null = null;
 
   try {
-    resolvedConfiguration = resolveConfigurationForSolve(currentConfiguration, appConfig, sectorStates, {
+    resolvedConfiguration = resolveConfigurationForSolve(currentConfiguration, appConfig, resolvedMethodYears, {
       autonomousEfficiencyTracks,
       efficiencyPackages,
     });
     request = buildSolveRequest(
-      { sectorStates, appConfig, autonomousEfficiencyTracks, efficiencyPackages },
+      { resolvedMethodYears, appConfig, autonomousEfficiencyTracks, efficiencyPackages },
       currentConfiguration,
     );
   } catch (error) {
@@ -710,7 +711,7 @@ export function buildModelFormulationViewModel({
 
   const normalizedRows = request?.rows
     ?? normalizeSolverRows(
-      { sectorStates, appConfig, autonomousEfficiencyTracks, efficiencyPackages },
+      { resolvedMethodYears, appConfig, autonomousEfficiencyTracks, efficiencyPackages },
       resolvedConfiguration?.efficiency,
     );
 

@@ -3,7 +3,7 @@ import type {
   SolveObjectiveCostMetadata,
   SolveRequest,
   SolveResult,
-  SolveStateShareSummary,
+  SolveMethodShareSummary,
 } from '../solver/contract';
 import { getCommodityMetadata } from '../data/commodityMetadata.ts';
 import { getCommodityPresentation, getPresentation } from '../data/chartPresentation.ts';
@@ -70,22 +70,22 @@ export interface RemovalsChartCardData {
 
 type ShareLookupKey = string;
 
-interface PathwayStateMetadata {
+interface PathwayMethodMetadata {
   label: string;
-  stateSortKey: string;
-  stateOptionRank: number | null;
+  methodSortKey: string;
+  methodOptionRank: number | null;
 }
 
-function shareKey(outputId: string, year: number, stateId: string): ShareLookupKey {
-  return `${outputId}::${year}::${stateId}`;
+function shareKey(outputId: string, year: number, methodId: string): ShareLookupKey {
+  return `${outputId}::${year}::${methodId}`;
 }
 
 function buildShareLookup(
-  stateShares: SolveStateShareSummary[],
-): Map<ShareLookupKey, SolveStateShareSummary> {
-  const map = new Map<ShareLookupKey, SolveStateShareSummary>();
-  for (const ss of stateShares) {
-    map.set(shareKey(ss.outputId, ss.year, ss.stateId), ss);
+  methodShares: SolveMethodShareSummary[],
+): Map<ShareLookupKey, SolveMethodShareSummary> {
+  const map = new Map<ShareLookupKey, SolveMethodShareSummary>();
+  for (const ss of methodShares) {
+    map.set(shareKey(ss.outputId, ss.year, ss.methodId), ss);
   }
   return map;
 }
@@ -181,31 +181,31 @@ function compareStateOptionRank(left: number | null, right: number | null): numb
   return left - right;
 }
 
-function buildPathwayStateMetadata(
+function buildPathwayMethodMetadata(
   rows: NormalizedSolverRow[],
   outputId: string,
-): Map<string, PathwayStateMetadata> {
-  const metadata = new Map<string, PathwayStateMetadata>();
+): Map<string, PathwayMethodMetadata> {
+  const metadata = new Map<string, PathwayMethodMetadata>();
 
   for (const row of rows) {
-    if (row.outputId !== outputId || metadata.has(row.stateId)) {
+    if (row.outputId !== outputId || metadata.has(row.methodId)) {
       continue;
     }
 
-    metadata.set(row.stateId, {
-      label: row.stateDisplayLabel ?? row.stateLabel,
-      stateSortKey: row.stateSortKey?.trim() ?? '',
-      stateOptionRank: row.stateOptionRank ?? null,
+    metadata.set(row.methodId, {
+      label: row.methodDisplayLabel ?? row.methodLabel,
+      methodSortKey: row.methodSortKey?.trim() ?? '',
+      methodOptionRank: row.methodOptionRank ?? null,
     });
   }
 
   return metadata;
 }
 
-function comparePathwayStateIds(
+function comparePathwayMethodIds(
   leftId: string,
   rightId: string,
-  metadataById: ReadonlyMap<string, PathwayStateMetadata>,
+  metadataById: ReadonlyMap<string, PathwayMethodMetadata>,
   labelById: ReadonlyMap<string, string>,
 ): number {
   const left = metadataById.get(leftId);
@@ -214,8 +214,8 @@ function comparePathwayStateIds(
   const rightLabel = labelById.get(rightId) ?? right?.label ?? rightId;
 
   return (
-    compareStateSortKey(left?.stateSortKey ?? '', right?.stateSortKey ?? '')
-    || compareStateOptionRank(left?.stateOptionRank ?? null, right?.stateOptionRank ?? null)
+    compareStateSortKey(left?.methodSortKey ?? '', right?.methodSortKey ?? '')
+    || compareStateOptionRank(left?.methodOptionRank ?? null, right?.methodOptionRank ?? null)
     || leftLabel.localeCompare(rightLabel)
     || leftId.localeCompare(rightId)
   );
@@ -385,7 +385,7 @@ function resolveOutputSubsector(
 ): string {
   const subsectors = new Set<string>();
   for (const row of request.rows) {
-    if (row.outputId === outputId) subsectors.add(row.subsector);
+    if (row.outputId === outputId && row.reportingSubsectorId) subsectors.add(row.reportingSubsectorId);
   }
   if (subsectors.size === 1) return [...subsectors][0];
   // Ambiguous mapping — fall back to the output label from the first matching row
@@ -399,11 +399,11 @@ function resolveOutputSector(
 ): string {
   const sectors = new Set<string>();
   for (const row of request.rows) {
-    if (row.outputId === outputId) sectors.add(row.sector);
+    if (row.outputId === outputId && row.reportingSectorId) sectors.add(row.reportingSectorId);
   }
   if (sectors.size === 1) return [...sectors][0];
   const first = request.rows.find((r) => r.outputId === outputId);
-  return first?.sector ?? outputId;
+  return first?.reportingSectorId ?? outputId;
 }
 
 export function buildDemandBySectorChart(request: SolveRequest): LineChartData {
@@ -585,73 +585,73 @@ export function buildPathwayChartCards(
 ): PathwayChartCardData[] {
   const years = request.configuration.years;
   const respectMaxShare = request.configuration.options.respectMaxShare;
-  const outputRows = new Map<string, { outputLabel: string; outputUnit: string; stateIds: Set<string> }>();
+  const outputRows = new Map<string, { outputLabel: string; outputUnit: string; methodIds: Set<string> }>();
 
   for (const row of request.rows) {
     const existing = outputRows.get(row.outputId);
     if (existing) {
-      existing.stateIds.add(row.stateId);
+      existing.methodIds.add(row.methodId);
       continue;
     }
 
     outputRows.set(row.outputId, {
       outputLabel: row.outputLabel,
       outputUnit: row.outputUnit,
-      stateIds: new Set([row.stateId]),
+      methodIds: new Set([row.methodId]),
     });
   }
 
   return Array.from(outputRows.entries())
-    .filter(([, metadata]) => metadata.stateIds.size > 1)
+    .filter(([, metadata]) => metadata.methodIds.size > 1)
     .map(([outputId, metadata]) => {
       const outputGrouped = new Map<string, Map<number, number>>();
       const capGrouped = new Map<string, Map<number, number>>();
       const shareGrouped = new Map<string, Map<number, number>>();
-      const stateMetadataById = buildPathwayStateMetadata(request.rows, outputId);
-      const stateLabelById = new Map<string, string>(
-        Array.from(stateMetadataById.entries()).map(([stateId, stateMetadata]) => [
-          stateId,
+      const stateMetadataById = buildPathwayMethodMetadata(request.rows, outputId);
+      const methodLabelById = new Map<string, string>(
+        Array.from(stateMetadataById.entries()).map(([methodId, stateMetadata]) => [
+          methodId,
           stateMetadata.label,
         ]),
       );
-      const seenStateIds = new Set<string>();
+      const seenMethodIds = new Set<string>();
 
-      for (const share of result.reporting.stateShares) {
+      for (const share of result.reporting.methodShares) {
         if (share.outputId !== outputId) {
           continue;
         }
 
-        seenStateIds.add(share.stateId);
-        if (!stateLabelById.has(share.stateId)) {
-          stateLabelById.set(share.stateId, share.stateLabel);
+        seenMethodIds.add(share.methodId);
+        if (!methodLabelById.has(share.methodId)) {
+          methodLabelById.set(share.methodId, share.methodLabel);
         }
 
-        let outputYearMap = outputGrouped.get(share.stateId);
+        let outputYearMap = outputGrouped.get(share.methodId);
         if (!outputYearMap) {
           outputYearMap = new Map<number, number>();
-          outputGrouped.set(share.stateId, outputYearMap);
+          outputGrouped.set(share.methodId, outputYearMap);
         }
         outputYearMap.set(share.year, share.activity);
 
         const effectiveMaxShare = share.effectiveMaxShare ?? 0;
-        let capYearMap = capGrouped.get(share.stateId);
+        let capYearMap = capGrouped.get(share.methodId);
         if (!capYearMap) {
           capYearMap = new Map<number, number>();
-          capGrouped.set(share.stateId, capYearMap);
+          capGrouped.set(share.methodId, capYearMap);
         }
         capYearMap.set(share.year, effectiveMaxShare * 100);
 
         const solvedShare = share.share ?? 0;
-        let shareYearMap = shareGrouped.get(share.stateId);
+        let shareYearMap = shareGrouped.get(share.methodId);
         if (!shareYearMap) {
           shareYearMap = new Map<number, number>();
-          shareGrouped.set(share.stateId, shareYearMap);
+          shareGrouped.set(share.methodId, shareYearMap);
         }
         shareYearMap.set(share.year, solvedShare * 100);
       }
 
-      const orderedStateIds = Array.from(seenStateIds).sort((leftId, rightId) => {
-        return comparePathwayStateIds(leftId, rightId, stateMetadataById, stateLabelById);
+      const orderedMethodIds = Array.from(seenMethodIds).sort((leftId, rightId) => {
+        return comparePathwayMethodIds(leftId, rightId, stateMetadataById, methodLabelById);
       });
 
       return {
@@ -667,10 +667,10 @@ export function buildPathwayChartCards(
             outputGrouped,
             years,
             {
-              orderedKeys: orderedStateIds,
-              labelForKey: (key) => stateLabelById.get(key) ?? key,
-              legendLabelForKey: (key) => getPresentation('state', key, stateLabelById.get(key) ?? key).legendLabel,
-              colorForKey: (key) => getPresentation('state', key, stateLabelById.get(key) ?? key).color,
+              orderedKeys: orderedMethodIds,
+              labelForKey: (key) => methodLabelById.get(key) ?? key,
+              legendLabelForKey: (key) => getPresentation('state', key, methodLabelById.get(key) ?? key).legendLabel,
+              colorForKey: (key) => getPresentation('state', key, methodLabelById.get(key) ?? key).color,
             },
           ),
         },
@@ -679,14 +679,14 @@ export function buildPathwayChartCards(
           yAxisLabel: 'Share of output (%)',
           years,
           series: buildPathwayCapSeries(
-            orderedStateIds,
+            orderedMethodIds,
             capGrouped,
             shareGrouped,
             years,
             {
-              labelForKey: (key) => stateLabelById.get(key) ?? key,
-              legendLabelForKey: (key) => getPresentation('state', key, stateLabelById.get(key) ?? key).legendLabel,
-              colorForKey: (key) => getPresentation('state', key, stateLabelById.get(key) ?? key).color,
+              labelForKey: (key) => methodLabelById.get(key) ?? key,
+              legendLabelForKey: (key) => getPresentation('state', key, methodLabelById.get(key) ?? key).legendLabel,
+              colorForKey: (key) => getPresentation('state', key, methodLabelById.get(key) ?? key).color,
             },
           ),
         },
@@ -699,7 +699,7 @@ export function buildRemovalsChartCards(
   result: SolveResult,
 ): RemovalsChartCardData[] {
   const years = request.configuration.years;
-  const lookup = buildShareLookup(result.reporting.stateShares);
+  const lookup = buildShareLookup(result.reporting.methodShares);
 
   const outputRows = new Map<string, { outputLabel: string; outputUnit: string; rows: NormalizedSolverRow[] }>();
 
@@ -726,7 +726,7 @@ export function buildRemovalsChartCards(
     const maxActivityByYear = new Map<number, number>();
 
     for (const row of metadata.rows) {
-      const ss = lookup.get(shareKey(outputId, row.year, row.stateId));
+      const ss = lookup.get(shareKey(outputId, row.year, row.methodId));
       const activity = ss?.activity ?? 0;
       activityByYear.set(row.year, (activityByYear.get(row.year) ?? 0) + activity);
 

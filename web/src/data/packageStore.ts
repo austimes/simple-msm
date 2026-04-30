@@ -11,7 +11,6 @@ import type {
   ConfigurationControlMode,
   ConfigurationDocument,
   ResidualOverlayDisplayMode,
-  ConfigurationServiceControl,
   PackageData,
   PriceLevel,
 } from './types.ts';
@@ -24,10 +23,9 @@ import {
   materializeEfficiencyConfiguration,
   materializeResidualOverlayConfiguration,
 } from './configurationDocumentLoader.ts';
-import { materializeServiceControlsFromRoleControls } from './configurationRoleControls.ts';
 import { buildNextPackageAllowList } from './efficiencyControlModel.ts';
 import { isAggregatableResidualOverlay } from './residualOverlayPresentation.ts';
-import { getActiveStateIds } from './configurationWorkspaceModel.ts';
+import { getActiveMethodIds } from './configurationWorkspaceModel.ts';
 
 export type ConfigurationDraftSource = 'reference' | 'local_draft' | 'imported' | 'draft' | 'configuration';
 
@@ -50,12 +48,12 @@ interface PackageStore extends PackageData {
   resetCurrentConfiguration: () => void;
   setCommodityPriceLevel: (commodityId: string, level: PriceLevel) => void;
   setCarbonPricePreset: (presetId: string) => void;
-  toggleStateActive: (outputId: string, stateId: string) => void;
+  toggleMethodActive: (roleId: string, methodId: string) => void;
   setRoleRepresentation: (roleId: string, representationId: string) => void;
-  setOutputControlMode: (outputId: string, mode: ConfigurationControlMode) => void;
-  setAutonomousEfficiencyForOutput: (outputId: string, mode: 'baseline' | 'off') => void;
+  setRoleControlMode: (roleId: string, mode: ConfigurationControlMode) => void;
+  setAutonomousEfficiencyForRole: (roleId: string, mode: 'baseline' | 'off') => void;
   setEfficiencyPackageEnabled: (packageId: string, enabled: boolean) => void;
-  setAllEfficiencyPackagesForOutput: (outputId: string, enabled: boolean) => void;
+  setAllEfficiencyPackagesForRole: (roleId: string, enabled: boolean) => void;
 
   setResidualOverlayIncluded: (overlayId: string, included: boolean) => void;
   setResidualOverlayGroupIncluded: (overlayIds: string[], included: boolean) => void;
@@ -95,9 +93,9 @@ function sortNestedValue(value: unknown): unknown {
 function configurationsEqual(a: ConfigurationDocument, b: ConfigurationDocument): boolean {
   const normalize = (configuration: ConfigurationDocument): unknown => {
     const clone = structuredClone(configuration);
-    for (const control of Object.values(clone.service_controls ?? {})) {
-      if (control?.active_state_ids) {
-        control.active_state_ids = [...control.active_state_ids].sort();
+    for (const control of Object.values(clone.role_controls ?? {})) {
+      if (control?.active_method_ids) {
+        control.active_method_ids = [...control.active_method_ids].sort();
       }
     }
     return JSON.stringify(sortNestedValue(clone));
@@ -109,17 +107,24 @@ function normalizeDescription(description: string | undefined): string | undefin
   return description?.trim() ? description : undefined;
 }
 
-function getAllStateIdsForOutput(
-  sectorStates: PackageData['sectorStates'],
-  outputId: string,
+function getAllMethodIdsForRole(
+  resolvedMethodYears: PackageData['resolvedMethodYears'],
+  roleId: string,
 ): string[] {
   return Array.from(
     new Set(
-      sectorStates
-        .filter((row) => row.service_or_output_name === outputId)
-        .map((row) => row.state_id),
+      resolvedMethodYears
+        .filter((row) => row.role_id === roleId)
+        .map((row) => row.method_id),
     ),
   );
+}
+
+function getOutputIdForRole(
+  resolvedMethodYears: PackageData['resolvedMethodYears'],
+  roleId: string,
+): string {
+  return resolvedMethodYears.find((row) => row.role_id === roleId)?.output_id ?? roleId;
 }
 
 function persistActiveConfigurationMeta(state: {
@@ -140,14 +145,14 @@ function persistActiveConfigurationMeta(state: {
 
 function materializeConfiguration(
   configuration: ConfigurationDocument,
-  sectorStates: PackageData['sectorStates'],
+  _resolvedMethodYears: PackageData['resolvedMethodYears'],
   autonomousEfficiencyTracks: PackageData['autonomousEfficiencyTracks'],
   efficiencyPackages: PackageData['efficiencyPackages'],
   residualOverlays2025: PackageData['residualOverlays2025'],
 ): ConfigurationDocument {
   return materializeEfficiencyConfiguration(
     materializeResidualOverlayConfiguration(
-      materializeServiceControlsFromRoleControls(configuration, { sectorStates }),
+      configuration,
       residualOverlays2025,
     ),
     autonomousEfficiencyTracks,
@@ -170,7 +175,7 @@ export const usePackageStore = create<PackageStore>((set, get) => {
   if (persistedDraft.configuration) {
       initialConfiguration = materializeConfiguration(
         cloneConfiguration(persistedDraft.configuration),
-        pkg.sectorStates,
+        pkg.resolvedMethodYears,
         pkg.autonomousEfficiencyTracks,
         pkg.efficiencyPackages,
         pkg.residualOverlays2025,
@@ -183,7 +188,7 @@ export const usePackageStore = create<PackageStore>((set, get) => {
       initialConfigReadonly = restoredMeta.activeConfigurationReadonly;
       initialBaseConfiguration = materializeConfiguration(
         cloneConfiguration(restoredMeta.baseConfiguration),
-        pkg.sectorStates,
+        pkg.resolvedMethodYears,
         pkg.autonomousEfficiencyTracks,
         pkg.efficiencyPackages,
         pkg.residualOverlays2025,
@@ -200,7 +205,7 @@ export const usePackageStore = create<PackageStore>((set, get) => {
 
       initialConfiguration = materializeConfiguration(
         cloneConfiguration(defaultConfig),
-        pkg.sectorStates,
+        pkg.resolvedMethodYears,
         pkg.autonomousEfficiencyTracks,
         pkg.efficiencyPackages,
         pkg.residualOverlays2025,
@@ -219,7 +224,7 @@ export const usePackageStore = create<PackageStore>((set, get) => {
     } else {
       initialConfiguration = materializeConfiguration(
         cloneConfiguration(pkg.defaultConfiguration),
-        pkg.sectorStates,
+        pkg.resolvedMethodYears,
         pkg.autonomousEfficiencyTracks,
         pkg.efficiencyPackages,
         pkg.residualOverlays2025,
@@ -264,7 +269,7 @@ export const usePackageStore = create<PackageStore>((set, get) => {
     replaceCurrentConfiguration: (configuration, source = 'draft', notice = null) => {
       const nextConfiguration = materializeConfiguration(
         cloneConfiguration(configuration),
-        get().sectorStates,
+        get().resolvedMethodYears,
         get().autonomousEfficiencyTracks,
         get().efficiencyPackages,
         get().residualOverlays2025,
@@ -311,7 +316,7 @@ export const usePackageStore = create<PackageStore>((set, get) => {
         const defaultConfigId = getConfigurationId(defaultConfig) ?? defaultConfig.name;
         const nextConfiguration = materializeConfiguration(
           cloneConfiguration(defaultConfig),
-          get().sectorStates,
+          get().resolvedMethodYears,
           get().autonomousEfficiencyTracks,
           get().efficiencyPackages,
           get().residualOverlays2025,
@@ -332,7 +337,7 @@ export const usePackageStore = create<PackageStore>((set, get) => {
 
       const nextConfiguration = materializeConfiguration(
         cloneConfiguration(get().defaultConfiguration),
-        get().sectorStates,
+        get().resolvedMethodYears,
         get().autonomousEfficiencyTracks,
         get().efficiencyPackages,
         get().residualOverlays2025,
@@ -365,28 +370,31 @@ export const usePackageStore = create<PackageStore>((set, get) => {
       nextConfiguration.carbon_price = { ...preset.values_by_year };
       commitConfigurationEdit(nextConfiguration);
     },
-    toggleStateActive: (outputId, stateId) => {
+    toggleMethodActive: (roleId, methodId) => {
       const nextConfiguration = cloneConfiguration(get().currentConfiguration);
-      const allStateIds = getAllStateIdsForOutput(get().sectorStates, outputId);
+      const allMethodIds = getAllMethodIdsForRole(get().resolvedMethodYears, roleId);
       const currentActiveIds = new Set(
-        getActiveStateIds(nextConfiguration, outputId, allStateIds),
+        getActiveMethodIds(nextConfiguration, roleId, allMethodIds),
       );
 
-      if (currentActiveIds.has(stateId)) {
-        currentActiveIds.delete(stateId);
+      if (currentActiveIds.has(methodId)) {
+        currentActiveIds.delete(methodId);
       } else {
-        currentActiveIds.add(stateId);
+        currentActiveIds.add(methodId);
       }
 
-      const activeStateIds = allStateIds.filter((id) => currentActiveIds.has(id));
+      const activeMethodIds = allMethodIds.filter((id) => currentActiveIds.has(id));
 
-      const existing = nextConfiguration.service_controls[outputId] ?? {
+      const existing = nextConfiguration.role_controls?.[roleId] ?? {
         mode: 'optimize',
       };
 
-      nextConfiguration.service_controls[outputId] = {
-        ...existing,
-        active_state_ids: activeStateIds.length === allStateIds.length ? null : activeStateIds,
+      nextConfiguration.role_controls = {
+        ...(nextConfiguration.role_controls ?? {}),
+        [roleId]: {
+          ...existing,
+          active_method_ids: activeMethodIds.length === allMethodIds.length ? null : activeMethodIds,
+        },
       };
       commitConfigurationEdit(nextConfiguration);
     },
@@ -398,7 +406,8 @@ export const usePackageStore = create<PackageStore>((set, get) => {
       };
       commitConfigurationEdit(nextConfiguration);
     },
-    setOutputControlMode: (outputId, mode) => {
+    setRoleControlMode: (roleId, mode) => {
+      const outputId = getOutputIdForRole(get().resolvedMethodYears, roleId);
       const metadata = get().appConfig.output_roles[outputId];
       const allowed = metadata?.allowed_control_modes ?? [];
       if (allowed.length > 0 && !allowed.includes(mode)) {
@@ -406,24 +415,27 @@ export const usePackageStore = create<PackageStore>((set, get) => {
       }
 
       const nextConfiguration = cloneConfiguration(get().currentConfiguration);
-      const control: ConfigurationServiceControl = nextConfiguration.service_controls[outputId] ?? {
+      const control = nextConfiguration.role_controls?.[roleId] ?? {
         mode: 'optimize',
       };
 
-      nextConfiguration.service_controls[outputId] = {
-        ...control,
-        mode,
+      nextConfiguration.role_controls = {
+        ...(nextConfiguration.role_controls ?? {}),
+        [roleId]: {
+          ...control,
+          mode,
+        },
       };
       commitConfigurationEdit(nextConfiguration);
     },
-    setAutonomousEfficiencyForOutput: (outputId, mode) => {
+    setAutonomousEfficiencyForRole: (roleId, mode) => {
       const nextConfiguration = cloneConfiguration(get().currentConfiguration);
       const existingControls = nextConfiguration.efficiency_controls ?? {};
       nextConfiguration.efficiency_controls = {
         autonomous_mode: existingControls.autonomous_mode ?? 'baseline',
-        autonomous_modes_by_output: {
-          ...(existingControls.autonomous_modes_by_output ?? {}),
-          [outputId]: mode,
+        autonomous_modes_by_role: {
+          ...(existingControls.autonomous_modes_by_role ?? {}),
+          [roleId]: mode,
         },
         package_mode: existingControls.package_mode ?? 'off',
         package_ids: existingControls.package_ids ?? [],
@@ -441,24 +453,24 @@ export const usePackageStore = create<PackageStore>((set, get) => {
 
       nextConfiguration.efficiency_controls = {
         autonomous_mode: existingControls.autonomous_mode ?? 'baseline',
-        autonomous_modes_by_output: existingControls.autonomous_modes_by_output ?? {},
+        autonomous_modes_by_role: existingControls.autonomous_modes_by_role ?? {},
         package_mode: 'allow_list',
         package_ids: packageIds,
       };
       commitConfigurationEdit(nextConfiguration);
     },
-    setAllEfficiencyPackagesForOutput: (outputId, enabled) => {
+    setAllEfficiencyPackagesForRole: (roleId, enabled) => {
       const nextConfiguration = cloneConfiguration(get().currentConfiguration);
       const existingControls = nextConfiguration.efficiency_controls ?? {};
       const packageIds = buildNextPackageAllowList(
         existingControls,
         get().efficiencyPackages,
-        { outputId, enabled },
+        { outputId: getOutputIdForRole(get().resolvedMethodYears, roleId), roleId, enabled },
       );
 
       nextConfiguration.efficiency_controls = {
         autonomous_mode: existingControls.autonomous_mode ?? 'baseline',
-        autonomous_modes_by_output: existingControls.autonomous_modes_by_output ?? {},
+        autonomous_modes_by_role: existingControls.autonomous_modes_by_role ?? {},
         package_mode: 'allow_list',
         package_ids: packageIds,
       };
@@ -555,7 +567,7 @@ export const usePackageStore = create<PackageStore>((set, get) => {
     loadConfiguration: (config) => {
       const nextConfiguration = materializeConfiguration(
         cloneConfiguration(config),
-        get().sectorStates,
+        get().resolvedMethodYears,
         get().autonomousEfficiencyTracks,
         get().efficiencyPackages,
         get().residualOverlays2025,

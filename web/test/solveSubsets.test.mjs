@@ -28,9 +28,9 @@ function readJson(relativePath) {
 function buildServiceControls(singlePathOutputIds, extras = {}) {
   const controls = {};
   for (const outputId of singlePathOutputIds) {
-    const stateId = INCUMBENT_STATE_IDS[outputId];
-    if (stateId) {
-      controls[outputId] = { mode: 'optimize', active_state_ids: [stateId] };
+    const methodId = INCUMBENT_STATE_IDS[outputId];
+    if (methodId) {
+      controls[outputId] = { mode: 'optimize', active_state_ids: [methodId] };
     }
   }
   controls.electricity = extras.electricity ?? { mode: 'externalized' };
@@ -61,7 +61,7 @@ function assertRequestContainsOnlyOutputs(request, expectedOutputIds) {
 
 function assertNoActiveSharesForOutputs(result, excludedOutputIds) {
   const excluded = new Set(excludedOutputIds);
-  const violations = result.reporting.stateShares.filter(
+  const violations = result.reporting.methodShares.filter(
     (s) => excluded.has(s.outputId) && s.activity > 1e-6,
   );
   assert.equal(violations.length, 0, `found active shares for excluded outputs: ${violations.map((v) => v.outputId).join(', ')}`);
@@ -100,13 +100,13 @@ function assertElectricityEndogenous(result) {
 }
 
 function assertExactSingleStateMatches(result, singleStateMap, years) {
-  const activeShares = result.reporting.stateShares.filter((s) => s.activity > 1e-6);
+  const activeShares = result.reporting.methodShares.filter((s) => s.activity > 1e-6);
 
-  for (const [outputId, stateId] of Object.entries(singleStateMap)) {
+  for (const [outputId, methodId] of Object.entries(singleStateMap)) {
     for (const year of years) {
       const matches = activeShares.filter((s) => s.outputId === outputId && s.year === year);
       assert.equal(matches.length, 1, `${outputId} in ${year}: expected 1 active state, got ${matches.length}`);
-      assert.equal(matches[0].stateId, stateId, `${outputId} in ${year}: expected ${stateId}, got ${matches[0].stateId}`);
+      assert.equal(matches[0].methodId, methodId, `${outputId} in ${year}: expected ${methodId}, got ${matches[0].methodId}`);
       assert.ok(
         matches[0].share != null && Math.abs(matches[0].share - 1) < 1e-6,
         `${outputId} in ${year}: expected 100% share, got ${matches[0].share}`,
@@ -314,25 +314,25 @@ describe('buildings endogenous electricity respects normalized pathway caps when
   });
 
   test('policy-frontier electricity dominates 2045 while the incumbent retains a residual 2050 cap', () => {
-    const incumbent2045 = result.reporting.stateShares.find((share) => {
+    const incumbent2045 = result.reporting.methodShares.find((share) => {
       return share.outputId === 'electricity'
         && share.year === 2045
-        && share.stateId === 'electricity__grid_supply__incumbent_thermal_mix';
+        && share.methodId === 'electricity__grid_supply__incumbent_thermal_mix';
     });
-    const frontier2045 = result.reporting.stateShares.find((share) => {
+    const frontier2045 = result.reporting.methodShares.find((share) => {
       return share.outputId === 'electricity'
         && share.year === 2045
-        && share.stateId === 'electricity__grid_supply__policy_frontier';
+        && share.methodId === 'electricity__grid_supply__policy_frontier';
     });
-    const incumbent2050 = result.reporting.stateShares.find((share) => {
+    const incumbent2050 = result.reporting.methodShares.find((share) => {
       return share.outputId === 'electricity'
         && share.year === 2050
-        && share.stateId === 'electricity__grid_supply__incumbent_thermal_mix';
+        && share.methodId === 'electricity__grid_supply__incumbent_thermal_mix';
     });
-    const frontier2050 = result.reporting.stateShares.find((share) => {
+    const frontier2050 = result.reporting.methodShares.find((share) => {
       return share.outputId === 'electricity'
         && share.year === 2050
-        && share.stateId === 'electricity__grid_supply__policy_frontier';
+        && share.methodId === 'electricity__grid_supply__policy_frontier';
     });
 
     assert.ok((frontier2045?.activity ?? 0) > (incumbent2045?.activity ?? 0), 'policy-frontier electricity should dominate in 2045');
@@ -371,7 +371,7 @@ describe('road transport with BEV (needs electricity)', () => {
   test('electricity is externalized', () => assertElectricityExternalized(result));
 
   test('BEV is the active state', () => {
-    const activeShares = result.reporting.stateShares.filter((s) => s.activity > 1e-6);
+    const activeShares = result.reporting.methodShares.filter((s) => s.activity > 1e-6);
     // The base year (2025) forces incumbent states, so BEV is only expected from 2030 onward.
     const postBaseYears = CONFIGURATION_YEARS.filter((y) => y > 2025);
     for (const year of postBaseYears) {
@@ -379,7 +379,7 @@ describe('road transport with BEV (needs electricity)', () => {
         (s) => s.outputId === 'passenger_road_transport' && s.year === year,
       );
       assert.equal(matches.length, 1);
-      assert.equal(matches[0].stateId, 'road_transport__passenger_road__bev');
+      assert.equal(matches[0].methodId, 'road_transport__passenger_road__bev');
     }
   });
 });
@@ -489,7 +489,7 @@ describe('full model subset (all required services + electricity externalized)',
   test('electricity is externalized', () => assertElectricityExternalized(result));
 
   test('demand is met for all outputs', () => {
-    const activeShares = result.reporting.stateShares.filter((s) => s.activity > 1e-6);
+    const activeShares = result.reporting.methodShares.filter((s) => s.activity > 1e-6);
     for (const outputId of allRequiredOutputIds) {
       for (const year of CONFIGURATION_YEARS) {
         const demand = request.configuration.serviceDemandByOutput[outputId]?.[String(year)];

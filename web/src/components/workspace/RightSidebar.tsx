@@ -1,7 +1,7 @@
 import { useMemo, useState, useCallback } from 'react';
 import { usePackageStore } from '../../data/packageStore';
 import {
-  buildStateCatalog,
+  buildRoleAreaNavigationCatalog,
 } from '../../data/configurationWorkspaceModel';
 import { buildEfficiencyControlCatalog } from '../../data/efficiencyControlModel';
 import { deriveOutputRunStatusesForConfiguration } from '../../solver/solveScope.ts';
@@ -13,7 +13,7 @@ export default function RightSidebar() {
   const representations = usePackageStore((s) => s.representations);
   const roleDecompositionEdges = usePackageStore((s) => s.roleDecompositionEdges);
   const methods = usePackageStore((s) => s.methods);
-  const sectorStates = usePackageStore((s) => s.sectorStates);
+  const resolvedMethodYears = usePackageStore((s) => s.resolvedMethodYears);
   const appConfig = usePackageStore((s) => s.appConfig);
   const autonomousEfficiencyTracks = usePackageStore((s) => s.autonomousEfficiencyTracks);
   const efficiencyPackages = usePackageStore((s) => s.efficiencyPackages);
@@ -21,11 +21,11 @@ export default function RightSidebar() {
   const systemStructureGroups = usePackageStore((s) => s.systemStructureGroups);
   const systemStructureMembers = usePackageStore((s) => s.systemStructureMembers);
   const currentConfiguration = usePackageStore((s) => s.currentConfiguration);
-  const toggleStateActive = usePackageStore((s) => s.toggleStateActive);
+  const toggleMethodActive = usePackageStore((s) => s.toggleMethodActive);
   const setRoleRepresentation = usePackageStore((s) => s.setRoleRepresentation);
-  const setAutonomousEfficiencyForOutput = usePackageStore((s) => s.setAutonomousEfficiencyForOutput);
+  const setAutonomousEfficiencyForRole = usePackageStore((s) => s.setAutonomousEfficiencyForRole);
   const setEfficiencyPackageEnabled = usePackageStore((s) => s.setEfficiencyPackageEnabled);
-  const setAllEfficiencyPackagesForOutput = usePackageStore((s) => s.setAllEfficiencyPackagesForOutput);
+  const setAllEfficiencyPackagesForRole = usePackageStore((s) => s.setAllEfficiencyPackagesForRole);
   const setResidualOverlayIncluded = usePackageStore((s) => s.setResidualOverlayIncluded);
   const setResidualOverlayGroupIncluded = usePackageStore((s) => s.setResidualOverlayGroupIncluded);
 
@@ -57,8 +57,15 @@ export default function RightSidebar() {
   }, []);
 
   const rawCatalog = useMemo(
-    () => buildStateCatalog(sectorStates, appConfig),
-    [sectorStates, appConfig],
+    () => buildRoleAreaNavigationCatalog(resolvedMethodYears, appConfig),
+    [resolvedMethodYears, appConfig],
+  );
+  const roleIdByOutputId = useMemo(() => new Map(
+    resolvedMethodYears.map((row) => [row.output_id, row.role_id] as const),
+  ), [resolvedMethodYears]);
+  const resolveRoleId = useCallback(
+    (outputId: string) => roleIdByOutputId.get(outputId) ?? outputId,
+    [roleIdByOutputId],
   );
 
   const catalog = useMemo(
@@ -73,20 +80,20 @@ export default function RightSidebar() {
 
   const outputStatuses = useMemo(
     () => deriveOutputRunStatusesForConfiguration(
-      { sectorStates, appConfig, autonomousEfficiencyTracks, efficiencyPackages },
+      { resolvedMethodYears, appConfig, autonomousEfficiencyTracks, efficiencyPackages },
       currentConfiguration,
     ),
-    [sectorStates, appConfig, autonomousEfficiencyTracks, efficiencyPackages, currentConfiguration],
+    [resolvedMethodYears, appConfig, autonomousEfficiencyTracks, efficiencyPackages, currentConfiguration],
   );
 
   const efficiencyControls = useMemo(
     () => buildEfficiencyControlCatalog(
       currentConfiguration,
-      sectorStates,
+      resolvedMethodYears,
       autonomousEfficiencyTracks,
       efficiencyPackages,
     ),
-    [currentConfiguration, sectorStates, autonomousEfficiencyTracks, efficiencyPackages],
+    [currentConfiguration, resolvedMethodYears, autonomousEfficiencyTracks, efficiencyPackages],
   );
 
   const tree = useMemo(
@@ -126,11 +133,11 @@ export default function RightSidebar() {
       tree={tree}
       onToggleExpandedSector={toggleExpandedSector}
       onToggleExpandedSubsector={toggleExpandedSubsector}
-      onToggleStateActive={toggleStateActive}
+      onToggleStateActive={(outputId, methodId) => toggleMethodActive(resolveRoleId(outputId), methodId)}
       onSetRoleRepresentation={setRoleRepresentation}
-      onSetAutonomousEfficiencyForOutput={setAutonomousEfficiencyForOutput}
+      onSetAutonomousEfficiencyForOutput={(outputId, mode) => setAutonomousEfficiencyForRole(resolveRoleId(outputId), mode)}
       onSetEfficiencyPackageEnabled={setEfficiencyPackageEnabled}
-      onSetAllEfficiencyPackagesForOutput={setAllEfficiencyPackagesForOutput}
+      onSetAllEfficiencyPackagesForOutput={(outputId, enabled) => setAllEfficiencyPackagesForRole(resolveRoleId(outputId), enabled)}
       onSetResidualOverlayIncluded={setResidualOverlayIncluded}
       onSetResidualOverlayGroupIncluded={setResidualOverlayGroupIncluded}
     />

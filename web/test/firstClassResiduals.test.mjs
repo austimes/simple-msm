@@ -4,6 +4,7 @@ import { loadPackage } from '../src/data/packageLoader.ts';
 import { buildSolveRequest } from '../src/solver/buildSolveRequest.ts';
 import { solveWithLpAdapter } from '../src/solver/lpAdapter.ts';
 import { buildSystemFlowGraphData } from '../src/results/systemFlowGraph.ts';
+import { materializeServiceControlsFromRoleControls } from './roleControlTestUtils.mjs';
 
 const FINAL_ELECTRICITY_RESIDUAL_FAMILIES = [
   'commercial_other',
@@ -26,7 +27,7 @@ function electricityInputForOutput(request, outputId) {
 
 test('residual stubs load as first-class families with library grouping', () => {
   const pkg = loadPackage();
-  const residualFamilies = pkg.familyMetadata.filter((family) => family.family_resolution === 'residual_stub');
+  const residualFamilies = pkg.rolePresentationMetadata.filter((role) => role.role_kind === 'residual');
   const memberCountByFamily = new Map();
 
   for (const member of pkg.systemStructureMembers) {
@@ -36,8 +37,8 @@ test('residual stubs load as first-class families with library grouping', () => 
   assert.equal(residualFamilies.length, 14);
   assert.equal(pkg.residualOverlays2025.length, 0);
   assert.equal(pkg.appConfig.output_roles.electricity_grid_losses_own_use?.display_group, 'Energy supply');
-  for (const family of pkg.familyMetadata) {
-    assert.equal(memberCountByFamily.get(family.family_id), 1, `${family.family_id} should have exactly one group`);
+  for (const role of pkg.rolePresentationMetadata) {
+    assert.equal(memberCountByFamily.get(role.output_id), 1, `${role.output_id} should have exactly one group`);
   }
 });
 
@@ -66,7 +67,10 @@ test('built-in solve request uses residual families instead of external electric
 
 test('disabling a residual family removes its normal demand and rows', () => {
   const pkg = loadPackage();
-  const configuration = structuredClone(pkg.defaultConfiguration);
+  const configuration = materializeServiceControlsFromRoleControls(
+    structuredClone(pkg.defaultConfiguration),
+    { resolvedMethodYears: pkg.resolvedMethodYears },
+  );
   configuration.service_controls.commercial_other = {
     mode: 'optimize',
     active_state_ids: [],

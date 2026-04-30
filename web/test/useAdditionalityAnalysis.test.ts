@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { describe, test } from 'node:test';
 import { prepareAdditionalityAnalysis } from '../src/additionality/additionalityAnalysis.ts';
-import { materializeServiceControlsFromRoleControls } from '../src/data/configurationRoleControls.ts';
+import { materializeServiceControlsFromRoleControls } from './roleControlTestUtils.mjs';
 import { resolveConfigurationDocument } from '../src/data/demandResolution.ts';
 import {
   buildAdditionalityAnalysisCacheKeyFromSelections,
@@ -25,7 +25,7 @@ function buildBaseCase() {
       pkg.appConfig,
       'reference-baseline',
     ),
-    { sectorStates: pkg.sectorStates },
+    { resolvedMethodYears: pkg.resolvedMethodYears },
   );
 }
 
@@ -51,35 +51,35 @@ function buildCommoditySelections(): Record<string, 'high' | 'low'> {
   };
 }
 
-function buildEquivalentConfigurationsWithReorderedActiveStateIds() {
-  const outputStateIds = new Map<string, string[]>();
+function buildEquivalentConfigurationsWithReorderedActiveMethodIds() {
+  const outputMethodIds = new Map<string, string[]>();
 
-  for (const row of pkg.sectorStates) {
-    const current = outputStateIds.get(row.service_or_output_name) ?? [];
+  for (const row of pkg.resolvedMethodYears) {
+    const current = outputMethodIds.get(row.service_or_output_name) ?? [];
     if (!current.includes(row.state_id)) {
       current.push(row.state_id);
-      outputStateIds.set(row.service_or_output_name, current);
+      outputMethodIds.set(row.service_or_output_name, current);
     }
   }
 
-  const candidateEntry = Array.from(outputStateIds.entries())
-    .find(([, stateIds]) => stateIds.length >= 2);
+  const candidateEntry = Array.from(outputMethodIds.entries())
+    .find(([, methodIds]) => methodIds.length >= 2);
 
   assert.ok(candidateEntry, 'expected at least one output with multiple states');
 
-  const [outputId, stateIds] = candidateEntry;
-  const orderedStateIds = stateIds.slice(0, 2);
-  const reversedStateIds = [...orderedStateIds].reverse();
+  const [outputId, methodIds] = candidateEntry;
+  const orderedMethodIds = methodIds.slice(0, 2);
+  const reversedMethodIds = [...orderedMethodIds].reverse();
   const leftConfiguration = buildStateOpenCase();
   const rightConfiguration = buildStateOpenCase();
 
   leftConfiguration.service_controls[outputId] = {
     ...(leftConfiguration.service_controls[outputId] ?? { mode: 'optimize' as const }),
-    active_state_ids: orderedStateIds,
+    active_state_ids: orderedMethodIds,
   };
   rightConfiguration.service_controls[outputId] = {
     ...(rightConfiguration.service_controls[outputId] ?? { mode: 'optimize' as const }),
-    active_state_ids: reversedStateIds,
+    active_state_ids: reversedMethodIds,
   };
 
   return {
@@ -91,7 +91,7 @@ function buildEquivalentConfigurationsWithReorderedActiveStateIds() {
 describe('useAdditionalityAnalysis', () => {
   test('builds the same cache key for equivalent normalized inputs', () => {
     const baseConfiguration = buildBaseCase();
-    const { leftConfiguration, rightConfiguration } = buildEquivalentConfigurationsWithReorderedActiveStateIds();
+    const { leftConfiguration, rightConfiguration } = buildEquivalentConfigurationsWithReorderedActiveMethodIds();
     const selections = buildCommoditySelections();
     const reversedSelections = Object.fromEntries(Object.entries(selections).reverse());
 

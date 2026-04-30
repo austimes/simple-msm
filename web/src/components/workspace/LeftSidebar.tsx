@@ -41,6 +41,7 @@ import { formatWorkspacePillLabel } from './workspacePillLabel';
 
 interface ControlledCommodityEntry {
   kind: 'controlled';
+  roleId: string;
   outputId: string;
   label: string;
   allowedModes: ConfigurationControlMode[];
@@ -113,7 +114,7 @@ interface LeftSidebarProps {
 
 export default function LeftSidebar({ initialExpandedSections, initialActiveTab = 'levers' }: LeftSidebarProps = {}) {
   const appConfig = usePackageStore((s) => s.appConfig);
-  const sectorStates = usePackageStore((s) => s.sectorStates);
+  const resolvedMethodYears = usePackageStore((s) => s.resolvedMethodYears);
   const roleMetadata = usePackageStore((s) => s.roleMetadata);
   const representations = usePackageStore((s) => s.representations);
   const roleDecompositionEdges = usePackageStore((s) => s.roleDecompositionEdges);
@@ -125,7 +126,7 @@ export default function LeftSidebar({ initialExpandedSections, initialActiveTab 
   const setCarbonPricePreset = usePackageStore((s) => s.setCarbonPricePreset);
   const setRespectMaxShare = usePackageStore((s) => s.setRespectMaxShare);
   const setRespectMaxActivity = usePackageStore((s) => s.setRespectMaxActivity);
-  const setOutputControlMode = usePackageStore((s) => s.setOutputControlMode);
+  const setRoleControlMode = usePackageStore((s) => s.setRoleControlMode);
   const setResidualOverlayDisplayMode = usePackageStore((s) => s.setResidualOverlayDisplayMode);
   const loadConfiguration = usePackageStore((s) => s.loadConfiguration);
   const activeConfigurationId = usePackageStore((s) => s.activeConfigurationId);
@@ -157,7 +158,7 @@ export default function LeftSidebar({ initialExpandedSections, initialActiveTab 
   const outputStatuses = useMemo(
     () => deriveOutputRunStatusesForConfiguration(
       {
-        sectorStates,
+        resolvedMethodYears,
         appConfig,
         autonomousEfficiencyTracks,
         efficiencyPackages,
@@ -169,7 +170,7 @@ export default function LeftSidebar({ initialExpandedSections, initialActiveTab 
       currentConfiguration,
     ),
     [
-      sectorStates,
+      resolvedMethodYears,
       appConfig,
       autonomousEfficiencyTracks,
       efficiencyPackages,
@@ -193,13 +194,17 @@ export default function LeftSidebar({ initialExpandedSections, initialActiveTab 
           || left.display_order - right.display_order
           || left.display_label.localeCompare(right.display_label)
         ))
-        .map(([outputId, metadata]) => ({
-          kind: 'controlled',
-          outputId,
-          label: metadata.display_label,
-          allowedModes: metadata.allowed_control_modes,
-          priceDriver: appConfig.commodity_price_presets[outputId],
-        }));
+        .map(([outputId, metadata]) => {
+          const roleId = resolvedMethodYears.find((row) => row.output_id === outputId)?.role_id ?? outputId;
+          return {
+            kind: 'controlled',
+            roleId,
+            outputId,
+            label: metadata.display_label,
+            allowedModes: metadata.allowed_control_modes,
+            priceDriver: appConfig.commodity_price_presets[outputId],
+          };
+        });
 
       const controlledIds = new Set(controlledEntries.map((entry) => entry.outputId));
       const priceOnlyEntries: PriceOnlyCommodityEntry[] = Object.entries(appConfig.commodity_price_presets)
@@ -213,7 +218,7 @@ export default function LeftSidebar({ initialExpandedSections, initialActiveTab 
 
       return [...controlledEntries, ...priceOnlyEntries];
     },
-    [appConfig],
+    [appConfig, resolvedMethodYears],
   );
 
   const residualOverlayDisplayMode = getResidualOverlayDisplayMode(currentConfiguration);
@@ -501,7 +506,7 @@ export default function LeftSidebar({ initialExpandedSections, initialActiveTab 
                             key={mode}
                             type="button"
                             className={`workspace-chip${currentMode === mode ? ' workspace-chip--active' : ''}`}
-                            onClick={() => setOutputControlMode(entry.outputId, mode)}
+                            onClick={() => setRoleControlMode(entry.roleId, mode)}
                             title={`Set ${entry.label} to ${formatControlModeLabel(mode)}`}
                           >
                             {renderWorkspaceChipLabel(formatModeChoiceLabel(mode))}

@@ -76,8 +76,8 @@ function buildRequest() {
         outputRole: 'required_service',
         outputLabel: 'Industry heat',
         year: 2030,
-        stateId: 'industry_heat_path',
-        stateLabel: 'Industry heat path',
+        methodId: 'industry_heat_path',
+        methodLabel: 'Industry heat path',
         sector: 'industry',
         subsector: 'generic_industrial_heat',
         region: 'national',
@@ -103,8 +103,8 @@ function buildRequest() {
         outputRole: 'required_service',
         outputLabel: 'Land removals',
         year: 2030,
-        stateId: 'land_removals_path',
-        stateLabel: 'Land removals path',
+        methodId: 'land_removals_path',
+        methodLabel: 'Land removals path',
         sector: 'removals_negative_emissions',
         subsector: 'land_sequestration',
         region: 'national',
@@ -140,7 +140,7 @@ function buildRequest() {
           2030: {
             mode: 'optimize',
             fixedShares: null,
-            disabledStateIds: [],
+            disabledMethodIds: [],
             targetValue: null,
           },
         },
@@ -148,7 +148,7 @@ function buildRequest() {
           2030: {
             mode: 'optimize',
             fixedShares: null,
-            disabledStateIds: [],
+            disabledMethodIds: [],
             targetValue: null,
           },
         },
@@ -193,13 +193,13 @@ function buildResult() {
     },
     reporting: {
       commodityBalances: [],
-      stateShares: [
+      methodShares: [
         {
           outputId: 'industry_heat',
           outputLabel: 'Industry heat',
           year: 2030,
-          stateId: 'industry_heat_path',
-          stateLabel: 'Industry heat path',
+          methodId: 'industry_heat_path',
+          methodLabel: 'Industry heat path',
           activity: 10,
           share: 1,
           rawMaxShare: null,
@@ -209,8 +209,8 @@ function buildResult() {
           outputId: 'land_removals',
           outputLabel: 'Land removals',
           year: 2030,
-          stateId: 'land_removals_path',
-          stateLabel: 'Land removals path',
+          methodId: 'land_removals_path',
+          methodLabel: 'Land removals path',
           activity: 4,
           share: 1,
           rawMaxShare: null,
@@ -229,7 +229,7 @@ function buildResult() {
   };
 }
 
-function buildFuelSwitchRequest(commodityId, coefficient = 1, stateId = 'industry_heat_path') {
+function buildFuelSwitchRequest(commodityId, coefficient = 1, methodId = 'industry_heat_path') {
   const request = buildRequest();
 
   return {
@@ -241,9 +241,9 @@ function buildFuelSwitchRequest(commodityId, coefficient = 1, stateId = 'industr
 
       return {
         ...row,
-        rowId: `${stateId}::2030`,
-        stateId,
-        stateLabel: `${stateId} label`,
+        rowId: `${methodId}::2030`,
+        methodId,
+        methodLabel: `${methodId} label`,
         inputs: [{ commodityId, coefficient, unit: 'PJ' }],
       };
     }),
@@ -265,7 +265,7 @@ function buildResultFromRequest(request) {
     },
     reporting: {
       ...baseResult.reporting,
-      stateShares: request.rows.map((row) => {
+      methodShares: request.rows.map((row) => {
         const activity = request.configuration.serviceDemandByOutput[row.outputId]?.[row.year] ?? 0;
 
         return {
@@ -273,10 +273,10 @@ function buildResultFromRequest(request) {
           outputLabel: row.outputLabel,
           year: row.year,
           rowId: row.rowId,
-          stateId: row.stateId,
-          stateLabel: row.stateLabel,
-          pathwayStateId: row.provenance?.baseStateId ?? row.stateId,
-          pathwayStateLabel: row.provenance?.baseStateLabel ?? row.stateLabel,
+          methodId: row.methodId,
+          methodLabel: row.methodLabel,
+          pathwayMethodId: row.provenance?.baseMethodId ?? row.methodId,
+          pathwayMethodLabel: row.provenance?.baseMethodLabel ?? row.methodLabel,
           provenance: row.provenance,
           activity,
           share: 1,
@@ -288,19 +288,19 @@ function buildResultFromRequest(request) {
   };
 }
 
-function buildCommercialFuelMixRequest(requestId, inputs, stateId = 'commercial_services_path') {
+function buildCommercialFuelMixRequest(requestId, inputs, methodId = 'commercial_services_path') {
   return {
     contractVersion: SOLVER_CONTRACT_VERSION,
     requestId,
     rows: [
       {
-        rowId: `${stateId}::2030`,
+        rowId: `${methodId}::2030`,
         outputId: 'commercial_services',
         outputRole: 'required_service',
         outputLabel: 'Commercial services',
         year: 2030,
-        stateId,
-        stateLabel: `${stateId} label`,
+        methodId,
+        methodLabel: `${methodId} label`,
         sector: 'commercial',
         subsector: 'commercial_buildings',
         region: 'national',
@@ -328,7 +328,7 @@ function buildCommercialFuelMixRequest(requestId, inputs, stateId = 'commercial_
           2030: {
             mode: 'optimize',
             fixedShares: null,
-            disabledStateIds: [],
+            disabledMethodIds: [],
             targetValue: null,
           },
         },
@@ -382,14 +382,14 @@ function buildCommercialFuelMixResult(request) {
     },
     reporting: {
       commodityBalances: [],
-      stateShares: [
+      methodShares: [
         {
           outputId: row.outputId,
           outputLabel: row.outputLabel,
           year: row.year,
           rowId: row.rowId,
-          stateId: row.stateId,
-          stateLabel: row.stateLabel,
+          methodId: row.methodId,
+          methodLabel: row.methodLabel,
           activity: 100,
           share: 1,
           rawMaxShare: null,
@@ -411,8 +411,8 @@ function buildCommercialFuelMixResult(request) {
 function buildEfficiencyAttributionRequest({
   requestId,
   rowId,
-  stateId,
-  stateLabel,
+  methodId,
+  methodLabel,
   inputCoefficient,
   emissionsPerUnit,
   provenance,
@@ -428,8 +428,8 @@ function buildEfficiencyAttributionRequest({
         outputRole: 'required_service',
         outputLabel: 'Heat',
         year: 2030,
-        stateId,
-        stateLabel,
+        methodId,
+        methodLabel,
         sector: 'industry',
         subsector: 'low_temperature_heat',
         region: 'national',
@@ -455,7 +455,7 @@ function buildEfficiencyAttributionRequest({
           2030: {
             mode: 'optimize',
             fixedShares: null,
-            disabledStateIds: [],
+            disabledMethodIds: [],
             targetValue: null,
           },
         },
@@ -500,16 +500,16 @@ function buildEfficiencyAttributionResult(request) {
     },
     reporting: {
       commodityBalances: [],
-      stateShares: [
+      methodShares: [
         {
           outputId: row.outputId,
           outputLabel: row.outputLabel,
           year: row.year,
           rowId: row.rowId,
-          stateId: row.stateId,
-          stateLabel: row.stateLabel,
-          pathwayStateId: row.provenance?.baseStateId ?? row.stateId,
-          pathwayStateLabel: row.provenance?.baseStateLabel ?? row.stateLabel,
+          methodId: row.methodId,
+          methodLabel: row.methodLabel,
+          pathwayMethodId: row.provenance?.baseMethodId ?? row.methodId,
+          pathwayMethodLabel: row.provenance?.baseMethodLabel ?? row.methodLabel,
           provenance: row.provenance,
           activity: 10,
           share: 1,
@@ -671,15 +671,15 @@ test('attribution-safe comparison renders the efficiency attribution section', (
   const baseRequest = buildEfficiencyAttributionRequest({
     requestId: 'efficiency-attribution-base',
     rowId: 'heat::2030',
-    stateId: 'generic_industrial_heat__low_temperature_heat__fossil',
-    stateLabel: 'Fossil heat',
+    methodId: 'generic_industrial_heat__low_temperature_heat__fossil',
+    methodLabel: 'Fossil heat',
     inputCoefficient: 1,
     emissionsPerUnit: 0.2,
     provenance: {
       kind: 'base_state',
       familyId: 'low_temperature_heat',
-      baseStateId: 'generic_industrial_heat__low_temperature_heat__fossil',
-      baseStateLabel: 'Fossil heat',
+      baseMethodId: 'generic_industrial_heat__low_temperature_heat__fossil',
+      baseMethodLabel: 'Fossil heat',
       baseRowId: 'heat::2030',
       autonomousTrackIds: [],
     },
@@ -687,15 +687,15 @@ test('attribution-safe comparison renders the efficiency attribution section', (
   const focusRequest = buildEfficiencyAttributionRequest({
     requestId: 'efficiency-attribution-focus',
     rowId: 'effpkg:heat::retrofit::2030',
-    stateId: 'effpkg:generic_industrial_heat__low_temperature_heat__fossil::retrofit',
-    stateLabel: 'Fossil heat + retrofit',
+    methodId: 'effpkg:generic_industrial_heat__low_temperature_heat__fossil::retrofit',
+    methodLabel: 'Fossil heat + retrofit',
     inputCoefficient: 0.8,
     emissionsPerUnit: 0.1,
     provenance: {
       kind: 'efficiency_package',
       familyId: 'low_temperature_heat',
-      baseStateId: 'generic_industrial_heat__low_temperature_heat__fossil',
-      baseStateLabel: 'Fossil heat',
+      baseMethodId: 'generic_industrial_heat__low_temperature_heat__fossil',
+      baseMethodLabel: 'Fossil heat',
       baseRowId: 'heat::2030',
       autonomousTrackIds: [],
       packageId: 'retrofit',
@@ -801,8 +801,8 @@ test('pathway and removals cards render their titles inside the chart frame', ()
         outputRole: 'required_service',
         outputLabel: 'Electricity supply',
         year: 2030,
-        stateId: 'electricity__grid_supply__incumbent_thermal_mix',
-        stateLabel: 'Incumbent thermal-heavy grid mix',
+        methodId: 'electricity__grid_supply__incumbent_thermal_mix',
+        methodLabel: 'Incumbent thermal-heavy grid mix',
         sector: 'power',
         subsector: 'electricity_supply',
         region: 'national',
@@ -822,8 +822,8 @@ test('pathway and removals cards render their titles inside the chart frame', ()
         outputRole: 'required_service',
         outputLabel: 'Electricity supply',
         year: 2030,
-        stateId: 'electricity__grid_supply__policy_frontier',
-        stateLabel: 'Policy frontier grid supply',
+        methodId: 'electricity__grid_supply__policy_frontier',
+        methodLabel: 'Policy frontier grid supply',
         sector: 'power',
         subsector: 'electricity_supply',
         region: 'national',
@@ -843,8 +843,8 @@ test('pathway and removals cards render their titles inside the chart frame', ()
         outputRole: 'optional_activity',
         outputLabel: 'Engineered removals',
         year: 2030,
-        stateId: 'removals_negative_emissions__engineered_removals__daccs',
-        stateLabel: 'Direct air capture with storage (DACCS)',
+        methodId: 'removals_negative_emissions__engineered_removals__daccs',
+        methodLabel: 'Direct air capture with storage (DACCS)',
         sector: 'removals_negative_emissions',
         subsector: 'engineered_removals',
         region: 'national',
@@ -868,7 +868,7 @@ test('pathway and removals cards render their titles inside the chart frame', ()
           2030: {
             mode: 'optimize',
             fixedShares: null,
-            disabledStateIds: [],
+            disabledMethodIds: [],
             targetValue: null,
           },
         },
@@ -876,7 +876,7 @@ test('pathway and removals cards render their titles inside the chart frame', ()
           2030: {
             mode: 'optimize',
             fixedShares: null,
-            disabledStateIds: [],
+            disabledMethodIds: [],
             targetValue: null,
           },
         },
@@ -914,13 +914,13 @@ test('pathway and removals cards render their titles inside the chart frame', ()
     },
     reporting: {
       commodityBalances: [],
-      stateShares: [
+      methodShares: [
         {
           outputId: 'electricity_supply',
           outputLabel: 'Electricity supply',
           year: 2030,
-          stateId: 'electricity__grid_supply__incumbent_thermal_mix',
-          stateLabel: 'Incumbent thermal-heavy grid mix',
+          methodId: 'electricity__grid_supply__incumbent_thermal_mix',
+          methodLabel: 'Incumbent thermal-heavy grid mix',
           activity: 7,
           share: 0.7,
           rawMaxShare: 0.8,
@@ -930,8 +930,8 @@ test('pathway and removals cards render their titles inside the chart frame', ()
           outputId: 'electricity_supply',
           outputLabel: 'Electricity supply',
           year: 2030,
-          stateId: 'electricity__grid_supply__policy_frontier',
-          stateLabel: 'Policy frontier grid supply',
+          methodId: 'electricity__grid_supply__policy_frontier',
+          methodLabel: 'Policy frontier grid supply',
           activity: 3,
           share: 0.3,
           rawMaxShare: 0.5,
@@ -941,8 +941,8 @@ test('pathway and removals cards render their titles inside the chart frame', ()
           outputId: 'engineered_removals',
           outputLabel: 'Engineered removals',
           year: 2030,
-          stateId: 'removals_negative_emissions__engineered_removals__daccs',
-          stateLabel: 'Direct air capture with storage (DACCS)',
+          methodId: 'removals_negative_emissions__engineered_removals__daccs',
+          methodLabel: 'Direct air capture with storage (DACCS)',
           activity: 4,
           share: 1,
           rawMaxShare: null,

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { isEfficiencyAttributionSafePair } from '../src/data/configurationPairModel.ts';
-import { materializeServiceControlsFromRoleControls } from '../src/data/configurationRoleControls.ts';
+import { materializeServiceControlsFromRoleControls } from './roleControlTestUtils.mjs';
 import { resolveConfigurationDocument } from '../src/data/demandResolution.ts';
 import { loadPackage } from '../src/data/packageLoader.ts';
 import { runScenario } from '../src/results/runScenario.ts';
@@ -38,7 +38,7 @@ const DEMO_EXPECTATIONS = [
     controls: {
       electricity: {
         mode: 'optimize',
-        activeStateIds: [
+        activeMethodIds: [
           'electricity__grid_supply__incumbent_thermal_mix',
           'electricity__grid_supply__policy_frontier',
           'electricity__grid_supply__deep_clean_firmed',
@@ -46,7 +46,7 @@ const DEMO_EXPECTATIONS = [
       },
       residential_building_services: {
         mode: 'optimize',
-        activeStateIds: [
+        activeMethodIds: [
           'buildings__residential__incumbent_mixed_fuels',
           'buildings__residential__electrified_efficiency',
           'buildings__residential__deep_electric',
@@ -54,7 +54,7 @@ const DEMO_EXPECTATIONS = [
       },
       commercial_building_services: {
         mode: 'optimize',
-        activeStateIds: [
+        activeMethodIds: [
           'buildings__commercial__incumbent_mixed_fuels',
           'buildings__commercial__electrified_efficiency',
           'buildings__commercial__deep_electric',
@@ -73,7 +73,7 @@ const DEMO_EXPECTATIONS = [
       },
       freight_road_transport: {
         mode: 'optimize',
-        activeStateIds: [
+        activeMethodIds: [
           'road_transport__freight_road__diesel',
           'road_transport__freight_road__efficient_diesel',
         ],
@@ -94,7 +94,7 @@ const DEMO_EXPECTATIONS = [
     controls: {
       electricity: {
         mode: 'optimize',
-        activeStateIds: [
+        activeMethodIds: [
           'electricity__grid_supply__incumbent_thermal_mix',
           'electricity__grid_supply__policy_frontier',
           'electricity__grid_supply__deep_clean_firmed',
@@ -102,7 +102,7 @@ const DEMO_EXPECTATIONS = [
       },
       low_temperature_heat: {
         mode: 'optimize',
-        activeStateIds: [
+        activeMethodIds: [
           'generic_industrial_heat__low_temperature_heat__fossil',
           'generic_industrial_heat__low_temperature_heat__electrified',
           'generic_industrial_heat__low_temperature_heat__low_carbon_fuels',
@@ -110,7 +110,7 @@ const DEMO_EXPECTATIONS = [
       },
       medium_temperature_heat: {
         mode: 'optimize',
-        activeStateIds: [
+        activeMethodIds: [
           'generic_industrial_heat__medium_temperature_heat__fossil',
           'generic_industrial_heat__medium_temperature_heat__electrified',
           'generic_industrial_heat__medium_temperature_heat__low_carbon_fuels',
@@ -118,7 +118,7 @@ const DEMO_EXPECTATIONS = [
       },
       high_temperature_heat: {
         mode: 'optimize',
-        activeStateIds: [
+        activeMethodIds: [
           'generic_industrial_heat__high_temperature_heat__fossil',
           'generic_industrial_heat__high_temperature_heat__electrified',
           'generic_industrial_heat__high_temperature_heat__low_carbon_fuels',
@@ -139,7 +139,7 @@ const DEMO_EXPECTATIONS = [
     controls: {
       electricity: {
         mode: 'optimize',
-        activeStateIds: [
+        activeMethodIds: [
           'electricity__grid_supply__incumbent_thermal_mix',
           'electricity__grid_supply__policy_frontier',
           'electricity__grid_supply__deep_clean_firmed',
@@ -147,7 +147,7 @@ const DEMO_EXPECTATIONS = [
       },
       crude_steel: {
         mode: 'optimize',
-        activeStateIds: [
+        activeMethodIds: [
           'steel__crude_steel__bf_bof_conventional',
           'steel__crude_steel__bf_bof_ccs_transition',
           'steel__crude_steel__scrap_eaf',
@@ -156,7 +156,7 @@ const DEMO_EXPECTATIONS = [
       },
       cement_equivalent: {
         mode: 'optimize',
-        activeStateIds: [
+        activeMethodIds: [
           'cement_clinker__cement_equivalent__conventional',
           'cement_clinker__cement_equivalent__low_clinker_alt_fuels',
           'cement_clinker__cement_equivalent__ccs_deep',
@@ -178,7 +178,7 @@ function loadConfiguration(pkg, id) {
       pkg.appConfig,
       id,
     ),
-    { sectorStates: pkg.sectorStates },
+    { resolvedMethodYears: pkg.resolvedMethodYears },
   );
 }
 
@@ -195,8 +195,8 @@ function assertDemoControls(configuration, controls, pkg) {
   for (const [outputId, control] of Object.entries(configuration.service_controls)) {
     const expected = controls[outputId];
     if (!expected) {
-      const familyMetadata = pkg.familyMetadata.find((family) => family.family_id === outputId);
-      if (familyMetadata?.family_resolution === 'residual_stub') {
+      const roleMetadata = pkg.rolePresentationMetadata.find((role) => role.output_id === outputId);
+      if (roleMetadata?.role_kind === 'residual') {
         assert.equal(control.mode, 'optimize', `${outputId} residual family should stay in optimize mode`);
         if (outputId === 'residual_lulucf_sink') {
           assert.deepEqual(control.active_state_ids, [], `${outputId} should remain optional by default`);
@@ -216,8 +216,8 @@ function assertDemoControls(configuration, controls, pkg) {
     }
 
     assert.equal(control.mode, expected.mode, `${outputId} should use the expected mode`);
-    if ('activeStateIds' in expected) {
-      assert.deepEqual(control.active_state_ids, expected.activeStateIds, `${outputId} should keep the authored state scope`);
+    if ('activeMethodIds' in expected) {
+      assert.deepEqual(control.active_state_ids, expected.activeMethodIds, `${outputId} should keep the authored state scope`);
     } else {
       assert.equal('active_state_ids' in control, false, `${outputId} should not carry active states when externalized`);
     }

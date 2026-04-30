@@ -17,7 +17,7 @@ function createRow({
   rowId,
   outputId,
   year = 2030,
-  stateId,
+  methodId,
   cost,
   outputRole = 'required_service',
   inputs = [],
@@ -27,7 +27,7 @@ function createRow({
   rowId: string;
   outputId: string;
   year?: number;
-  stateId: string;
+  methodId: string;
   cost: number;
   outputRole?: 'required_service' | 'endogenous_supply_commodity' | 'optional_activity';
   inputs?: Array<{ commodityId: string; coefficient: number; unit: string }>;
@@ -40,8 +40,8 @@ function createRow({
     outputRole,
     outputLabel: outputId === 'electricity' ? 'Electricity' : outputId,
     year,
-    stateId,
-    stateLabel: stateId,
+    methodId,
+    methodLabel: methodId,
     sector: 'test',
     subsector: 'test',
     region: 'national',
@@ -66,7 +66,7 @@ function buildElectricityRequest(electricityMode: 'optimize' | 'externalized'): 
       createRow({
         rowId: 'process_fossil::2030',
         outputId: 'process',
-        stateId: 'process_fossil',
+        methodId: 'process_fossil',
         cost: 5,
         maxShare: electricityMode === 'externalized' ? 1 : 0,
         inputs: [{ commodityId: 'natural_gas', coefficient: 1, unit: 'GJ/unit' }],
@@ -74,7 +74,7 @@ function buildElectricityRequest(electricityMode: 'optimize' | 'externalized'): 
       createRow({
         rowId: 'process_electric::2030',
         outputId: 'process',
-        stateId: 'process_electric',
+        methodId: 'process_electric',
         cost: 1,
         maxShare: electricityMode === 'externalized' ? 1 : 1,
         inputs: [{ commodityId: 'electricity', coefficient: 2, unit: 'MWh/unit' }],
@@ -83,7 +83,7 @@ function buildElectricityRequest(electricityMode: 'optimize' | 'externalized'): 
         rowId: 'grid_clean::2030',
         outputId: 'electricity',
         outputRole: 'endogenous_supply_commodity',
-        stateId: 'grid_clean',
+        methodId: 'grid_clean',
         cost: 1,
         maxShare: 0.25,
         inputs: [{ commodityId: 'natural_gas', coefficient: 0.2, unit: 'GJ/MWh' }],
@@ -92,7 +92,7 @@ function buildElectricityRequest(electricityMode: 'optimize' | 'externalized'): 
         rowId: 'grid_firmed::2030',
         outputId: 'electricity',
         outputRole: 'endogenous_supply_commodity',
-        stateId: 'grid_firmed',
+        methodId: 'grid_firmed',
         cost: 1,
         maxShare: 0.75,
         inputs: [{ commodityId: 'natural_gas', coefficient: 0.3, unit: 'GJ/MWh' }],
@@ -106,14 +106,14 @@ function buildElectricityRequest(electricityMode: 'optimize' | 'externalized'): 
         process: {
           2030: {
             mode: 'optimize',
-            activeStateIds: null,
+            activeMethodIds: null,
             targetValue: null,
           },
         },
         electricity: {
           2030: {
             mode: electricityMode,
-            activeStateIds: null,
+            activeMethodIds: null,
             targetValue: null,
           },
         },
@@ -160,7 +160,7 @@ function buildMultiInputRequest(): SolveRequest {
       createRow({
         rowId: 'process_hybrid::2030',
         outputId: 'process',
-        stateId: 'process_hybrid',
+        methodId: 'process_hybrid',
         cost: 1,
         inputs: [
           { commodityId: 'natural_gas', coefficient: 1, unit: 'GJ/unit' },
@@ -176,7 +176,7 @@ function buildMultiInputRequest(): SolveRequest {
         process: {
           2030: {
             mode: 'optimize',
-            activeStateIds: null,
+            activeMethodIds: null,
             targetValue: null,
           },
         },
@@ -466,16 +466,16 @@ test('efficiency package derived rows are grouped as variants under the base rou
   const baseProvenance = {
     kind: 'base_state' as const,
     familyId: 'heat',
-    baseStateId: 'heat_fossil',
-    baseStateLabel: 'Heat fossil',
+    baseMethodId: 'heat_fossil',
+    baseMethodLabel: 'Heat fossil',
     baseRowId: 'heat_fossil::2030',
     autonomousTrackIds: [],
   };
   const packageProvenance = {
     kind: 'efficiency_package' as const,
     familyId: 'heat',
-    baseStateId: 'heat_fossil',
-    baseStateLabel: 'Heat fossil',
+    baseMethodId: 'heat_fossil',
+    baseMethodLabel: 'Heat fossil',
     baseRowId: 'heat_fossil::2030',
     autonomousTrackIds: [],
     packageId: 'retrofit',
@@ -488,14 +488,14 @@ test('efficiency package derived rows are grouped as variants under the base rou
       createRow({
         rowId: 'heat_fossil::2030',
         outputId: 'heat',
-        stateId: 'heat_fossil',
+        methodId: 'heat_fossil',
         cost: 2,
         provenance: baseProvenance,
       }),
       createRow({
         rowId: 'effpkg:heat_fossil:retrofit::2030',
         outputId: 'heat',
-        stateId: 'effpkg:heat_fossil:retrofit',
+        methodId: 'effpkg:heat_fossil:retrofit',
         cost: 1,
         inputs: [{ commodityId: 'natural_gas', coefficient: 0.8, unit: 'GJ/unit' }],
         provenance: packageProvenance,
@@ -509,7 +509,7 @@ test('efficiency package derived rows are grouped as variants under the base rou
         heat: {
           2030: {
             mode: 'optimize',
-            activeStateIds: null,
+            activeMethodIds: null,
             targetValue: null,
           },
         },
@@ -550,16 +550,16 @@ test('efficiency package derived rows are grouped as variants under the base rou
     },
     reporting: {
       commodityBalances: [],
-      stateShares: [
+      methodShares: [
         {
           outputId: 'heat',
           outputLabel: 'heat',
           year: 2030,
           rowId: 'heat_fossil::2030',
-          stateId: 'heat_fossil',
-          stateLabel: 'Heat fossil',
-          pathwayStateId: 'heat_fossil',
-          pathwayStateLabel: 'Heat fossil',
+          methodId: 'heat_fossil',
+          methodLabel: 'Heat fossil',
+          pathwayMethodId: 'heat_fossil',
+          pathwayMethodLabel: 'Heat fossil',
           provenance: baseProvenance,
           activity: 0,
           share: 0,
@@ -571,10 +571,10 @@ test('efficiency package derived rows are grouped as variants under the base rou
           outputLabel: 'heat',
           year: 2030,
           rowId: 'effpkg:heat_fossil:retrofit::2030',
-          stateId: 'effpkg:heat_fossil:retrofit',
-          stateLabel: 'Heat fossil + retrofit',
-          pathwayStateId: 'heat_fossil',
-          pathwayStateLabel: 'Heat fossil',
+          methodId: 'effpkg:heat_fossil:retrofit',
+          methodLabel: 'Heat fossil + retrofit',
+          pathwayMethodId: 'heat_fossil',
+          pathwayMethodLabel: 'Heat fossil',
           provenance: packageProvenance,
           activity: 100,
           share: 1,
@@ -599,7 +599,7 @@ test('efficiency package derived rows are grouped as variants under the base rou
   assert.ok(baseNode);
   assert.ok(packageNode);
   assert.equal(packageNode.variantOfBaseRoute, true);
-  assert.equal(packageNode.baseStateId, 'heat_fossil');
+  assert.equal(packageNode.baseMethodId, 'heat_fossil');
   assert.equal(packageNode.variantGroupId, baseNode.variantGroupId);
 
   const diagram = buildSystemFlowDiagramLayoutInput(graph, 'both');

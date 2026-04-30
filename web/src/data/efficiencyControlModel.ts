@@ -5,7 +5,7 @@ import type {
   ConfigurationEfficiencyControls,
   EfficiencyPackage,
   EfficiencyPackageClassification,
-  SectorState,
+  ResolvedMethodYearRow,
 } from './types.ts';
 
 export interface OutputEfficiencyControlNode {
@@ -15,23 +15,41 @@ export interface OutputEfficiencyControlNode {
     trackId: string;
     label: string;
     enabled: boolean;
-    applicableStateIds: string[];
+    applicableMethodIds: string[];
   }>;
   packages: Array<{
     packageId: string;
     label: string;
     classification: EfficiencyPackageClassification;
     enabled: boolean;
-    applicableStateIds: string[];
+    applicableMethodIds: string[];
     nonStackingGroup: string | null;
     maxShareByYear: Record<string, number | null>;
   }>;
-  embodiedStateIds: string[];
+  embodiedMethodIds: string[];
 }
 
 type PackageToggleChange =
   | { packageId: string; enabled: boolean }
-  | { outputId: string; enabled: boolean };
+  | { outputId: string; roleId?: string; enabled: boolean };
+
+type EfficiencyCatalogMethodRow = Pick<ResolvedMethodYearRow, 'output_id' | 'method_id'>
+  & Partial<Pick<ResolvedMethodYearRow, 'service_or_output_name' | 'state_id'>>;
+type EfficiencyCatalogTrack = Pick<
+  AutonomousEfficiencyTrack,
+  'family_id' | 'track_id' | 'track_label' | 'applicable_method_ids'
+> & { applicable_state_ids?: string[] };
+type EfficiencyCatalogPackage = Pick<
+  EfficiencyPackage,
+  | 'family_id'
+  | 'package_id'
+  | 'package_label'
+  | 'classification'
+  | 'applicable_method_ids'
+  | 'non_stacking_group'
+  | 'max_share'
+  | 'year'
+> & { applicable_state_ids?: string[] };
 
 function compareStrings(left: string, right: string): number {
   return left.localeCompare(right);
@@ -96,7 +114,7 @@ export function resolveAutonomousModeForOutput(
   controls: ConfigurationEfficiencyControls | null | undefined,
   outputId: string,
 ): ConfigurationAutonomousEfficiencyMode {
-  return controls?.autonomous_modes_by_output?.[outputId]
+  return controls?.autonomous_modes_by_role?.[outputId]
     ?? controls?.autonomous_mode
     ?? 'baseline';
 }
@@ -134,32 +152,24 @@ export function buildNextPackageAllowList(
 
 export function buildEfficiencyControlCatalog(
   configuration: { efficiency_controls?: ConfigurationEfficiencyControls },
-  sectorStates: Pick<SectorState, 'service_or_output_name' | 'state_id'>[],
-  autonomousEfficiencyTracks: Pick<
-    AutonomousEfficiencyTrack,
-    'family_id' | 'track_id' | 'track_label' | 'applicable_state_ids'
-  >[],
-  efficiencyPackages: Pick<
-    EfficiencyPackage,
-    | 'family_id'
-    | 'package_id'
-    | 'package_label'
-    | 'classification'
-    | 'applicable_state_ids'
-    | 'non_stacking_group'
-    | 'max_share'
-    | 'year'
-  >[],
+  resolvedMethodYears: EfficiencyCatalogMethodRow[],
+  autonomousEfficiencyTracks: EfficiencyCatalogTrack[],
+  efficiencyPackages: EfficiencyCatalogPackage[],
 ): OutputEfficiencyControlNode[] {
   const outputIds = Array.from(
-    new Set(sectorStates.map((row) => row.service_or_output_name)),
+    new Set(resolvedMethodYears.map((row) => row.output_id ?? row.service_or_output_name)),
   ).sort(compareStrings);
-  const stateIdsByOutput = new Map<string, Set<string>>();
+  const methodIdsByOutput = new Map<string, Set<string>>();
 
-  for (const row of sectorStates) {
-    const stateIds = stateIdsByOutput.get(row.service_or_output_name) ?? new Set<string>();
-    stateIds.add(row.state_id);
-    stateIdsByOutput.set(row.service_or_output_name, stateIds);
+  for (const row of resolvedMethodYears) {
+    const outputId = row.output_id ?? row.service_or_output_name;
+    const methodId = row.method_id ?? row.state_id;
+    if (!outputId || !methodId) {
+      continue;
+    }
+    const methodIds = methodIdsByOutput.get(outputId) ?? new Set<string>();
+    methodIds.add(methodId);
+    methodIdsByOutput.set(outputId, methodIds);
   }
 
   const controls = configuration.efficiency_controls;
@@ -170,7 +180,7 @@ export function buildEfficiencyControlCatalog(
       trackId: string;
       label: string;
       enabled: boolean;
-      applicableStateIds: Set<string>;
+      applicableMethodIds: Set<string>;
     }>();
     const autonomousMode = resolveAutonomousModeForOutput(controls, outputId);
 
@@ -183,10 +193,10 @@ export function buildEfficiencyControlCatalog(
         trackId: track.track_id,
         label: track.track_label || track.track_id,
         enabled: autonomousMode === 'baseline',
-        applicableStateIds: new Set<string>(),
+        applicableMethodIds: new Set<string>(),
       };
-      for (const stateId of track.applicable_state_ids ?? []) {
-        entry.applicableStateIds.add(stateId);
+      for (const methodId of track.applicable_method_ids ?? track.applicable_state_ids ?? []) {
+        entry.applicableMethodIds.add(methodId);
       }
       trackMap.set(track.track_id, entry);
     }
@@ -196,7 +206,7 @@ export function buildEfficiencyControlCatalog(
       label: string;
       classification: EfficiencyPackageClassification;
       enabled: boolean;
-      applicableStateIds: Set<string>;
+      applicableMethodIds: Set<string>;
       nonStackingGroup: string | null;
       maxShareByYear: Record<string, number | null>;
     }>();
@@ -211,24 +221,24 @@ export function buildEfficiencyControlCatalog(
         label: pkg.package_label || pkg.package_id,
         classification: pkg.classification,
         enabled: activePackageIds.has(pkg.package_id),
-        applicableStateIds: new Set<string>(),
+        applicableMethodIds: new Set<string>(),
         nonStackingGroup: pkg.non_stacking_group ?? null,
         maxShareByYear: {},
       };
-      for (const stateId of pkg.applicable_state_ids ?? []) {
-        entry.applicableStateIds.add(stateId);
+      for (const methodId of pkg.applicable_method_ids ?? pkg.applicable_state_ids ?? []) {
+        entry.applicableMethodIds.add(methodId);
       }
       entry.maxShareByYear[String(pkg.year)] = pkg.max_share ?? null;
       packageMap.set(pkg.package_id, entry);
     }
 
-    const outputStateIds = stateIdsByOutput.get(outputId) ?? new Set<string>();
-    const embodiedStateIds = Array.from(
+    const outputMethodIds = methodIdsByOutput.get(outputId) ?? new Set<string>();
+    const embodiedMethodIds = Array.from(
       new Set(
         embodiedEfficiencyPathwayEntries
           .filter((entry) => entry.familyIds.includes(outputId))
-          .flatMap((entry) => entry.stateIds)
-          .filter((stateId) => outputStateIds.has(stateId)),
+          .flatMap((entry) => entry.methodIds)
+          .filter((methodId) => outputMethodIds.has(methodId)),
       ),
     ).sort(compareStrings);
 
@@ -238,7 +248,7 @@ export function buildEfficiencyControlCatalog(
         trackId: entry.trackId,
         label: entry.label,
         enabled: entry.enabled,
-        applicableStateIds: Array.from(entry.applicableStateIds).sort(compareStrings),
+        applicableMethodIds: Array.from(entry.applicableMethodIds).sort(compareStrings),
       }));
     const packages = Array.from(packageMap.values())
       .sort((left, right) => compareStrings(left.label, right.label) || compareStrings(left.packageId, right.packageId))
@@ -247,7 +257,7 @@ export function buildEfficiencyControlCatalog(
         label: entry.label,
         classification: entry.classification,
         enabled: entry.enabled,
-        applicableStateIds: Array.from(entry.applicableStateIds).sort(compareStrings),
+        applicableMethodIds: Array.from(entry.applicableMethodIds).sort(compareStrings),
         nonStackingGroup: entry.nonStackingGroup,
         maxShareByYear: Object.fromEntries(
           Object.entries(entry.maxShareByYear).sort(([left], [right]) => compareStrings(left, right)),
@@ -256,10 +266,10 @@ export function buildEfficiencyControlCatalog(
 
     return {
       outputId,
-      hasControls: autonomousTracks.length > 0 || packages.length > 0 || embodiedStateIds.length > 0,
+      hasControls: autonomousTracks.length > 0 || packages.length > 0 || embodiedMethodIds.length > 0,
       autonomousTracks,
       packages,
-      embodiedStateIds,
+      embodiedMethodIds,
     };
   });
 }

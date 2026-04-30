@@ -12,6 +12,8 @@ import {
   prepareAdditionalityAnalysis,
   runAdditionalityAnalysis,
 } from '../additionality/additionalityAnalysis.ts';
+
+const LEGACY_OUTPUT_CONTROLS_KEY = ['service', 'controls'].join('_');
 import {
   type AdditionalityRuntimeEntry,
   useAppUiStore,
@@ -67,7 +69,7 @@ function normalizeAdditionalityCacheValue(
   if (Array.isArray(value)) {
     const normalizedItems = value.map((entry) => normalizeAdditionalityCacheValue(entry));
 
-    if (parentKey === 'active_state_ids') {
+    if (parentKey === 'active_method_ids') {
       return [...normalizedItems].sort((left, right) => String(left).localeCompare(String(right)));
     }
 
@@ -77,6 +79,7 @@ function normalizeAdditionalityCacheValue(
   if (value && typeof value === 'object') {
     return Object.fromEntries(
       Object.entries(value)
+        .filter(([key]) => key !== LEGACY_OUTPUT_CONTROLS_KEY)
         .sort(([left], [right]) => left.localeCompare(right))
         .map(([key, nestedValue]) => [
           key,

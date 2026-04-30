@@ -1,29 +1,28 @@
 import type { ResolvedSolveControl } from '../solver/contract.ts';
 import type {
   ConfigurationControlMode,
-  ConfigurationDocument,
-  ConfigurationServiceControl,
+  ConfigurationRoleControl,
 } from './types.ts';
 
 export interface PathwayControlInput {
   mode?: ConfigurationControlMode | null;
-  activeStateIds?: readonly string[] | null;
+  activeMethodIds?: readonly string[] | null;
 }
 
-export interface DerivedPathwayStateIds {
-  allStateIds: string[];
-  activeStateIds: string[];
+export interface DerivedPathwayMethodIds {
+  allMethodIds: string[];
+  activeMethodIds: string[];
 }
 
 type SupportedPathwayControl =
-  | ConfigurationServiceControl
+  | ConfigurationRoleControl
   | PathwayControlInput
   | ResolvedSolveControl
   | null
   | undefined;
 
-function dedupeStateIds(stateIds: readonly string[]): string[] {
-  return Array.from(new Set(stateIds));
+function dedupeMethodIds(methodIds: readonly string[]): string[] {
+  return Array.from(new Set(methodIds));
 }
 
 export function toPathwayControlInput(
@@ -33,68 +32,66 @@ export function toPathwayControlInput(
     return undefined;
   }
 
-  // ResolvedSolveControl or PathwayControlInput (camelCase with activeStateIds)
-  if ('activeStateIds' in control) {
+  if ('activeMethodIds' in control) {
     return {
       mode: control.mode ?? null,
-      activeStateIds: (control as PathwayControlInput).activeStateIds ?? null,
+      activeMethodIds: (control as PathwayControlInput).activeMethodIds ?? null,
     };
   }
 
-  // ConfigurationServiceControl (snake_case)
-  if ('active_state_ids' in control) {
-    const svc = control as ConfigurationServiceControl;
+  if ('active_method_ids' in control) {
+    const roleControl = control as ConfigurationRoleControl;
     return {
-      mode: svc.mode,
-      activeStateIds: svc.active_state_ids ?? null,
+      mode: roleControl.mode,
+      activeMethodIds: roleControl.active_method_ids ?? null,
     };
   }
 
   return undefined;
 }
 
-function deriveActiveStateIds(
-  allStateIds: string[],
+function deriveActiveMethodIds(
+  allMethodIds: string[],
   control: PathwayControlInput | undefined,
 ): string[] {
   if (!control?.mode) {
-    if (control?.activeStateIds) {
-      const allowed = new Set(control.activeStateIds);
-      return allStateIds.filter((id) => allowed.has(id));
+    if (control?.activeMethodIds) {
+      const allowed = new Set(control.activeMethodIds);
+      return allMethodIds.filter((id) => allowed.has(id));
     }
-    return allStateIds;
+    return allMethodIds;
   }
 
   switch (control.mode) {
     case 'externalized':
       return [];
     default:
-      if (control.activeStateIds) {
-        const allowed = new Set(control.activeStateIds);
-        return allStateIds.filter((id) => allowed.has(id));
+      if (control.activeMethodIds) {
+        const allowed = new Set(control.activeMethodIds);
+        return allMethodIds.filter((id) => allowed.has(id));
       }
-      return allStateIds;
+      return allMethodIds;
   }
 }
 
-export function derivePathwayStateIds(
-  allStateIds: readonly string[],
+export function derivePathwayMethodIds(
+  allMethodIds: readonly string[],
   control: SupportedPathwayControl,
-): DerivedPathwayStateIds {
-  const uniqueStateIds = dedupeStateIds(allStateIds);
+): DerivedPathwayMethodIds {
+  const uniqueMethodIds = dedupeMethodIds(allMethodIds);
   const normalizedControl = toPathwayControlInput(control);
-  const activeStateIds = deriveActiveStateIds(uniqueStateIds, normalizedControl);
+  const activeMethodIds = deriveActiveMethodIds(uniqueMethodIds, normalizedControl);
 
   return {
-    allStateIds: uniqueStateIds,
-    activeStateIds,
+    allMethodIds: uniqueMethodIds,
+    activeMethodIds,
   };
 }
 
-export function derivePathwayStateIdsForOutput(
-  configuration: ConfigurationDocument,
-  outputId: string,
-  allStateIds: readonly string[],
-): DerivedPathwayStateIds {
-  return derivePathwayStateIds(allStateIds, configuration.service_controls[outputId]);
+export function derivePathwayMethodIdsForRole(
+  configuration: { role_controls?: Record<string, ConfigurationRoleControl> },
+  roleId: string,
+  allMethodIds: readonly string[],
+): DerivedPathwayMethodIds {
+  return derivePathwayMethodIds(allMethodIds, configuration.role_controls?.[roleId]);
 }

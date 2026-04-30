@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { describe, test } from 'node:test';
-import { materializeServiceControlsFromRoleControls } from '../src/data/configurationRoleControls.ts';
+import { materializeServiceControlsFromRoleControls } from './roleControlTestUtils.mjs';
 import { getCommodityPriceLevel } from '../src/data/configurationWorkspaceModel.ts';
 import { getCommodityPriceSelectorPresentation } from '../src/components/workspace/leftSidebarCommodityStatus.ts';
 import { deriveOutputRunStatusesForConfiguration } from '../src/solver/solveScope.ts';
@@ -16,7 +16,7 @@ function readJson(relativePath) {
 
 function readConfiguration(relativePath) {
   return materializeServiceControlsFromRoleControls(readJson(relativePath), {
-    sectorStates: pkg.sectorStates,
+    resolvedMethodYears: pkg.resolvedMethodYears,
   });
 }
 

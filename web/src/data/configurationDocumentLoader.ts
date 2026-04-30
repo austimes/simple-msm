@@ -192,11 +192,11 @@ function normalizeConfiguredPackageIds(packageIds: string[] | null | undefined):
   ).sort((left, right) => left.localeCompare(right));
 }
 
-function normalizeAutonomousModesByOutput(
-  autonomousModesByOutput: Record<string, ConfigurationAutonomousEfficiencyMode> | null | undefined,
+function normalizeAutonomousModesByRole(
+  autonomousModesByRole: Record<string, ConfigurationAutonomousEfficiencyMode> | null | undefined,
 ): Record<string, ConfigurationAutonomousEfficiencyMode> {
   return Object.fromEntries(
-    Object.entries(autonomousModesByOutput ?? {})
+    Object.entries(autonomousModesByRole ?? {})
       .filter(([outputId]) => outputId.trim().length > 0)
       .sort(([left], [right]) => left.localeCompare(right)),
   );
@@ -225,8 +225,8 @@ export function materializeEfficiencyConfiguration(
   efficiencyPackages: Pick<EfficiencyPackage, 'family_id' | 'package_id'>[],
 ): ConfigurationDocument {
   const autonomousMode = configuration.efficiency_controls?.autonomous_mode ?? 'baseline';
-  const autonomousModesByOutput = normalizeAutonomousModesByOutput(
-    configuration.efficiency_controls?.autonomous_modes_by_output,
+  const autonomousModesByRole = normalizeAutonomousModesByRole(
+    configuration.efficiency_controls?.autonomous_modes_by_role,
   );
   const packageMode = configuration.efficiency_controls?.package_mode ?? 'off';
   const configuredPackageIds = normalizeConfiguredPackageIds(
@@ -235,10 +235,10 @@ export function materializeEfficiencyConfiguration(
   const autonomousFamilyIds = buildAutonomousFamilyIds(autonomousEfficiencyTracks);
   const packageFamiliesById = buildPackageFamiliesById(efficiencyPackages);
 
-  for (const outputId of Object.keys(autonomousModesByOutput)) {
+  for (const outputId of Object.keys(autonomousModesByRole)) {
     if (!autonomousFamilyIds.has(outputId)) {
       throw new Error(
-        `Unknown autonomous efficiency output id ${JSON.stringify(outputId)} in efficiency_controls.autonomous_modes_by_output.`,
+        `Unknown autonomous efficiency role id ${JSON.stringify(outputId)} in efficiency_controls.autonomous_modes_by_role.`,
       );
     }
   }
@@ -262,7 +262,7 @@ export function materializeEfficiencyConfiguration(
     ...configuration,
     efficiency_controls: {
       autonomous_mode: autonomousMode,
-      autonomous_modes_by_output: autonomousModesByOutput,
+      autonomous_modes_by_role: autonomousModesByRole,
       package_mode: packageMode,
       package_ids: packageMode === 'allow_list' || packageMode === 'deny_list'
         ? configuredPackageIds

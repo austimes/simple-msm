@@ -25,8 +25,8 @@ function buildConstraintLabel(
 ): string {
   const parts = [constraint.outputLabel, String(constraint.year)];
 
-  if (constraint.stateLabel) {
-    parts.push(constraint.stateLabel);
+  if (constraint.methodLabel) {
+    parts.push(constraint.methodLabel);
   }
 
   return parts.join(' / ');
@@ -121,7 +121,7 @@ export default function WorkspaceSolveFailureReport({ failure }: { failure: Conf
                     {[
                       diagnostic.outputId ? `output ${diagnostic.outputId}` : null,
                       diagnostic.year != null ? `year ${diagnostic.year}` : null,
-                      diagnostic.stateId ? `method ${diagnostic.stateId}` : null,
+                      diagnostic.methodId ? `method ${diagnostic.methodId}` : null,
                       diagnostic.reason ? `reason ${formatSolveStatus(diagnostic.reason)}` : null,
                     ].filter(Boolean).join(' • ')}
                   </p>

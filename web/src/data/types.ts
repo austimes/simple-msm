@@ -35,19 +35,6 @@ export const PRICE_LEVELS = ['low', 'medium', 'high'] as const;
 export type PriceLevel = (typeof PRICE_LEVELS)[number];
 export type FuelSwitchBasis = 'to' | 'from';
 
-export interface ConfigurationServiceControlYearOverride {
-  mode?: ConfigurationControlMode;
-  target_value?: number | null;
-  active_state_ids?: string[] | null;
-}
-
-export interface ConfigurationServiceControl {
-  mode: ConfigurationControlMode;
-  target_value?: number | null;
-  active_state_ids?: string[] | null;
-  year_overrides?: Partial<Record<ConfigurationYearKey, ConfigurationServiceControlYearOverride>> | null;
-}
-
 export interface ConfigurationRoleControlYearOverride {
   mode?: ConfigurationControlMode;
   target_value?: number | null;
@@ -106,7 +93,7 @@ export type ConfigurationEfficiencyPackageMode =
 
 export interface ConfigurationEfficiencyControls {
   autonomous_mode?: ConfigurationAutonomousEfficiencyMode;
-  autonomous_modes_by_output?: Record<string, ConfigurationAutonomousEfficiencyMode> | null;
+  autonomous_modes_by_role?: Record<string, ConfigurationAutonomousEfficiencyMode> | null;
   package_mode?: ConfigurationEfficiencyPackageMode;
   package_ids?: string[] | null;
 }
@@ -128,7 +115,6 @@ export interface ConfigurationDocument {
   years: ConfigurationYear[];
   representation_by_role?: Record<string, string>;
   role_controls?: Record<string, ConfigurationRoleControl>;
-  service_controls: Record<string, ConfigurationServiceControl>;
   service_demands: Record<string, ConfigurationYearValueTable>;
   demand_generation: ConfigurationDemandGeneration;
   external_commodity_demands?: Record<string, ConfigurationYearValueTable>;
@@ -249,23 +235,21 @@ export interface PackageSchemaInfo {
   fields: PackageSchemaField[];
 }
 
-export interface FamilyMetadata {
-  family_id: string;
-  sector: string;
-  subsector: string;
-  service_or_output_name: string;
+export interface RolePresentationMetadata {
+  role_id: string;
+  role_label: string;
+  topology_area_id: string;
+  topology_area_label: string;
+  output_id: string;
   region: string;
   output_role: OutputRole;
   output_unit: string;
   output_quantity_basis: string;
-  default_incumbent_state_id: string;
-  maintainer_owner_id: string;
-  review_owner_id: string;
-  family_status: string;
-  family_maturity: string;
-  family_resolution: FamilyResolution;
-  coverage_scope_id: string;
-  coverage_scope_label: string;
+  default_method_id: string;
+  role_kind: RoleKind;
+  balance_type: BalanceType;
+  coverage_obligation: CoverageObligation;
+  reporting_allocations: ReportingAllocation[];
   notes: string;
 }
 
@@ -302,7 +286,7 @@ export interface PackageEnrichment {
   assumptionsLedger: AssumptionLedgerEntry[];
   methodYearsSchema: PackageSchemaInfo | null;
   roleReadmes: Record<string, PackageCompanionDoc>;
-  sectorStatesSchema: PackageSchemaInfo | null;
+  resolvedMethodYearsSchema: PackageSchemaInfo | null;
   sectorDerivations: Record<string, PackageCompanionDoc>;
 }
 
@@ -359,7 +343,7 @@ export interface EfficiencyPackage {
   non_stacking_group: string | null;
 }
 
-export interface SectorState {
+export interface ResolvedMethodYearRow {
   role_id: string;
   representation_id: string;
   method_id: string;
@@ -368,18 +352,16 @@ export interface SectorState {
   method_description: string;
   role_kind: RoleKind;
   balance_type: BalanceType;
-  family_id: string;
-  family_resolution: FamilyResolution;
-  coverage_scope_id: string;
-  coverage_scope_label: string;
-  sector: string;
-  subsector: string;
-  service_or_output_name: string;
+  output_id: string;
+  role_label: string;
+  topology_area_id: string;
+  topology_area_label: string;
+  parent_role_id: string | null;
+  coverage_obligation: CoverageObligation;
+  default_representation_kind: RepresentationKind;
+  reporting_allocations: ReportingAllocation[];
   region: string;
   year: number;
-  state_id: string;
-  state_label: string;
-  state_description: string;
   output_unit: string;
   output_quantity_basis: string;
   output_cost_per_unit: number | null;
@@ -411,12 +393,30 @@ export interface SectorState {
   would_expand_to_process_chain: boolean;
   energy_co2e: number | null;
   process_co2e: number | null;
+  method_stage_family: string;
+  method_stage_rank: number | null;
+  method_stage_code: string;
+  method_sort_key: string;
+  method_label_standardized: string;
+  is_default_incumbent_2025: boolean;
+  method_option_rank: number | null;
+  method_option_code: string;
+  method_option_label: string;
+  family_id: string;
+  family_resolution: FamilyResolution;
+  coverage_scope_id: string;
+  coverage_scope_label: string;
+  sector: string;
+  subsector: string;
+  service_or_output_name: string;
+  state_id: string;
+  state_label: string;
+  state_description: string;
   state_stage_family: string;
   state_stage_rank: number | null;
   state_stage_code: string;
   state_sort_key: string;
   state_label_standardized: string;
-  is_default_incumbent_2025: boolean;
   state_option_rank: number | null;
   state_option_code: string;
   state_option_label: string;
@@ -648,10 +648,10 @@ export interface PackageData {
   methods: Method[];
   methodYears: MethodYear[];
   roleDemands: RoleDemand[];
-  familyMetadata: FamilyMetadata[];
+  rolePresentationMetadata: RolePresentationMetadata[];
   systemStructureGroups: SystemStructureGroupRow[];
   systemStructureMembers: SystemStructureMemberRow[];
-  sectorStates: SectorState[];
+  resolvedMethodYears: ResolvedMethodYearRow[];
   autonomousEfficiencyTracks: AutonomousEfficiencyTrack[];
   efficiencyPackages: EfficiencyPackage[];
   serviceDemandAnchors2025: ServiceDemandAnchorRow[];

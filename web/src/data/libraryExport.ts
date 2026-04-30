@@ -1,21 +1,21 @@
 import type { LibraryFilters } from './appUiState.ts';
 import { getCommodityMetadata } from './commodityMetadata.ts';
 import { serializeCsv } from './csvWriter.ts';
-import type { SectorStateTrajectory } from './libraryInsights.ts';
+import type { RoleMethodTrajectory } from './libraryInsights.ts';
 import { sumEmissionEntries } from './libraryInsights.ts';
 import type { AssumptionLedgerEntry, SourceLedgerEntry } from './types.ts';
 
 export interface LibraryExportScope {
-  sector: string;
-  subsector: string;
+  roleId: string | null;
+  representationId: string | null;
+  methodId: string | null;
   filters: LibraryFilters;
-  selectedTrajectoryId: string | null;
   generatedAt: string;
 }
 
 export interface LibraryExportInput {
   scope: LibraryExportScope;
-  trajectories: SectorStateTrajectory[];
+  trajectories: RoleMethodTrajectory[];
   sourceLedger: SourceLedgerEntry[];
   assumptionsLedger: AssumptionLedgerEntry[];
 }
@@ -36,8 +36,8 @@ interface ChartPointRow extends CsvRow {
   series_id: string;
   series_label: string;
   legend_label: string;
-  state_id: string;
-  state_label: string;
+  method_id: string;
+  method_label: string;
   commodity_id: string;
   commodity_label: string;
   year: number;
@@ -49,8 +49,8 @@ interface ChartPointRow extends CsvRow {
 }
 
 interface ReportComparisonRow {
-  state_id: string;
-  state_label: string;
+  method_id: string;
+  method_label: string;
   metric_id: string;
   metric_label: string;
   values: Record<string, string>;
@@ -84,8 +84,8 @@ const CHART_POINT_HEADERS = [
   'series_id',
   'series_label',
   'legend_label',
-  'state_id',
-  'state_label',
+  'method_id',
+  'method_label',
   'commodity_id',
   'commodity_label',
   'year',
@@ -103,12 +103,11 @@ const METHOD_YEAR_HEADERS = [
   'method_label',
   'method_kind',
   'year',
-  'sector',
-  'subsector',
-  'service_or_output_name',
+  'reporting_sector',
+  'reporting_subsector',
+  'reporting_bucket',
+  'output_id',
   'region',
-  'state_id',
-  'state_label',
   'output_unit',
   'output_cost_per_unit',
   'cost_basis_year',
@@ -144,8 +143,7 @@ const METHOD_YEAR_HEADERS = [
 const INPUT_COEFFICIENT_HEADERS = [
   'role_id',
   'method_id',
-  'state_id',
-  'state_label',
+  'method_label',
   'year',
   'commodity_id',
   'commodity_label',
@@ -157,8 +155,7 @@ const INPUT_COEFFICIENT_HEADERS = [
 const EMISSIONS_BY_POLLUTANT_HEADERS = [
   'role_id',
   'method_id',
-  'state_id',
-  'state_label',
+  'method_label',
   'year',
   'emissions_category',
   'pollutant',
@@ -246,7 +243,7 @@ function jsonCell(value: unknown): string {
   return JSON.stringify(value);
 }
 
-function collectYears(trajectories: SectorStateTrajectory[]): number[] {
+function collectYears(trajectories: RoleMethodTrajectory[]): number[] {
   return Array.from(
     new Set(trajectories.flatMap((trajectory) => trajectory.points.map((point) => point.year))),
   ).sort((left, right) => left - right);
@@ -258,13 +255,27 @@ function activeFilters(filters: LibraryFilters): Partial<LibraryFilters> {
   ) as Partial<LibraryFilters>;
 }
 
-function collectReferencedIds(trajectories: SectorStateTrajectory[], key: 'source_ids' | 'assumption_ids'): Set<string> {
+function collectReferencedIds(trajectories: RoleMethodTrajectory[], key: 'source_ids' | 'assumption_ids'): Set<string> {
   return new Set(trajectories.flatMap((trajectory) => trajectory.rows.flatMap((row) => row[key])));
 }
 
+function reportingAllocationColumns(row: RoleMethodTrajectory['rows'][number]): {
+  reporting_sector: string;
+  reporting_subsector: string;
+  reporting_bucket: string;
+} {
+  const allocation = row.reporting_allocations[0];
+
+  return {
+    reporting_sector: allocation?.sector ?? '',
+    reporting_subsector: allocation?.subsector ?? '',
+    reporting_bucket: allocation?.reporting_bucket ?? '',
+  };
+}
+
 function buildChartPointRows(
-  trajectories: SectorStateTrajectory[],
-  selectedTrajectoryId: string | null,
+  trajectories: RoleMethodTrajectory[],
+  selectedMethodId: string | null,
 ): ChartPointRow[] {
   const rows: ChartPointRow[] = [];
   const allCommodities = Array.from(
@@ -282,7 +293,7 @@ function buildChartPointRows(
   );
 
   for (const trajectory of trajectories) {
-    const isSelected = trajectory.stateId === selectedTrajectoryId;
+    const isSelected = trajectory.methodId === selectedMethodId;
 
     for (const point of trajectory.points) {
       rows.push({
@@ -290,11 +301,11 @@ function buildChartPointRows(
         panel_label: 'Cost trajectory',
         metric_id: 'cost',
         metric_label: 'Cost',
-        series_id: `${trajectory.stateId}::cost`,
+        series_id: `${trajectory.methodId}::cost`,
         series_label: trajectory.label,
         legend_label: trajectory.label,
-        state_id: trajectory.stateId,
-        state_label: trajectory.label,
+        method_id: trajectory.methodId,
+        method_label: trajectory.label,
         commodity_id: '',
         commodity_label: '',
         year: point.year,
@@ -310,11 +321,11 @@ function buildChartPointRows(
         panel_label: 'Energy and process emissions',
         metric_id: 'energy',
         metric_label: 'Energy emissions',
-        series_id: `${trajectory.stateId}::energy`,
+        series_id: `${trajectory.methodId}::energy`,
         series_label: `${trajectory.label} · energy`,
         legend_label: `${trajectory.label} · energy`,
-        state_id: trajectory.stateId,
-        state_label: trajectory.label,
+        method_id: trajectory.methodId,
+        method_label: trajectory.label,
         commodity_id: '',
         commodity_label: '',
         year: point.year,
@@ -330,11 +341,11 @@ function buildChartPointRows(
         panel_label: 'Energy and process emissions',
         metric_id: 'process',
         metric_label: 'Process emissions',
-        series_id: `${trajectory.stateId}::process`,
+        series_id: `${trajectory.methodId}::process`,
         series_label: `${trajectory.label} · process`,
         legend_label: `${trajectory.label} · process`,
-        state_id: trajectory.stateId,
-        state_label: trajectory.label,
+        method_id: trajectory.methodId,
+        method_label: trajectory.label,
         commodity_id: '',
         commodity_label: '',
         year: point.year,
@@ -350,11 +361,11 @@ function buildChartPointRows(
         panel_label: 'Max share',
         metric_id: 'max_share',
         metric_label: 'Max share',
-        series_id: `${trajectory.stateId}::max_share`,
+        series_id: `${trajectory.methodId}::max_share`,
         series_label: trajectory.label,
         legend_label: trajectory.label,
-        state_id: trajectory.stateId,
-        state_label: trajectory.label,
+        method_id: trajectory.methodId,
+        method_label: trajectory.label,
         commodity_id: '',
         commodity_label: '',
         year: point.year,
@@ -370,11 +381,11 @@ function buildChartPointRows(
         panel_label: 'Max activity',
         metric_id: 'max_activity',
         metric_label: 'Max activity',
-        series_id: `${trajectory.stateId}::max_activity`,
+        series_id: `${trajectory.methodId}::max_activity`,
         series_label: trajectory.label,
         legend_label: trajectory.label,
-        state_id: trajectory.stateId,
-        state_label: trajectory.label,
+        method_id: trajectory.methodId,
+        method_label: trajectory.label,
         commodity_id: '',
         commodity_label: '',
         year: point.year,
@@ -403,11 +414,11 @@ function buildChartPointRows(
           panel_label: 'Input coefficient trajectories',
           metric_id: `input:${commodity}`,
           metric_label: commodityLabel,
-          series_id: `${trajectory.stateId}::${commodity}`,
+          series_id: `${trajectory.methodId}::${commodity}`,
           series_label: `${trajectory.label} · ${commodityLabel}`,
           legend_label: `${trajectory.label} · ${commodityLabel}`,
-          state_id: trajectory.stateId,
-          state_label: trajectory.label,
+          method_id: trajectory.methodId,
+          method_label: trajectory.label,
           commodity_id: commodity,
           commodity_label: commodityLabel,
           year: row.year,
@@ -424,7 +435,7 @@ function buildChartPointRows(
   return rows;
 }
 
-function buildMethodYearRows(trajectories: SectorStateTrajectory[]): CsvRow[] {
+function buildMethodYearRows(trajectories: RoleMethodTrajectory[]): CsvRow[] {
   return trajectories.flatMap((trajectory) =>
     trajectory.rows.map((row) => ({
       role_id: row.role_id,
@@ -433,12 +444,9 @@ function buildMethodYearRows(trajectories: SectorStateTrajectory[]): CsvRow[] {
       method_label: row.method_label,
       method_kind: row.method_kind,
       year: row.year,
-      sector: row.sector,
-      subsector: row.subsector,
-      service_or_output_name: row.service_or_output_name,
+      ...reportingAllocationColumns(row),
+      output_id: row.output_id,
       region: row.region,
-      state_id: row.state_id,
-      state_label: row.state_label,
       output_unit: row.output_unit,
       output_cost_per_unit: row.output_cost_per_unit,
       cost_basis_year: row.cost_basis_year,
@@ -473,14 +481,13 @@ function buildMethodYearRows(trajectories: SectorStateTrajectory[]): CsvRow[] {
   );
 }
 
-function buildInputCoefficientRows(trajectories: SectorStateTrajectory[]): CsvRow[] {
+function buildInputCoefficientRows(trajectories: RoleMethodTrajectory[]): CsvRow[] {
   return trajectories.flatMap((trajectory) =>
     trajectory.rows.flatMap((row) =>
       row.input_commodities.map((commodity, index) => ({
         role_id: row.role_id,
         method_id: row.method_id,
-        state_id: row.state_id,
-        state_label: row.state_label,
+        method_label: row.method_label,
         year: row.year,
         commodity_id: commodity,
         commodity_label: resolveCommodityLabel(commodity),
@@ -492,14 +499,13 @@ function buildInputCoefficientRows(trajectories: SectorStateTrajectory[]): CsvRo
   );
 }
 
-function buildEmissionsByPollutantRows(trajectories: SectorStateTrajectory[]): CsvRow[] {
+function buildEmissionsByPollutantRows(trajectories: RoleMethodTrajectory[]): CsvRow[] {
   return trajectories.flatMap((trajectory) =>
     trajectory.rows.flatMap((row) => [
       ...row.energy_emissions_by_pollutant.map((entry) => ({
         role_id: row.role_id,
         method_id: row.method_id,
-        state_id: row.state_id,
-        state_label: row.state_label,
+        method_label: row.method_label,
         year: row.year,
         emissions_category: 'energy',
         pollutant: entry.pollutant,
@@ -510,8 +516,7 @@ function buildEmissionsByPollutantRows(trajectories: SectorStateTrajectory[]): C
       ...row.process_emissions_by_pollutant.map((entry) => ({
         role_id: row.role_id,
         method_id: row.method_id,
-        state_id: row.state_id,
-        state_label: row.state_label,
+        method_label: row.method_label,
         year: row.year,
         emissions_category: 'process',
         pollutant: entry.pollutant,
@@ -557,18 +562,18 @@ function buildAssumptionRows(
 
 function buildReadme(manifest: Record<string, unknown>): string {
   const scope = manifest.scope as {
-    sector: string;
-    subsector: string;
-    selected_trajectory_id: string | null;
+    role_id: string | null;
+    representation_id: string | null;
+    method_id: string | null;
   };
 
   return [
     'Simple MSM Library Chart Data Export',
     '',
     `Generated at: ${manifest.generated_at}`,
-    `Sector: ${scope.sector || 'All sectors'}`,
-    `Subsector: ${scope.subsector || 'All subsectors'}`,
-    `Selected trajectory: ${scope.selected_trajectory_id ?? 'None'}`,
+    `Role: ${scope.role_id ?? 'All roles'}`,
+    `Representation: ${scope.representation_id ?? 'Default representation'}`,
+    `Selected method: ${scope.method_id ?? 'None'}`,
     '',
     'This zip contains the data behind the Library page chart panels for the visible scope at export time.',
     'Open report.html in a browser for an offline chart view, or inspect the CSV files in the data/ folder.',
@@ -595,8 +600,8 @@ function escapeJsonForScript(value: unknown): string {
     .replaceAll('&', '\\u0026');
 }
 
-function chartPointKey(stateId: string, metricId: string, year: number): string {
-  return `${stateId}\u0000${metricId}\u0000${year}`;
+function chartPointKey(methodId: string, metricId: string, year: number): string {
+  return `${methodId}\u0000${metricId}\u0000${year}`;
 }
 
 function formatReportPoint(point: ChartPointRow | undefined): string {
@@ -605,24 +610,24 @@ function formatReportPoint(point: ChartPointRow | undefined): string {
 }
 
 function buildReportComparisonRows(
-  trajectories: SectorStateTrajectory[],
+  trajectories: RoleMethodTrajectory[],
   years: number[],
   chartPoints: ChartPointRow[],
 ): ReportComparisonRow[] {
   const pointByKey = new Map(
-    chartPoints.map((point) => [chartPointKey(point.state_id, point.metric_id, point.year), point]),
+    chartPoints.map((point) => [chartPointKey(point.method_id, point.metric_id, point.year), point]),
   );
 
   return trajectories.flatMap((trajectory) => {
     const baseRows = REPORT_BASE_METRICS.map((metric) => ({
-      state_id: trajectory.stateId,
-      state_label: trajectory.label,
+      method_id: trajectory.methodId,
+      method_label: trajectory.label,
       metric_id: metric.id,
       metric_label: metric.label,
       values: Object.fromEntries(
         years.map((year) => [
           String(year),
-          pointByKey.get(chartPointKey(trajectory.stateId, metric.id, year))?.display_value ?? '',
+          pointByKey.get(chartPointKey(trajectory.methodId, metric.id, year))?.display_value ?? '',
         ]),
       ),
     }));
@@ -630,7 +635,7 @@ function buildReportComparisonRows(
     const inputMetrics = Array.from(
       new Map(
         chartPoints
-          .filter((point) => point.panel_id === 'input_coefficients' && point.state_id === trajectory.stateId)
+          .filter((point) => point.panel_id === 'input_coefficients' && point.method_id === trajectory.methodId)
           .map((point) => [point.metric_id, point]),
       ).values(),
     ).sort((left, right) =>
@@ -638,14 +643,14 @@ function buildReportComparisonRows(
     );
 
     const inputRows = inputMetrics.map((metric) => ({
-      state_id: trajectory.stateId,
-      state_label: trajectory.label,
+      method_id: trajectory.methodId,
+      method_label: trajectory.label,
       metric_id: metric.metric_id,
       metric_label: `Input coefficient: ${metric.metric_label}`,
       values: Object.fromEntries(
         years.map((year) => [
           String(year),
-          formatReportPoint(pointByKey.get(chartPointKey(trajectory.stateId, metric.metric_id, year))),
+          formatReportPoint(pointByKey.get(chartPointKey(trajectory.methodId, metric.metric_id, year))),
         ]),
       ),
     }));
@@ -657,18 +662,18 @@ function buildReportComparisonRows(
 function buildReportHtml(input: {
   manifest: Record<string, unknown>;
   chartPoints: ChartPointRow[];
-  trajectories: SectorStateTrajectory[];
+  trajectories: RoleMethodTrajectory[];
   years: number[];
 }): string {
-  const scope = input.manifest.scope as { sector: string; subsector: string };
-  const title = `Library export: ${scope.sector || 'all sectors'} / ${scope.subsector || 'all subsectors'}`;
+  const scope = input.manifest.scope as { role_id: string | null; representation_id: string | null };
+  const title = `Library export: ${scope.role_id ?? 'all roles'} / ${scope.representation_id ?? 'default representation'}`;
   const reportData = {
     manifest: input.manifest,
     years: input.years,
     trajectories: input.trajectories.map((trajectory) => ({
-      state_id: trajectory.stateId,
-      state_label: trajectory.label,
-      service_or_output_name: trajectory.serviceOrOutputName,
+      method_id: trajectory.methodId,
+      method_label: trajectory.label,
+      output_id: trajectory.representative.output_id,
       output_unit: trajectory.outputUnit,
       emissions_unit: trajectory.emissionsUnit,
     })),
@@ -814,7 +819,7 @@ function buildReportHtml(input: {
     </header>
 
     <section>
-      <h2>State selector</h2>
+      <h2>Method selector</h2>
       <p>Select a trajectory to highlight it across the report charts.</p>
       <div class="selector" id="state-selector"></div>
     </section>
@@ -834,7 +839,7 @@ function buildReportHtml(input: {
   <script>
     (function () {
       var data = JSON.parse(document.getElementById('library-export-data').textContent || '{}');
-      var selectedStateId = data.manifest.scope.selected_trajectory_id || (data.trajectories[0] && data.trajectories[0].state_id) || null;
+      var selectedMethodId = data.manifest.scope.method_id || (data.trajectories[0] && data.trajectories[0].method_id) || null;
       var palette = ['#2563eb', '#059669', '#d97706', '#dc2626', '#7c3aed', '#0891b2', '#4d7c0f', '#be123c'];
       var panelOrder = [
         ['cost', 'Cost trajectory'],
@@ -843,9 +848,9 @@ function buildReportHtml(input: {
         ['max_activity', 'Max activity'],
         ['input_coefficients', 'Input coefficient trajectories']
       ];
-      var colorByState = {};
+      var colorByMethod = {};
       data.trajectories.forEach(function (trajectory, index) {
-        colorByState[trajectory.state_id] = palette[index % palette.length];
+        colorByMethod[trajectory.method_id] = palette[index % palette.length];
       });
 
       function text(value) {
@@ -875,12 +880,12 @@ function buildReportHtml(input: {
       function renderMetadata() {
         var fields = [
           ['Generated', data.manifest.generated_at],
-          ['Sector', data.manifest.scope.sector || 'All sectors'],
-          ['Subsector', data.manifest.scope.subsector || 'All subsectors'],
+          ['Role', data.manifest.scope.role_id || 'All roles'],
+          ['Representation', data.manifest.scope.representation_id || 'Default representation'],
           ['Filters', JSON.stringify(data.manifest.scope.active_filters || {})],
-          ['Visible states', data.manifest.trajectory_count],
+          ['Visible methods', data.manifest.trajectory_count],
           ['Years', data.years.join(', ')],
-          ['Initial highlight', selectedStateId || 'None']
+          ['Initial highlight', selectedMethodId || 'None']
         ];
         document.getElementById('metadata').innerHTML = fields.map(function (field) {
           return '<div><dt>' + escapeText(field[0]) + '</dt><dd>' + escapeText(field[1]) + '</dd></div>';
@@ -893,10 +898,10 @@ function buildReportHtml(input: {
         data.trajectories.forEach(function (trajectory) {
           var button = document.createElement('button');
           button.type = 'button';
-          button.textContent = trajectory.state_label;
-          button.setAttribute('aria-pressed', trajectory.state_id === selectedStateId ? 'true' : 'false');
+          button.textContent = trajectory.method_label;
+          button.setAttribute('aria-pressed', trajectory.method_id === selectedMethodId ? 'true' : 'false');
           button.onclick = function () {
-            selectedStateId = trajectory.state_id;
+            selectedMethodId = trajectory.method_id;
             renderAll();
           };
           container.appendChild(button);
@@ -918,7 +923,7 @@ function buildReportHtml(input: {
             first: groups[seriesId][0]
           };
         }).sort(function (left, right) {
-          return (left.first.state_id === selectedStateId ? 1 : 0) - (right.first.state_id === selectedStateId ? 1 : 0);
+          return (left.first.method_id === selectedMethodId ? 1 : 0) - (right.first.method_id === selectedMethodId ? 1 : 0);
         });
       }
 
@@ -992,10 +997,10 @@ function buildReportHtml(input: {
           var d = entry.rows.map(function (row, index) {
             return (index === 0 ? 'M' : 'L') + x(row.year) + ' ' + y(row.value);
           }).join(' ');
-          var selected = entry.first.state_id === selectedStateId;
+          var selected = entry.first.method_id === selectedMethodId;
           path.setAttribute('d', d);
           path.setAttribute('class', 'line-path' + (selected ? ' is-selected' : ''));
-          path.setAttribute('stroke', colorByState[entry.first.state_id] || '#52606d');
+          path.setAttribute('stroke', colorByMethod[entry.first.method_id] || '#52606d');
           path.setAttribute('opacity', selected ? '1' : '0.32');
           if (entry.first.line_style && entry.first.line_style !== 'solid') {
             path.setAttribute('stroke-dasharray', entry.first.line_style);
@@ -1016,11 +1021,11 @@ function buildReportHtml(input: {
 
       function buildComparisonTable() {
         var rows = data.comparisonRows || [];
-        var html = '<table><thead><tr><th>State</th><th>Metric</th>' + data.years.map(function (year) {
+        var html = '<table><thead><tr><th>Method</th><th>Metric</th>' + data.years.map(function (year) {
           return '<th>' + escapeText(year) + '</th>';
         }).join('') + '</tr></thead><tbody>';
         rows.forEach(function (row) {
-          html += '<tr><td>' + escapeText(row.state_label) + '</td><td>' + escapeText(row.metric_label) + '</td>' + data.years.map(function (year) {
+          html += '<tr><td>' + escapeText(row.method_label) + '</td><td>' + escapeText(row.metric_label) + '</td>' + data.years.map(function (year) {
             return '<td>' + escapeText(row.values[year]) + '</td>';
           }).join('') + '</tr>';
         });
@@ -1046,13 +1051,13 @@ function buildReportHtml(input: {
 export function buildLibraryExportBundle(input: LibraryExportInput): LibraryExportBundle {
   const years = collectYears(input.trajectories);
   const selectedTrajectory = input.trajectories.find(
-    (trajectory) => trajectory.stateId === input.scope.selectedTrajectoryId,
+    (trajectory) => trajectory.methodId === input.scope.methodId,
   ) ?? null;
   const referencedSourceIds = collectReferencedIds(input.trajectories, 'source_ids');
   const referencedAssumptionIds = collectReferencedIds(input.trajectories, 'assumption_ids');
   const sourceRows = buildSourceRows(input.sourceLedger, referencedSourceIds);
   const assumptionRows = buildAssumptionRows(input.assumptionsLedger, referencedAssumptionIds);
-  const chartPointRows = buildChartPointRows(input.trajectories, input.scope.selectedTrajectoryId);
+  const chartPointRows = buildChartPointRows(input.trajectories, input.scope.methodId);
   const methodYearRows = buildMethodYearRows(input.trajectories);
   const inputCoefficientRows = buildInputCoefficientRows(input.trajectories);
   const emissionsByPollutantRows = buildEmissionsByPollutantRows(input.trajectories);
@@ -1067,22 +1072,26 @@ export function buildLibraryExportBundle(input: LibraryExportInput): LibraryExpo
     version: 1,
     generated_at: input.scope.generatedAt,
     scope: {
-      sector: input.scope.sector,
-      subsector: input.scope.subsector,
+      role_id: input.scope.roleId,
+      representation_id: input.scope.representationId,
+      method_id: input.scope.methodId,
       filters: input.scope.filters,
       active_filters: activeFilters(input.scope.filters),
-      selected_trajectory_id: input.scope.selectedTrajectoryId,
-      selected_trajectory_label: selectedTrajectory?.label ?? null,
+      method_label: selectedTrajectory?.label ?? null,
     },
     trajectory_count: input.trajectories.length,
     trajectories: input.trajectories.map((trajectory) => ({
-      state_id: trajectory.stateId,
-      state_label: trajectory.label,
+      method_id: trajectory.methodId,
+      method_label: trajectory.label,
       role_id: trajectory.representative.role_id,
-      method_id: trajectory.representative.method_id,
-      service_or_output_name: trajectory.serviceOrOutputName,
-      sector: trajectory.sector,
-      subsector: trajectory.subsector,
+      representation_id: trajectory.representative.representation_id,
+      output_id: trajectory.representative.output_id,
+      reporting_allocations: trajectory.representative.reporting_allocations.map((allocation) => ({
+        reporting_sector: allocation.sector,
+        reporting_subsector: allocation.subsector,
+        reporting_bucket: allocation.reporting_bucket,
+        allocation_share: allocation.allocation_share,
+      })),
       region: trajectory.region,
     })),
     years,
@@ -1121,7 +1130,7 @@ export function buildLibraryExportBundle(input: LibraryExportInput): LibraryExpo
   };
 
   return {
-    filename: `simple-msm-library-${slugify(input.scope.sector)}-${slugify(input.scope.subsector)}-${dateToken(input.scope.generatedAt)}.zip`,
+    filename: `simple-msm-library-${slugify(input.scope.roleId ?? 'all-roles')}-${slugify(input.scope.methodId ?? input.scope.representationId ?? 'methods')}-${dateToken(input.scope.generatedAt)}.zip`,
     files,
   };
 }

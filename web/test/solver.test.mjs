@@ -23,7 +23,7 @@ function summarizeDiagnostics(diagnostics) {
     reason: d.reason ?? '',
     outputId: d.outputId ?? '',
     year: d.year ?? '',
-    stateId: d.stateId ?? '',
+    methodId: d.methodId ?? '',
     message: d.message,
   }));
 }
@@ -32,14 +32,14 @@ function flattenResolvedControls(request) {
   const rows = [];
   for (const [outputId, yearTable] of Object.entries(request.configuration.controlsByOutput)) {
     for (const [year, control] of Object.entries(yearTable)) {
-      if (control.mode === 'optimize' && !control.activeStateIds) {
+      if (control.mode === 'optimize' && !control.activeMethodIds) {
         continue;
       }
       rows.push({
         outputId,
         year,
         mode: control.mode,
-        activeStateIds: control.activeStateIds ? control.activeStateIds.join(', ') : '',
+        activeMethodIds: control.activeMethodIds ? control.activeMethodIds.join(', ') : '',
         targetValue: control.targetValue ?? '',
       });
     }
@@ -133,9 +133,9 @@ function logCase(label, configuration, pkg) {
   }
 
   // Nonzero state shares
-  const nonzeroShares = result.reporting.stateShares.filter((row) => row.activity > 1e-6);
+  const nonzeroShares = result.reporting.methodShares.filter((row) => row.activity > 1e-6);
   if (nonzeroShares.length > 0) {
-    console.log(`\n--- Nonzero state shares (${nonzeroShares.length} / ${result.reporting.stateShares.length}) ---`);
+    console.log(`\n--- Nonzero state shares (${nonzeroShares.length} / ${result.reporting.methodShares.length}) ---`);
     console.table(nonzeroShares);
   }
 
@@ -146,12 +146,12 @@ function main() {
   const pkg = loadPkg();
   const referenceConfiguration = readJson('../src/configurations/reference-baseline.json');
 
-  console.log(`Loaded ${pkg.sectorStates.length} sector state rows`);
+  console.log(`Loaded ${pkg.resolvedMethodYears.length} sector state rows`);
   console.log(`Output roles: ${Object.keys(pkg.appConfig.output_roles).join(', ')}`);
 
   // Find electricity state IDs for test cases
   const electricityStates = [...new Set(
-    pkg.sectorStates
+    pkg.resolvedMethodYears
       .filter((row) => row.service_or_output_name === 'electricity')
       .map((row) => row.state_id),
   )];

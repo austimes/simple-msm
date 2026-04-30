@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { loadPackage } from '../src/data/packageLoader.ts';
 import {
-  filterSectorStatesByActiveRoleStructure,
+  filterResolvedMethodYearRowsByActiveRoleStructure,
   resolveActiveRoleStructure,
 } from '../src/data/roleTopologyResolver.ts';
 import { buildSolveRequest } from '../src/solver/buildSolveRequest.ts';
@@ -38,7 +38,7 @@ test('resolver keeps crude steel as a direct pathway bundle by default', () => {
   );
   assert.equal(resolved.activeRoleIds.includes('produce_direct_reduced_iron'), false);
 
-  const activeRows = filterSectorStatesByActiveRoleStructure(pkg.sectorStates, resolved);
+  const activeRows = filterResolvedMethodYearRowsByActiveRoleStructure(pkg.resolvedMethodYears, resolved);
   assert.ok(activeRows.some((row) => row.method_id === 'steel__crude_steel__h2_dri_electric'));
   assert.equal(activeRows.some((row) => row.role_id === 'produce_direct_reduced_iron'), false);
 });
@@ -87,7 +87,7 @@ test('resolver activates crude steel child roles under the H2 DRI decomposition'
 test('buildSolveRequest filters rows through the selected role representation structure', () => {
   const pkg = loadPackage();
   const directRequest = buildSolveRequest(pkg, pkg.defaultConfiguration);
-  assert.ok(directRequest.rows.some((row) => row.stateId === 'steel__crude_steel__h2_dri_electric'));
+  assert.ok(directRequest.rows.some((row) => row.methodId === 'steel__crude_steel__h2_dri_electric'));
   assert.equal(directRequest.rows.some((row) => row.outputId === 'produce_direct_reduced_iron'), false);
 
   const decomposed = cloneConfiguration(pkg.defaultConfiguration, {
@@ -104,7 +104,7 @@ test('buildSolveRequest filters rows through the selected role representation st
   });
   const decomposedRequest = buildSolveRequest(pkg, decomposed);
 
-  assert.equal(decomposedRequest.rows.some((row) => row.stateId === 'steel__crude_steel__h2_dri_electric'), false);
+  assert.equal(decomposedRequest.rows.some((row) => row.methodId === 'steel__crude_steel__h2_dri_electric'), false);
   assert.ok(decomposedRequest.rows.some((row) => row.outputId === 'produce_direct_reduced_iron'));
   assert.ok(decomposedRequest.rows.some((row) => row.outputId === 'melt_refine_dri_crude_steel'));
   assert.ok(decomposedRequest.configuration.serviceDemandByOutput.crude_steel);

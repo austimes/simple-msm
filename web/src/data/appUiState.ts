@@ -57,9 +57,10 @@ export interface WorkspaceUiState {
 export interface LibraryUiState {
   sidebarCollapsed: boolean;
   filters: LibraryFilters;
-  selectedSector: string;
-  selectedSubsector: string;
-  selectedTrajectoryId: string | null;
+  selectedRoleId: string | null;
+  selectedRepresentationId: string | null;
+  selectedMethodId: string | null;
+  roleGraphExpandedNodeIds: string[];
 }
 
 export interface MethodsUiState {
@@ -120,9 +121,10 @@ export const DEFAULT_APP_UI_STATE: AppUiState = {
       efficiencyApplicability: '',
       efficiencyArtifactType: '',
     },
-    selectedSector: '',
-    selectedSubsector: '',
-    selectedTrajectoryId: null,
+    selectedRoleId: null,
+    selectedRepresentationId: null,
+    selectedMethodId: null,
+    roleGraphExpandedNodeIds: [],
   },
   methods: {
     activeTab: 'about',

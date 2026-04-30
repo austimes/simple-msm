@@ -5,7 +5,7 @@ import type {
   NormalizedSolverRowProvenance,
   SolveRequest,
   SolveResult,
-  SolveStateShareSummary,
+  SolveMethodShareSummary,
 } from '../solver/contract.ts';
 import type {
   EfficiencyAttributionCategory,
@@ -37,8 +37,8 @@ export interface ResultContributionRow {
   outputLabel: string | null;
   sourceId: string;
   sourceLabel: string;
-  pathwayStateId?: string | null;
-  pathwayStateLabel?: string | null;
+  pathwayMethodId?: string | null;
+  pathwayMethodLabel?: string | null;
   provenance?: NormalizedSolverRowProvenance;
   sectorId: string;
   sectorLabel: string;
@@ -56,16 +56,16 @@ const ATTRIBUTION_EPSILON = 1e-9;
 type ShareLookupKey = string;
 type EfficiencyAttributionBasis = NonNullable<NormalizedSolverRow['efficiencyAttributionBasis']>;
 
-function shareKey(outputId: string, year: number, stateId: string): ShareLookupKey {
-  return `${outputId}::${year}::${stateId}`;
+function shareKey(outputId: string, year: number, methodId: string): ShareLookupKey {
+  return `${outputId}::${year}::${methodId}`;
 }
 
 function buildShareLookup(
-  stateShares: SolveStateShareSummary[],
-): Map<ShareLookupKey, SolveStateShareSummary> {
-  const map = new Map<ShareLookupKey, SolveStateShareSummary>();
-  for (const ss of stateShares) {
-    map.set(shareKey(ss.outputId, ss.year, ss.stateId), ss);
+  methodShares: SolveMethodShareSummary[],
+): Map<ShareLookupKey, SolveMethodShareSummary> {
+  const map = new Map<ShareLookupKey, SolveMethodShareSummary>();
+  for (const ss of methodShares) {
+    map.set(shareKey(ss.outputId, ss.year, ss.methodId), ss);
   }
   return map;
 }
@@ -193,7 +193,7 @@ export function buildSolverContributionRows(
   result: SolveResult,
 ): ResultContributionRow[] {
   const rows: ResultContributionRow[] = [];
-  const lookup = buildShareLookup(result.reporting.stateShares);
+  const lookup = buildShareLookup(result.reporting.methodShares);
 
   const balancedCommodityKeys = new Set(
     result.reporting.commodityBalances
@@ -202,23 +202,25 @@ export function buildSolverContributionRows(
   );
 
   for (const row of request.rows) {
-    const ss = lookup.get(shareKey(row.outputId, row.year, row.stateId));
+    const ss = lookup.get(shareKey(row.outputId, row.year, row.methodId));
     if (!ss || ss.activity === 0) continue;
+    const legacySectorId = (row as unknown as { sector?: string }).sector;
+    const legacySubsectorId = (row as unknown as { subsector?: string }).subsector;
 
     const solverBase = {
       sourceKind: 'solver' as const,
       rowId: ss.rowId ?? row.rowId,
       outputId: row.outputId,
       outputLabel: row.outputLabel,
-      sourceId: row.stateId,
-      sourceLabel: row.stateLabel,
-      pathwayStateId: ss.pathwayStateId ?? row.provenance?.baseStateId ?? row.stateId,
-      pathwayStateLabel: ss.pathwayStateLabel ?? row.provenance?.baseStateLabel ?? row.stateLabel,
+      sourceId: row.methodId,
+      sourceLabel: row.methodLabel,
+      pathwayMethodId: ss.pathwayMethodId ?? row.provenance?.baseMethodId ?? row.methodId,
+      pathwayMethodLabel: ss.pathwayMethodLabel ?? row.provenance?.baseMethodLabel ?? row.methodLabel,
       provenance: ss.provenance ?? row.provenance,
-      sectorId: row.sector,
-      sectorLabel: row.sector,
-      subsectorId: row.subsector,
-      subsectorLabel: row.subsector,
+      sectorId: row.reportingSectorId ?? legacySectorId ?? row.outputId,
+      sectorLabel: row.reportingSectorId ?? legacySectorId ?? row.outputLabel,
+      subsectorId: row.reportingSubsectorId ?? legacySubsectorId ?? row.outputId,
+      subsectorLabel: row.reportingSubsectorId ?? legacySubsectorId ?? row.outputLabel,
       overlayId: null,
       overlayDomain: null,
     };
@@ -398,8 +400,8 @@ export function buildOverlayContributionRows(
         outputLabel: null,
         sourceId: p.overlayId,
         sourceLabel: p.overlayLabel,
-        pathwayStateId: null,
-        pathwayStateLabel: null,
+        pathwayMethodId: null,
+        pathwayMethodLabel: null,
         sectorId: p.overlayId,
         sectorLabel: p.overlayLabel,
         subsectorId: p.overlayId,
@@ -428,8 +430,8 @@ export function buildOverlayContributionRows(
         outputLabel: null,
         sourceId: p.overlayId,
         sourceLabel: p.overlayLabel,
-        pathwayStateId: null,
-        pathwayStateLabel: null,
+        pathwayMethodId: null,
+        pathwayMethodLabel: null,
         sectorId: p.overlayId,
         sectorLabel: p.overlayLabel,
         subsectorId: p.overlayId,
@@ -454,8 +456,8 @@ export function buildOverlayContributionRows(
         outputLabel: null,
         sourceId: p.overlayId,
         sourceLabel: p.overlayLabel,
-        pathwayStateId: null,
-        pathwayStateLabel: null,
+        pathwayMethodId: null,
+        pathwayMethodLabel: null,
         sectorId: p.overlayId,
         sectorLabel: p.overlayLabel,
         subsectorId: p.overlayId,
@@ -480,8 +482,8 @@ export function buildOverlayContributionRows(
         outputLabel: null,
         sourceId: p.overlayId,
         sourceLabel: p.overlayLabel,
-        pathwayStateId: null,
-        pathwayStateLabel: null,
+        pathwayMethodId: null,
+        pathwayMethodLabel: null,
         sectorId: p.overlayId,
         sectorLabel: p.overlayLabel,
         subsectorId: p.overlayId,
@@ -509,8 +511,8 @@ export function buildOverlayContributionRows(
         outputLabel: null,
         sourceId: p.overlayId,
         sourceLabel: p.overlayLabel,
-        pathwayStateId: null,
-        pathwayStateLabel: null,
+        pathwayMethodId: null,
+        pathwayMethodLabel: null,
         sectorId: p.overlayId,
         sectorLabel: p.overlayLabel,
         subsectorId: p.overlayId,

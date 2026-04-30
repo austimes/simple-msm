@@ -4,7 +4,7 @@ import ModelFormulationPageContent from './ModelFormulationPageContent.tsx';
 import { buildModelFormulationViewModel } from './modelFormulationModel.ts';
 
 export default function ModelFormulationPage(): React.JSX.Element {
-  const sectorStates = usePackageStore((state) => state.sectorStates);
+  const resolvedMethodYears = usePackageStore((state) => state.resolvedMethodYears);
   const appConfig = usePackageStore((state) => state.appConfig);
   const currentConfiguration = usePackageStore((state) => state.currentConfiguration);
   const autonomousEfficiencyTracks = usePackageStore((state) => state.autonomousEfficiencyTracks);
@@ -16,7 +16,7 @@ export default function ModelFormulationPage(): React.JSX.Element {
   const model = useMemo(
     () =>
       buildModelFormulationViewModel({
-        sectorStates,
+        resolvedMethodYears,
         appConfig,
         currentConfiguration,
         autonomousEfficiencyTracks,
@@ -33,7 +33,7 @@ export default function ModelFormulationPage(): React.JSX.Element {
       emissionsBalance2025,
       efficiencyPackages,
       residualOverlays2025,
-      sectorStates,
+      resolvedMethodYears,
     ],
   );
 

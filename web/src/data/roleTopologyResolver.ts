@@ -6,7 +6,7 @@ import type {
   RoleDecompositionEdge,
   RoleMetadata,
   RoleRepresentation,
-  SectorState,
+  ResolvedMethodYearRow,
 } from './types.ts';
 
 export interface RoleTopologyInputs {
@@ -17,7 +17,7 @@ export interface RoleTopologyInputs {
 }
 
 export type RoleTopologyPackage = {
-  sectorStates: SectorState[];
+  resolvedMethodYears: ResolvedMethodYearRow[];
 } & Partial<RoleTopologyInputs>;
 
 export function hasRoleTopologyInputs(pkg: Partial<RoleTopologyInputs>): pkg is RoleTopologyInputs {
@@ -312,25 +312,25 @@ export function resolveActiveRoleStructure(
   };
 }
 
-export function filterSectorStatesByActiveRoleStructure(
-  rows: SectorState[],
+export function filterResolvedMethodYearRowsByActiveRoleStructure(
+  rows: ResolvedMethodYearRow[],
   activeStructure: Pick<ResolvedActiveRoleStructure, 'activeMethodKeys'>,
-): SectorState[] {
+): ResolvedMethodYearRow[] {
   return rows.filter((row) =>
     activeStructure.activeMethodKeys.has(methodKey(row.role_id, row.representation_id, row.method_id)),
   );
 }
 
-export function resolveActiveSectorStatesForConfiguration(
+export function resolveActiveResolvedMethodYearRowsForConfiguration(
   pkg: RoleTopologyPackage,
   configuration: Pick<ConfigurationDocument, 'representation_by_role'>,
-): SectorState[] {
+): ResolvedMethodYearRow[] {
   if (!hasRoleTopologyInputs(pkg)) {
-    return pkg.sectorStates;
+    return pkg.resolvedMethodYears;
   }
 
-  return filterSectorStatesByActiveRoleStructure(
-    pkg.sectorStates,
+  return filterResolvedMethodYearRowsByActiveRoleStructure(
+    pkg.resolvedMethodYears,
     resolveActiveRoleStructure(pkg, configuration),
   );
 }

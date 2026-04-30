@@ -160,7 +160,7 @@ export function buildPackageEnrichment(textFiles: Record<string, string>): Packa
       : [],
     methodYearsSchema,
     roleReadmes: sectorDerivations,
-    sectorStatesSchema: methodYearsSchema,
+    resolvedMethodYearsSchema: methodYearsSchema,
     sectorDerivations,
   };
 }

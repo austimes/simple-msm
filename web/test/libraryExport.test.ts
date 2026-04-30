@@ -8,9 +8,9 @@ import {
 } from '../src/data/libraryExport.ts';
 import { createLibraryExportZip } from '../src/data/libraryExportDownload.ts';
 import {
-  buildSectorStateFamilies,
-  buildSectorStateTrajectory,
-  type SectorStateTrajectory,
+  buildRoleMethodFamilies,
+  buildRoleMethodTrajectory,
+  type RoleMethodTrajectory,
 } from '../src/data/libraryInsights.ts';
 import { DEFAULT_APP_UI_STATE } from '../src/data/appUiState.ts';
 import { parseCsv } from '../src/data/parseCsv.ts';
@@ -30,15 +30,17 @@ const EXPECTED_FILES = [
 
 const pkg = loadPkg();
 
-function buildElectricityTrajectories(): SectorStateTrajectory[] {
-  return buildSectorStateFamilies(pkg.sectorStates)
-    .filter((family) => family.sector === 'electricity_supply' && family.subsector === 'grid_supply')
-    .map((family) => buildSectorStateTrajectory(family));
+function buildElectricityTrajectories(): RoleMethodTrajectory[] {
+  return buildRoleMethodFamilies(pkg.resolvedMethodYears)
+    .filter((family) =>
+      family.representative.role_id === 'supply_electricity'
+      && family.representative.representation_id === 'supply_electricity__pathway_bundle')
+    .map((family) => buildRoleMethodTrajectory(family));
 }
 
 function buildElectricityBundle(): {
   bundle: LibraryExportBundle;
-  trajectories: SectorStateTrajectory[];
+  trajectories: RoleMethodTrajectory[];
 } {
   const trajectories = buildElectricityTrajectories();
 
@@ -46,13 +48,13 @@ function buildElectricityBundle(): {
     trajectories,
     bundle: buildLibraryExportBundle({
       scope: {
-        sector: 'electricity_supply',
-        subsector: 'grid_supply',
+        roleId: 'supply_electricity',
+        representationId: 'supply_electricity__pathway_bundle',
+        methodId: 'electricity__grid_supply__policy_frontier',
         filters: {
           ...DEFAULT_APP_UI_STATE.library.filters,
           search: 'grid',
         },
-        selectedTrajectoryId: 'electricity__grid_supply__policy_frontier',
         generatedAt: '2026-04-29T03:04:05.000Z',
       },
       trajectories,
@@ -64,7 +66,7 @@ function buildElectricityBundle(): {
 
 function parseReportData(report: string): {
   comparisonRows: Array<{
-    state_id: string;
+    method_id: string;
     metric_id: string;
     metric_label: string;
     values: Record<string, string>;
@@ -89,10 +91,10 @@ describe('library export bundle', () => {
       true,
     );
     assert.deepEqual(Object.keys(bundle.files), EXPECTED_FILES);
-    assert.equal(bundle.filename, 'simple-msm-library-electricity-supply-grid-supply-20260429.zip');
-    assert.equal(manifest.scope.sector, 'electricity_supply');
-    assert.equal(manifest.scope.subsector, 'grid_supply');
-    assert.equal(manifest.scope.selected_trajectory_id, 'electricity__grid_supply__policy_frontier');
+    assert.equal(bundle.filename, 'simple-msm-library-supply-electricity-electricity-grid-supply-policy-frontier-20260429.zip');
+    assert.equal(manifest.scope.role_id, 'supply_electricity');
+    assert.equal(manifest.scope.representation_id, 'supply_electricity__pathway_bundle');
+    assert.equal(manifest.scope.method_id, 'electricity__grid_supply__policy_frontier');
     assert.deepEqual(manifest.scope.active_filters, { search: 'grid' });
     assert.equal(manifest.trajectory_count, trajectories.length);
     assert.deepEqual(manifest.years, [2025, 2030, 2035, 2040, 2045, 2050]);
@@ -114,7 +116,7 @@ describe('library export bundle', () => {
 
     const maxShare = rows.find((row) =>
       row.panel_id === 'max_share'
-      && row.state_id === 'electricity__grid_supply__deep_clean_firmed'
+      && row.method_id === 'electricity__grid_supply__deep_clean_firmed'
       && row.year === '2025'
     );
 
@@ -155,11 +157,11 @@ describe('library export bundle', () => {
     const reportData = parseReportData(bundle.files['report.html']);
     const inputRows = reportData.comparisonRows.filter((row) => row.metric_id.startsWith('input:'));
     const incumbentCoal = inputRows.find((row) =>
-      row.state_id === 'electricity__grid_supply__incumbent_thermal_mix'
+      row.method_id === 'electricity__grid_supply__incumbent_thermal_mix'
       && row.metric_label === 'Input coefficient: Coal'
     );
     const incumbentNaturalGas = inputRows.find((row) =>
-      row.state_id === 'electricity__grid_supply__incumbent_thermal_mix'
+      row.method_id === 'electricity__grid_supply__incumbent_thermal_mix'
       && row.metric_label === 'Input coefficient: Natural gas'
     );
 

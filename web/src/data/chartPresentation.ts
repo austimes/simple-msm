@@ -296,10 +296,10 @@ export function buildFuelSwitchLegendLabel(
 }
 
 export function buildStateMetricLegendLabel(
-  stateId: string,
+  methodId: string,
   kind: 'energy' | 'process',
 ): string {
-  const statePresentation = getPresentation('state', stateId);
+  const statePresentation = getPresentation('state', methodId);
 
   return composeLegendLabel([
     statePresentation.legendToken ?? buildFallbackToken(statePresentation.legendLabel),
@@ -308,10 +308,10 @@ export function buildStateMetricLegendLabel(
 }
 
 export function buildStateCommodityLegendLabel(
-  stateId: string,
+  methodId: string,
   commodityId: string,
 ): string {
-  const statePresentation = getPresentation('state', stateId);
+  const statePresentation = getPresentation('state', methodId);
   const commodityPresentation = getPresentation('commodity', commodityId);
 
   return composeLegendLabel([

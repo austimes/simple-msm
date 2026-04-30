@@ -258,7 +258,7 @@
             "off"
           ]
         },
-        "autonomous_modes_by_output": {
+        "autonomous_modes_by_role": {
           "type": [
             "object",
             "null"

@@ -62,13 +62,13 @@ test('normalizeSolverRows canonicalizes package electricity inputs', () => {
   const rows = normalizeSolverRows(pkg);
   const residentialIncumbent = rows.find((row) => {
     return row.outputId === 'residential_building_services'
-      && row.stateId === 'buildings__residential__incumbent_mixed_fuels'
+      && row.methodId === 'buildings__residential__incumbent_mixed_fuels'
       && row.year === 2025;
   });
   const electricityInput = residentialIncumbent?.inputs.find((input) => input.commodityId === 'electricity');
   const steelEaf = rows.find((row) => {
     return row.outputId === 'crude_steel'
-      && row.stateId === 'steel__crude_steel__scrap_eaf'
+      && row.methodId === 'steel__crude_steel__scrap_eaf'
       && row.year === 2025;
   });
   const steelElectricityInput = steelEaf?.inputs.find((input) => input.commodityId === 'electricity');

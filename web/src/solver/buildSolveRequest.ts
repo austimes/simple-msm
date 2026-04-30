@@ -3,13 +3,14 @@ import type {
   PackageData,
   ResolvedActiveRoleStructure,
   RoleMetadata,
-  SectorState,
+  ResolvedMethodYearRow,
 } from '../data/types.ts';
 import {
-  filterSectorStatesByActiveRoleStructure,
+  filterResolvedMethodYearRowsByActiveRoleStructure,
   hasRoleTopologyInputs,
   resolveActiveRoleStructure,
 } from '../data/roleTopologyResolver.ts';
+import { normalizeConfigurationRoleControls } from '../data/configurationRoleControls.ts';
 import {
   SOLVER_CONTRACT_VERSION,
   type NormalizedSolverRow,
@@ -29,7 +30,7 @@ import {
 
 export { normalizeSolverRows, resolveConfigurationForSolve } from './solveRequestModel.ts';
 
-type SolvePackageData = Pick<PackageData, 'sectorStates' | 'appConfig'>
+type SolvePackageData = Pick<PackageData, 'resolvedMethodYears' | 'appConfig'>
   & Partial<Pick<
     PackageData,
     | 'autonomousEfficiencyTracks'
@@ -40,12 +41,12 @@ type SolvePackageData = Pick<PackageData, 'sectorStates' | 'appConfig'>
     | 'methods'
   >>;
 
-function collectOutputIdByRoleId(sectorStates: SectorState[]): Map<string, string> {
+function collectOutputIdByRoleId(resolvedMethodYears: ResolvedMethodYearRow[]): Map<string, string> {
   const outputIdByRoleId = new Map<string, string>();
 
-  for (const row of sectorStates) {
+  for (const row of resolvedMethodYears) {
     if (!outputIdByRoleId.has(row.role_id)) {
-      outputIdByRoleId.set(row.role_id, row.service_or_output_name);
+      outputIdByRoleId.set(row.role_id, row.output_id);
     }
   }
 
@@ -60,7 +61,7 @@ function stripLeadingRoleVerb(roleId: string): string | null {
 function inferIntermediateCommodityId(
   role: RoleMetadata,
   outputIdByRoleId: Map<string, string>,
-  activeRows: SectorState[],
+  activeRows: ResolvedMethodYearRow[],
 ): string | null {
   if (role.balance_type !== 'intermediate_material') {
     return null;
@@ -84,9 +85,9 @@ function buildRoleTopologyForSolve(
     'roleMetadata'
   >>,
   activeStructure: ResolvedActiveRoleStructure,
-  activeSectorStates: SectorState[],
+  activeResolvedMethodYearRows: ResolvedMethodYearRow[],
 ): SolveRoleTopology {
-  const outputIdByRoleId = collectOutputIdByRoleId(pkg.sectorStates);
+  const outputIdByRoleId = collectOutputIdByRoleId(pkg.resolvedMethodYears);
   const rolesById = pkg.roleMetadata.reduce<SolveRoleTopology['rolesById']>((resolved, role) => {
     resolved[role.role_id] = {
       roleId: role.role_id,
@@ -107,7 +108,7 @@ function buildRoleTopologyForSolve(
       continue;
     }
 
-    const commodityId = inferIntermediateCommodityId(role, outputIdByRoleId, activeSectorStates);
+    const commodityId = inferIntermediateCommodityId(role, outputIdByRoleId, activeResolvedMethodYearRows);
     if (commodityId) {
       intermediateCommodityByRole[roleId] = commodityId;
     }
@@ -213,11 +214,11 @@ function filterSolveRequestForOutputs(
   };
 }
 
-function expandActiveStateIdsForDerivedRows(
+function expandActiveMethodIdsForDerivedRows(
   rows: NormalizedSolverRow[],
   configuration: ResolvedConfigurationForSolve,
 ): ResolvedConfigurationForSolve {
-  const derivedStateIdsByOutputYearBase = new Map<string, Map<string, Set<string>>>();
+  const derivedMethodIdsByOutputYearBase = new Map<string, Map<string, Set<string>>>();
 
   for (const row of rows) {
     if (row.provenance?.kind !== 'efficiency_package') {
@@ -225,11 +226,11 @@ function expandActiveStateIdsForDerivedRows(
     }
 
     const outputYearKey = `${row.outputId}::${row.year}`;
-    const byBaseStateId = derivedStateIdsByOutputYearBase.get(outputYearKey) ?? new Map<string, Set<string>>();
-    const stateIds = byBaseStateId.get(row.provenance.baseStateId) ?? new Set<string>();
-    stateIds.add(row.stateId);
-    byBaseStateId.set(row.provenance.baseStateId, stateIds);
-    derivedStateIdsByOutputYearBase.set(outputYearKey, byBaseStateId);
+    const byBaseMethodId = derivedMethodIdsByOutputYearBase.get(outputYearKey) ?? new Map<string, Set<string>>();
+    const methodIds = byBaseMethodId.get(row.provenance.baseMethodId) ?? new Set<string>();
+    methodIds.add(row.methodId);
+    byBaseMethodId.set(row.provenance.baseMethodId, methodIds);
+    derivedMethodIdsByOutputYearBase.set(outputYearKey, byBaseMethodId);
   }
 
   const controlsByOutput = Object.entries(configuration.controlsByOutput).reduce<
@@ -237,27 +238,27 @@ function expandActiveStateIdsForDerivedRows(
   >((resolved, [outputId, controlsByYear]) => {
     resolved[outputId] = Object.entries(controlsByYear).reduce<Record<string, ResolvedSolveControl>>(
       (controls, [year, control]) => {
-        if (!control.activeStateIds || Number(year) === 2025) {
+        if (!control.activeMethodIds || Number(year) === 2025) {
           controls[year] = control;
           return controls;
         }
 
-        const byBaseStateId = derivedStateIdsByOutputYearBase.get(`${outputId}::${Number(year)}`);
-        if (!byBaseStateId) {
+        const byBaseMethodId = derivedMethodIdsByOutputYearBase.get(`${outputId}::${Number(year)}`);
+        if (!byBaseMethodId) {
           controls[year] = control;
           return controls;
         }
 
-        const expandedActiveStateIds = new Set(control.activeStateIds);
-        for (const activeStateId of control.activeStateIds) {
-          for (const derivedStateId of byBaseStateId.get(activeStateId) ?? []) {
-            expandedActiveStateIds.add(derivedStateId);
+        const expandedActiveMethodIds = new Set(control.activeMethodIds);
+        for (const activeMethodId of control.activeMethodIds) {
+          for (const derivedMethodId of byBaseMethodId.get(activeMethodId) ?? []) {
+            expandedActiveMethodIds.add(derivedMethodId);
           }
         }
 
         controls[year] = {
           ...control,
-          activeStateIds: Array.from(expandedActiveStateIds),
+          activeMethodIds: Array.from(expandedActiveMethodIds),
         };
         return controls;
       },
@@ -287,7 +288,7 @@ export function collectOutputIdsForSelection(
   if (selection.sectors) {
     const sectors = new Set(selection.sectors);
     for (const row of rows) {
-      if (sectors.has(row.sector)) {
+      if (row.reportingSectorId && sectors.has(row.reportingSectorId)) {
         outputIds.add(row.outputId);
       }
     }
@@ -296,7 +297,7 @@ export function collectOutputIdsForSelection(
   if (selection.subsectors) {
     const subsectors = new Set(selection.subsectors);
     for (const row of rows) {
-      if (subsectors.has(row.subsector)) {
+      if (row.reportingSubsectorId && subsectors.has(row.reportingSubsectorId)) {
         outputIds.add(row.outputId);
       }
     }
@@ -309,25 +310,28 @@ export function buildSolveRequest(
   pkg: SolvePackageData,
   configuration: ConfigurationDocument,
 ): SolveRequest {
+  const roleNativeConfiguration = normalizeConfigurationRoleControls(configuration, {
+    resolvedMethodYears: pkg.resolvedMethodYears,
+  });
   const activeRoleStructure = hasRoleTopologyInputs(pkg)
-    ? resolveActiveRoleStructure(pkg, configuration)
+    ? resolveActiveRoleStructure(pkg, roleNativeConfiguration)
     : null;
-  const sectorStates = activeRoleStructure
-    ? filterSectorStatesByActiveRoleStructure(pkg.sectorStates, activeRoleStructure)
-    : pkg.sectorStates;
+  const resolvedMethodYears = activeRoleStructure
+    ? filterResolvedMethodYearRowsByActiveRoleStructure(pkg.resolvedMethodYears, activeRoleStructure)
+    : pkg.resolvedMethodYears;
   const resolvedConfiguration = resolveConfigurationForSolve(
-    configuration,
+    roleNativeConfiguration,
     pkg.appConfig,
-    sectorStates,
+    resolvedMethodYears,
     {
       autonomousEfficiencyTracks: pkg.autonomousEfficiencyTracks,
       efficiencyPackages: pkg.efficiencyPackages,
     },
   );
-  const allRows = normalizeSolverRows({ ...pkg, sectorStates }, resolvedConfiguration.efficiency);
-  const expandedConfiguration = expandActiveStateIdsForDerivedRows(allRows, resolvedConfiguration);
+  const allRows = normalizeSolverRows({ ...pkg, resolvedMethodYears }, resolvedConfiguration.efficiency);
+  const expandedConfiguration = expandActiveMethodIdsForDerivedRows(allRows, resolvedConfiguration);
   const roleTopology = activeRoleStructure && hasRoleTopologyInputs(pkg)
-    ? buildRoleTopologyForSolve(pkg, activeRoleStructure, sectorStates)
+    ? buildRoleTopologyForSolve(pkg, activeRoleStructure, resolvedMethodYears)
     : undefined;
 
   const includedOutputIds = deriveIncludedOutputIds(allRows, expandedConfiguration, pkg.appConfig);

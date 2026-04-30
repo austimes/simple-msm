@@ -5,7 +5,7 @@
  * by buildSolveRequest.ts or any solver-facing code. These functions exist
  * solely for balance-sheet validation and UI display.
  */
-import type { ResidualOverlayRow, SectorState } from './types.ts';
+import type { ResidualOverlayRow, ResolvedMethodYearRow } from './types.ts';
 
 export const GRID_LOSSES_OWN_USE_FAMILY_ID = 'electricity_grid_losses_own_use';
 export const RESIDUAL_LULUCF_SINK_FAMILY_ID = 'residual_lulucf_sink';
@@ -83,7 +83,7 @@ export function summarizeOverlayTotals(
   };
 }
 
-function sumEmissionsMt(entries: SectorState['energy_emissions_by_pollutant']): number {
+function sumEmissionsMt(entries: ResolvedMethodYearRow['energy_emissions_by_pollutant']): number {
   return entries.reduce((sum, entry) => sum + entry.value, 0) / 1_000_000;
 }
 
@@ -108,10 +108,10 @@ function inputCoefficientToElectricityTwh(
   return coefficient / 1_000_000;
 }
 
-function residualFamilyRows(sectorStates: SectorState[]): SectorState[] {
-  const rowsByFamily = new Map<string, SectorState>();
+function residualFamilyRows(resolvedMethodYears: ResolvedMethodYearRow[]): ResolvedMethodYearRow[] {
+  const rowsByFamily = new Map<string, ResolvedMethodYearRow>();
 
-  for (const row of sectorStates) {
+  for (const row of resolvedMethodYears) {
     if (row.family_resolution !== 'residual_stub' || row.year !== 2025) {
       continue;
     }
@@ -125,7 +125,7 @@ function residualFamilyRows(sectorStates: SectorState[]): SectorState[] {
   );
 }
 
-function defaultIncludedResidualFamilyIds(rows: SectorState[]): Set<string> {
+function defaultIncludedResidualFamilyIds(rows: ResolvedMethodYearRow[]): Set<string> {
   return new Set(
     rows
       .filter((row) => row.family_id !== RESIDUAL_LULUCF_SINK_FAMILY_ID)
@@ -134,10 +134,10 @@ function defaultIncludedResidualFamilyIds(rows: SectorState[]): Set<string> {
 }
 
 export function summarizeResidualFamilyTotals(
-  sectorStates: SectorState[],
+  resolvedMethodYears: ResolvedMethodYearRow[],
   includedFamilyIds?: Set<string>,
 ): OverlayTotalsSummary {
-  const rows = residualFamilyRows(sectorStates);
+  const rows = residualFamilyRows(resolvedMethodYears);
   const included = includedFamilyIds ?? defaultIncludedResidualFamilyIds(rows);
 
   let totalResidualEnergyPj = 0;

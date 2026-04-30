@@ -1,21 +1,15 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Background,
   BaseEdge,
-  Controls,
   EdgeLabelRenderer,
   Handle,
   Position,
-  ReactFlow,
-  ReactFlowProvider,
-  useReactFlow,
   type EdgeProps,
-  type NodeChange,
   type NodeProps,
   type NodeTypes,
   type EdgeTypes,
-  type XYPosition,
 } from '@xyflow/react';
+import GraphCanvasShell from '../graph/GraphCanvasShell.tsx';
 import { getSystemFlowPortEdgePath } from './systemFlowGraphEdges.ts';
 import type {
   SystemFlowGraphData,
@@ -322,107 +316,37 @@ function SystemFlowCanvasInner({
   collapsedSegmentIds,
   onToggleSegment,
 }: SystemFlowGraphCanvasProps) {
-  const { fitView } = useReactFlow<SystemFlowDiagramNode, SystemFlowDiagramEdge>();
   const { layout, isLoading } = useSystemFlowLayout(data, viewMode);
-  const [manualPositions, setManualPositions] = useState(() => new Map<string, XYPosition>());
   const nodes = useMemo<SystemFlowDiagramNode[]>(() => {
     return layout.nodes.map((node) => {
-      const cachedPosition = manualPositions.get(node.id);
-      const nextNode = cachedPosition
-        ? {
-          ...node,
-          position: cachedPosition,
-        }
-        : node;
-
       if (node.type !== SYSTEM_FLOW_SEGMENT_NODE_TYPE) {
-        return nextNode;
+        return node;
       }
 
       return {
-        ...nextNode,
+        ...node,
         data: {
-          ...nextNode.data,
+          ...node.data,
           onToggleSegment,
         },
       };
     });
-  }, [layout.nodes, manualPositions, onToggleSegment]);
-
-  const onNodesChange = useCallback((changes: NodeChange<SystemFlowDiagramNode>[]) => {
-    setManualPositions((currentPositions) => {
-      let nextPositions: Map<string, XYPosition> | null = null;
-
-      for (const change of changes) {
-        if (change.type !== 'position' || !change.position) {
-          continue;
-        }
-
-        nextPositions ??= new Map(currentPositions);
-        nextPositions.set(change.id, change.position);
-      }
-
-      return nextPositions ?? currentPositions;
-    });
-  }, []);
-
-  useEffect(() => {
-    if (layout.nodes.length === 0) {
-      return;
-    }
-
-    const animationFrame = window.requestAnimationFrame(() => {
-      const focusNodes = layout.nodes.filter((node) => !node.parentId);
-
-      fitView({
-        nodes: focusNodes.length > 0 ? focusNodes.map((node) => ({ id: node.id })) : undefined,
-        padding: 0.16,
-        minZoom: 0.32,
-        maxZoom: 0.82,
-        duration: 240,
-      });
-    });
-
-    return () => window.cancelAnimationFrame(animationFrame);
-  }, [collapsedSegmentIds, fitView, layout.nodes, viewMode]);
+  }, [layout.nodes, onToggleSegment]);
 
   return (
-    <div className={`system-flow-graph system-flow-graph--${viewMode}`}>
-      {isLoading ? (
-        <div className="system-flow-graph__loading">Laying out system flow</div>
-      ) : null}
-      <ReactFlow<SystemFlowDiagramNode, SystemFlowDiagramEdge>
-        nodes={nodes}
-        edges={layout.edges}
-        nodeTypes={NODE_TYPES}
-        edgeTypes={EDGE_TYPES}
-        onNodesChange={onNodesChange}
-        nodesDraggable
-        nodesConnectable={false}
-        nodesFocusable={false}
-        edgesFocusable={false}
-        edgesReconnectable={false}
-        elementsSelectable
-        fitView
-        fitViewOptions={{ padding: 0.16, minZoom: 0.32, maxZoom: 0.82 }}
-        minZoom={0.32}
-        maxZoom={1.6}
-        panOnScroll
-        zoomOnDoubleClick={false}
-        preventScrolling={false}
-        proOptions={{ hideAttribution: true }}
-      >
-        <Background color="#cbd5e1" gap={28} size={1} />
-        <Controls showInteractive={false} />
-      </ReactFlow>
-    </div>
+    <GraphCanvasShell<SystemFlowDiagramNode, SystemFlowDiagramEdge>
+      className={`system-flow-graph system-flow-graph--${viewMode}`}
+      nodes={nodes}
+      edges={layout.edges}
+      nodeTypes={NODE_TYPES}
+      edgeTypes={EDGE_TYPES}
+      isLoading={isLoading}
+      loadingLabel="Laying out system flow"
+      fitViewKey={`${viewMode}:${Array.from(collapsedSegmentIds).sort().join('|')}`}
+    />
   );
 }
 
 export default function SystemFlowGraphCanvas(props: SystemFlowGraphCanvasProps) {
-  return (
-    <ReactFlowProvider>
-      <SystemFlowCanvasInner {...props} />
-    </ReactFlowProvider>
-  );
+  return <SystemFlowCanvasInner {...props} />;
 }

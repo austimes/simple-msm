@@ -70,24 +70,24 @@ function buildFuelTotalRow({
   };
 }
 
-function baseProvenance(stateId, stateLabel = stateId) {
+function baseProvenance(methodId, methodLabel = methodId) {
   return {
     kind: 'base_state',
     familyId: 'commercial_building_services',
-    baseStateId: stateId,
-    baseStateLabel: stateLabel,
-    baseRowId: `${stateId}::2030`,
+    baseMethodId: methodId,
+    baseMethodLabel: methodLabel,
+    baseRowId: `${methodId}::2030`,
     autonomousTrackIds: [],
   };
 }
 
-function packageProvenance(baseStateId, packageId, baseStateLabel = baseStateId) {
+function packageProvenance(baseMethodId, packageId, baseMethodLabel = baseMethodId) {
   return {
     kind: 'efficiency_package',
     familyId: 'commercial_building_services',
-    baseStateId,
-    baseStateLabel,
-    baseRowId: `${baseStateId}::2030`,
+    baseMethodId,
+    baseMethodLabel,
+    baseRowId: `${baseMethodId}::2030`,
     autonomousTrackIds: [],
     packageId,
     packageClassification: 'pure_efficiency_overlay',
@@ -95,19 +95,19 @@ function packageProvenance(baseStateId, packageId, baseStateLabel = baseStateId)
 }
 
 function buildSolveRow({
-  stateId,
-  stateLabel = stateId,
+  methodId,
+  methodLabel = methodId,
   inputs,
-  provenance = baseProvenance(stateId, stateLabel),
+  provenance = baseProvenance(methodId, methodLabel),
 }) {
   return {
-    rowId: `${stateId}::2030`,
+    rowId: `${methodId}::2030`,
     outputId: 'commercial_services',
     outputRole: 'required_service',
     outputLabel: 'Commercial services',
     year: 2030,
-    stateId,
-    stateLabel,
+    methodId,
+    methodLabel,
     sector: 'commercial',
     subsector: 'commercial_buildings',
     region: 'national',
@@ -141,7 +141,7 @@ function buildSolveRequest(requestId, rows) {
         commercial_services: {
           2030: {
             mode: 'optimize',
-            activeStateIds: null,
+            activeMethodIds: null,
             targetValue: null,
           },
         },
@@ -180,15 +180,15 @@ function buildSolveResult(request, activeRows) {
     },
     reporting: {
       commodityBalances: [],
-      stateShares: activeRows.map(({ row, activity }) => ({
+      methodShares: activeRows.map(({ row, activity }) => ({
         outputId: row.outputId,
         outputLabel: row.outputLabel,
         year: row.year,
         rowId: row.rowId,
-        stateId: row.stateId,
-        stateLabel: row.stateLabel,
-        pathwayStateId: row.provenance?.baseStateId ?? row.stateId,
-        pathwayStateLabel: row.provenance?.baseStateLabel ?? row.stateLabel,
+        methodId: row.methodId,
+        methodLabel: row.methodLabel,
+        pathwayMethodId: row.provenance?.baseMethodId ?? row.methodId,
+        pathwayMethodLabel: row.provenance?.baseMethodLabel ?? row.methodLabel,
         provenance: row.provenance,
         activity,
         share: activity / 100,
@@ -391,8 +391,8 @@ test('route basis keeps sub-PJ-per-activity fuel coefficients and emits switchin
     outputRole: 'required_service',
     outputLabel: 'Commercial services',
     year: 2030,
-    stateId: 'commercial_o0',
-    stateLabel: 'Commercial O0',
+    methodId: 'commercial_o0',
+    methodLabel: 'Commercial O0',
     sector: 'commercial',
     subsector: 'commercial_buildings',
     region: 'national',
@@ -413,8 +413,8 @@ test('route basis keeps sub-PJ-per-activity fuel coefficients and emits switchin
   const focusRoute = {
     ...baseRoute,
     rowId: 'commercial_o1::2030',
-    stateId: 'commercial_o1',
-    stateLabel: 'Commercial O1',
+    methodId: 'commercial_o1',
+    methodLabel: 'Commercial O1',
     inputs: [
       { commodityId: 'electricity', coefficient: 0.25, unit: 'MWh/GJ_service_eq' },
       { commodityId: 'natural_gas', coefficient: 0.1, unit: 'GJ/GJ_service_eq' },
@@ -498,8 +498,8 @@ test('route basis keeps sub-PJ-per-activity fuel coefficients and emits switchin
 
 test('same-route electricity efficiency does not create fuel switch pairs', () => {
   const baseRoute = buildSolveRow({
-    stateId: 'commercial_o0',
-    stateLabel: 'Commercial O0',
+    methodId: 'commercial_o0',
+    methodLabel: 'Commercial O0',
     inputs: [
       ['electricity', 1],
       ['natural_gas', 2],
@@ -507,8 +507,8 @@ test('same-route electricity efficiency does not create fuel switch pairs', () =
     ],
   });
   const focusPackage = buildSolveRow({
-    stateId: 'effpkg:commercial_o0::lighting',
-    stateLabel: 'Commercial O0 + lighting efficiency',
+    methodId: 'effpkg:commercial_o0::lighting',
+    methodLabel: 'Commercial O0 + lighting efficiency',
     inputs: [
       ['electricity', 0.8],
       ['natural_gas', 2],
@@ -605,8 +605,8 @@ test('same-route electricity efficiency does not create fuel switch pairs', () =
 
 test('route change with electricity efficiency only pairs gas and liquids to electricity', () => {
   const baseRoute = buildSolveRow({
-    stateId: 'commercial_o0',
-    stateLabel: 'Commercial O0',
+    methodId: 'commercial_o0',
+    methodLabel: 'Commercial O0',
     inputs: [
       ['electricity', 1],
       ['natural_gas', 2],
@@ -614,8 +614,8 @@ test('route change with electricity efficiency only pairs gas and liquids to ele
     ],
   });
   const focusRoute = buildSolveRow({
-    stateId: 'commercial_o1',
-    stateLabel: 'Commercial O1',
+    methodId: 'commercial_o1',
+    methodLabel: 'Commercial O1',
     inputs: [
       ['electricity', 3],
       ['natural_gas', 0.7],
@@ -623,8 +623,8 @@ test('route change with electricity efficiency only pairs gas and liquids to ele
     ],
   });
   const focusPackage = buildSolveRow({
-    stateId: 'effpkg:commercial_o1::electrified_efficiency',
-    stateLabel: 'Commercial O1 + electrified efficiency',
+    methodId: 'effpkg:commercial_o1::electrified_efficiency',
+    methodLabel: 'Commercial O1 + electrified efficiency',
     inputs: [
       ['electricity', 2.5],
       ['natural_gas', 0.7],

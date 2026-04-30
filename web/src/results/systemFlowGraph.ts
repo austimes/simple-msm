@@ -3,7 +3,7 @@ import type {
   NormalizedSolverRow,
   SolveRequest,
   SolveResult,
-  SolveStateShareSummary,
+  SolveMethodShareSummary,
 } from '../solver/contract.ts';
 import type {
   SystemStructureGroupRow,
@@ -44,7 +44,7 @@ export interface SystemFlowNode {
   kind: SystemFlowNodeKind;
   label: string;
   outputId?: string;
-  stateId?: string;
+  methodId?: string;
   rowId?: string;
   commodityId?: string;
   role: string;
@@ -52,8 +52,8 @@ export interface SystemFlowNode {
   share: number | null;
   unit?: string;
   selected: boolean;
-  baseStateId?: string;
-  baseStateLabel?: string;
+  baseMethodId?: string;
+  baseMethodLabel?: string;
   variantGroupId?: string;
   variantOfBaseRoute?: boolean;
   sortKey?: string;
@@ -113,9 +113,9 @@ function formatFallbackLabel(id: string): string {
 
 function rowSortKey(row: NormalizedSolverRow): string {
   return [
-    row.stateSortKey ?? '',
-    row.stateOptionRank == null ? '' : String(row.stateOptionRank).padStart(4, '0'),
-    row.stateDisplayLabel ?? row.stateLabel,
+    row.methodSortKey ?? '',
+    row.methodOptionRank == null ? '' : String(row.methodOptionRank).padStart(4, '0'),
+    row.methodDisplayLabel ?? row.methodLabel,
     row.rowId,
   ].join('::');
 }
@@ -129,7 +129,7 @@ function routeGroupId(row: NormalizedSolverRow): string {
     'route-group',
     row.outputId,
     String(row.year),
-    row.provenance?.baseStateId ?? row.stateId,
+    row.provenance?.baseMethodId ?? row.methodId,
   ].join(':');
 }
 
@@ -173,14 +173,14 @@ function buildCommodityModeLookup(result: SolveResult, year: number): Map<string
   return lookup;
 }
 
-function buildStateShareLookup(stateShares: SolveStateShareSummary[]): {
+function buildMethodShareLookup(methodShares: SolveMethodShareSummary[]): {
   byRowId: Map<string, RouteActivity>;
   byOutputYearState: Map<string, RouteActivity>;
 } {
   const byRowId = new Map<string, RouteActivity>();
   const byOutputYearState = new Map<string, RouteActivity>();
 
-  for (const stateShare of stateShares) {
+  for (const stateShare of methodShares) {
     const activity = {
       activity: stateShare.activity,
       share: stateShare.share,
@@ -191,7 +191,7 @@ function buildStateShareLookup(stateShares: SolveStateShareSummary[]): {
     }
 
     byOutputYearState.set(
-      [stateShare.outputId, String(stateShare.year), stateShare.stateId].join('::'),
+      [stateShare.outputId, String(stateShare.year), stateShare.methodId].join('::'),
       activity,
     );
   }
@@ -224,10 +224,10 @@ function buildSystemGroupLookup(
 
 function resolveRouteActivity(
   row: NormalizedSolverRow,
-  lookup: ReturnType<typeof buildStateShareLookup>,
+  lookup: ReturnType<typeof buildMethodShareLookup>,
 ): RouteActivity {
   return lookup.byRowId.get(row.rowId)
-    ?? lookup.byOutputYearState.get([row.outputId, String(row.year), row.stateId].join('::'))
+    ?? lookup.byOutputYearState.get([row.outputId, String(row.year), row.methodId].join('::'))
     ?? { activity: 0, share: null };
 }
 
@@ -255,20 +255,20 @@ function isRowEnabled(
     return false;
   }
 
-  if (!control?.activeStateIds) {
+  if (!control?.activeMethodIds) {
     return true;
   }
 
-  const activeStateIds = new Set(control.activeStateIds);
+  const activeMethodIds = new Set(control.activeMethodIds);
   const rows = rowsByOutputYear.get([row.outputId, String(row.year)].join('::')) ?? [row];
-  const directlyEnabled = activeStateIds.has(row.stateId);
+  const directlyEnabled = activeMethodIds.has(row.methodId);
 
   if (directlyEnabled) {
     return true;
   }
 
   if (row.provenance?.kind === 'efficiency_package') {
-    return activeStateIds.has(row.provenance.baseStateId);
+    return activeMethodIds.has(row.provenance.baseMethodId);
   }
 
   return rows.length === 0;
@@ -354,7 +354,7 @@ export function buildSystemFlowGraphData(
     options.systemStructureMembers,
   );
   const commodityModes = buildCommodityModeLookup(result, options.year);
-  const shareLookup = buildStateShareLookup(result.reporting.stateShares);
+  const shareLookup = buildMethodShareLookup(result.reporting.methodShares);
   const rowsForYear = request.rows.filter((row) => row.year === options.year);
   const rowsByOutputYear = groupRowsByOutputYear(request.rows);
   const segments = new Map<string, SystemFlowSegment>();
@@ -542,26 +542,26 @@ export function buildSystemFlowGraphData(
 
     const routeActivity = resolveRouteActivity(row, shareLookup);
     const role = resolveRouteRole(row, routeActivity.activity, rowsByOutputYear, request);
-    const baseStateId = row.provenance?.baseStateId ?? row.stateId;
+    const baseMethodId = row.provenance?.baseMethodId ?? row.methodId;
     const nodeId = routeNodeId(row);
 
     upsertNode({
       id: nodeId,
       segmentId,
       kind: 'route',
-      label: row.stateDisplayLabel ?? row.stateLabel,
+      label: row.methodDisplayLabel ?? row.methodLabel,
       outputId: row.outputId,
-      stateId: row.stateId,
+      methodId: row.methodId,
       rowId: row.rowId,
       role,
       activity: routeActivity.activity,
       share: routeActivity.share,
       unit: row.outputUnit,
       selected: routeActivity.activity > EPSILON,
-      baseStateId,
-      baseStateLabel: row.provenance?.baseStateLabel ?? row.stateLabel,
+      baseMethodId,
+      baseMethodLabel: row.provenance?.baseMethodLabel ?? row.methodLabel,
       variantGroupId: routeGroupId(row),
-      variantOfBaseRoute: baseStateId !== row.stateId || row.provenance?.kind === 'efficiency_package',
+      variantOfBaseRoute: baseMethodId !== row.methodId || row.provenance?.kind === 'efficiency_package',
       sortKey: rowSortKey(row),
     });
 

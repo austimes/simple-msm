@@ -20,19 +20,19 @@ test('all curated chart presentation labels fit within the visible legend cap', 
 });
 
 test('state metric legend labels stay within the visible legend cap', () => {
-  for (const stateId of Object.keys(CHART_PRESENTATION_MAP.state)) {
-    assert.ok(buildStateMetricLegendLabel(stateId, 'energy').length <= MAX_VISIBLE_LEGEND_LABEL_LENGTH);
-    assert.ok(buildStateMetricLegendLabel(stateId, 'process').length <= MAX_VISIBLE_LEGEND_LABEL_LENGTH);
+  for (const methodId of Object.keys(CHART_PRESENTATION_MAP.state)) {
+    assert.ok(buildStateMetricLegendLabel(methodId, 'energy').length <= MAX_VISIBLE_LEGEND_LABEL_LENGTH);
+    assert.ok(buildStateMetricLegendLabel(methodId, 'process').length <= MAX_VISIBLE_LEGEND_LABEL_LENGTH);
   }
 });
 
 test('state commodity legend labels stay within the visible legend cap', () => {
-  for (const stateId of Object.keys(CHART_PRESENTATION_MAP.state)) {
+  for (const methodId of Object.keys(CHART_PRESENTATION_MAP.state)) {
     for (const commodityId of Object.keys(CHART_PRESENTATION_MAP.commodity)) {
-      const legendLabel = buildStateCommodityLegendLabel(stateId, commodityId);
+      const legendLabel = buildStateCommodityLegendLabel(methodId, commodityId);
       assert.ok(
         legendLabel.length <= MAX_VISIBLE_LEGEND_LABEL_LENGTH,
-        `expected ${stateId}/${commodityId} composite ${legendLabel} to fit within ${MAX_VISIBLE_LEGEND_LABEL_LENGTH} characters`,
+        `expected ${methodId}/${commodityId} composite ${legendLabel} to fit within ${MAX_VISIBLE_LEGEND_LABEL_LENGTH} characters`,
       );
     }
   }

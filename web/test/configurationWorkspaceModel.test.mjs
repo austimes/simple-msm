@@ -1,16 +1,16 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import {
-  buildStateCatalog,
-  getActiveStateIds,
+  buildRoleAreaNavigationCatalog,
+  getActiveMethodIds,
 } from '../src/data/configurationWorkspaceModel.ts';
 import { buildConfiguration, loadPkg } from './solverTestUtils.mjs';
 
 const pkg = loadPkg();
 
-describe('buildStateCatalog', () => {
+describe('buildRoleAreaNavigationCatalog', () => {
   test('orders workspace states by sort metadata and prefers standardized display labels', () => {
-    const catalog = buildStateCatalog(pkg.sectorStates, pkg.appConfig);
+    const catalog = buildRoleAreaNavigationCatalog(pkg.resolvedMethodYears, pkg.appConfig);
     const roadTransport = catalog.find((entry) => entry.sector === 'road_transport');
     const passengerRoad = roadTransport?.subsectors.find(
       (entry) => entry.outputId === 'passenger_road_transport',
@@ -18,7 +18,7 @@ describe('buildStateCatalog', () => {
 
     assert.ok(passengerRoad, 'expected passenger road transport catalog entry');
     assert.deepEqual(
-      passengerRoad.states.map((state) => state.stateId),
+      passengerRoad.states.map((state) => state.methodId),
       [
         'road_transport__passenger_road__ice_fleet',
         'road_transport__passenger_road__hybrid_transition',
@@ -26,7 +26,7 @@ describe('buildStateCatalog', () => {
       ],
     );
     assert.deepEqual(
-      passengerRoad.states.map((state) => state.stateLabel),
+      passengerRoad.states.map((state) => state.methodLabel),
       [
         'ICE-dominated passenger road fleet',
         'Hybrid-heavy passenger road fleet',
@@ -36,18 +36,18 @@ describe('buildStateCatalog', () => {
   });
 
   test('orders crude steel states in O0 through O3 sequence from balanced metadata', () => {
-    const catalog = buildStateCatalog(pkg.sectorStates, pkg.appConfig);
+    const catalog = buildRoleAreaNavigationCatalog(pkg.resolvedMethodYears, pkg.appConfig);
     const steel = catalog.find((entry) => entry.sector === 'steel');
     const crudeSteel = steel?.subsectors.find((entry) => entry.outputId === 'crude_steel');
-    const steelRowsByStateId = new Map(
-      pkg.sectorStates
+    const steelRowsByMethodId = new Map(
+      pkg.resolvedMethodYears
         .filter((row) => row.service_or_output_name === 'crude_steel' && row.year === 2025)
         .map((row) => [row.state_id, row]),
     );
 
     assert.ok(crudeSteel, 'expected crude steel catalog entry');
     assert.deepEqual(
-      crudeSteel.states.map((state) => state.stateId),
+      crudeSteel.states.map((state) => state.methodId),
       [
         'steel__crude_steel__bf_bof_conventional',
         'steel__crude_steel__scrap_eaf',
@@ -56,17 +56,17 @@ describe('buildStateCatalog', () => {
       ],
     );
     assert.deepEqual(
-      crudeSteel.states.map((state) => steelRowsByStateId.get(state.stateId)?.state_option_code),
+      crudeSteel.states.map((state) => steelRowsByMethodId.get(state.methodId)?.state_option_code),
       ['O0', 'O1', 'O2', 'O3'],
     );
     assert.deepEqual(
-      crudeSteel.states.map((state) => steelRowsByStateId.get(state.stateId)?.state_option_rank),
+      crudeSteel.states.map((state) => steelRowsByMethodId.get(state.methodId)?.state_option_rank),
       [0, 1, 2, 3],
     );
   });
 
   test('falls back to label sorting and legacy labels when metadata is absent', () => {
-    const legacySectorStates = [
+    const legacyResolvedMethodYearRows = [
       {
         sector: 'legacy_sector',
         subsector: 'legacy_subsector',
@@ -91,16 +91,16 @@ describe('buildStateCatalog', () => {
       },
     ];
 
-    const catalog = buildStateCatalog(legacySectorStates, {
+    const catalog = buildRoleAreaNavigationCatalog(legacyResolvedMethodYearRows, {
       output_roles: {},
     });
 
     assert.deepEqual(
-      catalog[0].subsectors[0].states.map((state) => state.stateId),
+      catalog[0].subsectors[0].states.map((state) => state.methodId),
       ['legacy__bev', 'legacy__incumbent'],
     );
     assert.deepEqual(
-      catalog[0].subsectors[0].states.map((state) => state.stateLabel),
+      catalog[0].subsectors[0].states.map((state) => state.methodLabel),
       ['Battery-electric legacy pathway', 'Incumbent legacy pathway'],
     );
   });
@@ -120,28 +120,28 @@ describe('buildStateCatalog', () => {
       },
     ];
 
-    const catalog = buildStateCatalog(optionLabelRows, {
+    const catalog = buildRoleAreaNavigationCatalog(optionLabelRows, {
       output_roles: {},
     });
 
-    assert.equal(catalog[0].subsectors[0].states[0].stateLabel, 'O0 | incumbent');
+    assert.equal(catalog[0].subsectors[0].states[0].methodLabel, 'O0 | incumbent');
   });
 });
 
-describe('getActiveStateIds', () => {
+describe('getActiveMethodIds', () => {
   test('active_state_ids controls keep only listed pathways active', () => {
-    const electricityStateIds = Array.from(
+    const electricityMethodIds = Array.from(
       new Set(
-        pkg.sectorStates
+        pkg.resolvedMethodYears
           .filter((row) => row.service_or_output_name === 'electricity')
           .map((row) => row.state_id),
       ),
     );
 
-    assert.ok(electricityStateIds.length >= 2, 'expected multiple electricity pathways');
+    assert.ok(electricityMethodIds.length >= 2, 'expected multiple electricity pathways');
 
-    const [primaryStateId, disabledStateId] = electricityStateIds;
-    const activeIds = electricityStateIds.filter((id) => id !== disabledStateId);
+    const [primaryMethodId, disabledMethodId] = electricityMethodIds;
+    const activeIds = electricityMethodIds.filter((id) => id !== disabledMethodId);
     const configuration = buildConfiguration(pkg.appConfig, {
       name: 'Electricity fixed-share denominator semantics',
       serviceControls: {
@@ -152,26 +152,26 @@ describe('getActiveStateIds', () => {
       },
     });
 
-    const resultIds = getActiveStateIds(configuration, 'electricity', electricityStateIds);
+    const resultIds = getActiveMethodIds(configuration, 'electricity', electricityMethodIds);
 
-    assert.ok(resultIds.includes(primaryStateId));
-    assert.ok(!resultIds.includes(disabledStateId));
-    assert.equal(resultIds.length, electricityStateIds.length - 1);
+    assert.ok(resultIds.includes(primaryMethodId));
+    assert.ok(!resultIds.includes(disabledMethodId));
+    assert.equal(resultIds.length, electricityMethodIds.length - 1);
   });
 
   test('single-path active_state_ids controls still expose only listed pathways as active', () => {
-    const residentialStateIds = Array.from(
+    const residentialMethodIds = Array.from(
       new Set(
-        pkg.sectorStates
+        pkg.resolvedMethodYears
           .filter((row) => row.service_or_output_name === 'residential_building_services')
           .map((row) => row.state_id),
       ),
     );
 
-    assert.ok(residentialStateIds.length >= 2, 'expected multiple residential pathways');
+    assert.ok(residentialMethodIds.length >= 2, 'expected multiple residential pathways');
 
-    const [selectedStateId, disabledStateId] = residentialStateIds;
-    const activeIds = residentialStateIds.filter((id) => id !== disabledStateId);
+    const [selectedMethodId, disabledMethodId] = residentialMethodIds;
+    const activeIds = residentialMethodIds.filter((id) => id !== disabledMethodId);
     const configuration = buildConfiguration(pkg.appConfig, {
       name: 'Residential single-path exact-share availability semantics',
       serviceControls: {
@@ -182,14 +182,14 @@ describe('getActiveStateIds', () => {
       },
     });
 
-    const resultIds = getActiveStateIds(
+    const resultIds = getActiveMethodIds(
       configuration,
       'residential_building_services',
-      residentialStateIds,
+      residentialMethodIds,
     );
 
-    assert.ok(resultIds.includes(selectedStateId));
-    assert.ok(!resultIds.includes(disabledStateId));
-    assert.equal(resultIds.length, residentialStateIds.length - 1);
+    assert.ok(resultIds.includes(selectedMethodId));
+    assert.ok(!resultIds.includes(disabledMethodId));
+    assert.equal(resultIds.length, residentialMethodIds.length - 1);
   });
 });

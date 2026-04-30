@@ -15,7 +15,7 @@ export default function ConfigurationWorkspacePage() {
   const currentConfiguration = usePackageStore((state) => state.currentConfiguration);
   const activeConfigurationId = usePackageStore((state) => state.activeConfigurationId);
   const appConfig = usePackageStore((state) => state.appConfig);
-  const sectorStates = usePackageStore((state) => state.sectorStates);
+  const resolvedMethodYears = usePackageStore((state) => state.resolvedMethodYears);
   const autonomousEfficiencyTracks = usePackageStore((state) => state.autonomousEfficiencyTracks);
   const efficiencyPackages = usePackageStore((state) => state.efficiencyPackages);
   const residualOverlays2025 = usePackageStore((state) => state.residualOverlays2025);
@@ -32,7 +32,7 @@ export default function ConfigurationWorkspacePage() {
       focusConfigId: activeConfigurationId,
       packageData: {
         appConfig,
-        sectorStates,
+        resolvedMethodYears,
         autonomousEfficiencyTracks,
         efficiencyPackages,
         residualOverlays2025,
@@ -49,7 +49,7 @@ export default function ConfigurationWorkspacePage() {
       currentConfiguration,
       efficiencyPackages,
       residualOverlays2025,
-      sectorStates,
+      resolvedMethodYears,
     ],
   );
   const baseSolve = useConfigurationSolve(workspacePair.base?.configuration ?? null);

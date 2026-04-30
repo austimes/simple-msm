@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import type { RightSidebarSectorNode } from '../src/components/workspace/rightSidebarTree.ts';
-import { buildStateCatalog } from '../src/data/configurationWorkspaceModel.ts';
+import type { RightSidebarAreaNode } from '../src/components/workspace/rightSidebarTree.ts';
+import { buildRoleAreaNavigationCatalog } from '../src/data/configurationWorkspaceModel.ts';
 import type { MethodKind, RepresentationKind } from '../src/data/types.ts';
 import RightSidebarContent from '../src/components/workspace/RightSidebarContent.tsx';
 import { deriveOutputRunStatusesForConfiguration } from '../src/solver/solveScope.ts';
@@ -39,26 +39,26 @@ function findElement(
 }
 
 type TestMethodState = {
-  stateId: string;
-  stateLabel: string;
+  methodId: string;
+  methodLabel: string;
   roleId?: string;
   representationId?: string;
   methodId?: string;
   methodKind?: MethodKind;
 };
 
-type TestRoleNode = Partial<RightSidebarSectorNode['subsectors'][number]> & {
+type TestRoleNode = Partial<RightSidebarAreaNode['subsectors'][number]> & {
   outputId: string;
   outputLabel: string;
   states: TestMethodState[];
 };
 
-type TestSectorNode = Partial<Omit<RightSidebarSectorNode, 'subsectors'>> & {
+type TestSectorNode = Partial<Omit<RightSidebarAreaNode, 'subsectors'>> & {
   sector: string;
   subsectors: TestRoleNode[];
 };
 
-function withRoleDefaults(tree: TestSectorNode[]): RightSidebarSectorNode[] {
+function withRoleDefaults(tree: TestSectorNode[]): RightSidebarAreaNode[] {
   return tree.map((sector) => ({
     label: sector.label,
     residualOverlayIds: sector.residualOverlayIds,
@@ -84,18 +84,18 @@ function withRoleDefaults(tree: TestSectorNode[]): RightSidebarSectorNode[] {
       states: sub.states.map((state) => ({
         roleId: state.roleId ?? sub.roleId ?? sub.outputId,
         representationId: state.representationId ?? `${sub.outputId}__pathway_bundle`,
-        methodId: state.stateId,
+        methodId: state.methodId,
         methodKind: state.methodKind ?? 'pathway',
         ...state,
       })),
     })),
-  })) as RightSidebarSectorNode[];
+  })) as RightSidebarAreaNode[];
 }
 
 describe('RightSidebarContent', () => {
   test('renders the legend after the real role cards', () => {
     const configuration = buildConfiguration(pkg.appConfig);
-    const catalog = buildStateCatalog(pkg.sectorStates, pkg.appConfig);
+    const catalog = buildRoleAreaNavigationCatalog(pkg.resolvedMethodYears, pkg.appConfig);
     const statuses = deriveOutputRunStatusesForConfiguration(pkg, configuration);
     const tree = deriveRightSidebarTree(catalog, statuses, new Set(), new Set());
     const firstOutputLabel = catalog[0]?.subsectors[0]?.outputLabel;
@@ -135,12 +135,12 @@ describe('RightSidebarContent', () => {
             outputLabel: 'Electricity supply',
             states: [
               {
-                stateId: 'incumbent_thermal_heavy_grid_mix',
-                stateLabel: 'Incumbent thermal-heavy grid mix',
+                methodId: 'incumbent_thermal_heavy_grid_mix',
+                methodLabel: 'Incumbent thermal-heavy grid mix',
               },
               {
-                stateId: 'deep_clean_firmed_grid_supply',
-                stateLabel: 'Deep-clean firmed grid supply',
+                methodId: 'deep_clean_firmed_grid_supply',
+                methodLabel: 'Deep-clean firmed grid supply',
               },
             ],
             status: undefined,
@@ -152,7 +152,7 @@ describe('RightSidebarContent', () => {
               arePathwaysInactive: false,
             },
             badges: [],
-            activeStateIds: ['incumbent_thermal_heavy_grid_mix'],
+            activeMethodIds: ['incumbent_thermal_heavy_grid_mix'],
             allDisabled: false,
             pathwaysInactive: false,
             outOfScope: false,
@@ -202,8 +202,8 @@ describe('RightSidebarContent', () => {
             roleLabel: 'Produce crude steel',
             states: [
               {
-                stateId: 'steel_pathway',
-                stateLabel: 'Aggregate steel pathway',
+                methodId: 'steel_pathway',
+                methodLabel: 'Aggregate steel pathway',
                 representationId: 'produce_crude_steel__pathway_bundle',
                 methodId: 'steel_pathway',
               },
@@ -243,7 +243,7 @@ describe('RightSidebarContent', () => {
               arePathwaysInactive: false,
             },
             badges: [],
-            activeStateIds: ['steel_pathway'],
+            activeMethodIds: ['steel_pathway'],
             allDisabled: false,
             pathwaysInactive: false,
             outOfScope: false,
@@ -300,8 +300,8 @@ describe('RightSidebarContent', () => {
             outputLabel: 'Residential buildings',
             states: [
               {
-                stateId: 'buildings__residential__deep_electric',
-                stateLabel: 'Deep electric',
+                methodId: 'buildings__residential__deep_electric',
+                methodLabel: 'Deep electric',
               },
             ],
             status: undefined,
@@ -313,7 +313,7 @@ describe('RightSidebarContent', () => {
               arePathwaysInactive: false,
             },
             badges: [],
-            activeStateIds: ['buildings__residential__deep_electric'],
+            activeMethodIds: ['buildings__residential__deep_electric'],
             allDisabled: false,
             pathwaysInactive: false,
             outOfScope: false,
@@ -327,7 +327,7 @@ describe('RightSidebarContent', () => {
                   trackId: 'background',
                   label: 'Background',
                   enabled: true,
-                  applicableStateIds: ['buildings__residential__deep_electric'],
+                  applicableMethodIds: ['buildings__residential__deep_electric'],
                 },
               ],
               packages: [
@@ -336,19 +336,19 @@ describe('RightSidebarContent', () => {
                   label: 'Shell retrofit',
                   classification: 'pure_efficiency_overlay',
                   enabled: true,
-                  applicableStateIds: ['buildings__residential__deep_electric'],
+                  applicableMethodIds: ['buildings__residential__deep_electric'],
                   nonStackingGroup: 'retrofit',
                   maxShareByYear: { 2030: 0.3 },
                 },
               ],
-              embodiedStateIds: ['buildings__residential__deep_electric'],
+              embodiedMethodIds: ['buildings__residential__deep_electric'],
             },
           },
           {
             subsector: 'empty',
             outputId: 'empty_output',
             outputLabel: 'No artifacts',
-            states: [{ stateId: 'empty_state', stateLabel: 'Empty state' }],
+            states: [{ methodId: 'empty_state', methodLabel: 'Empty state' }],
             status: undefined,
             presentation: {
               summary: 'Has active methods and participates in this solve.',
@@ -358,7 +358,7 @@ describe('RightSidebarContent', () => {
               arePathwaysInactive: false,
             },
             badges: [],
-            activeStateIds: ['empty_state'],
+            activeMethodIds: ['empty_state'],
             allDisabled: false,
             pathwaysInactive: false,
             outOfScope: false,
@@ -369,7 +369,7 @@ describe('RightSidebarContent', () => {
               hasControls: false,
               autonomousTracks: [],
               packages: [],
-              embodiedStateIds: [],
+              embodiedMethodIds: [],
             },
           },
         ],
@@ -429,8 +429,8 @@ describe('RightSidebarContent', () => {
             outputLabel: 'Residential buildings',
             states: [
               {
-                stateId: 'buildings__residential__incumbent_mixed_fuels',
-                stateLabel: 'Incumbent mixed fuels',
+                methodId: 'buildings__residential__incumbent_mixed_fuels',
+                methodLabel: 'Incumbent mixed fuels',
               },
             ],
             status: undefined,
@@ -442,7 +442,7 @@ describe('RightSidebarContent', () => {
               arePathwaysInactive: false,
             },
             badges: [],
-            activeStateIds: ['buildings__residential__incumbent_mixed_fuels'],
+            activeMethodIds: ['buildings__residential__incumbent_mixed_fuels'],
             allDisabled: false,
             pathwaysInactive: false,
             outOfScope: false,
