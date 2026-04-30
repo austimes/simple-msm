@@ -276,6 +276,7 @@ const COVERAGE_OBLIGATIONS = new Set([
 const CONFIDENCE_RATINGS = new Set(['High', 'Medium', 'Low', 'Exploratory']);
 const EXPECTED_ROLE_IDS = new Set([
   'serve_residential_building_occupants',
+  'provide_residential_water_heating',
   'serve_commercial_building_occupants',
   'account_remaining_residential_building_services',
   'account_remaining_commercial_building_services',
@@ -458,12 +459,12 @@ test('energy system representation library package structure is internally consi
   assertUnique(reportingAllocations, (allocation) => allocation.reporting_allocation_id, 'reporting_allocation_id');
   assertUnique(roleValidationSummary, (summary) => summary.role_id, 'validation summary role_id');
   assert.deepEqual(roleIds, EXPECTED_ROLE_IDS);
-  assert.equal(roles.length, 31);
+  assert.equal(roles.length, 32);
   assert.equal(roleActivityDrivers.length, roles.length);
   assert.equal(roleMetrics.length, roles.length);
   assert.equal(roles.filter((role) => role.role_kind === 'residual').length, 14);
   assert.equal(roles.filter((role) => role.coverage_obligation === 'explicit_residual_top_level').length, 14);
-  assert.equal(representations.length, roles.length + 1);
+  assert.equal(representations.length, roles.length + 2);
   assert.equal(representationIncumbents.length, roles.length);
   assert.equal(reportingAllocations.length, roles.length);
   assert.equal(roleValidationSummary.length, roles.length);
@@ -816,8 +817,8 @@ test('energy system representation library package structure is internally consi
     }
   }
 
-  assert.equal(totalMethods, 60);
-  assert.equal(totalMethodYearRows, 360);
+  assert.equal(totalMethods, 63);
+  assert.equal(totalMethodYearRows, 378);
   assert.equal(autonomousTrackRowCount > 0, true, 'expected at least one autonomous efficiency track row');
   assert.equal(efficiencyPackageRowCount > 0, true, 'expected at least one efficiency package row');
 
