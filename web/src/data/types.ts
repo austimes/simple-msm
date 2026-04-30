@@ -235,6 +235,28 @@ export interface PackageSchemaInfo {
   fields: PackageSchemaField[];
 }
 
+export type EmissionsImportanceBand =
+  | 'very_high'
+  | 'high'
+  | 'medium'
+  | 'low'
+  | 'very_low'
+  | 'zero'
+  | 'sink'
+  | 'unknown';
+
+export interface RoleMetric {
+  role_id: string;
+  baseline_year: number;
+  activity_value: number | null;
+  activity_unit: string;
+  baseline_direct_gross_emissions_mtco2e: number | null;
+  baseline_direct_net_emissions_mtco2e: number | null;
+  emissions_importance_band: EmissionsImportanceBand;
+  metric_basis: string;
+  notes: string;
+}
+
 export interface RolePresentationMetadata {
   role_id: string;
   role_label: string;
@@ -250,6 +272,8 @@ export interface RolePresentationMetadata {
   balance_type: BalanceType;
   coverage_obligation: CoverageObligation;
   reporting_allocations: ReportingAllocation[];
+  role_metric: RoleMetric | null;
+  emissions_importance_band: EmissionsImportanceBand;
   notes: string;
 }
 
@@ -673,6 +697,7 @@ export interface EmissionsBalance2025Row {
 
 export interface PackageData {
   roleMetadata: RoleMetadata[];
+  roleMetrics: RoleMetric[];
   representations: RoleRepresentation[];
   representationIncumbents: RepresentationIncumbent[];
   roleDecompositionEdges: RoleDecompositionEdge[];

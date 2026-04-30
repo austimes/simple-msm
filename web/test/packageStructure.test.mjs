@@ -34,6 +34,17 @@ const ROLE_ACTIVITY_DRIVER_HEADERS = [
   'coverage_note',
   'notes',
 ];
+const ROLE_METRIC_HEADERS = [
+  'role_id',
+  'baseline_year',
+  'activity_value',
+  'activity_unit',
+  'baseline_direct_gross_emissions_mtco2e',
+  'baseline_direct_net_emissions_mtco2e',
+  'emissions_importance_band',
+  'metric_basis',
+  'notes',
+];
 const PHYSICAL_SYSTEM_NODE_HEADERS = [
   'node_id',
   'node_label',
@@ -223,6 +234,16 @@ const ROLE_ACTIVITY_DRIVER_KINDS = new Set([
   'linked_parent_activity',
   'service_or_product_demand',
 ]);
+const EMISSIONS_IMPORTANCE_BANDS = new Set([
+  'very_high',
+  'high',
+  'medium',
+  'low',
+  'very_low',
+  'zero',
+  'sink',
+  'unknown',
+]);
 const PHYSICAL_NODE_KINDS = new Set([
   'cluster',
   'export_anchor',
@@ -387,6 +408,7 @@ function assertAcyclicPhysicalSystemNodes(nodes) {
 test('energy system representation library package structure is internally consistent', () => {
   const roles = parseCsv(readText('shared/roles.csv'));
   const roleActivityDrivers = parseCsv(readText('shared/role_activity_drivers.csv'));
+  const roleMetrics = parseCsv(readText('shared/role_metrics.csv'));
   const physicalSystemNodes = parseCsv(readText('shared/physical_system_nodes.csv'));
   const roleMemberships = parseCsv(readText('shared/role_memberships.csv'));
   const physicalEdges = parseCsv(readText('shared/physical_edges.csv'));
@@ -411,6 +433,7 @@ test('energy system representation library package structure is internally consi
 
   assert.deepEqual(parseHeader('shared/roles.csv'), ROLE_HEADERS);
   assert.deepEqual(parseHeader('shared/role_activity_drivers.csv'), ROLE_ACTIVITY_DRIVER_HEADERS);
+  assert.deepEqual(parseHeader('shared/role_metrics.csv'), ROLE_METRIC_HEADERS);
   assert.deepEqual(parseHeader('shared/physical_system_nodes.csv'), PHYSICAL_SYSTEM_NODE_HEADERS);
   assert.deepEqual(parseHeader('shared/role_memberships.csv'), ROLE_MEMBERSHIP_HEADERS);
   assert.deepEqual(parseHeader('shared/physical_edges.csv'), PHYSICAL_EDGE_HEADERS);
@@ -421,6 +444,7 @@ test('energy system representation library package structure is internally consi
   assert.deepEqual(parseHeader('validation/role_validation_summary.csv'), ROLE_VALIDATION_HEADERS);
   assertUnique(roles, (role) => role.role_id, 'role_id');
   assertUnique(roleActivityDrivers, (driver) => driver.driver_id, 'role activity driver_id');
+  assertUnique(roleMetrics, (metric) => metric.role_id, 'role metric role_id');
   assertUnique(physicalSystemNodes, (node) => node.node_id, 'physical node_id');
   assertUnique(roleMemberships, (membership) => `${membership.role_id}::${membership.node_id}`, 'role membership');
   assertUnique(physicalEdges, (edge) => edge.edge_id, 'physical edge_id');
@@ -436,6 +460,7 @@ test('energy system representation library package structure is internally consi
   assert.deepEqual(roleIds, EXPECTED_ROLE_IDS);
   assert.equal(roles.length, 31);
   assert.equal(roleActivityDrivers.length, roles.length);
+  assert.equal(roleMetrics.length, roles.length);
   assert.equal(roles.filter((role) => role.role_kind === 'residual').length, 14);
   assert.equal(roles.filter((role) => role.coverage_obligation === 'explicit_residual_top_level').length, 14);
   assert.equal(representations.length, roles.length + 1);
@@ -467,6 +492,38 @@ test('energy system representation library package structure is internally consi
     } else {
       assert.equal(driver.parent_role_id, '', `${driver.driver_id} non-linked driver must not name a parent role`);
       assert.equal(driver.parent_activity_coefficient, '', `${driver.driver_id} non-linked driver must not carry a parent activity coefficient`);
+    }
+  }
+
+  for (const metric of roleMetrics) {
+    assert.equal(roleIds.has(metric.role_id), true, `${metric.role_id} metric role must resolve`);
+    assert.equal(metric.baseline_year, '2025', `${metric.role_id} metric baseline year must be 2025`);
+    assert.equal(Number.isFinite(Number(metric.activity_value)), true, `${metric.role_id} metric activity value must be numeric`);
+    assert.notEqual(metric.activity_unit, '', `${metric.role_id} metric activity unit must be present`);
+    assert.equal(
+      EMISSIONS_IMPORTANCE_BANDS.has(metric.emissions_importance_band),
+      true,
+      `${metric.role_id} metric band must be canonical`,
+    );
+    assert.notEqual(metric.metric_basis, '', `${metric.role_id} metric basis must be present`);
+    assert.notEqual(metric.notes, '', `${metric.role_id} metric notes must be present`);
+    if (metric.emissions_importance_band === 'unknown') {
+      assert.equal(metric.baseline_direct_gross_emissions_mtco2e, '', `${metric.role_id} unknown gross metric must be blank`);
+      assert.equal(metric.baseline_direct_net_emissions_mtco2e, '', `${metric.role_id} unknown net metric must be blank`);
+    } else {
+      assert.equal(
+        Number.isFinite(Number(metric.baseline_direct_gross_emissions_mtco2e)),
+        true,
+        `${metric.role_id} gross metric must be numeric`,
+      );
+      assert.equal(
+        Number.isFinite(Number(metric.baseline_direct_net_emissions_mtco2e)),
+        true,
+        `${metric.role_id} net metric must be numeric`,
+      );
+    }
+    if (metric.emissions_importance_band === 'sink') {
+      assert.equal(Number(metric.baseline_direct_net_emissions_mtco2e) < 0, true, `${metric.role_id} sink metric must be net-negative`);
     }
   }
 
@@ -827,6 +884,7 @@ test('schema companions stay aligned with the authored CSV headers', () => {
   const schemaChecks = [
     ['schema/roles.schema.json', 'shared/roles.csv', ROLE_HEADERS],
     ['schema/role_activity_drivers.schema.json', 'shared/role_activity_drivers.csv', ROLE_ACTIVITY_DRIVER_HEADERS],
+    ['schema/role_metrics.schema.json', 'shared/role_metrics.csv', ROLE_METRIC_HEADERS],
     ['schema/physical_system_nodes.schema.json', 'shared/physical_system_nodes.csv', PHYSICAL_SYSTEM_NODE_HEADERS],
     ['schema/role_memberships.schema.json', 'shared/role_memberships.csv', ROLE_MEMBERSHIP_HEADERS],
     ['schema/physical_edges.schema.json', 'shared/physical_edges.csv', PHYSICAL_EDGE_HEADERS],
@@ -855,6 +913,8 @@ test('schema companions stay aligned with the authored CSV headers', () => {
   assert.deepEqual(new Set(rolesSchema.properties.role_kind.enum), ROLE_KINDS);
   assert.deepEqual(new Set(rolesSchema.properties.balance_type.enum), BALANCE_TYPES);
   assert.deepEqual(new Set(rolesSchema.properties.coverage_obligation.enum), COVERAGE_OBLIGATIONS);
+  const roleMetricsSchema = readJson('schema/role_metrics.schema.json');
+  assert.deepEqual(new Set(roleMetricsSchema.properties.emissions_importance_band.enum), EMISSIONS_IMPORTANCE_BANDS);
   const representationsSchema = readJson('schema/representations.schema.json');
   assert.deepEqual(new Set(representationsSchema.properties.representation_kind.enum), REPRESENTATION_KINDS);
   const methodsSchema = readJson('schema/methods.schema.json');

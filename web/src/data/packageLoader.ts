@@ -19,6 +19,7 @@ import type {
   EfficiencyPackage,
   EfficiencyPackageClassification,
   EmissionEntry,
+  EmissionsImportanceBand,
   EmissionsBalance2025Row,
   Method,
   MethodKind,
@@ -35,6 +36,7 @@ import type {
   RoleDecompositionEdge,
   RoleDemand,
   RoleKind,
+  RoleMetric,
   RoleMetadata,
   RolePresentationMetadata,
   RoleRepresentation,
@@ -503,6 +505,27 @@ function parseRoleActivityDriverKind(
   throw new Error(`Unknown driver_kind for ${label}: ${JSON.stringify(value)}`);
 }
 
+function parseEmissionsImportanceBand(
+  raw: string | undefined,
+  label: string,
+): EmissionsImportanceBand {
+  const value = parseRequiredString(raw, label);
+  if (
+    value === 'very_high'
+    || value === 'high'
+    || value === 'medium'
+    || value === 'low'
+    || value === 'very_low'
+    || value === 'zero'
+    || value === 'sink'
+    || value === 'unknown'
+  ) {
+    return value;
+  }
+
+  throw new Error(`Unknown emissions_importance_band for ${label}: ${JSON.stringify(value)}`);
+}
+
 function toRoleActivityDriver(row: Record<string, string>): RoleActivityDriver {
   const driverId = parseRequiredString(row['driver_id'], 'shared/role_activity_drivers.csv.driver_id');
   const roleId = parseRequiredString(row['role_id'], `shared/role_activity_drivers.csv.${driverId}.role_id`);
@@ -536,6 +559,39 @@ function toRoleActivityDriver(row: Record<string, string>): RoleActivityDriver {
       row['coverage_note'],
       `shared/role_activity_drivers.csv.${driverId}.coverage_note`,
     ),
+    notes: row['notes'] ?? '',
+  };
+}
+
+function toRoleMetric(row: Record<string, string>): RoleMetric {
+  const roleId = parseRequiredString(row['role_id'], 'shared/role_metrics.csv.role_id');
+  return {
+    role_id: roleId,
+    baseline_year: parseMilestoneYear(
+      row['baseline_year'],
+      `shared/role_metrics.csv.${roleId}.baseline_year`,
+    ),
+    activity_value: parseOptionalNumber(
+      row['activity_value'],
+      `shared/role_metrics.csv.${roleId}.activity_value`,
+    ),
+    activity_unit: parseRequiredString(
+      row['activity_unit'],
+      `shared/role_metrics.csv.${roleId}.activity_unit`,
+    ),
+    baseline_direct_gross_emissions_mtco2e: parseOptionalNumber(
+      row['baseline_direct_gross_emissions_mtco2e'],
+      `shared/role_metrics.csv.${roleId}.baseline_direct_gross_emissions_mtco2e`,
+    ),
+    baseline_direct_net_emissions_mtco2e: parseOptionalNumber(
+      row['baseline_direct_net_emissions_mtco2e'],
+      `shared/role_metrics.csv.${roleId}.baseline_direct_net_emissions_mtco2e`,
+    ),
+    emissions_importance_band: parseEmissionsImportanceBand(
+      row['emissions_importance_band'],
+      `shared/role_metrics.csv.${roleId}.emissions_importance_band`,
+    ),
+    metric_basis: parseRequiredString(row['metric_basis'], `shared/role_metrics.csv.${roleId}.metric_basis`),
     notes: row['notes'] ?? '',
   };
 }
@@ -894,6 +950,7 @@ function buildRolePresentationMetadata(
   roles: RoleMetadata[],
   appProjectionByRoleId: Map<string, RoleAppProjection>,
   reportingAllocations: ReportingAllocation[],
+  roleMetrics: RoleMetric[],
 ): RolePresentationMetadata[] {
   const allocationsByRoleId = reportingAllocations.reduce<Map<string, ReportingAllocation[]>>((result, allocation) => {
     const rows = result.get(allocation.role_id) ?? [];
@@ -901,10 +958,12 @@ function buildRolePresentationMetadata(
     result.set(allocation.role_id, rows);
     return result;
   }, new Map<string, ReportingAllocation[]>());
+  const metricByRoleId = new Map(roleMetrics.map((metric) => [metric.role_id, metric]));
 
   return roles.map((role) => {
     const projection = appProjectionByRoleId.get(role.role_id);
     const appOutputId = projection?.appOutputId ?? role.role_id;
+    const roleMetric = metricByRoleId.get(role.role_id) ?? null;
     return {
       role_id: role.role_id,
       role_label: role.role_label,
@@ -920,6 +979,8 @@ function buildRolePresentationMetadata(
       balance_type: role.balance_type,
       coverage_obligation: role.coverage_obligation,
       reporting_allocations: allocationsByRoleId.get(role.role_id) ?? [],
+      role_metric: roleMetric,
+      emissions_importance_band: roleMetric?.emissions_importance_band ?? 'unknown',
       notes: role.notes,
     };
   });
@@ -1527,6 +1588,7 @@ function emptyPackage(appConfig: AppConfigRegistry): PackageData {
 
   return {
     roleMetadata: [],
+    roleMetrics: [],
     representations: [],
     representationIncumbents: [],
     roleDecompositionEdges: [],
@@ -1560,6 +1622,7 @@ export function loadPackage(): PackageData {
   }
 
   const roleMetadata = parseCsv(requirePackageFile('shared/roles.csv')).map(toRoleMetadata);
+  const roleMetrics = parseCsv(requirePackageFile('shared/role_metrics.csv')).map(toRoleMetric);
   const representations = parseCsv(requirePackageFile('shared/representations.csv')).map(toRoleRepresentation);
   const representationIncumbents = parseCsv(
     requirePackageFile('shared/representation_incumbents.csv'),
@@ -1667,6 +1730,7 @@ export function loadPackage(): PackageData {
 
   return {
     roleMetadata,
+    roleMetrics,
     representations,
     representationIncumbents,
     roleDecompositionEdges,
@@ -1679,6 +1743,7 @@ export function loadPackage(): PackageData {
       roleMetadata,
       appProjectionByRoleId,
       reportingAllocations,
+      roleMetrics,
     ),
     systemStructureGroups: buildSystemStructureGroups(roleMetadata),
     systemStructureMembers: buildSystemStructureMembers(roleMetadata, appProjectionByRoleId),
