@@ -9,9 +9,9 @@
     2045,
     2050
   ],
-  "role_count": 51,
-  "method_count": 86,
-  "method_year_row_count": 516,
+  "role_count": 54,
+  "method_count": 89,
+  "method_year_row_count": 534,
   "files": [
     "README.md",
     "roles/account_grid_losses_and_own_use/demand.csv",
@@ -326,6 +326,21 @@
     "roles/account_land_carbon_stock_change/method_years.csv",
     "roles/account_land_carbon_stock_change/methods.csv",
     "roles/account_land_carbon_stock_change/README.md",
-    "roles/account_land_carbon_stock_change/validation.md"
+    "roles/account_land_carbon_stock_change/validation.md",
+    "roles/capture_point_source_co2/demand.csv",
+    "roles/capture_point_source_co2/method_years.csv",
+    "roles/capture_point_source_co2/methods.csv",
+    "roles/capture_point_source_co2/README.md",
+    "roles/capture_point_source_co2/validation.md",
+    "roles/store_captured_co2/demand.csv",
+    "roles/store_captured_co2/method_years.csv",
+    "roles/store_captured_co2/methods.csv",
+    "roles/store_captured_co2/README.md",
+    "roles/store_captured_co2/validation.md",
+    "roles/transport_captured_co2/demand.csv",
+    "roles/transport_captured_co2/method_years.csv",
+    "roles/transport_captured_co2/methods.csv",
+    "roles/transport_captured_co2/README.md",
+    "roles/transport_captured_co2/validation.md"
   ]
 }

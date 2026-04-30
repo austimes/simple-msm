@@ -1,0 +1,2 @@
+role_id,anchor_year,anchor_value,unit,demand_growth_curve_id,anchor_status,source_role,coverage_note,notes
+store_captured_co2,2025,0,tCO2_stored,flat_2025__store_captured_co2,synthetic_placeholder,Carbon-management placeholder,Zero anchor keeps this placeholder visible without forcing activity.,Scenario demand or explicit process-chain links should drive activity once authored.
