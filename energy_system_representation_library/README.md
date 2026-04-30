@@ -66,6 +66,8 @@ That pilot proves the package can keep complete crude-steel coverage without mak
 
 `make_cement_equivalent` now also exposes the optional `make_cement_equivalent__clinker_decomposition` representation. It activates child pathway bundles for clinker production, host-specific kiln heat, and final grinding/blending while leaving the aggregate pathway bundle as the default representation.
 
+`validation/cement_double_counting_guardrails.csv` records the executable guardrails for that switch: aggregate cement rows must be inactive when the decomposition is selected, host-owned kiln heat stays inside the cement branch, calcination process emissions sit on clinker production, and final grinding/blending does not recreate upstream direct emissions.
+
 ### Methods
 
 Each `roles/<role_id>/methods.csv` file lists the selectable methods for a direct representation bundle. Each `roles/<role_id>/method_years.csv` file holds the numeric method-year rows: costs, inputs, emissions, rollout limits, evidence, assumptions, and validation notes.

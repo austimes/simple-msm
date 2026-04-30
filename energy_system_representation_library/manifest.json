@@ -344,6 +344,7 @@
     "roles/transport_captured_co2/validation.md",
     "validation/cement_aggregate_representation_summary.csv",
     "validation/cement_decomposition_boundary.csv",
+    "validation/cement_double_counting_guardrails.csv",
     "validation/whole_system_coverage_summary.csv",
     "roles/make_clinker_intermediate/demand.csv",
     "roles/make_clinker_intermediate/method_years.csv",
