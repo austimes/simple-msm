@@ -27,6 +27,18 @@ All method ids are authored across milestone years 2025, 2030, 2035, 2040, 2045,
 
 The default representation is `provide_residential_water_heating__pathway_bundle`. It is intentionally aggregate so fast whole-system runs can compare against the later `technology_bundle` representation without treating each appliance technology as a separate method yet.
 
+
+## Technology Bundle
+
+The non-default `provide_residential_water_heating__technology_bundle` representation exposes individual technology methods that directly satisfy `GJ_hot_water_service`:
+
+- buildings__residential_water_heating__gas_storage - Gas storage water heater
+- buildings__residential_water_heating__resistive_electric - Resistive electric water heater
+- buildings__residential_water_heating__electric_heat_pump - Electric heat-pump water heater
+- buildings__residential_water_heating__solar_boosted - Solar boosted water heater
+
+The technology bundle carries a placeholder single incumbent row so package integrity checks can resolve an incumbent for the direct representation. Calibrated 2025 stock shares are deferred to `simple-msm-techrep-1.4`.
+
 ## Main sources used
 
 - `S001` - see `shared/source_ledger.csv`

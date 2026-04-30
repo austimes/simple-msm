@@ -14,6 +14,7 @@
 
 - The default incumbent method must exist in `method_years.csv` for every milestone year.
 - The pathway representation must expose at least incumbent, transition, and near-zero direct-emissions pathway methods.
+- The technology bundle must expose gas, resistive electric, electric heat-pump, and solar/boosted methods.
 - The role metric should use the linked parent activity anchor and incumbent direct-emissions intensity until an end-use-specific hot-water dataset replaces the proxy.
 - Scenario configurations must avoid activating this role additively on top of the full aggregate residential building-services role.
 
