@@ -26,6 +26,32 @@ function runCli(args) {
   return result.stdout;
 }
 
+
+test('CLI exposes residential water-heating pathway-vs-technology comparison evidence', () => {
+  const output = JSON.parse(runCli(['water-heating-comparison', '--json']));
+
+  assert.equal(output.rows.length, 2);
+
+  const incumbent = output.rows.find((row) => row.year === 2025);
+  assert.ok(incumbent);
+  assert.equal(incumbent.technology_solution_basis, 'calibrated_2025_incumbent_mix');
+  assert.equal(Object.keys(incumbent.technology_method_shares).length, 4);
+  assert.ok(Math.abs(
+    Object.values(incumbent.technology_method_shares).reduce((sum, share) => sum + share, 0) - 1,
+  ) < 1e-9);
+
+  const heatPumpProxy = output.rows.find((row) => row.year === 2050);
+  assert.ok(heatPumpProxy);
+  assert.deepEqual(heatPumpProxy.technology_method_shares, {
+    buildings__residential_water_heating__electric_heat_pump: 1,
+  });
+  assert.equal(heatPumpProxy.validation_status, 'evidence_only');
+
+  const humanOutput = runCli(['water-heating-comparison']);
+  assert.match(humanOutput, /Residential water-heating pathway-vs-technology comparison/);
+  assert.match(humanOutput, /Evidence only/);
+});
+
 test('prime returns the same materialized configuration the runtime solves', () => {
   const output = JSON.parse(runCli(['prime', 'reference-baseline']));
   const pkg = loadPackage();
