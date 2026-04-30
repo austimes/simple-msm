@@ -6,6 +6,9 @@ Status: implementation plan for beads epics `simple-msm-esrl-1` and `simple-msm-
 
 Ontology decision: [20260428-esrl-ontology-decision.md](./20260428-esrl-ontology-decision.md)
 
+Physical role graph refinement:
+[20260430-physical-doing-word-role-graph.md](./20260430-physical-doing-word-role-graph.md)
+
 ## Purpose
 
 This plan records the target direction for the Energy System Representation Library (ESRL) work. It exists because the short bead descriptions are not enough context for implementers. The repository is library-first: the web app is a demonstration and validation layer around the library, not the product boundary.
@@ -232,6 +235,13 @@ For every active required role:
 These rules are the basis for both library validation and demonstration optimizer validation.
 
 ## Top-Level Role Topology
+
+The initial topology below is the ESRL migration sketch from 2026-04-28. For the
+physical role graph sequence, use the later doing-word refinement as the target
+shape: [20260430-physical-doing-word-role-graph.md](./20260430-physical-doing-word-role-graph.md).
+That refinement keeps sector-style area labels out of the physical node graph,
+moves process heat under host roles, and adds Australian export-gate resource
+supply roles.
 
 The first canonical topology should migrate the current modeled and residual coverage into roles. The exact IDs can change during implementation, but the coverage must be complete.
 
