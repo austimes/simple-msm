@@ -78,6 +78,18 @@ export const COMMODITY_METADATA: Record<string, CommodityMetadata> = {
     kind: 'material',
     canonicalUnit: 't',
   },
+  make_clinker_intermediate: {
+    id: 'make_clinker_intermediate',
+    label: 'Clinker',
+    kind: 'material',
+    canonicalUnit: 't',
+  },
+  cement_kiln_heat: {
+    id: 'cement_kiln_heat',
+    label: 'Cement kiln heat',
+    kind: 'service',
+    canonicalUnit: 'GJ',
+  },
   capture_service: {
     id: 'capture_service',
     label: 'Capture service',
@@ -141,12 +153,20 @@ function normalizeCommodityNumeratorUnit(
 ): CommodityCanonicalUnit | 'GJ' | 'MWh' | 'PJ' | 't' {
   const normalized = normalizeUnitToken(numeratorUnit);
 
-  if (commodityId === 'capture_service' && normalized === 't') {
+  if (commodityId === 'capture_service' && (normalized === 't' || normalized === 'tCO2_captured')) {
     return 'tCO2_stored';
   }
 
   if (normalized === 'tCO2_stored') {
     return 'tCO2_stored';
+  }
+
+  if (commodityId === 'make_clinker_intermediate' && normalized === 't_clinker') {
+    return 't';
+  }
+
+  if (commodityId === 'cement_kiln_heat' && normalized === 'GJ_kiln_heat') {
+    return 'GJ';
   }
 
   if (normalized === 'GJ' || normalized === 'MWh' || normalized === 'PJ' || normalized === 't') {

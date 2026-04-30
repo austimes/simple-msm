@@ -121,6 +121,7 @@ export interface ResolvedConfigurationForSolve {
   years: number[];
   controlsByOutput: Record<string, Record<string, ResolvedSolveControl>>;
   serviceDemandByOutput: Record<string, Record<string, number>>;
+  linkedActivityByOutput?: Record<string, Record<string, number>>;
   externalCommodityDemandByCommodity: Record<string, Record<string, number>>;
   commodityPriceByCommodity: Record<string, ResolvedCommodityPriceSeries>;
   carbonPriceByYear: Record<string, number>;

@@ -119,6 +119,7 @@ export function solveScoped(pkg, configuration, seedOutputIds) {
       autonomousEfficiencyTracks: pkg.autonomousEfficiencyTracks,
       efficiencyPackages: pkg.efficiencyPackages,
       roleMetadata: pkg.roleMetadata,
+      roleActivityDrivers: pkg.roleActivityDrivers,
       representations: pkg.representations,
       roleDecompositionEdges: pkg.roleDecompositionEdges,
       methods: pkg.methods,

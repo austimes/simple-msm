@@ -9,3 +9,5 @@ scrap_steel,Ferrous scrap input for steelmaking.,t,Added beyond minimum commodit
 iron_ore,Iron ore / pellet / concentrate feedstock for primary steel routes.,t,Added beyond minimum commodity taxonomy because it is material to steel route choice.
 capture_service,CO2 transport/storage or equivalent capture service for CCS-enabled process methods.,tCO2 stored,Separate from negative-emissions output methods; included to preserve a clean upgrade path to explicit CCS infrastructure.
 direct_reduced_iron,Intermediate direct reduced iron output consumed by decomposed crude-steel melt and refine roles.,t,Introduced for the crude-steel role-decomposition pilot; not an exogenous final-demand commodity.
+make_clinker_intermediate,Intermediate clinker output consumed by decomposed cement-equivalent finishing roles.,t,Introduced for the cement clinker decomposition pilot; not an exogenous final-demand commodity.
+cement_kiln_heat,Host-specific cement kiln heat consumed by decomposed clinker production roles.,GJ,Introduced for the cement clinker decomposition pilot to keep kiln heat inside the cement boundary rather than generic industrial heat demand.

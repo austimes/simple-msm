@@ -3,6 +3,7 @@ import type {
   PackageData,
   ResolvedActiveRoleStructure,
   RoleMetadata,
+  RoleActivityDriver,
   ResolvedMethodYearRow,
 } from '../data/types.ts';
 import {
@@ -26,6 +27,7 @@ import {
 import {
   normalizeSolverRows,
   resolveConfigurationForSolve,
+  yearKey,
 } from './solveRequestModel.ts';
 
 export { normalizeSolverRows, resolveConfigurationForSolve } from './solveRequestModel.ts';
@@ -36,6 +38,7 @@ type SolvePackageData = Pick<PackageData, 'resolvedMethodYears' | 'appConfig'>
     | 'autonomousEfficiencyTracks'
     | 'efficiencyPackages'
     | 'roleMetadata'
+    | 'roleActivityDrivers'
     | 'representations'
     | 'roleDecompositionEdges'
     | 'methods'
@@ -129,6 +132,96 @@ function buildRoleTopologyForSolve(
   };
 }
 
+function linkedActivityLabel(roleId: string): string {
+  return `linked parent activity for role ${JSON.stringify(roleId)}`;
+}
+
+function assertLinkedActivityDriver(
+  driver: RoleActivityDriver,
+  role: SolveRoleTopology['rolesById'][string],
+): asserts driver is RoleActivityDriver & {
+  parent_role_id: string;
+  parent_activity_coefficient: number;
+} {
+  if (!driver.parent_role_id) {
+    throw new Error(`${linkedActivityLabel(driver.role_id)} is missing parent_role_id.`);
+  }
+
+  if (role.parentRoleId && role.parentRoleId !== driver.parent_role_id) {
+    throw new Error(
+      `${linkedActivityLabel(driver.role_id)} points at parent ${JSON.stringify(driver.parent_role_id)}, `
+      + `but the active role topology parent is ${JSON.stringify(role.parentRoleId)}.`,
+    );
+  }
+
+  if (
+    typeof driver.parent_activity_coefficient !== 'number'
+    || !Number.isFinite(driver.parent_activity_coefficient)
+  ) {
+    throw new Error(`${linkedActivityLabel(driver.role_id)} is missing a finite parent_activity_coefficient.`);
+  }
+}
+
+function resolveLinkedParentActivityByOutput(
+  roleActivityDrivers: RoleActivityDriver[] | undefined,
+  roleTopology: SolveRoleTopology | undefined,
+  configuration: ResolvedConfigurationForSolve,
+): Record<string, Record<string, number>> {
+  if (!roleTopology || !roleActivityDrivers) {
+    return {};
+  }
+
+  const activeRoleIds = new Set(roleTopology.activeRoleIds);
+  const linkedDriversByRole = new Map(
+    roleActivityDrivers
+      .filter((driver) => driver.driver_kind === 'linked_parent_activity')
+      .map((driver) => [driver.role_id, driver]),
+  );
+  const linkedActivityByOutput: Record<string, Record<string, number>> = {};
+
+  for (const roleId of activeRoleIds) {
+    const driver = linkedDriversByRole.get(roleId);
+    if (!driver) {
+      continue;
+    }
+
+    const role = roleTopology.rolesById[roleId];
+    if (!role) {
+      throw new Error(`${linkedActivityLabel(roleId)} has no active role metadata.`);
+    }
+
+    assertLinkedActivityDriver(driver, role);
+
+    if (!activeRoleIds.has(driver.parent_role_id)) {
+      throw new Error(
+        `${linkedActivityLabel(roleId)} references inactive parent role ${JSON.stringify(driver.parent_role_id)}.`,
+      );
+    }
+
+    const parentRole = roleTopology.rolesById[driver.parent_role_id];
+    if (!parentRole) {
+      throw new Error(
+        `${linkedActivityLabel(roleId)} references unknown parent role ${JSON.stringify(driver.parent_role_id)}.`,
+      );
+    }
+
+    const parentActivity = configuration.serviceDemandByOutput[parentRole.outputId];
+    if (!parentActivity) {
+      throw new Error(
+        `${linkedActivityLabel(roleId)} needs parent activity for output `
+        + `${JSON.stringify(parentRole.outputId)}, but no service demand table was resolved.`,
+      );
+    }
+
+    linkedActivityByOutput[role.outputId] = configuration.years.reduce<Record<string, number>>((table, year) => {
+      table[yearKey(year)] = (parentActivity[yearKey(year)] ?? 0) * driver.parent_activity_coefficient;
+      return table;
+    }, {});
+  }
+
+  return linkedActivityByOutput;
+}
+
 function resolveObjectiveCostMetadata(
   rows: NormalizedSolverRow[],
 ): SolveObjectiveCostMetadata {
@@ -203,12 +296,20 @@ function filterSolveRequestForOutputs(
     }
   }
 
+  const filteredLinkedActivityByOutput: Record<string, Record<string, number>> = {};
+  for (const outputId of includedOutputIds) {
+    if (configuration.linkedActivityByOutput?.[outputId]) {
+      filteredLinkedActivityByOutput[outputId] = configuration.linkedActivityByOutput[outputId];
+    }
+  }
+
   return {
     rows: filteredRows,
     configuration: {
       ...configuration,
       controlsByOutput: filteredControlsByOutput,
       serviceDemandByOutput: filteredServiceDemandByOutput,
+      linkedActivityByOutput: filteredLinkedActivityByOutput,
       externalCommodityDemandByCommodity: filteredExternalCommodityDemandByCommodity,
     },
   };
@@ -319,6 +420,9 @@ export function buildSolveRequest(
   const resolvedMethodYears = activeRoleStructure
     ? filterResolvedMethodYearRowsByActiveRoleStructure(pkg.resolvedMethodYears, activeRoleStructure)
     : pkg.resolvedMethodYears;
+  const roleTopology = activeRoleStructure && hasRoleTopologyInputs(pkg)
+    ? buildRoleTopologyForSolve(pkg, activeRoleStructure, resolvedMethodYears)
+    : undefined;
   const resolvedConfiguration = resolveConfigurationForSolve(
     roleNativeConfiguration,
     pkg.appConfig,
@@ -328,19 +432,25 @@ export function buildSolveRequest(
       efficiencyPackages: pkg.efficiencyPackages,
     },
   );
+  const linkedActivityByOutput = resolveLinkedParentActivityByOutput(
+    pkg.roleActivityDrivers,
+    roleTopology,
+    resolvedConfiguration,
+  );
   const allRows = normalizeSolverRows({ ...pkg, resolvedMethodYears }, resolvedConfiguration.efficiency);
   const expandedConfiguration = expandActiveMethodIdsForDerivedRows(allRows, resolvedConfiguration);
-  const roleTopology = activeRoleStructure && hasRoleTopologyInputs(pkg)
-    ? buildRoleTopologyForSolve(pkg, activeRoleStructure, resolvedMethodYears)
-    : undefined;
+  const configurationWithLinkedActivity: ResolvedConfigurationForSolve = {
+    ...expandedConfiguration,
+    linkedActivityByOutput,
+  };
 
-  const includedOutputIds = deriveIncludedOutputIds(allRows, expandedConfiguration, pkg.appConfig);
+  const includedOutputIds = deriveIncludedOutputIds(allRows, configurationWithLinkedActivity, pkg.appConfig);
   for (const decomposition of roleTopology?.decompositions ?? []) {
     includedOutputIds.add(decomposition.parentOutputId);
   }
   const filtered = filterSolveRequestForOutputs(
     allRows,
-    expandedConfiguration,
+    configurationWithLinkedActivity,
     includedOutputIds,
   );
 
