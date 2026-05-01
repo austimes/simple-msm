@@ -22,6 +22,12 @@
         "coal_mining__conventional"
       ]
     },
+    "oil_and_gas_extraction": {
+      "mode": "optimize",
+      "active_state_ids": [
+        "oil_and_gas_extraction__conventional"
+      ]
+    },
     "residential_building_services": {
       "mode": "optimize",
       "active_state_ids": [

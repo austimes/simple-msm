@@ -28,3 +28,4 @@ removals_land,land_sequestration,10,Modeled land sequestration placeholder.
 removals_land,engineered_removals,20,Modeled engineered removals placeholder.
 removals_land,residual_lulucf_sink,90,Optional residual LULUCF sink for national-total reconciliation.
 energy_supply,coal_mining,30,Modelled coal mining sector covering heavy haulage pathways and fugitive methane abatement.
+energy_supply,oil_and_gas_extraction,40,Modelled oil and gas extraction sector covering electric compression, LDAR and flare elimination, and renewable diesel integration.
