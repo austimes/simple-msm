@@ -61,7 +61,7 @@ test('built-in solve request uses residual families instead of external electric
   assert.ok(Math.abs(residualFinalElectricity - 101_598_611.11111) < 1);
   assert.ok(Math.abs(lossesOwnUse - 42_420_000) < 1);
   assert.ok(electricityBalance);
-  assert.ok(Math.abs(electricityBalance.totalDemand - 283_920_000) < 200);
+  assert.ok(Math.abs(electricityBalance.totalDemand - 303_237_724) < 2);
 });
 
 test('disabling a residual family removes its normal demand and rows', () => {

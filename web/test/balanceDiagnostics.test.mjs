@@ -11,6 +11,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { parseCsv } from '../src/data/parseCsv.ts';
 import { summarizeResidualFamilyTotals } from '../src/data/balanceDiagnostics.ts';
 import { loadPkg } from './solverTestUtils.mjs';
@@ -41,9 +42,10 @@ const totals = summarizeResidualFamilyTotals(pkg.sectorStates);
 
 function listFamilyDirectories() {
   const root = new URL('../../sector_trajectory_library/families', import.meta.url);
+  const rootPath = fileURLToPath(root);
   return readdirSync(root).filter((entry) => {
     try {
-      readFileSync(join(root.pathname, entry, 'family_states.csv'), 'utf8');
+      readFileSync(join(rootPath, entry, 'family_states.csv'), 'utf8');
       return true;
     } catch {
       return false;

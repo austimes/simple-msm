@@ -1,0 +1,8 @@
+commodity_id,commodity_label,nga_version,scope1_kgco2e_per_gj,source_table,reviewed_date,confidence,notes
+refined_liquid_fuels,Diesel / refined liquid fuels,NGA 2025,69.9,Table 1 Energy combustion,2026-05-03,confirmed,"Diesel and petroleum distillates. Updated from 68.4 (NGA 2024) to 69.9 (NGA 2025). Used in coal_mining family."
+diesel,Diesel,NGA 2025,69.9,Table 1 Energy combustion,2026-05-03,confirmed,"Same factor as refined_liquid_fuels. Used in rail_freight and rail_passenger families."
+natural_gas,Natural gas,NGA 2025,51.4,Table 1 Energy combustion,2026-05-03,estimated,"Scope 1 stationary combustion. Stable across NGA 2024/2025. Used in coal_mining and oil_and_gas_extraction."
+aviation_turbine_fuel,Aviation turbine fuel (Jet A-1),NGA 2025,70.8,Table 1 Energy combustion,2026-05-03,estimated,"Kerosene-type jet fuel. Used in domestic_aviation and international_aviation families (top-down calibrated — EF informs commentary only)."
+heavy_fuel_oil,Heavy fuel oil (HFO / bunker fuel),NGA 2025,77.4,Table 1 Energy combustion,2026-05-03,estimated,"Residual fuel oil. Used in domestic_shipping and international_shipping families (top-down calibrated — EF informs commentary only)."
+electricity,Electricity (grid),N/A,0.0,Scope 2 excluded,2026-05-03,confirmed,"Electricity upstream (scope 2) emissions excluded from all family_states energy_co2e per assumption A003. Captured by electricity supply family."
+hydrogen,Hydrogen (green),N/A,0.0,Zero scope 1 combustion,2026-05-03,confirmed,"Green hydrogen combustion produces zero scope 1 CO2. Any upstream emissions excluded per scope boundary A003."

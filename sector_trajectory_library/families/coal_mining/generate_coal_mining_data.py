@@ -33,13 +33,13 @@ AES reference:  174.0 PJ  →  coverage = 98.0% ✓
 
 Emission factors
 -----------------
-NGA DCCEEW (scope 1, AR5 GWP100):
-  Diesel / refined liquid fuels: 68.4 kgCO2e/GJ
+NGA 2025 DCCEEW (scope 1, AR5 GWP100):
+  Diesel / refined liquid fuels: 69.9 kgCO2e/GJ  (updated from 68.4 in NGA 2024)
   Natural gas:                   51.4 kgCO2e/GJ
-Energy CO2e: (302 × 68.4 + 25 × 51.4) / 1000 = 22.0 tCO2e/kt
+Energy CO2e: (302 × 69.9 + 25 × 51.4) / 1000 = 22.4 tCO2e/kt
 
 Fugitive (process) CO2e:
-  NGGI 2022-23, Category 1B1a Coal Mining
+  NGGI 2023-24, Category 1B1a Coal Mining
   National total ≈ 29 MtCO2e / 420,000 kt = 69 tCO2e/kt
   → 69 tCO2e/kt × 420,000 kt / 1e6 = 28.98 MtCO2e ≈ 29 MtCO2e NGGI ✓
 
@@ -48,7 +48,7 @@ Demand trajectory: declining__coal_mining_total (−1.1%/yr compound)
                        domestic (90,000 kt @ −2.5%/yr)
   Combined: (330,000×−0.75% + 90,000×−2.5%) / 420,000 ≈ −1.1%/yr
 
-Sources: S001 (AES 2023-24), S002 (NGGI 2022-23), S021 (Geoscience Australia)
+Sources: S001 (AES 2023-24), S002 (NGGI 2023-24), S021 (Geoscience Australia)
 Assumptions: A002 (energy attribution), A003 (scope 1 boundary), A009 (fugitive)
 """
 
@@ -74,11 +74,11 @@ ELEC_2050  = 104.0
 GAS_2050   =  21.0
 
 # Emission factors (NGA, kgCO2e/GJ)
-EF_RFUEL = 68.4
+EF_RFUEL = 69.9
 EF_GAS   = 51.4
 ENERGY_CO2E_2025 = round((RFUEL_2025 * EF_RFUEL + GAS_2025 * EF_GAS) / 1000, 1)  # 22.0
 
-# Process (fugitive) CO2e — national average per NGGI 2022-23 Cat 1B1a
+# Process (fugitive) CO2e — national average per NGGI 2023-24 Cat 1B1a
 PROCESS_CO2E_2025 = 69.0
 PROCESS_CO2E_2050 = 43.0
 
@@ -99,7 +99,7 @@ ROLLOUT_NOTES = (
 AVAIL_NOTE = "All states available from 2025; uptake bounds reflect Australian mining investment context."
 DERIVATION = (
     "Energy coefficients from AES 2023-24 Table F (174 PJ / 420,000 kt national "
-    "average, 406 GJ/kt) applied to total production anchor. Fugitive from NGGI 2022-23 Cat 1B1a."
+    "average, 406 GJ/kt) applied to total production anchor. Fugitive from NGGI 2023-24 Cat 1B1a."
 )
 SOURCES     = json.dumps(["S001", "S002", "S021"])
 ASSUMPTIONS = json.dumps(["A002", "A003", "A009"])
@@ -221,7 +221,7 @@ CONV_META = {
         "Fuel split: rfuel 73% (302 GJ/kt), elec 19% (79 GJ/kt), gas 6% (25 GJ/kt). "
         "Total coal (420,000 kt) energy: 406 × 420,000 = 170.5 PJ (98% of AES 174 PJ)."
     ),
-    "evidence":     "AES 2023-24 Table F; NGGI 2022-23 Cat 1B1a; Geoscience Australia 2023-24.",
+    "evidence":     "AES 2023-24 Table F; NGGI 2023-24 Cat 1B1a; Geoscience Australia 2023-24.",
     "confidence":   "Medium",
     "review_notes": (
         "Per-kt coefficient is national average across all mine types. "
@@ -377,7 +377,7 @@ LF_META = {
         "Base energy same as conventional; slight extra electricity for abatement "
         "systems: rfuel 302, elec 87 (+8 for VAM/drainage), gas 25 GJ/kt."
     ),
-    "evidence":     "NGGI 2022-23; Grosvenor Mine VAM data; NSW DEIE underground methane reporting.",
+    "evidence":     "NGGI 2023-24; Grosvenor Mine VAM data; NSW DEIE underground methane reporting.",
     "confidence":   "Medium",
     "review_notes": (
         "VIC brown coal has very low fugitive intensity; this state is most "
@@ -487,7 +487,7 @@ DEMAND_ROW = {
         "and therefore apply directly to the total production basis."
     ),
     "notes": (
-        f"Calibrated to AES 2023-24 Table F and NGGI 2022-23 Cat 1B1a. "
+        f"Calibrated to AES 2023-24 Table F and NGGI 2023-24 Cat 1B1a. "
         f"Energy at anchor: {ANCHOR_KT:,} kt × 406 GJ/kt = 170.5 PJ "
         f"(AES reference: {AES_TOTAL_PJ} PJ, coverage = 98.0%). "
         f"Fugitive at anchor: {ANCHOR_KT:,} kt × 69 tCO2e/kt = 29.0 MtCO2e "

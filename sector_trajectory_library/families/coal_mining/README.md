@@ -36,7 +36,7 @@ All state ids are authored across milestone years 2025, 2030, 2035, 2040, 2045, 
 ## Main sources used
 
 - `S001` — AES 2023-24 Table F (primary energy calibration basis). See `shared/source_ledger.csv`
-- `S002` — NGGI 2022-23 Category 1B1a (fugitive coal mining emissions). See `shared/source_ledger.csv`
+- `S002` — NGGI 2023-24 Category 1B1a (fugitive coal mining emissions). See `shared/source_ledger.csv`
 - `S021` — Geoscience Australia 2023-24 production statistics (total coal output anchor). See `shared/source_ledger.csv`
 
 ## Main assumptions used
@@ -49,7 +49,7 @@ All state ids are authored across milestone years 2025, 2030, 2035, 2040, 2045, 
 
 Phase 1 uses five technology states (one incumbent, four transition pathways) to span the main emission-abatement options for Australian coal mining without requiring a full mine-type or process-chain model.
 
-The incumbent (`conventional`) anchors to AES 2023-24 and NGGI 2022-23 at national scale (98% energy coverage, ~100% fugitive coverage). The two haulage electrification states (`bev_haulage`, `hydrogen_fcev`) target the largest single energy-use lever: refined liquid fuels are 73% of mine energy in 2025 and haulage accounts for the majority of that diesel load. The `low_fugitive` state addresses the dominant emission stream — process (fugitive) CO2e at 69 tCO2e/kt is more than three times the energy CO2e at 22 tCO2e/kt in 2025, making methane abatement the highest-priority lever for total emission reduction. The `integrated_lc` state represents the Safeguard Mechanism policy pathway combining all major levers.
+The incumbent (`conventional`) anchors to AES 2023-24 and NGGI 2023-24 at national scale (98% energy coverage, ~100% fugitive coverage). The two haulage electrification states (`bev_haulage`, `hydrogen_fcev`) target the largest single energy-use lever: refined liquid fuels are 73% of mine energy in 2025 and haulage accounts for the majority of that diesel load. The `low_fugitive` state addresses the dominant emission stream — process (fugitive) CO2e at 69 tCO2e/kt is more than three times the energy CO2e at 22.4 tCO2e/kt in 2025, making methane abatement the highest-priority lever for total emission reduction. The `integrated_lc` state represents the Safeguard Mechanism policy pathway combining all major levers.
 
 These five states let the solver distinguish the two distinct emission streams (energy and fugitive) and the two main technology levers (fleet electrification and methane abatement) without over-fitting to mine-type or coal-grade detail that the national-average source data does not support.
 
@@ -108,25 +108,25 @@ Evidence basis: Australian mining telematics programmes (Wenco, Modular Mining, 
 
 | Emission stream | Coefficient | Total at anchor | NGGI/AES reference |
 |---|---|---|---|
-| Energy CO2e (scope 1 combustion) | 22.0 tCO2e/kt | 9.2 MtCO2e | — |
-| Process CO2e (fugitive, NGGI Cat 1B1a) | 69.0 tCO2e/kt | 29.0 MtCO2e | NGGI 2022-23: 29 MtCO2e |
-| **Total scope 1** | **91.0 tCO2e/kt** | **38.2 MtCO2e** | — |
+| Energy CO2e (scope 1 combustion) | 22.4 tCO2e/kt | 9.4 MtCO2e | NGA 2025 diesel EF 69.9 kgCO2e/GJ |
+| Process CO2e (fugitive, NGGI Cat 1B1a) | 69.0 tCO2e/kt | 29.0 MtCO2e | NGGI 2023-24: 29 MtCO2e |
+| **Total scope 1** | **91.4 tCO2e/kt** | **38.4 MtCO2e** | — |
 
 AES energy coverage: 170.5 PJ modelled vs 174 PJ AES 2023-24 = **98.0%**.  
 NGGI fugitive coverage: 29.0 MtCO2e modelled vs 29 MtCO2e NGGI Cat 1B1a = **99.9%**.
 
-Emission factors applied (NGA DCCEEW, scope 1, AR5 GWP100): diesel/refined liquid fuels 68.4 kgCO2e/GJ; natural gas 51.4 kgCO2e/GJ.
+Emission factors applied (NGA 2025 DCCEEW, scope 1, AR5 GWP100): diesel/refined liquid fuels 69.9 kgCO2e/GJ; natural gas 51.4 kgCO2e/GJ.
 
 ### Conventional state fuel mix trajectory (background only, no packages)
 
 | Year | Refined liquid fuels (GJ/kt) | Electricity (GJ/kt) | Natural gas (GJ/kt) | Energy CO2e (tCO2e/kt) | Fugitive CO2e (tCO2e/kt) |
 |---|---|---|---|---|---|
-| 2025 | 302 | 79 | 25 | 22.0 | 69.0 |
-| 2030 | 291 | 83 | 24 | 21.2 | 63.0 |
-| 2035 | 280 | 88 | 23 | 20.3 | 57.0 |
-| 2040 | 270 | 94 | 22 | 19.6 | 52.0 |
-| 2045 | 260 | 98 | 22 | 18.9 | 47.0 |
-| 2050 | 250 | 104 | 21 | 18.2 | 43.0 |
+| 2025 | 302 | 79 | 25 | 22.4 | 69.0 |
+| 2030 | 291 | 83 | 24 | 21.6 | 63.0 |
+| 2035 | 280 | 88 | 23 | 20.8 | 57.0 |
+| 2040 | 270 | 94 | 22 | 20.0 | 52.0 |
+| 2045 | 260 | 98 | 22 | 19.3 | 47.0 |
+| 2050 | 250 | 104 | 21 | 18.6 | 43.0 |
 
 ### Integrated low-carbon state — indicative best-case at 2050
 

@@ -38,9 +38,9 @@ ELEC_2025  =  79.0
 GAS_2025   =  25.0
 SEI_2025   = RFUEL_2025 + ELEC_2025 + GAS_2025   # 406 GJ/kt
 
-ENERGY_CO2E_2025  = 22.0   # tCO2e/kt
+ENERGY_CO2E_2025  = 22.4   # tCO2e/kt  (NGA 2025: diesel 69.9 kgCO2e/GJ)
 PROCESS_CO2E_2025 = 69.0
-TOTAL_CO2E_2025   = ENERGY_CO2E_2025 + PROCESS_CO2E_2025  # 91 tCO2e/kt
+TOTAL_CO2E_2025   = ENERGY_CO2E_2025 + PROCESS_CO2E_2025  # 91.4 tCO2e/kt
 
 # Demand trajectory: declining__coal_mining_total  −1.1%/yr
 # Index multipliers relative to 2025=1.000 at (1-0.011)^n
@@ -57,13 +57,13 @@ TOTAL_DEMAND = {
 CONV_RFUEL = {2025: 302, 2030: 291, 2035: 280, 2040: 270, 2045: 260, 2050: 250}
 CONV_ELEC  = {2025:  79, 2030:  83, 2035:  88, 2040:  94, 2045:  98, 2050: 104}
 CONV_GAS   = {2025:  25, 2030:  24, 2035:  23, 2040:  22, 2045:  22, 2050:  21}
-CONV_E_CO2E= {2025:22.0, 2030:21.2, 2035:20.3, 2040:19.6, 2045:18.9, 2050:18.2}
+CONV_E_CO2E= {2025:22.4, 2030:21.6, 2035:20.8, 2040:20.0, 2045:19.3, 2050:18.6}
 CONV_P_CO2E= {2025:69.0, 2030:63.0, 2035:57.0, 2040:52.0, 2045:47.0, 2050:43.0}
 
 BEV_ELEC   = {2025: 134, 2030: 142, 2035: 148, 2040: 153, 2045: 156, 2050: 158}
 BEV_RFUEL  = {2025: 136, 2030: 115, 2035:  98, 2040:  87, 2045:  80, 2050:  75}
 BEV_GAS    = {2025:  22, 2030:  21, 2035:  20, 2040:  19, 2045:  19, 2050:  18}
-BEV_E_CO2E = {2025:10.6, 2030: 9.0, 2035: 7.7, 2040: 7.0, 2045: 6.5, 2050: 6.2}
+BEV_E_CO2E = {2025:10.6, 2030: 9.1, 2035: 7.9, 2040: 7.1, 2045: 6.6, 2050: 6.2}
 
 H2_H2      = {2025:  83, 2030:  88, 2035:  92, 2040:  96, 2045:  99, 2050: 102}
 H2_ELEC    = {2025:  79, 2030:  79, 2035:  79, 2040:  79, 2045:  79, 2050:  79}
@@ -78,7 +78,7 @@ LFUG_P_CO2E= {2025:34.5, 2030:27.0, 2035:21.0, 2040:16.0, 2045:12.5, 2050:10.0}
 ILC_ELEC   = {2025: 158, 2030: 163, 2035: 167, 2040: 170, 2045: 172, 2050: 174}
 ILC_RFUEL  = {2025: 110, 2030:  88, 2035:  72, 2040:  60, 2045:  50, 2050:  40}
 ILC_GAS    = {2025:  18, 2030:  16, 2035:  14, 2040:  12, 2045:  10, 2050:   9}
-ILC_E_CO2E = {2025: 8.6, 2030: 6.8, 2035: 5.6, 2040: 4.7, 2045: 4.0, 2050: 3.2}
+ILC_E_CO2E = {2025: 8.6, 2030: 7.0, 2035: 5.8, 2040: 4.8, 2045: 4.0, 2050: 3.3}
 ILC_P_CO2E = {2025:28.0, 2030:19.5, 2035:13.5, 2040: 9.5, 2045: 7.0, 2050: 5.5}
 
 STATE_LABELS = [
@@ -96,7 +96,7 @@ STATE_NAMES = [
     "Integrated low-carbon",
 ]
 STATE_2025_SEI   = [406, 292, 320, 414, 286]
-STATE_2025_ECO2E = [22.0, 10.6, 10.6, 22.2, 8.6]
+STATE_2025_ECO2E = [22.4, 10.6, 10.6, 22.4, 8.6]
 STATE_2025_PCO2E = [69.0, 69.0, 69.0, 34.5, 28.0]
 
 
@@ -148,7 +148,7 @@ def build_word_doc():
         "(420,000 kt/yr in 2025, comprising ~330,000 kt export and ~90,000 kt domestic). "
         "Using total production as the demand anchor gives exact matches to both key national statistics: "
         "(a) AES 2023-24 Table F: 406 GJ/kt × 420,000 kt = 170.5 PJ (98.0% of AES 174 PJ); "
-        "(b) NGGI 2022-23 Cat 1B1a: 69 tCO2e/kt × 420,000 kt = 29.0 MtCO2e (99.9% of NGGI 29 MtCO2e). "
+        "(b) NGGI 2023-24 Cat 1B1a: 69 tCO2e/kt × 420,000 kt = 29.0 MtCO2e (99.9% of NGGI 29 MtCO2e). "
         "Demand declines at −1.1%/yr compound (weighted average of export −0.75%/yr and domestic −2.5%/yr)."
     )
 
@@ -159,12 +159,12 @@ def build_word_doc():
         [
             ["S001", "AES 2023-24 Table F — Mining sector final energy", "2023-24",
              "174 PJ total, fuel split: rfuel 73%, elec 19%, gas 6%"],
-            ["S002", "NGGI 2022-23 — Category 1B1a Fugitive (coal mining)", "2022-23",
+            ["S002", "NGGI 2023-24 — Category 1B1a Fugitive (coal mining)", "2023-24",
              "~29 MtCO2e; 69 tCO2e/kt at 420,000 kt total"],
             ["S021", "Geoscience Australia Australian Energy Update 2023-24", "2023-24",
              "420,000 kt total production; export ~330,000 kt, domestic ~90,000 kt"],
-            ["NGA2024", "National Greenhouse Accounts Factors 2024", "2024",
-             "Diesel/rfuel 68.4 kgCO2e/GJ; gas 51.4 kgCO2e/GJ (AR5 GWP100)"],
+            ["NGA2025", "National Greenhouse Accounts Factors 2025", "2025",
+             "Diesel/rfuel 69.9 kgCO2e/GJ; gas 51.4 kgCO2e/GJ (AR5 GWP100)"],
         ],
         caption="Table 1 — Primary data sources"
     )
@@ -408,7 +408,7 @@ def build_cover(wb):
         ("Date", f"{datetime.date.today():%d %B %Y}"),
         ("Version", "1.1"),
         ("Status", "Phase 1 calibration — total production basis (420,000 kt)"),
-        ("Data basis", "AES 2023-24 Table F; NGGI 2022-23; Geoscience Australia 2023-24"),
+        ("Data basis", "AES 2023-24 Table F; NGGI 2023-24; Geoscience Australia 2023-24"),
         ("Author", "Simple MSM core library team"),
         ("Model family", "coal_mining (required_service, kt_coal)"),
         ("Anchor value", "420,000 kt (total production, 2025)"),
@@ -575,7 +575,7 @@ def build_energy_emissions_sensecheck(wb):
 
     # NGGI reference row
     r_nggi = emis_section_row + 2 + len(YEARS)
-    ws.cell(row=r_nggi, column=2, value="NGGI 2022-23 ref").font = Font(bold=True, italic=True, size=10, color="C00000")
+    ws.cell(row=r_nggi, column=2, value="NGGI 2023-24 ref").font = Font(bold=True, italic=True, size=10, color="C00000")
     ws.cell(row=r_nggi, column=7, value=29.0).font = Font(bold=True, size=10, color="C00000")
     ws.cell(row=r_nggi, column=7).number_format = "0.00"
     ws.cell(row=r_nggi, column=2).fill = PatternFill("solid", fgColor="FCE4D6")
@@ -665,11 +665,11 @@ def build_calibration_sheet(wb):
         hdr(ws, 19, ci, h)
 
     commodities = [
-        ("Refined liquid fuels", 302, "74%", 68.4, 20.7),
+        ("Refined liquid fuels", 302, "74%", 69.9, 21.1),
         ("Electricity", 79, "19%", "Scope 2 — excluded", "—"),
         ("Natural gas", 25, "6%", 51.4, 1.3),
         ("Unmodelled (LPG/biomass)", 8, "2%", "Excluded", "—"),
-        ("TOTAL", 414, "100%", "—", "22.0 (energy CO2e)"),
+        ("TOTAL", 414, "100%", "—", "22.4 (energy CO2e)"),
     ]
     for ri, row in enumerate(commodities):
         r = 20 + ri
@@ -678,13 +678,13 @@ def build_calibration_sheet(wb):
             dat(ws, r, ci, v, bold=(ri == len(commodities)-1), even=even)
 
     # Fugitive table
-    ws.cell(row=27, column=2, value="Fugitive Methane Calibration (NGGI 2022-23 Cat 1B1a)").font = \
+    ws.cell(row=27, column=2, value="Fugitive Methane Calibration (NGGI 2023-24 Cat 1B1a)").font = \
         Font(bold=True, size=11, color="1F4E79")
     for ci, h in enumerate(["Item", "Value", "Source"], 2):
         hdr(ws, 28, ci, h)
 
     fugitive_rows = [
-        ("NGGI 2022-23 Cat 1B1a total", "~29 MtCO2e", "NGGI 2022-23"),
+        ("NGGI 2023-24 Cat 1B1a total", "~29 MtCO2e", "NGGI 2023-24"),
         ("Total production", "420,000 kt", "Geoscience Australia 2023-24"),
         ("Per-kt fugitive (national avg)", "69 tCO2e/kt", "29 Mt ÷ 420,000 kt × 1,000"),
         ("Open-cut fugitive (typical)", "~15 tCO2e/kt", "Literature / NGER reports"),

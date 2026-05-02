@@ -149,6 +149,38 @@
       "active_state_ids": [
         "electricity_grid_losses_own_use__residual_incumbent"
       ]
+    },
+    "domestic_aviation": {
+      "mode": "optimize",
+      "active_state_ids": []
+    },
+    "international_aviation": {
+      "mode": "optimize",
+      "active_state_ids": []
+    },
+    "domestic_shipping": {
+      "mode": "optimize",
+      "active_state_ids": []
+    },
+    "international_shipping": {
+      "mode": "optimize",
+      "active_state_ids": []
+    },
+    "rail_passenger": {
+      "mode": "optimize",
+      "active_state_ids": []
+    },
+    "rail_freight": {
+      "mode": "optimize",
+      "active_state_ids": []
+    },
+    "coal_mining": {
+      "mode": "optimize",
+      "active_state_ids": []
+    },
+    "oil_and_gas_extraction": {
+      "mode": "optimize",
+      "active_state_ids": []
     }
   },
   "service_demands": {
@@ -382,7 +414,15 @@
       "residual_agriculture_other": 1,
       "residual_waste": 1,
       "residual_lulucf_sink": 1,
-      "electricity_grid_losses_own_use": 1
+      "electricity_grid_losses_own_use": 1,
+      "domestic_aviation": 75500.0,
+      "international_aviation": 70000.0,
+      "domestic_shipping": 30000.0,
+      "international_shipping": 200000.0,
+      "rail_passenger": 22000.0,
+      "rail_freight": 700.0,
+      "coal_mining": 420000.0,
+      "oil_and_gas_extraction": 6100.0
     },
     "service_growth_rates_pct_per_year": {
       "residential_building_services": 0.6,
@@ -412,7 +452,14 @@
       "biomass": "medium",
       "iron_ore": "medium",
       "scrap_steel": "medium",
-      "capture_service": "medium"
+      "capture_service": "medium",
+      "diesel": "medium",
+      "aviation_turbine_fuel": "medium",
+      "sustainable_aviation_fuel": "medium",
+      "marine_diesel_oil": "medium",
+      "heavy_fuel_oil": "medium",
+      "ammonia": "medium",
+      "liquefied_natural_gas": "medium"
     },
     "overrides": {}
   },

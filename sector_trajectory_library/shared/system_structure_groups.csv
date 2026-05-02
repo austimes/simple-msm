@@ -8,3 +8,4 @@ construction,Construction,60,Construction residual energy activity until an expl
 water_waste,Water and waste,70,Water-sector residual electricity and waste emissions activity.
 other_sectors,Other sectors,80,Residual activity not assigned to a more specific current group.
 removals_land,Removals and land,90,Engineered and land removals plus optional LULUCF calibration sink.
+non_road_transport,Non-road transport,25,"Aviation, maritime shipping, and rail transport families (domestic and international)."

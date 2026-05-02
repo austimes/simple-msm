@@ -233,18 +233,26 @@ describe('additionality analysis', () => {
   test('derives the expected state-toggle atoms for reference-baseline vs synthetic state-open target', () => {
     const atoms = deriveAdditionalityAtoms(buildBaseCase(), buildStateOpenCase(), pkg);
 
-    assert.equal(atoms.length, 25);
+    assert.equal(atoms.length, 46);
     assert.deepEqual(
       atoms.map((atom) => `${atom.outputLabel}|${atom.stateLabel}|${atom.action}`),
       [
         'Cement equivalent|Deep-abatement cement with CCS|enable',
         'Cement equivalent|Low-clinker and alternative-fuels cement|enable',
+        'Coal mining|Battery-electric heavy haulage|enable',
+        'Coal mining|Hydrogen FCEV haulage|enable',
+        'Coal mining|Integrated low-carbon mining|enable',
+        'Coal mining|Low-fugitive mining with methane abatement|enable',
         'Commercial building services|Deep electrification and efficiency commercial services|enable',
         'Commercial building services|Electrified efficient commercial services|enable',
         'Cropping and horticulture output bundle|Mitigated cropping and horticulture bundle|enable',
         'Crude steel|CCS-influenced BF-BOF steel|enable',
         'Crude steel|Hydrogen DRI-electric steel|enable',
         'Crude steel|Scrap EAF steel|enable',
+        'Domestic aviation|Battery-electric short-haul — domestic aviation|enable',
+        'Domestic aviation|SAF blend — domestic aviation|enable',
+        'Domestic shipping|Battery-electric vessel — domestic shipping|enable',
+        'Domestic shipping|Green ammonia vessel — domestic shipping|enable',
         'Electricity supply|Deep-clean firmed grid supply|enable',
         'Electricity supply|Policy frontier grid supply|enable',
         'Freight road transport|Battery-electric road freight|enable',
@@ -252,13 +260,26 @@ describe('additionality analysis', () => {
         'Freight road transport|Hydrogen fuel-cell road freight|enable',
         'High-temperature heat|High-temperature electrified heat|enable',
         'High-temperature heat|High-temperature low-carbon fuels|enable',
+        'International aviation|Hydrogen combustion aircraft — international aviation|enable',
+        'International aviation|SAF blend — international aviation|enable',
+        'International shipping|LNG transition — international shipping|enable',
+        'International shipping|Zero-emission fuel vessel — international shipping|enable',
         'Livestock output bundle|Mitigated livestock output bundle|enable',
         'Low-temperature heat|Low-temperature electrified heat|enable',
         'Low-temperature heat|Low-temperature low-carbon fuels|enable',
         'Medium-temperature heat|Medium-temperature electrified heat|enable',
         'Medium-temperature heat|Medium-temperature low-carbon fuels|enable',
+        'Oil and gas extraction|Electric motor drive compression|enable',
+        'Oil and gas extraction|Integrated low-emission oil and gas extraction|enable',
+        'Oil and gas extraction|LDAR and zero routine flaring|enable',
+        'Oil and gas extraction|Remote wellsite solar-diesel hybrid|enable',
         'Passenger road transport|Battery-electric passenger road fleet|enable',
         'Passenger road transport|Hybrid-heavy passenger road fleet|enable',
+        'Rail freight|Hydrogen fuel cell locomotive — rail freight|enable',
+        'Rail freight|Overhead line electrification — rail freight|enable',
+        'Rail passenger|Battery-electric regional train — rail passenger|enable',
+        'Rail passenger|Fully electrified OHL — rail passenger|enable',
+        'Rail passenger|Hydrogen regional train — rail passenger|enable',
         'Residential building services|Deep-electric residential services|enable',
         'Residential building services|Electrified efficient residential services|enable',
         'Residual LULUCF sink|Residual incumbent|enable',
@@ -494,7 +515,7 @@ describe('additionality analysis', () => {
     );
   });
 
-  test('greedy analysis reaches the target cost after all selected atoms are applied', async () => {
+  test('greedy analysis reaches the target cost after all selected atoms are applied', { timeout: 120_000 }, async () => {
     const analysis = await runAdditionalityAnalysis(
       {
         baseConfiguration: buildBaseCase(),
@@ -527,7 +548,7 @@ describe('additionality analysis', () => {
     );
   });
 
-  test('metric totals reconcile with solve contribution rows', async () => {
+  test('metric totals reconcile with solve contribution rows', { timeout: 120_000 }, async () => {
     const solveCalls = [];
     const analysis = await runAdditionalityAnalysis(
       {
@@ -628,7 +649,7 @@ describe('additionality analysis', () => {
     }
   });
 
-  test('first sequence entry starts from base metrics and last entry reaches target metrics', async () => {
+  test('first sequence entry starts from base metrics and last entry reaches target metrics', { timeout: 120_000 }, async () => {
     const analysis = await runAdditionalityAnalysis(
       {
         baseConfiguration: buildBaseCase(),

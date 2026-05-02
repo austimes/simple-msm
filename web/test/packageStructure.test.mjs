@@ -76,14 +76,14 @@ test('sector trajectory library package structure is internally consistent', () 
   const systemMembers = parseCsv(readText('shared/system_structure_members.csv'));
   const systemGroupIds = new Set(systemGroups.map((row) => row.group_id));
 
-  assert.equal(families.length, 28);
+  assert.equal(families.length, 36);
   assert.equal(
     families.filter((family) => family.family_resolution === 'residual_stub').length,
     14,
   );
   assert.equal(
     families.filter((family) => family.family_resolution === 'modeled').length,
-    14,
+    22,
   );
 
   const memberCountByFamily = new Map();
@@ -263,8 +263,8 @@ test('sector trajectory library package structure is internally consistent', () 
     }
   }
 
-  assert.equal(totalRows, 312);
-  assert.equal(stateIds.size, 52);
+  assert.equal(totalRows, 486);
+  assert.equal(stateIds.size, 81);
   assert.ok(autonomousTrackRowCount > 0, 'expected at least one canonical autonomous efficiency track row');
   assert.ok(efficiencyPackageRowCount > 0, 'expected at least one canonical efficiency package row');
 

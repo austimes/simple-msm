@@ -78,6 +78,48 @@ export const COMMODITY_METADATA: Record<string, CommodityMetadata> = {
     kind: 'service',
     canonicalUnit: 'tCO2_stored',
   },
+  diesel: {
+    id: 'diesel',
+    label: 'Diesel',
+    kind: 'fuel',
+    canonicalUnit: 'GJ',
+  },
+  aviation_turbine_fuel: {
+    id: 'aviation_turbine_fuel',
+    label: 'Aviation turbine fuel',
+    kind: 'fuel',
+    canonicalUnit: 'GJ',
+  },
+  sustainable_aviation_fuel: {
+    id: 'sustainable_aviation_fuel',
+    label: 'Sustainable aviation fuel',
+    kind: 'fuel',
+    canonicalUnit: 'GJ',
+  },
+  marine_diesel_oil: {
+    id: 'marine_diesel_oil',
+    label: 'Marine diesel oil',
+    kind: 'fuel',
+    canonicalUnit: 'GJ',
+  },
+  heavy_fuel_oil: {
+    id: 'heavy_fuel_oil',
+    label: 'Heavy fuel oil',
+    kind: 'fuel',
+    canonicalUnit: 'GJ',
+  },
+  ammonia: {
+    id: 'ammonia',
+    label: 'Ammonia',
+    kind: 'fuel',
+    canonicalUnit: 'GJ',
+  },
+  liquefied_natural_gas: {
+    id: 'liquefied_natural_gas',
+    label: 'Liquefied natural gas',
+    kind: 'fuel',
+    canonicalUnit: 'GJ',
+  },
 };
 
 export const FUEL_COMMODITY_IDS = Object.values(COMMODITY_METADATA)

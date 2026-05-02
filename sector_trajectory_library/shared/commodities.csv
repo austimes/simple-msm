@@ -8,3 +8,10 @@ biomass,Solid/liquid biomass or alternative bioenergy fuel.,GJ,Biogenic CO2 not 
 scrap_steel,Ferrous scrap input for steelmaking.,t,Added beyond minimum commodity taxonomy because it is material to steel route choice.
 iron_ore,Iron ore / pellet / concentrate feedstock for primary steel routes.,t,Added beyond minimum commodity taxonomy because it is material to steel route choice.
 capture_service,CO2 transport/storage or equivalent capture service for CCS-enabled process states.,tCO2 stored,Separate from negative-emissions output states; included to preserve a clean upgrade path to explicit CCS infrastructure.
+diesel,Automotive diesel and off-road diesel fuel (distillate).,GJ,"NGA 2024 emission factor 69.9 kgCO2e/GJ (AR5 GWP100). Used by rail freight diesel-electric, domestic aviation ground support, and off-road transport."
+aviation_turbine_fuel,Aviation turbine fuel (Jet-A1) for civil aviation.,GJ,NGA 2024 emission factor 71.5 kgCO2e/GJ (AR5 GWP100). Used by domestic and international aviation families.
+sustainable_aviation_fuel,Sustainable aviation fuel (SAF) — biogenic or synthetic drop-in jet fuel.,GJ,Biogenic CO2 not counted as scope 1 per NGA convention. Used as zero-emission blend in aviation SAF states.
+marine_diesel_oil,Marine diesel oil (MDO / distillate marine fuel).,GJ,NGA 2024 emission factor 74.4 kgCO2e/GJ (AR5 GWP100). Used by domestic and international shipping families.
+heavy_fuel_oil,Heavy fuel oil (HFO / residual marine fuel) for ocean-going vessels.,GJ,NGA 2024 emission factor 78.9 kgCO2e/GJ (AR5 GWP100). Used by domestic and international shipping families.
+ammonia,Green ammonia as a zero-emission marine or industrial fuel.,GJ,Direct combustion CO2e set to zero when green ammonia sourced from renewable hydrogen. Used by domestic and international shipping zero-emission states.
+liquefied_natural_gas,Liquefied natural gas (LNG) used as a marine transition fuel.,GJ,NGA 2024 emission factor approximately 51.3 kgCO2e/GJ for LNG combustion (~30% lower CO2 per GJ than HFO). Methane slip not captured in this factor.

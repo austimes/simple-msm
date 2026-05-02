@@ -26,3 +26,24 @@ scrap_steel,medium,Scrap steel — medium,AUD_2024_per_t,420,425,430,435,440,445
 capture_service,high,Capture service — high,AUD_2024_per_tCO2_stored,30,32,34,36,38,40,App-owned sensitivity bands.
 capture_service,low,Capture service — low,AUD_2024_per_tCO2_stored,24,22,20,19,17.5,16,App-owned sensitivity bands.
 capture_service,medium,Capture service — medium,AUD_2024_per_tCO2_stored,28,30,32,34,36,38,App-owned sensitivity bands.
+diesel,low,Diesel — low,AUD_2024_per_GJ,22,22.5,23,23.5,24,24.5,App-owned sensitivity bands.
+diesel,medium,Diesel — medium,AUD_2024_per_GJ,24,24.5,25,25.5,26,26.5,App-owned sensitivity bands.
+diesel,high,Diesel — high,AUD_2024_per_GJ,28,29,30,31,32,33,App-owned sensitivity bands.
+aviation_turbine_fuel,low,Aviation turbine fuel — low,AUD_2024_per_GJ,25,25.5,26,26.5,27,27.5,App-owned sensitivity bands.
+aviation_turbine_fuel,medium,Aviation turbine fuel — medium,AUD_2024_per_GJ,28,29,30,31,32,33,App-owned sensitivity bands.
+aviation_turbine_fuel,high,Aviation turbine fuel — high,AUD_2024_per_GJ,32,33,34,35,36,37,App-owned sensitivity bands.
+sustainable_aviation_fuel,low,Sustainable aviation fuel — low,AUD_2024_per_GJ,70,65,60,55,50,45,App-owned sensitivity bands.
+sustainable_aviation_fuel,medium,Sustainable aviation fuel — medium,AUD_2024_per_GJ,85,78,70,62,55,50,App-owned sensitivity bands.
+sustainable_aviation_fuel,high,Sustainable aviation fuel — high,AUD_2024_per_GJ,100,95,90,85,80,75,App-owned sensitivity bands.
+marine_diesel_oil,low,Marine diesel oil — low,AUD_2024_per_GJ,22,22.5,23,23.5,24,24.5,App-owned sensitivity bands.
+marine_diesel_oil,medium,Marine diesel oil — medium,AUD_2024_per_GJ,24,24.5,25,25.5,26,26.5,App-owned sensitivity bands.
+marine_diesel_oil,high,Marine diesel oil — high,AUD_2024_per_GJ,28,29,30,31,32,33,App-owned sensitivity bands.
+heavy_fuel_oil,low,Heavy fuel oil — low,AUD_2024_per_GJ,18,18.5,19,19.5,20,20.5,App-owned sensitivity bands.
+heavy_fuel_oil,medium,Heavy fuel oil — medium,AUD_2024_per_GJ,20,20.5,21,21.5,22,22.5,App-owned sensitivity bands.
+heavy_fuel_oil,high,Heavy fuel oil — high,AUD_2024_per_GJ,24,25,26,27,28,29,App-owned sensitivity bands.
+ammonia,low,Green ammonia — low,AUD_2024_per_GJ,35,30,25,22,20,18,App-owned sensitivity bands.
+ammonia,medium,Green ammonia — medium,AUD_2024_per_GJ,45,38,32,28,24,20,App-owned sensitivity bands.
+ammonia,high,Green ammonia — high,AUD_2024_per_GJ,60,52,45,40,36,32,App-owned sensitivity bands.
+liquefied_natural_gas,low,LNG — low,AUD_2024_per_GJ,12,12.5,13,13.5,14,14.5,App-owned sensitivity bands.
+liquefied_natural_gas,medium,LNG — medium,AUD_2024_per_GJ,14,14.5,15,15.5,16,16.5,App-owned sensitivity bands.
+liquefied_natural_gas,high,LNG — high,AUD_2024_per_GJ,18,19,20,21,22,23,App-owned sensitivity bands.
