@@ -1,8 +1,8 @@
 import { parseConfigurationDocument } from './configurationDocumentLoader.ts';
 import type { AppConfigRegistry, ConfigurationDocument } from './types.ts';
 
-export const CONFIGURATION_DRAFT_STORAGE_KEY = 'simple-msm.configuration-draft.v4';
-export const CONFIG_META_STORAGE_KEY = 'simple-msm.config-meta.v3';
+export const CONFIGURATION_DRAFT_STORAGE_KEY = 'simple-msm.configuration-draft.v5';
+export const CONFIG_META_STORAGE_KEY = 'simple-msm.config-meta.v4';
 
 export interface StorageLike {
   getItem(key: string): string | null;

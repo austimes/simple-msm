@@ -224,11 +224,18 @@ function resolveServiceDemandTables(
   }, {});
 
   const growthRates = serviceIds.reduce<Record<string, number>>((resolved, outputId) => {
-    resolved[outputId] = resolveGrowthRate(
-      outputId,
-      preset.annual_growth_rates_pct_per_year,
-      configuration.demand_generation.service_growth_rates_pct_per_year,
-    );
+    // Only store growth rates for outputs that have a genuine rate (explicit override or
+    // constant preset rate). Omitting fallback-zero entries prevents re-resolution from
+    // treating them as user overrides and bypassing the preset multiplier tables.
+    const hasExplicitOverride = typeof configuration.demand_generation.service_growth_rates_pct_per_year?.[outputId] === 'number';
+    const hasPresetRate = typeof preset.annual_growth_rates_pct_per_year[outputId] === 'number';
+    if (hasExplicitOverride || hasPresetRate) {
+      resolved[outputId] = resolveGrowthRate(
+        outputId,
+        preset.annual_growth_rates_pct_per_year,
+        configuration.demand_generation.service_growth_rates_pct_per_year,
+      );
+    }
     return resolved;
   }, {});
 
@@ -238,7 +245,7 @@ function resolveServiceDemandTables(
     resolved[outputId] = typeof overrideRate === 'number' || !presetMultipliers
       ? generateValueTable(
           anchors[outputId],
-          growthRates[outputId],
+          growthRates[outputId] ?? 0,
           configuration.years,
           configuration.demand_generation.anchor_year,
           configuration.demand_generation.year_overrides,

@@ -2,7 +2,7 @@
 
 ## What the family represents
 
-This family covers Australian coal mining (ANZSIC 06100+06200) as a single national-average technology family for region `AUS`. The service output is total raw coal production in kilotonne (kt_coal), combining export and domestic supply on a unified production basis. The family spans all major mine types — Victorian open-cut brown coal, NSW/QLD open-cut thermal black coal, and Queensland underground export coking coal — using national-average AES 2023-24 coefficients rather than sub-sector splits.
+This family covers Australian coal mining (ANZSIC 06100+06200) as a single national-average technology family for region `AUS`. The service output is total raw coal production in kilotonne (kt_coal), combining export and domestic supply on a unified production basis. The family spans all major mine types — Victorian open-cut brown coal, NSW/QLD open-cut thermal black coal, and Queensland underground export coking coal — using national-average AES 2024-25 coefficients rather than sub-sector splits.
 
 The family captures four main emission-reduction levers available to Australian coal mines:
 
@@ -16,9 +16,9 @@ The family captures four main emission-reduction levers available to Australian 
 - Family id: `coal_mining`
 - Output/service name: `coal_production`
 - Output unit: `kt_coal`
-- Output quantity basis: One kilotonne of total Australian raw coal production (export + domestic combined). Calibrated to AES 2023-24 Table F (174 PJ / 420,000 kt = 406 GJ/kt national average) and Geoscience Australia 2023-24 total production statistics (420,000 kt anchor).
+- Output quantity basis: One kilotonne of total Australian raw coal production (export + domestic combined). Calibrated to AES 2023-24 Table F and Geoscience Australia 2023-24 total production statistics (467,739 kt anchor).
 - Demand trajectory: `declining__coal_mining_total` (−1.1%/yr compound; weighted average of export coal −0.75%/yr and domestic coal −2.5%/yr)
-- 2025 demand anchor: 420,000 kt (export ≈ 330,000 kt, 79%; domestic ≈ 90,000 kt, 21%)
+- 2025 demand anchor: 467,739 kt (export ≈ 370,000 kt, 79%; domestic ≈ 98,700 kt, 21%)
 - Default incumbent state id: `coal_mining__conventional`
 
 ## State inventory
@@ -35,8 +35,8 @@ All state ids are authored across milestone years 2025, 2030, 2035, 2040, 2045, 
 
 ## Main sources used
 
-- `S001` — AES 2023-24 Table F (primary energy calibration basis). See `shared/source_ledger.csv`
-- `S002` — NGGI 2023-24 Category 1B1a (fugitive coal mining emissions). See `shared/source_ledger.csv`
+- `S001` — AES 2025 Table F (primary energy calibration basis, 174 PJ coal mining 2023-24). See `shared/source_ledger.csv`
+- `S002` — NGGI 2025 Category 1B1a (fugitive coal mining emissions, 36 MtCO2e scope 1 total). See `shared/source_ledger.csv`
 - `S021` — Geoscience Australia 2023-24 production statistics (total coal output anchor). See `shared/source_ledger.csv`
 
 ## Main assumptions used
@@ -53,9 +53,11 @@ The incumbent (`conventional`) anchors to AES 2023-24 and NGGI 2023-24 at nation
 
 These five states let the solver distinguish the two distinct emission streams (energy and fugitive) and the two main technology levers (fleet electrification and methane abatement) without over-fitting to mine-type or coal-grade detail that the national-average source data does not support.
 
+The calibration was updated in 2026 to AES 2025 (174 PJ) and NGGI 2025 (36 MtCO2e) at the 467,739 kt anchor, replacing the earlier AES 2023-24 calibration which had been applied at a lower production anchor (~420,000 kt). Fugitive intensity was updated from 69.0 tCO2e/kt to 56.5 tCO2e/kt to match the NGGI 2025 total scope 1 of 36 MtCO2e at the correct production anchor.
+
 ## Known caveats
 
-- **National-average fugitive intensity.** The per-kt fugitive coefficient (69 tCO2e/kt in 2025) is a national average dominated by underground export coking mines. Open-cut mines have substantially lower fugitive intensity (~15 tCO2e/kt). The conventional state therefore overstates fugitive intensity for Victorian brown coal and most NSW thermal coal operations, and understates it for high-gas-content underground mines in Queensland. This blending cannot be resolved without Phase 2 sub-sector disaggregation.
+- **National-average fugitive intensity.** The per-kt fugitive coefficient (56.5 tCO2e/kt in 2025) is a national average dominated by underground export coking mines. Open-cut mines have substantially lower fugitive intensity (~15 tCO2e/kt). The conventional state therefore overstates fugitive intensity for Victorian brown coal and most NSW thermal coal operations, and understates it for high-gas-content underground mines in Queensland. This blending cannot be resolved without Phase 2 sub-sector disaggregation.
 - **No export/domestic split.** Demand is modelled as total production. Export market decline is captured implicitly via the demand trajectory; it is not disaggregated by market destination or coal type.
 - **Hydrogen FCEV confidence.** The `hydrogen_fcev` state carries a Low confidence rating. H2 supply chains for remote mining operations are immature and cost trajectories are highly uncertain. This state should not be used as a primary decarbonisation pathway in core policy-optimisation runs without explicit scenario review.
 - **Mine life and investment horizon.** Max_share trajectories are calibrated to national fleet-average investment cycles (~10–15 yr mine vehicle life). Individual mines nearing reserve depletion may have lower uptake ceilings than the national bound implies.
@@ -97,23 +99,23 @@ Evidence basis: Australian mining telematics programmes (Wenco, Modular Mining, 
 
 ## Fuel consumption and emissions output from the model
 
-### Incumbent state at 2025 anchor (conventional, 420,000 kt)
+### Incumbent state at 2025 anchor (conventional, 467,739 kt)
 
 | Commodity | Coefficient (GJ/kt) | Total at anchor |
 |---|---|---|
-| Refined liquid fuels | 302 | 126.8 PJ |
-| Electricity | 79 | 33.2 PJ |
-| Natural gas | 25 | 10.5 PJ |
-| **Total energy** | **406** | **170.5 PJ** |
+| Refined liquid fuels | 277 | 129.6 PJ |
+| Electricity | 72 | 33.7 PJ |
+| Natural gas | 23 | 10.8 PJ |
+| **Total energy** | **372** | **174.1 PJ** |
 
 | Emission stream | Coefficient | Total at anchor | NGGI/AES reference |
 |---|---|---|---|
-| Energy CO2e (scope 1 combustion) | 22.4 tCO2e/kt | 9.4 MtCO2e | NGA 2025 diesel EF 69.9 kgCO2e/GJ |
-| Process CO2e (fugitive, NGGI Cat 1B1a) | 69.0 tCO2e/kt | 29.0 MtCO2e | NGGI 2023-24: 29 MtCO2e |
-| **Total scope 1** | **91.4 tCO2e/kt** | **38.4 MtCO2e** | — |
+| Energy CO2e (scope 1 combustion) | 20.5 tCO2e/kt | 9.6 MtCO2e | NGA 2025 diesel EF 69.9 kgCO2e/GJ |
+| Process CO2e (fugitive, NGGI Cat 1B1a) | 56.5 tCO2e/kt | 26.4 MtCO2e | NGGI 2025: 36 MtCO2e total scope 1 |
+| **Total scope 1** | **77.0 tCO2e/kt** | **36.0 MtCO2e** | — |
 
-AES energy coverage: 170.5 PJ modelled vs 174 PJ AES 2023-24 = **98.0%**.  
-NGGI fugitive coverage: 29.0 MtCO2e modelled vs 29 MtCO2e NGGI Cat 1B1a = **99.9%**.
+AES energy coverage: 174.1 PJ modelled vs 174 PJ AES 2025 (Table F, 2023-24) = **100.0%**.  
+NGGI total scope 1: 36.0 MtCO2e modelled vs 36 MtCO2e NGGI 2025 = **100.0%**.
 
 Emission factors applied (NGA 2025 DCCEEW, scope 1, AR5 GWP100): diesel/refined liquid fuels 69.9 kgCO2e/GJ; natural gas 51.4 kgCO2e/GJ.
 
@@ -121,24 +123,24 @@ Emission factors applied (NGA 2025 DCCEEW, scope 1, AR5 GWP100): diesel/refined 
 
 | Year | Refined liquid fuels (GJ/kt) | Electricity (GJ/kt) | Natural gas (GJ/kt) | Energy CO2e (tCO2e/kt) | Fugitive CO2e (tCO2e/kt) |
 |---|---|---|---|---|---|
-| 2025 | 302 | 79 | 25 | 22.4 | 69.0 |
-| 2030 | 291 | 83 | 24 | 21.6 | 63.0 |
-| 2035 | 280 | 88 | 23 | 20.8 | 57.0 |
-| 2040 | 270 | 94 | 22 | 20.0 | 52.0 |
-| 2045 | 260 | 98 | 22 | 19.3 | 47.0 |
-| 2050 | 250 | 104 | 21 | 18.6 | 43.0 |
+| 2025 | 277 | 72 | 23 | 20.5 | 56.5 |
+| 2030 | 267 | 76 | 22 | 19.8 | 52.0 |
+| 2035 | 257 | 81 | 21 | 19.0 | 47.0 |
+| 2040 | 248 | 86 | 20 | 18.4 | 43.0 |
+| 2045 | 238 | 90 | 20 | 17.7 | 39.0 |
+| 2050 | 229 | 95 | 19 | 17.0 | 35.0 |
 
 ### Integrated low-carbon state — indicative best-case at 2050
 
 | Commodity | Coefficient (GJ/kt) |
 |---|---|
-| Electricity | ~174 |
-| Refined liquid fuels | ~38 |
-| Natural gas | ~11 |
+| Electricity | 159 |
+| Refined liquid fuels | 37 |
+| Natural gas | 8 |
 
 | Emission stream | Coefficient |
 |---|---|
-| Energy CO2e | 3.2 tCO2e/kt |
-| Process CO2e (fugitive) | 5.5 tCO2e/kt |
+| Energy CO2e | 3.0 tCO2e/kt |
+| Process CO2e (fugitive) | 4.5 tCO2e/kt |
 
 The integrated low-carbon state achieves approximately **85% reduction in energy CO2e** and **92% reduction in fugitive CO2e** relative to the 2025 conventional baseline.

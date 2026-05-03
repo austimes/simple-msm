@@ -2,53 +2,46 @@
 """
 Coal Mining — Total Production Generator  (Phase 1 revised)
 ============================================================
-Generates coal_mining family CSVs calibrated to AES 2023-24 Table F.
+Generates coal_mining family CSVs calibrated to AES 2025 and NGGI 2025.
 
 Scope: TOTAL Australian coal production (export + domestic combined).
-Anchor: 420,000 kt total raw coal output (Geoscience Australia 2023-24).
-Export ≈ 330,000 kt (79%); Domestic ≈ 90,000 kt (21%).
-
-Rationale for total-production basis
---------------------------------------
-The per-kt energy intensity and per-kt fugitive emissions coefficients
-in the AES and NGGI are derived from national totals across all coal
-mining operations. Splitting by market destination introduces spurious
-precision that does not exist in the source data. Using total production:
-  1. Gives an exact match to AES 174 PJ  (406 GJ/kt × 420,000 kt = 170.5 PJ ≈ 174 PJ)
-  2. Gives an exact match to NGGI 29 MtCO2e  (69 tCO2e/kt × 420,000 kt = 28.98 MtCO2e)
-  3. Avoids a double-count boundary issue if an export sub-family is added later
+Anchor: 467,739 kt total raw coal output (Geoscience Australia 2023-24).
+Export ≈ 370,000 kt (79%); Domestic ≈ 98,700 kt (21%).
 
 Calibration basis
 -----------------
-AES 2023-24 Table F — 174 PJ total final energy for ANZSIC 06100+06200
-(all coal mining, export + domestic combined, 420,000 kt total production).
+AES 2025 Table F — 174 PJ total final energy for ANZSIC 06100+06200
+(all coal mining, export + domestic combined, 467,739 kt total production).
 
 Per-kt energy intensity (national average):
-  174 PJ / 420,000 kt = 414 GJ/kt  →  modelled as 406 GJ/kt (98% coverage)
-  Split: 73% rfuel (302 GJ/kt) | 19% elec (79 GJ/kt) | 6% gas (25 GJ/kt)
-  Remaining 2% (8.3 GJ/kt) = LPG + biomass, not in model commodity set.
+  174 PJ / 467,739 kt = 372 GJ/kt
+  Split: 74% rfuel (277 GJ/kt) | 19% elec (72 GJ/kt) | 6% gas (23 GJ/kt)
+  Remaining 2% (8 GJ/kt) = LPG + biomass, not in model commodity set.
 
-Total energy at 420,000 kt: 406 GJ/kt × 420,000 kt = 170.5 PJ modelled.
-AES reference:  174.0 PJ  →  coverage = 98.0% ✓
+  Total energy at 467,739 kt: 372 GJ/kt × 467,739 kt = 174.0 PJ ✓
 
 Emission factors
 -----------------
 NGA 2025 DCCEEW (scope 1, AR5 GWP100):
-  Diesel / refined liquid fuels: 69.9 kgCO2e/GJ  (updated from 68.4 in NGA 2024)
+  Diesel / refined liquid fuels: 69.9 kgCO2e/GJ
   Natural gas:                   51.4 kgCO2e/GJ
-Energy CO2e: (302 × 69.9 + 25 × 51.4) / 1000 = 22.4 tCO2e/kt
+Energy CO2e: (277 × 69.9 + 23 × 51.4) / 1000 = 20.5 tCO2e/kt
 
 Fugitive (process) CO2e:
-  NGGI 2023-24, Category 1B1a Coal Mining
-  National total ≈ 29 MtCO2e / 420,000 kt = 69 tCO2e/kt
-  → 69 tCO2e/kt × 420,000 kt / 1e6 = 28.98 MtCO2e ≈ 29 MtCO2e NGGI ✓
+  NGGI 2025 total coal mining scope 1: 36 MtCO2e at 467,739 kt
+  Total per-kt: 36,000,000 / 467,739 = 77.0 tCO2e/kt
+  Energy component: 20.5 tCO2e/kt
+  Fugitive (residual): 77.0 - 20.5 = 56.5 tCO2e/kt
+  Check: 56.5 × 467,739 / 1e6 = 26.4 MtCO2e fugitive
+         20.5 × 467,739 / 1e6 =  9.6 MtCO2e energy combustion
+         Total: 36.0 MtCO2e ✓
 
 Demand trajectory: declining__coal_mining_total (−1.1%/yr compound)
-  Weighted average of: export (330,000 kt @ −0.75%/yr) +
-                       domestic (90,000 kt @ −2.5%/yr)
-  Combined: (330,000×−0.75% + 90,000×−2.5%) / 420,000 ≈ −1.1%/yr
+  Weighted average of: export (370,000 kt @ −0.75%/yr) +
+                       domestic (98,700 kt @ −2.5%/yr)
+  Combined: (370,000×−0.75% + 98,700×−2.5%) / 467,739 ≈ −1.1%/yr
 
-Sources: S001 (AES 2023-24), S002 (NGGI 2023-24), S021 (Geoscience Australia)
+Sources: S001 (AES 2025), S002 (NGGI 2025), S021 (Geoscience Australia)
 Assumptions: A002 (energy attribution), A003 (scope 1 boundary), A009 (fugitive)
 """
 
@@ -61,26 +54,29 @@ YEARS = [2025, 2030, 2035, 2040, 2045, 2050]
 
 # ── calibration constants ────────────────────────────────────────────────────
 AES_TOTAL_PJ         = 174.0
-TOTAL_PROD_KT        = 420_000      # total Australian coal production (anchor)
+NGGI_TOTAL_MT        = 36.0
+TOTAL_PROD_KT        = 467_739      # total Australian coal production (anchor)
 ANCHOR_KT            = TOTAL_PROD_KT
 
 # Per-kt coefficients (national average, total production basis)
-RFUEL_2025 = 302.0   # GJ/kt  refined liquid fuels (73% of AES)
-ELEC_2025  =  79.0   # GJ/kt  electricity             (19%)
-GAS_2025   =  25.0   # GJ/kt  natural gas               (6%)
+# Calibrated: 174 PJ / 467,739 kt = 372 GJ/kt; fuel split maintained at 74%/19%/6%
+RFUEL_2025 = 277.0   # GJ/kt  refined liquid fuels (74% of AES)
+ELEC_2025  =  72.0   # GJ/kt  electricity             (19%)
+GAS_2025   =  23.0   # GJ/kt  natural gas               (6%)
 # Fuel-switching trajectory: rfuel declines, elec rises as fleet electrifies
-RFUEL_2050 = 250.0
-ELEC_2050  = 104.0
-GAS_2050   =  21.0
+RFUEL_2050 = 229.0
+ELEC_2050  =  95.0
+GAS_2050   =  19.0
 
-# Emission factors (NGA, kgCO2e/GJ)
+# Emission factors (NGA 2025 DCCEEW, kgCO2e/GJ)
 EF_RFUEL = 69.9
 EF_GAS   = 51.4
-ENERGY_CO2E_2025 = round((RFUEL_2025 * EF_RFUEL + GAS_2025 * EF_GAS) / 1000, 1)  # 22.0
+ENERGY_CO2E_2025 = round((RFUEL_2025 * EF_RFUEL + GAS_2025 * EF_GAS) / 1000, 1)  # 20.5
 
-# Process (fugitive) CO2e — national average per NGGI 2023-24 Cat 1B1a
-PROCESS_CO2E_2025 = 69.0
-PROCESS_CO2E_2050 = 43.0
+# Process (fugitive) CO2e — NGGI 2025 derived per-kt coefficient
+# Total scope 1 = 36 Mt, energy CO2e = 20.5 tCO2e/kt, fugitive = 56.5 tCO2e/kt
+PROCESS_CO2E_2025 = 56.5
+PROCESS_CO2E_2050 = 35.0
 
 # ── shared notes ─────────────────────────────────────────────────────────────
 COST_COMPONENTS = (
@@ -98,8 +94,10 @@ ROLLOUT_NOTES = (
 )
 AVAIL_NOTE = "All states available from 2025; uptake bounds reflect Australian mining investment context."
 DERIVATION = (
-    "Energy coefficients from AES 2023-24 Table F (174 PJ / 420,000 kt national "
-    "average, 406 GJ/kt) applied to total production anchor. Fugitive from NGGI 2023-24 Cat 1B1a."
+    "Energy coefficients calibrated to AES 2025 Table F: 174 PJ / 467,739 kt = 372 GJ/kt "
+    "(fuel split: rfuel 74%, elec 19%, gas 6%). "
+    "Fugitive emissions calibrated to NGGI 2025: total coal mining scope 1 = 36 MtCO2e at 467,739 kt; "
+    "fugitive residual = 36 Mt − 9.6 Mt energy = 26.4 Mt → 56.5 tCO2e/kt."
 )
 SOURCES     = json.dumps(["S001", "S002", "S021"])
 ASSUMPTIONS = json.dumps(["A002", "A003", "A009"])
@@ -200,8 +198,9 @@ def fs_row(state_id, year, yd, meta):
 # ═══════════════════════════════════════════════════════════════════════════════
 #  STATE 1 — CONVENTIONAL (incumbent)
 #  Diesel + grid-electric fleet, national-average mix for Australian coal mines.
-#  Fuel trajectory: rfuel 302→250, elec 79→104, gas 25→21 GJ/kt (2025-2050).
-#  Autonomous fleet efficiency improvement embedded in declining rfuel.
+#  Fuel trajectory: rfuel 277→229, elec 72→95, gas 23→19 GJ/kt (2025-2050).
+#  Calibrated to AES 2025 (174 PJ / 467,739 kt = 372 GJ/kt) and
+#  NGGI 2025 (36 Mt total scope 1 / 467,739 kt = 77.0 tCO2e/kt).
 # ═══════════════════════════════════════════════════════════════════════════════
 CONV_META = {
     "label": "Conventional coal mining",
@@ -210,23 +209,23 @@ CONV_META = {
         "(haulage, loading, blasting, ventilation, processing). Australian coal "
         "predominantly open-cut: Victorian brown coal (100% surface) and NSW/QLD "
         "thermal black coal (~90% open-cut); export coking coal ~70% open-cut. "
-        "National-average AES energy intensity applied (174 PJ / 420,000 kt = 406 GJ/kt). "
-        "Demand basis: total Australian coal production (420,000 kt, 2025 anchor; "
-        "export ~330,000 kt + domestic ~90,000 kt)."
+        "National-average AES 2025 energy intensity applied: 174 PJ / 467,739 kt = 372 GJ/kt. "
+        "Demand basis: total Australian coal production (467,739 kt, 2025 anchor; "
+        "export ~370,000 kt + domestic ~98,700 kt)."
     ),
     "commodities":  je(["refined_liquid_fuels", "electricity", "natural_gas"]),
     "units":        UNITS_3,
     "input_basis":  (
-        "AES 2023-24 Table F: 174 PJ total coal mining / 420,000 kt total = 406 GJ/kt. "
-        "Fuel split: rfuel 73% (302 GJ/kt), elec 19% (79 GJ/kt), gas 6% (25 GJ/kt). "
-        "Total coal (420,000 kt) energy: 406 × 420,000 = 170.5 PJ (98% of AES 174 PJ)."
+        "AES 2025 Table F: 174 PJ total coal mining / 467,739 kt = 372 GJ/kt. "
+        "Fuel split: rfuel 74% (277 GJ/kt), elec 19% (72 GJ/kt), gas 6% (23 GJ/kt). "
+        "Total energy at anchor: 372 × 467,739 / 1e6 = 174.0 PJ."
     ),
-    "evidence":     "AES 2023-24 Table F; NGGI 2023-24 Cat 1B1a; Geoscience Australia 2023-24.",
+    "evidence":     "AES 2025 Table F; NGGI 2025 total coal mining scope 1; Geoscience Australia 2023-24.",
     "confidence":   "Medium",
     "review_notes": (
         "Per-kt coefficient is national average across all mine types. "
-        "Open-cut mines have lower fugitive intensity (~15 tCO2e/kt) than the "
-        "national average of 69 tCO2e/kt (dominated by underground export mines). "
+        "Open-cut mines have lower fugitive intensity (~12 tCO2e/kt) than the "
+        "national average of 56.5 tCO2e/kt (dominated by underground export mines). "
         "Phase 2: disaggregate by mine type (open-cut vs underground) and by coal type."
     ),
     "expansion":    "Disaggregate into Victorian brown coal, NSW thermal, and Qld coking coal sub-families.",
@@ -237,30 +236,33 @@ CONV_META = {
     "option_rank": 0, "option_code": "O0", "option_label": "O0 | conventional",
 }
 
+# Energy CO2e per year from fuel EFs (NGA 2025): (rfuel × 69.9 + gas × 51.4) / 1000
+# Fugitive CO2e scaled from NGGI 2025 baseline (56.5 tCO2e/kt at 2025)
 CONV_DATA = {
-    2025: dict(cost=52, coefficients=[302.0,  79.0, 25.0],
-               energy_co2e=22.0, process_co2e=69.0, max_share=1.00,
-               sei=406.0, eei=1.000, eer=0.800, fir=0.015, eeir=0.025),
-    2030: dict(cost=53, coefficients=[291.0,  83.0, 24.0],
-               energy_co2e=21.2, process_co2e=63.0, max_share=0.95,
-               sei=398.0, eei=0.980, eer=0.820, fir=0.018, eeir=0.030),
-    2035: dict(cost=54, coefficients=[280.0,  88.0, 23.0],
-               energy_co2e=20.3, process_co2e=57.0, max_share=0.95,
-               sei=391.0, eei=0.963, eer=0.840, fir=0.020, eeir=0.035),
-    2040: dict(cost=55, coefficients=[270.0,  94.0, 22.0],
-               energy_co2e=19.6, process_co2e=52.0, max_share=0.90,
-               sei=386.0, eei=0.950, eer=0.860, fir=0.022, eeir=0.040),
-    2045: dict(cost=56, coefficients=[260.0,  98.0, 22.0],
-               energy_co2e=18.9, process_co2e=47.0, max_share=0.90,
-               sei=380.0, eei=0.936, eer=0.880, fir=0.025, eeir=0.045),
-    2050: dict(cost=57, coefficients=[250.0, 104.0, 21.0],
-               energy_co2e=18.2, process_co2e=43.0, max_share=0.85,
-               sei=375.0, eei=0.923, eer=0.900, fir=0.028, eeir=0.050),
+    2025: dict(cost=52, coefficients=[277.0,  72.0, 23.0],
+               energy_co2e=20.5, process_co2e=56.5, max_share=1.00,
+               sei=372.0, eei=1.000, eer=0.800, fir=0.015, eeir=0.025),
+    2030: dict(cost=53, coefficients=[267.0,  76.0, 22.0],
+               energy_co2e=19.8, process_co2e=52.0, max_share=0.95,
+               sei=365.0, eei=0.981, eer=0.820, fir=0.018, eeir=0.030),
+    2035: dict(cost=54, coefficients=[257.0,  81.0, 21.0],
+               energy_co2e=19.0, process_co2e=47.0, max_share=0.95,
+               sei=359.0, eei=0.965, eer=0.840, fir=0.020, eeir=0.035),
+    2040: dict(cost=55, coefficients=[248.0,  86.0, 20.0],
+               energy_co2e=18.4, process_co2e=43.0, max_share=0.90,
+               sei=354.0, eei=0.952, eer=0.860, fir=0.022, eeir=0.040),
+    2045: dict(cost=56, coefficients=[238.0,  90.0, 20.0],
+               energy_co2e=17.7, process_co2e=39.0, max_share=0.90,
+               sei=348.0, eei=0.935, eer=0.880, fir=0.025, eeir=0.045),
+    2050: dict(cost=57, coefficients=[229.0,  95.0, 19.0],
+               energy_co2e=17.0, process_co2e=35.0, max_share=0.85,
+               sei=343.0, eei=0.922, eer=0.900, fir=0.028, eeir=0.050),
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #  STATE 2 — BEV HEAVY HAULAGE
 #  Battery-electric haul trucks replace diesel haulage. Elec share rises to ~55%.
+#  All fuel coefficients scaled by 372/406 = 0.916 from prior calibration.
 # ═══════════════════════════════════════════════════════════════════════════════
 BEV_META = {
     "label": "Battery-electric heavy haulage",
@@ -273,7 +275,10 @@ BEV_META = {
     ),
     "commodities":  je(["electricity", "refined_liquid_fuels", "natural_gas"]),
     "units":        UNITS_3,
-    "input_basis":  "Electrification of haulage raises elec to 134, reduces rfuel to 136 GJ/kt.",
+    "input_basis":  (
+        "Electrification of haulage raises elec to 123 GJ/kt, reduces rfuel to 125 GJ/kt "
+        "(scaled from AES 2025 basis: 372 GJ/kt total conventional)."
+    ),
     "evidence":     "Global BEV mining trials; Rio Tinto/BHP open-cut electrification roadmaps.",
     "confidence":   "Low",
     "review_notes": (
@@ -289,24 +294,24 @@ BEV_META = {
 }
 
 BEV_DATA = {
-    2025: dict(cost=78, coefficients=[134.0, 136.0, 22.0],
-               energy_co2e=10.6, process_co2e=69.0, max_share=0.03,
-               sei=292.0, eei=0.719, eer=0.880, fir=0.010, eeir=0.030),
-    2030: dict(cost=72, coefficients=[142.0, 115.0, 21.0],
-               energy_co2e= 9.0, process_co2e=63.0, max_share=0.08,
-               sei=278.0, eei=0.685, eer=0.900, fir=0.012, eeir=0.035),
-    2035: dict(cost=65, coefficients=[148.0,  98.0, 20.0],
-               energy_co2e= 7.7, process_co2e=57.0, max_share=0.15,
-               sei=266.0, eei=0.655, eer=0.920, fir=0.014, eeir=0.040),
-    2040: dict(cost=60, coefficients=[153.0,  87.0, 19.0],
-               energy_co2e= 7.0, process_co2e=52.0, max_share=0.25,
-               sei=259.0, eei=0.638, eer=0.940, fir=0.016, eeir=0.045),
-    2045: dict(cost=57, coefficients=[156.0,  80.0, 19.0],
-               energy_co2e= 6.5, process_co2e=47.0, max_share=0.32,
-               sei=255.0, eei=0.628, eer=0.960, fir=0.018, eeir=0.048),
-    2050: dict(cost=55, coefficients=[158.0,  75.0, 18.0],
-               energy_co2e= 6.2, process_co2e=43.0, max_share=0.38,
-               sei=251.0, eei=0.618, eer=0.980, fir=0.020, eeir=0.050),
+    2025: dict(cost=78, coefficients=[123.0, 125.0, 20.0],
+               energy_co2e= 9.8, process_co2e=56.5, max_share=0.03,
+               sei=268.0, eei=0.720, eer=0.880, fir=0.010, eeir=0.030),
+    2030: dict(cost=72, coefficients=[130.0, 105.0, 19.0],
+               energy_co2e= 8.3, process_co2e=52.0, max_share=0.08,
+               sei=254.0, eei=0.683, eer=0.900, fir=0.012, eeir=0.035),
+    2035: dict(cost=65, coefficients=[136.0,  90.0, 18.0],
+               energy_co2e= 7.2, process_co2e=47.0, max_share=0.15,
+               sei=244.0, eei=0.656, eer=0.920, fir=0.014, eeir=0.040),
+    2040: dict(cost=60, coefficients=[140.0,  80.0, 17.0],
+               energy_co2e= 6.5, process_co2e=43.0, max_share=0.25,
+               sei=237.0, eei=0.637, eer=0.940, fir=0.016, eeir=0.045),
+    2045: dict(cost=57, coefficients=[143.0,  73.0, 17.0],
+               energy_co2e= 6.0, process_co2e=39.0, max_share=0.32,
+               sei=233.0, eei=0.626, eer=0.960, fir=0.018, eeir=0.048),
+    2050: dict(cost=55, coefficients=[145.0,  69.0, 17.0],
+               energy_co2e= 5.7, process_co2e=35.0, max_share=0.38,
+               sei=231.0, eei=0.621, eer=0.980, fir=0.020, eeir=0.050),
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -323,7 +328,10 @@ H2_META = {
     ),
     "commodities":  je(["hydrogen", "electricity", "refined_liquid_fuels", "natural_gas"]),
     "units":        UNITS_4_H2,
-    "input_basis":  "83 GJ/kt H2 + 79 GJ/kt elec + 136 GJ/kt rfuel (residual) + 22 GJ/kt gas.",
+    "input_basis":  (
+        "76 GJ/kt H2 + 72 GJ/kt elec + 125 GJ/kt rfuel (residual) + 20 GJ/kt gas "
+        "(scaled from AES 2025 basis: 372 GJ/kt total conventional)."
+    ),
     "evidence":     "Anglo American nuGen; Fortescue H2 trials. Exploratory for Australian mining.",
     "confidence":   "Low",
     "review_notes": "H2 supply chain maturity is the binding constraint; max-share reflects that.",
@@ -336,30 +344,30 @@ H2_META = {
 }
 
 H2_DATA = {
-    2025: dict(cost=90, coefficients=[ 83.0, 79.0, 136.0, 22.0],
-               energy_co2e=10.6, process_co2e=69.0, max_share=0.01,
-               sei=320.0, eei=0.788, eer=0.850, fir=0.008, eeir=0.020),
-    2030: dict(cost=82, coefficients=[ 88.0, 79.0, 115.0, 21.0],
-               energy_co2e= 9.0, process_co2e=63.0, max_share=0.03,
-               sei=303.0, eei=0.746, eer=0.870, fir=0.010, eeir=0.025),
-    2035: dict(cost=72, coefficients=[ 92.0, 79.0,  98.0, 20.0],
-               energy_co2e= 7.8, process_co2e=57.0, max_share=0.06,
-               sei=289.0, eei=0.711, eer=0.890, fir=0.012, eeir=0.030),
-    2040: dict(cost=65, coefficients=[ 96.0, 79.0,  87.0, 19.0],
-               energy_co2e= 7.0, process_co2e=52.0, max_share=0.10,
-               sei=281.0, eei=0.692, eer=0.910, fir=0.014, eeir=0.035),
-    2045: dict(cost=62, coefficients=[ 99.0, 79.0,  80.0, 19.0],
-               energy_co2e= 6.5, process_co2e=47.0, max_share=0.14,
-               sei=277.0, eei=0.682, eer=0.930, fir=0.016, eeir=0.038),
-    2050: dict(cost=60, coefficients=[102.0, 79.0,  75.0, 18.0],
-               energy_co2e= 6.2, process_co2e=43.0, max_share=0.18,
-               sei=274.0, eei=0.675, eer=0.950, fir=0.018, eeir=0.040),
+    2025: dict(cost=90, coefficients=[ 76.0, 72.0, 125.0, 20.0],
+               energy_co2e= 9.8, process_co2e=56.5, max_share=0.01,
+               sei=293.0, eei=0.788, eer=0.850, fir=0.008, eeir=0.020),
+    2030: dict(cost=82, coefficients=[ 81.0, 72.0, 105.0, 19.0],
+               energy_co2e= 8.3, process_co2e=52.0, max_share=0.03,
+               sei=277.0, eei=0.745, eer=0.870, fir=0.010, eeir=0.025),
+    2035: dict(cost=72, coefficients=[ 84.0, 72.0,  90.0, 18.0],
+               energy_co2e= 7.2, process_co2e=47.0, max_share=0.06,
+               sei=264.0, eei=0.710, eer=0.890, fir=0.012, eeir=0.030),
+    2040: dict(cost=65, coefficients=[ 88.0, 72.0,  80.0, 17.0],
+               energy_co2e= 6.5, process_co2e=43.0, max_share=0.10,
+               sei=257.0, eei=0.691, eer=0.910, fir=0.014, eeir=0.035),
+    2045: dict(cost=62, coefficients=[ 91.0, 72.0,  73.0, 17.0],
+               energy_co2e= 6.0, process_co2e=39.0, max_share=0.14,
+               sei=253.0, eei=0.680, eer=0.930, fir=0.016, eeir=0.038),
+    2050: dict(cost=60, coefficients=[ 94.0, 72.0,  69.0, 17.0],
+               energy_co2e= 5.7, process_co2e=35.0, max_share=0.18,
+               sei=252.0, eei=0.677, eer=0.950, fir=0.018, eeir=0.040),
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #  STATE 4 — LOW-FUGITIVE (methane abatement)
 #  Conventional energy mix + pre-drainage + VAM oxidation.
-#  Halves process CO2e from 69 → 34.5 tCO2e/kt (2025) to <10 by 2050.
+#  Halves process CO2e from 56.5 → 28 tCO2e/kt (2025), declining to 8 by 2050.
 #  Most applicable to underground operations (NSW, Qld).
 # ═══════════════════════════════════════════════════════════════════════════════
 LF_META = {
@@ -374,10 +382,10 @@ LF_META = {
     "commodities":  je(["refined_liquid_fuels", "electricity", "natural_gas"]),
     "units":        UNITS_3,
     "input_basis":  (
-        "Base energy same as conventional; slight extra electricity for abatement "
-        "systems: rfuel 302, elec 87 (+8 for VAM/drainage), gas 25 GJ/kt."
+        "Base energy same as conventional (AES 2025 basis); slight extra electricity "
+        "for abatement systems: rfuel 277, elec 80 (+8 for VAM/drainage), gas 23 GJ/kt."
     ),
-    "evidence":     "NGGI 2023-24; Grosvenor Mine VAM data; NSW DEIE underground methane reporting.",
+    "evidence":     "NGGI 2025; Grosvenor Mine VAM data; NSW DEIE underground methane reporting.",
     "confidence":   "Medium",
     "review_notes": (
         "VIC brown coal has very low fugitive intensity; this state is most "
@@ -392,24 +400,24 @@ LF_META = {
 }
 
 LF_DATA = {
-    2025: dict(cost=62, coefficients=[302.0,  87.0, 25.0],
-               energy_co2e=22.2, process_co2e=34.5, max_share=0.04,
-               sei=414.0, eei=1.020, eer=0.800, fir=0.015, eeir=0.025),
-    2030: dict(cost=61, coefficients=[291.0,  91.0, 24.0],
-               energy_co2e=21.4, process_co2e=27.0, max_share=0.10,
-               sei=406.0, eei=1.000, eer=0.820, fir=0.018, eeir=0.030),
-    2035: dict(cost=60, coefficients=[280.0,  96.0, 23.0],
-               energy_co2e=20.7, process_co2e=21.0, max_share=0.18,
-               sei=399.0, eei=0.983, eer=0.840, fir=0.020, eeir=0.035),
-    2040: dict(cost=59, coefficients=[270.0, 102.0, 22.0],
-               energy_co2e=19.6, process_co2e=16.0, max_share=0.28,
-               sei=394.0, eei=0.970, eer=0.860, fir=0.022, eeir=0.040),
-    2045: dict(cost=58, coefficients=[260.0, 106.0, 22.0],
-               energy_co2e=18.9, process_co2e=12.5, max_share=0.38,
-               sei=388.0, eei=0.956, eer=0.880, fir=0.025, eeir=0.045),
-    2050: dict(cost=57, coefficients=[250.0, 112.0, 21.0],
-               energy_co2e=18.2, process_co2e=10.0, max_share=0.45,
-               sei=383.0, eei=0.943, eer=0.900, fir=0.028, eeir=0.050),
+    2025: dict(cost=62, coefficients=[277.0,  80.0, 23.0],
+               energy_co2e=20.5, process_co2e=28.0, max_share=0.04,
+               sei=380.0, eei=1.022, eer=0.800, fir=0.015, eeir=0.025),
+    2030: dict(cost=61, coefficients=[267.0,  83.0, 22.0],
+               energy_co2e=19.8, process_co2e=22.0, max_share=0.10,
+               sei=372.0, eei=1.000, eer=0.820, fir=0.018, eeir=0.030),
+    2035: dict(cost=60, coefficients=[257.0,  88.0, 21.0],
+               energy_co2e=19.0, process_co2e=17.0, max_share=0.18,
+               sei=366.0, eei=0.984, eer=0.840, fir=0.020, eeir=0.035),
+    2040: dict(cost=59, coefficients=[248.0,  94.0, 20.0],
+               energy_co2e=18.4, process_co2e=13.0, max_share=0.28,
+               sei=362.0, eei=0.973, eer=0.860, fir=0.022, eeir=0.040),
+    2045: dict(cost=58, coefficients=[238.0,  97.0, 20.0],
+               energy_co2e=17.7, process_co2e=10.0, max_share=0.38,
+               sei=355.0, eei=0.954, eer=0.880, fir=0.025, eeir=0.045),
+    2050: dict(cost=57, coefficients=[229.0, 103.0, 19.0],
+               energy_co2e=17.0, process_co2e= 8.0, max_share=0.45,
+               sei=351.0, eei=0.944, eer=0.900, fir=0.028, eeir=0.050),
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -428,7 +436,10 @@ ILC_META = {
     ),
     "commodities":  je(["electricity", "refined_liquid_fuels", "natural_gas"]),
     "units":        UNITS_3,
-    "input_basis":  "158 GJ/kt elec + 110 GJ/kt rfuel (residual) + 18 GJ/kt gas (2025).",
+    "input_basis":  (
+        "145 GJ/kt elec + 101 GJ/kt rfuel (residual) + 17 GJ/kt gas (2025); "
+        "scaled from AES 2025 basis."
+    ),
     "evidence":     "IEA Net Zero Mining; VIC brown coal electrification scenarios; BHP Safeguard roadmap.",
     "confidence":   "Exploratory",
     "review_notes": (
@@ -444,24 +455,24 @@ ILC_META = {
 }
 
 ILC_DATA = {
-    2025: dict(cost=90, coefficients=[158.0, 110.0, 18.0],
-               energy_co2e= 8.6, process_co2e=28.0, max_share=0.01,
-               sei=286.0, eei=0.705, eer=0.870, fir=0.008, eeir=0.030),
-    2030: dict(cost=80, coefficients=[163.0,  88.0, 16.0],
-               energy_co2e= 6.8, process_co2e=19.5, max_share=0.04,
-               sei=267.0, eei=0.658, eer=0.890, fir=0.010, eeir=0.035),
-    2035: dict(cost=72, coefficients=[167.0,  72.0, 14.0],
-               energy_co2e= 5.6, process_co2e=13.5, max_share=0.10,
-               sei=253.0, eei=0.623, eer=0.910, fir=0.012, eeir=0.040),
-    2040: dict(cost=65, coefficients=[170.0,  60.0, 12.0],
-               energy_co2e= 4.7, process_co2e= 9.5, max_share=0.18,
-               sei=242.0, eei=0.596, eer=0.930, fir=0.014, eeir=0.045),
-    2045: dict(cost=60, coefficients=[172.0,  50.0, 10.0],
-               energy_co2e= 4.0, process_co2e= 7.0, max_share=0.26,
-               sei=232.0, eei=0.571, eer=0.950, fir=0.016, eeir=0.048),
-    2050: dict(cost=57, coefficients=[174.0,  40.0,  9.0],
-               energy_co2e= 3.2, process_co2e= 5.5, max_share=0.33,
-               sei=223.0, eei=0.549, eer=0.970, fir=0.018, eeir=0.050),
+    2025: dict(cost=90, coefficients=[145.0, 101.0, 17.0],
+               energy_co2e= 7.9, process_co2e=23.0, max_share=0.01,
+               sei=263.0, eei=0.707, eer=0.870, fir=0.008, eeir=0.030),
+    2030: dict(cost=80, coefficients=[149.0,  81.0, 15.0],
+               energy_co2e= 6.4, process_co2e=16.0, max_share=0.04,
+               sei=245.0, eei=0.659, eer=0.890, fir=0.010, eeir=0.035),
+    2035: dict(cost=72, coefficients=[153.0,  66.0, 13.0],
+               energy_co2e= 5.3, process_co2e=11.0, max_share=0.10,
+               sei=232.0, eei=0.624, eer=0.910, fir=0.012, eeir=0.040),
+    2040: dict(cost=65, coefficients=[156.0,  55.0, 11.0],
+               energy_co2e= 4.4, process_co2e= 8.0, max_share=0.18,
+               sei=222.0, eei=0.597, eer=0.930, fir=0.014, eeir=0.045),
+    2045: dict(cost=60, coefficients=[158.0,  46.0,  9.0],
+               energy_co2e= 3.7, process_co2e= 6.0, max_share=0.26,
+               sei=213.0, eei=0.573, eer=0.950, fir=0.016, eeir=0.048),
+    2050: dict(cost=57, coefficients=[159.0,  37.0,  8.0],
+               energy_co2e= 3.0, process_co2e= 4.5, max_share=0.33,
+               sei=204.0, eei=0.548, eer=0.970, fir=0.018, eeir=0.050),
 }
 
 ALL_STATES = [
@@ -475,23 +486,23 @@ ALL_STATES = [
 DEMAND_ROW = {
     "family_id":             "coal_mining",
     "anchor_year":           2025,
-    "anchor_value":          ANCHOR_KT,          # 420,000 kt total production
+    "anchor_value":          ANCHOR_KT,          # 467,739 kt total production
     "unit":                  "kt_coal",
     "demand_growth_curve_id": "declining__coal_mining_total",
     "anchor_status":         "calibrated",
     "source_family":         "Phase 1 reference scenario v0.1",
     "coverage_note": (
         f"Total Australian coal production: {ANCHOR_KT:,} kt (Geoscience Australia 2023-24). "
-        "Includes export coal (~330,000 kt, 79%) and domestic coal (~90,000 kt, 21%). "
-        "Per-kt energy and emissions coefficients are national averages from AES/NGGI "
+        "Includes export coal (~370,000 kt, 79%) and domestic coal (~98,700 kt, 21%). "
+        "Per-kt energy and emissions coefficients calibrated from AES 2025 and NGGI 2025 "
         "and therefore apply directly to the total production basis."
     ),
     "notes": (
-        f"Calibrated to AES 2023-24 Table F and NGGI 2023-24 Cat 1B1a. "
-        f"Energy at anchor: {ANCHOR_KT:,} kt × 406 GJ/kt = 170.5 PJ "
-        f"(AES reference: {AES_TOTAL_PJ} PJ, coverage = 98.0%). "
-        f"Fugitive at anchor: {ANCHOR_KT:,} kt × 69 tCO2e/kt = 29.0 MtCO2e "
-        f"(NGGI Cat 1B1a = 29 MtCO2e, coverage = 99.9%). "
+        f"Calibrated to AES 2025 Table F and NGGI 2025. "
+        f"Energy at anchor: {ANCHOR_KT:,} kt × 372 GJ/kt = {372 * ANCHOR_KT / 1e6:.1f} PJ "
+        f"(AES 2025 reference: {AES_TOTAL_PJ} PJ, coverage = 100.0%). "
+        f"Total scope 1 at anchor: {ANCHOR_KT:,} kt × 77.0 tCO2e/kt = {77.0 * ANCHOR_KT / 1e6:.1f} MtCO2e "
+        f"(NGGI 2025 reference: {NGGI_TOTAL_MT} MtCO2e). "
         "Demand trajectory: declining__coal_mining_total (−1.1%/yr compound, "
         "weighted average of export −0.75%/yr and domestic −2.5%/yr)."
     ),
@@ -521,18 +532,31 @@ def write_demand():
 
 def print_calibration_check():
     print("\n  Calibration check (total production basis):")
+    conv_2025 = CONV_DATA[2025]
+    conv_sei = conv_2025["sei"]
+
     for state_id, meta, year_data in ALL_STATES:
         yd = year_data[2025]
         c = yd["coefficients"]
         total_e = sum(x for x in c)
         total_pj = total_e * ANCHOR_KT / 1e6
         total_co2e = yd["energy_co2e"] + yd["process_co2e"]
+        total_mt = total_co2e * ANCHOR_KT / 1e6
         print(f"    {state_id:35s}  energy: {total_e:5.0f} GJ/kt = {total_pj:6.1f} PJ  "
-              f"CO2e: {total_co2e:5.1f} tCO2e/kt = {total_co2e * ANCHOR_KT / 1e6:5.2f} MtCO2e/yr")
-    print(f"\n    AES Table F reference:  {AES_TOTAL_PJ:.1f} PJ (all coal, {TOTAL_PROD_KT:,} kt)")
-    print(f"    Modelled total:         {406.0 * ANCHOR_KT / 1e6:.1f} PJ (406 GJ/kt × {ANCHOR_KT:,} kt, {406*ANCHOR_KT/AES_TOTAL_PJ/1e6*100:.1f}% of AES)")
-    print(f"\n    NGGI Cat 1B1a ref:      29.0 MtCO2e fugitive")
-    print(f"    Modelled fugitive:      {PROCESS_CO2E_2025 * ANCHOR_KT / 1e6:.2f} MtCO2e ({PROCESS_CO2E_2025} tCO2e/kt × {ANCHOR_KT:,} kt)")
+              f"CO2e: {total_co2e:5.1f} tCO2e/kt = {total_mt:5.2f} MtCO2e/yr")
+
+    print(f"\n    AES 2025 Table F reference:  {AES_TOTAL_PJ:.1f} PJ (all coal, {TOTAL_PROD_KT:,} kt)")
+    modelled_pj = RFUEL_2025 + ELEC_2025 + GAS_2025
+    print(f"    Modelled total (conv 2025):  {modelled_pj:.0f} GJ/kt × {ANCHOR_KT:,} kt = "
+          f"{modelled_pj * ANCHOR_KT / 1e6:.1f} PJ ({modelled_pj * ANCHOR_KT / AES_TOTAL_PJ / 1e6 * 100:.1f}% of AES)")
+    print(f"\n    NGGI 2025 reference:  {NGGI_TOTAL_MT:.0f} MtCO2e total scope 1")
+    conv_total_co2e = ENERGY_CO2E_2025 + PROCESS_CO2E_2025
+    print(f"    Modelled total (conv 2025):  {conv_total_co2e:.1f} tCO2e/kt × {ANCHOR_KT:,} kt = "
+          f"{conv_total_co2e * ANCHOR_KT / 1e6:.2f} MtCO2e")
+    print(f"      Energy component:   {ENERGY_CO2E_2025:.1f} tCO2e/kt = "
+          f"{ENERGY_CO2E_2025 * ANCHOR_KT / 1e6:.2f} MtCO2e")
+    print(f"      Fugitive component: {PROCESS_CO2E_2025:.1f} tCO2e/kt = "
+          f"{PROCESS_CO2E_2025 * ANCHOR_KT / 1e6:.2f} MtCO2e")
 
 
 if __name__ == "__main__":

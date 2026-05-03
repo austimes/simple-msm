@@ -453,6 +453,51 @@ export function buildDemandBySectorChart(request: SolveRequest): LineChartData {
   };
 }
 
+export function buildDemandBySubsectorLineChart(request: SolveRequest): LineChartData {
+  const years = request.configuration.years;
+  const demandByOutput = request.configuration.serviceDemandByOutput;
+
+  const outputToSubsector = new Map<string, string>();
+  for (const outputId of Object.keys(demandByOutput)) {
+    outputToSubsector.set(outputId, resolveOutputSubsector(request, outputId));
+  }
+
+  const grouped = new Map<string, Map<number, number>>();
+  for (const [outputId, yearTable] of Object.entries(demandByOutput)) {
+    const subsector = outputToSubsector.get(outputId)!;
+    let yearMap = grouped.get(subsector);
+    if (!yearMap) {
+      yearMap = new Map<number, number>();
+      grouped.set(subsector, yearMap);
+    }
+    for (const year of years) {
+      const value = yearTable[String(year)] ?? 0;
+      yearMap.set(year, (yearMap.get(year) ?? 0) + value);
+    }
+  }
+
+  const baseYear = years[0];
+  for (const [, yearMap] of grouped) {
+    const baseValue = yearMap.get(baseYear) ?? 0;
+    if (baseValue === 0) continue;
+    for (const year of years) {
+      const raw = yearMap.get(year) ?? 0;
+      yearMap.set(year, (raw / baseValue) * 100);
+    }
+  }
+
+  return {
+    title: 'Demand by Sub-sector',
+    yAxisLabel: `% of ${baseYear}`,
+    years,
+    series: buildSeries(grouped, years, {
+      labelForKey: (key) => key,
+      legendLabelForKey: (key) => getPresentation('subsector', key, key).legendLabel,
+      colorForKey: (key) => getPresentation('subsector', key, key).color,
+    }),
+  };
+}
+
 export function buildDemandBySubsectorChart(request: SolveRequest): StackedChartData {
   const years = request.configuration.years;
   const demandByOutput = request.configuration.serviceDemandByOutput;

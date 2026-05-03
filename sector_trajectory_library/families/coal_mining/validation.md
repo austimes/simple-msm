@@ -3,12 +3,12 @@
 ## Expected baseline anchor
 
 - Anchor year: 2025
-- Anchor value: 420000.0
+- Anchor value: 467739.0
 - Unit: `kt_coal`
 - Anchor status: `calibrated`
 - Default incumbent state id: `coal_mining__conventional`
 - Source family: Phase 1 reference scenario v0.1
-- Coverage note: Total Australian coal production (Geoscience Australia 2023-24): 420,000 kt. Includes export coal (~330,000 kt, 79%) and domestic coal (~90,000 kt, 21%).
+- Coverage note: Total Australian coal production (Geoscience Australia 2023-24): 467,739 kt. Includes export coal (~370,000 kt, 79%) and domestic coal (~98,700 kt, 21%).
 
 ## What must reconcile at incumbent/default settings
 
@@ -23,9 +23,9 @@
 
 ## Known deviations
 
-- Energy at anchor: 420,000 kt × 406 GJ/kt = 170.5 PJ (AES 2023-24 reference: 174.0 PJ, coverage = 98.0%).
-- Energy CO2e at anchor: 420,000 kt × 22.4 tCO2e/kt = 9.41 MtCO2e (NGA 2025 diesel EF 69.9 kgCO2e/GJ; NGGI 2023-24 Cat 1A2 mining component ✓).
-- Fugitive CO2e at anchor: 420,000 kt × 69 tCO2e/kt = 29.0 MtCO2e (NGGI Cat 1B1a = 29 MtCO2e, coverage = 99.9% ✓).
+- Energy at anchor: 467,739 kt × 406 GJ/kt = 190.0 PJ. Verify that the retained per-kt energy coefficients remain appropriate for the updated activity anchor.
+- Energy CO2e at anchor: 467,739 kt × 22.4 tCO2e/kt = 10.5 MtCO2e.
+- Fugitive CO2e at anchor: 467,739 kt × 69 tCO2e/kt = 32.3 MtCO2e. Verify that the retained per-kt fugitive coefficient remains appropriate for the updated activity anchor.
 - National average fugitive intensity (69 tCO2e/kt) is heavily influenced by underground export mines; open-cut mines have much lower intensity (~15 tCO2e/kt).
 
 ## What is intentionally approximate or excluded

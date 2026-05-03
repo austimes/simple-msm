@@ -11,6 +11,7 @@ import {
   buildEmissionsBySectorChart,
   buildFuelConsumptionChart,
   buildDemandBySectorChart,
+  buildDemandBySubsectorLineChart,
   buildCostByComponentChart,
   type PathwayChartCardData,
   type RemovalsChartCardData,
@@ -297,6 +298,10 @@ export default function ConfigurationWorkspaceCenter({
     () => (focusSolve.request ? buildDemandBySectorChart(focusSolve.request) : null),
     [focusSolve.request],
   );
+  const demandBySubsectorChart = useMemo(
+    () => (focusSolve.request ? buildDemandBySubsectorLineChart(focusSolve.request) : null),
+    [focusSolve.request],
+  );
   const emissionsChart = useMemo(
     () => (
       focusContributions.length > 0
@@ -500,6 +505,15 @@ export default function ConfigurationWorkspaceCenter({
                 data={demandBySectorChart}
                 layoutVariant="explorer-uniform"
                 yDomainPersistenceKey="run:demand-by-sector"
+              />
+            </div>
+          )}
+          {demandBySubsectorChart && (
+            <div className="workspace-chart-section">
+              <LineChart
+                data={demandBySubsectorChart}
+                layoutVariant="explorer-uniform"
+                yDomainPersistenceKey="run:demand-by-subsector"
               />
             </div>
           )}

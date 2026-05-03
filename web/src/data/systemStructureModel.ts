@@ -244,8 +244,9 @@ function buildGeneratedYearOverride(
 function buildGeneratedControl(
   focusControl: ConfigurationServiceControl,
   incumbentStateId: string,
+  forceActive = false,
 ): ConfigurationServiceControl {
-  const disabled = controlHasExplicitDisabledRoutes(focusControl);
+  const disabled = !forceActive && controlHasExplicitDisabledRoutes(focusControl);
   const nextControl: ConfigurationServiceControl = {
     ...focusControl,
     active_state_ids: disabled ? [] : [incumbentStateId],
@@ -353,9 +354,13 @@ export function buildGeneratedIncumbentBaseConfiguration(
       continue;
     }
 
+    const outputRole = packageData.appConfig.output_roles[outputId]?.output_role;
+    const forceActive = outputRole === 'endogenous_supply_commodity';
+
     serviceControls[outputId] = buildGeneratedControl(
       resolveFocusControl(materializedFocus, packageData.appConfig, outputId),
       incumbentStateId,
+      forceActive,
     );
   }
 

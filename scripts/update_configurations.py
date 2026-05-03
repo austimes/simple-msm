@@ -99,7 +99,7 @@ for filename in config_files:
             'international_shipping': 200000.0,
             'rail_passenger':        22000.0,
             'rail_freight':          700.0,
-            'coal_mining':           420000.0,
+            'coal_mining':           467739.0,
             'oil_and_gas_extraction': 6100.0,
         }
         for family_id, anchor in anchors_to_add.items():

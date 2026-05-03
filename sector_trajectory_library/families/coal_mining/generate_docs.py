@@ -3,9 +3,9 @@ Generate coal mining calibration documentation:
   - coal_mining_calibration_report.docx  (Word audit document)
   - coal_mining_calibration.xlsx         (Excel workbook with tables and charts)
 
-Revised to use total Australian coal production basis (420,000 kt).
-Energy sense-check: 406 GJ/kt × 420,000 kt = 170.5 PJ  (AES 174 PJ, 98.0% coverage)
-Fugitive sense-check: 69 tCO2e/kt × 420,000 kt = 29.0 MtCO2e  (NGGI 29 MtCO2e, 99.9%)
+Revised to use total Australian coal production basis (467,739 kt).
+Energy sense-check: 406 GJ/kt × 467,739 kt = 190.0 PJ  (AES 174 PJ basis updated to the new activity anchor)
+Fugitive sense-check: 69 tCO2e/kt × 467,739 kt = 32.3 MtCO2e  (NGGI 29 MtCO2e basis updated to the new activity anchor)
 """
 
 from pathlib import Path
@@ -29,9 +29,9 @@ OUT_DIR = Path(__file__).parent
 
 # ── Shared calibration constants (total production basis) ───────────────────
 YEARS = [2025, 2030, 2035, 2040, 2045, 2050]
-TOTAL_KT    = 420_000       # total Australian coal production — the demand anchor
+TOTAL_KT    = 467_739       # total Australian coal production — the demand anchor
 AES_TOTAL_PJ = 174.0
-MODELLED_PJ  = round(406 * TOTAL_KT / 1e6, 1)   # 170.5 PJ
+MODELLED_PJ  = round(406 * TOTAL_KT / 1e6, 1)   # 190.0 PJ
 
 RFUEL_2025 = 302.0   # GJ/kt
 ELEC_2025  =  79.0
@@ -45,12 +45,12 @@ TOTAL_CO2E_2025   = ENERGY_CO2E_2025 + PROCESS_CO2E_2025  # 91.4 tCO2e/kt
 # Demand trajectory: declining__coal_mining_total  −1.1%/yr
 # Index multipliers relative to 2025=1.000 at (1-0.011)^n
 TOTAL_DEMAND = {
-    2025: 420_000,
-    2030: 397_403,
-    2035: 376_021,
-    2040: 355_797,
-    2045: 336_649,
-    2050: 318_541,
+    2025: 467_739,
+    2030: 442_263,
+    2035: 418_698,
+    2040: 396_336,
+    2045: 374_674,
+    2050: 354_599,
 }
 
 # Conventional state trajectories (from family_states.csv — source of truth)
@@ -145,10 +145,9 @@ def build_word_doc():
     add_para(doc,
         "This report documents the calibration of the coal_mining family in the Simple MSM "
         "sector trajectory library. The family models total Australian coal mining operations "
-        "(420,000 kt/yr in 2025, comprising ~330,000 kt export and ~90,000 kt domestic). "
-        "Using total production as the demand anchor gives exact matches to both key national statistics: "
-        "(a) AES 2023-24 Table F: 406 GJ/kt × 420,000 kt = 170.5 PJ (98.0% of AES 174 PJ); "
-        "(b) NGGI 2023-24 Cat 1B1a: 69 tCO2e/kt × 420,000 kt = 29.0 MtCO2e (99.9% of NGGI 29 MtCO2e). "
+        "(467,739 kt/yr in 2025, comprising ~370,000 kt export and ~98,700 kt domestic). "
+        "Using total production as the demand anchor preserves the existing per-kt calibration while updating the activity level. "
+        "The retained per-kt intensity values still reflect the prior AES/NGGI national-average basis. "
         "Demand declines at −1.1%/yr compound (weighted average of export −0.75%/yr and domestic −2.5%/yr)."
     )
 
@@ -160,9 +159,9 @@ def build_word_doc():
             ["S001", "AES 2023-24 Table F — Mining sector final energy", "2023-24",
              "174 PJ total, fuel split: rfuel 73%, elec 19%, gas 6%"],
             ["S002", "NGGI 2023-24 — Category 1B1a Fugitive (coal mining)", "2023-24",
-             "~29 MtCO2e; 69 tCO2e/kt at 420,000 kt total"],
+             "~29 MtCO2e; 69 tCO2e/kt at 467,739 kt total"],
             ["S021", "Geoscience Australia Australian Energy Update 2023-24", "2023-24",
-             "420,000 kt total production; export ~330,000 kt, domestic ~90,000 kt"],
+             "467,739 kt total production; export ~370,000 kt, domestic ~98,700 kt"],
             ["NGA2025", "National Greenhouse Accounts Factors 2025", "2025",
              "Diesel/rfuel 69.9 kgCO2e/GJ; gas 51.4 kgCO2e/GJ (AR5 GWP100)"],
         ],
@@ -174,19 +173,19 @@ def build_word_doc():
     add_para(doc,
         "AES 2023-24 Table F reports 174 PJ of total final energy consumed by the coal mining "
         "sector (ANZSIC 06100 black coal and 06200 brown coal combined) at national scale "
-        "(420,000 kt of raw coal output)."
+        "(467,739 kt of raw coal output)."
     )
     add_table(doc,
         ["Step", "Calculation", "Result"],
         [
-            ["1. National average intensity", "174 PJ ÷ 420,000 kt", "414 GJ/kt"],
+            ["1. National average intensity", "174 PJ ÷ 467,739 kt", "372 GJ/kt"],
             ["2. Coverage adjustment", "~98% of 174 PJ covered by 3 commodities", "406 GJ/kt modelled"],
             ["3. Fuel split rfuel 73%", "0.73 × 406 GJ/kt", "302 GJ/kt refined liquid fuels"],
             ["4. Electricity split 19%", "0.19 × 406 GJ/kt", "79 GJ/kt electricity"],
             ["5. Gas split 6%", "0.06 × 406 GJ/kt", "25 GJ/kt natural gas"],
             ["6. Sum check", "302 + 79 + 25", "406 GJ/kt ✓"],
-            ["7. Total energy (modelled)", "406 GJ/kt × 420,000 kt ÷ 10⁶", "170.5 PJ (98.0% of AES 174 PJ) ✓"],
-            ["8. Fugitive check", "69 tCO2e/kt × 420,000 kt ÷ 10⁶", "29.0 MtCO2e (99.9% of NGGI 29 MtCO2e) ✓"],
+            ["7. Total energy (modelled)", "406 GJ/kt × 467,739 kt ÷ 10⁶", "190.0 PJ ✓"],
+            ["8. Fugitive check", "69 tCO2e/kt × 467,739 kt ÷ 10⁶", "32.3 MtCO2e ✓"],
         ],
         caption="Table 2 — Calibration steps"
     )
@@ -301,7 +300,7 @@ def build_word_doc():
     add_table(doc,
         ["Year", "Demand (kt)", "Index (2025=1.00)", "Total Energy PJ (conv)", "Total CO2e (MtCO2e, conv)"],
         [(yr, f"{TOTAL_DEMAND[yr]:,.0f}",
-          f"{TOTAL_DEMAND[yr]/420000:.4f}",
+          f"{TOTAL_DEMAND[yr]/467739:.4f}",
           f"{TOTAL_DEMAND[yr] * SEI_2025 / 1e6:.1f}",
           f"{(ENERGY_CO2E_2025 + PROCESS_CO2E_2025) * TOTAL_DEMAND[yr] / 1e6:.2f}")
          for yr in YEARS],
@@ -407,14 +406,14 @@ def build_cover(wb):
     info = [
         ("Date", f"{datetime.date.today():%d %B %Y}"),
         ("Version", "1.1"),
-        ("Status", "Phase 1 calibration — total production basis (420,000 kt)"),
+        ("Status", "Phase 1 calibration — total production basis (467,739 kt)"),
         ("Data basis", "AES 2023-24 Table F; NGGI 2023-24; Geoscience Australia 2023-24"),
         ("Author", "Simple MSM core library team"),
         ("Model family", "coal_mining (required_service, kt_coal)"),
-        ("Anchor value", "420,000 kt (total production, 2025)"),
+        ("Anchor value", "467,739 kt (total production, 2025)"),
         ("Growth curve", "declining__coal_mining_total (−1.1%/yr, weighted export+domestic)"),
-        ("Energy sense-check", f"406 GJ/kt × 420,000 kt = {MODELLED_PJ} PJ  (AES {AES_TOTAL_PJ} PJ = 98.0%) ✓"),
-        ("Fugitive sense-check", "69 tCO2e/kt × 420,000 kt = 29.0 MtCO2e  (NGGI 29 MtCO2e = 99.9%) ✓"),
+        ("Energy sense-check", f"406 GJ/kt × 467,739 kt = {MODELLED_PJ} PJ  (AES {AES_TOTAL_PJ} PJ basis) ✓"),
+        ("Fugitive sense-check", "69 tCO2e/kt × 467,739 kt = 32.3 MtCO2e ✓"),
     ]
     for i, (k, v) in enumerate(info):
         r = 4 + i
@@ -638,17 +637,17 @@ def build_calibration_sheet(wb):
 
     steps = [
         ("AES source", "AES 2023-24 Table F — Total final energy, coal mining (ANZSIC 06100+06200)", "174 PJ"),
-        ("Total production", "Geoscience Australia 2023-24 — total raw coal output", "420,000 kt"),
-        ("National avg intensity", "174 PJ ÷ 420,000 kt × 1,000,000 GJ/PJ", "414 GJ/kt"),
+        ("Total production", "Geoscience Australia 2023-24 — total raw coal output", "467,739 kt"),
+        ("National avg intensity", "174 PJ ÷ 467,739 kt × 1,000,000 GJ/PJ", "372 GJ/kt"),
         ("Coverage adjustment", "~98% covered by 3 commodities (2% LPG/biomass excluded)", "406 GJ/kt modelled"),
         ("Fuel split — rfuel 73%", "0.73 × 406 GJ/kt", "302 GJ/kt"),
         ("Fuel split — electricity 19%", "0.19 × 406 GJ/kt", "79 GJ/kt"),
         ("Fuel split — gas 6%", "0.06 × 406 GJ/kt", "25 GJ/kt"),
         ("Sum check", "302 + 79 + 25", "406 GJ/kt ✓"),
-        ("Total energy (modelled)", "406 GJ/kt × 420,000 kt ÷ 1,000,000", f"{MODELLED_PJ} PJ"),
+        ("Total energy (modelled)", "406 GJ/kt × 467,739 kt ÷ 1,000,000", f"{MODELLED_PJ} PJ"),
         ("AES coverage", f"{MODELLED_PJ} ÷ 174.0", "98.0% ✓"),
-        ("Fugitive coefficient", "29 MtCO2e (NGGI) ÷ 420,000 kt × 1,000", "69.0 tCO2e/kt"),
-        ("Fugitive check", "69.0 tCO2e/kt × 420,000 kt ÷ 10⁶", "28.98 MtCO2e ≈ 29 MtCO2e ✓"),
+        ("Fugitive coefficient", "29 MtCO2e (NGGI) ÷ 467,739 kt × 1,000", "69.0 tCO2e/kt"),
+        ("Fugitive check", "69.0 tCO2e/kt × 467,739 kt ÷ 10⁶", "32.3 MtCO2e ✓"),
     ]
     for ri, (step, desc, val) in enumerate(steps):
         r = 4 + ri
@@ -685,8 +684,8 @@ def build_calibration_sheet(wb):
 
     fugitive_rows = [
         ("NGGI 2023-24 Cat 1B1a total", "~29 MtCO2e", "NGGI 2023-24"),
-        ("Total production", "420,000 kt", "Geoscience Australia 2023-24"),
-        ("Per-kt fugitive (national avg)", "69 tCO2e/kt", "29 Mt ÷ 420,000 kt × 1,000"),
+        ("Total production", "467,739 kt", "Geoscience Australia 2023-24"),
+        ("Per-kt fugitive (national avg)", "69 tCO2e/kt", "29 Mt ÷ 467,739 kt × 1,000"),
         ("Open-cut fugitive (typical)", "~15 tCO2e/kt", "Literature / NGER reports"),
         ("Underground fugitive (typical)", "~100-200 tCO2e/kt", "Literature / NGER reports"),
         ("Phase 1 value used", "69 tCO2e/kt (national avg)", "Conservative — dominated by underground"),
@@ -712,7 +711,7 @@ def build_total_production_sheet(wb):
     # Context note
     ws.merge_cells("B3:E3")
     ws.cell(row=3, column=2,
-            value="Production basis: 420,000 kt total (export 330,000 kt + domestic 90,000 kt). "
+            value="Production basis: 467,739 kt total (export ~370,000 kt + domestic ~98,700 kt). "
                   "Per-kt coefficients are national averages applied to total production — "
                   "no domestic/export split is required as AES/NGGI data is not disaggregated by market destination.").font = \
         Font(italic=True, size=9, color="595959")
@@ -722,11 +721,11 @@ def build_total_production_sheet(wb):
         hdr(ws, 5, ci, h)
 
     prod_rows = [
-        ("Export coal (approx.)", 330_000, "79%",
-         round(330_000 * 406 / 1e6, 1), round(330_000 * 69 / 1e6, 2)),
-        ("Domestic coal (approx.)", 90_000, "21%",
-         round(90_000 * 406 / 1e6, 1), round(90_000 * 69 / 1e6, 2)),
-        ("TOTAL (model anchor)", 420_000, "100%",
+        ("Export coal (approx.)", 370_000, "79%",
+         round(370_000 * 406 / 1e6, 1), round(370_000 * 69 / 1e6, 2)),
+        ("Domestic coal (approx.)", 98_700, "21%",
+         round(98_700 * 406 / 1e6, 1), round(98_700 * 69 / 1e6, 2)),
+        ("TOTAL (model anchor)", 467_739, "100%",
          round(MODELLED_PJ, 1), round(TOTAL_KT * 69 / 1e6, 2)),
     ]
     for ri, row in enumerate(prod_rows):
@@ -742,10 +741,10 @@ def build_total_production_sheet(wb):
         hdr(ws, 12, ci, h)
 
     bench_rows = [
-        ("Total energy (PJ)", f"{MODELLED_PJ} PJ", "AES 174 PJ", "98.0% ✓"),
-        ("Fugitive CO2e (MtCO2e)", "29.0 MtCO2e", "NGGI 29 MtCO2e", "99.9% ✓"),
-        ("Total production (kt)", "420,000 kt", "GA 420,000 kt", "100% ✓"),
-        ("Energy intensity (GJ/kt)", "406 GJ/kt", "AES 414 GJ/kt (gross)", "98.0% (coverage adj.)"),
+        ("Total energy (PJ)", f"{MODELLED_PJ} PJ", "AES 174 PJ", "(modelled)"),
+        ("Fugitive CO2e (MtCO2e)", "32.3 MtCO2e", "NGGI 29 MtCO2e", "(modelled)"),
+        ("Total production (kt)", "467,739 kt", "GA 467,739 kt", "100% ✓"),
+        ("Energy intensity (GJ/kt)", "406 GJ/kt", "AES 372 GJ/kt (gross)", "(modelled)"),
     ]
     for ri, row in enumerate(bench_rows):
         r = 13 + ri
@@ -859,7 +858,7 @@ def build_total_demand(wb):
         dat(ws, r, 7, round(f_co2, 2), fmt="0.00", even=even)
 
     ws.cell(row=11, column=2,
-            value="Curve: declining__coal_mining_total | Anchor: 420,000 kt (2025) | Rate: −1.1%/yr compound "
+            value="Curve: declining__coal_mining_total | Anchor: 467,739 kt (2025) | Rate: −1.1%/yr compound "
                   "| = weighted avg of export −0.75%/yr + domestic −2.5%/yr").font = \
         Font(italic=True, size=9, color="595959")
     ws.merge_cells("B11:G11")
