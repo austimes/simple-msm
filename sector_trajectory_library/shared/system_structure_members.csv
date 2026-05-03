@@ -15,7 +15,7 @@ industrial_production,manufacturing_other,90,"Residual manufacturing energy outs
 industrial_production,residual_ippu_other,100,Residual industrial-process emissions outside explicit steel and cement process states.
 energy_supply,electricity,10,Modeled electricity supply.
 energy_supply,electricity_grid_losses_own_use,20,Residual electricity losses and electricity-sector own-use demand.
-energy_supply,mining_other,90,Residual mining and energy-extraction final energy.
+mining,mining_other,90,Residual mining and energy-extraction final energy not represented by explicit mining families.
 energy_supply,residual_fugitives,100,"Residual fugitive coal, oil, and gas emissions."
 agriculture,livestock_output_bundle,10,Modeled livestock output bundle.
 agriculture,cropping_horticulture_output_bundle,20,Modeled cropping and horticulture output bundle.
@@ -27,11 +27,11 @@ other_sectors,other_other,90,Residual final energy for remaining sectors.
 removals_land,land_sequestration,10,Modeled land sequestration placeholder.
 removals_land,engineered_removals,20,Modeled engineered removals placeholder.
 removals_land,residual_lulucf_sink,90,Optional residual LULUCF sink for national-total reconciliation.
-energy_supply,coal_mining,30,Modelled coal mining sector covering heavy haulage pathways and fugitive methane abatement.
+mining,coal_mining,10,Modelled coal mining sector covering heavy haulage pathways and fugitive methane abatement.
 non_road_transport,domestic_aviation,10,Modelled domestic aviation family.
 non_road_transport,international_aviation,20,Modelled international aviation family (bunker fuel boundary).
 non_road_transport,domestic_shipping,30,Modelled domestic coastal shipping family.
 non_road_transport,international_shipping,40,Modelled international maritime shipping family (bunker fuel boundary).
 non_road_transport,rail_passenger,50,Modelled passenger rail family.
 non_road_transport,rail_freight,60,Modelled freight rail family.
-energy_supply,oil_and_gas_extraction,40,Modelled oil and gas extraction sector covering electric compression and LDAR and flare elimination and renewable diesel integration.
+mining,oil_and_gas_extraction,20,Modelled oil and gas extraction sector covering electric compression and LDAR and flare elimination and renewable diesel integration.

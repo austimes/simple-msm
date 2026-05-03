@@ -50,10 +50,16 @@ export const SYSTEM_STRUCTURE_GROUPS: SystemStructureGroupDefinition[] = [
     residualOverlayIds: ['manufacturing_other', 'residual_ippu_other'],
   },
   {
+    id: 'mining',
+    label: 'Mining',
+    outputIds: ['coal_mining', 'oil_and_gas_extraction'],
+    residualOverlayIds: ['mining_other'],
+  },
+  {
     id: 'energy_supply',
     label: 'Energy supply',
     outputIds: ['electricity'],
-    residualOverlayIds: ['mining_other', 'residual_fugitives'],
+    residualOverlayIds: ['residual_fugitives'],
   },
   {
     id: 'agriculture',
