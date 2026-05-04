@@ -34,13 +34,11 @@ The legacy role-local `demand.csv` files remain in the package while the solver 
 
 `shared/role_metrics.csv` exposes role-level baseline emissions metrics for visualization and explanation. The initial metrics derive 2025 direct gross and net emissions from incumbent/default representation data and baseline activity anchors where possible. Coarse `emissions_importance_band` values are for styling and inspection only; they do not change solver semantics.
 
-### Navigation Clusters
+### Authoritative Ontology
 
-`shared/physical_system_nodes.csv` defines navigation clusters used to group roles for browsing. `shared/role_memberships.csv` maps each role onto its primary navigation cluster. `shared/physical_edges.csv` is reserved for optional cluster-level navigation links and is currently empty.
+Roles are the authoritative ontology. `shared/roles.csv`, the representation surfaces, and `shared/role_decomposition_edges.csv` are the only structures that define coverage obligations and parent-child activation. Any browsing, grouping, or visual layout used by tooling is presentation-only and must not introduce a parallel taxonomy.
 
-Navigation clusters are grouping/navigation metadata only. They MUST NOT define coverage obligations, residual semantics, or any first-class ontology that competes with `shared/roles.csv`. Roles are the authoritative coverage objects. Carrier-flow, host-service, intermediate, captured-CO2 and export-resource relationships between roles live in the role topology and `shared/role_decomposition_edges.csv`, not in cluster navigation data.
-
-Reporting categories can group results too, but they do not create parent-child hierarchy, activate roles, or define navigation links.
+Reporting categories can group results too, but they do not create parent-child hierarchy, activate roles, or define topology links.
 
 ### Representations
 
@@ -97,9 +95,6 @@ Those files use `role_id` and `applicable_method_ids` so efficiency effects atta
 - `shared/roles.csv` — role registry and topology surface
 - `shared/role_activity_drivers.csv` — role activity anchors and driver kinds
 - `shared/role_metrics.csv` — baseline role emissions metrics and importance bands
-- `shared/physical_system_nodes.csv` — navigation clusters used to group roles for browsing
-- `shared/role_memberships.csv` — role-to-navigation-cluster mapping surface
-- `shared/physical_edges.csv` — optional cluster-level navigation links (currently empty)
 - `shared/representations.csv` — default and optional representation choices for each role
 - `shared/representation_incumbents.csv` — base-year incumbent method or method mix for each direct representation
 - `shared/role_decomposition_edges.csv` — child-role activation edges for decomposition representations

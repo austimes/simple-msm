@@ -11,7 +11,6 @@ import type {
 void React;
 
 const ROLE_NODE_TYPE = 'libraryRole';
-const PHYSICAL_NODE_TYPE = 'libraryPhysical';
 const REPRESENTATION_NODE_TYPE = 'libraryRepresentation';
 const METHOD_NODE_TYPE = 'libraryMethod';
 
@@ -22,7 +21,7 @@ interface LibraryRoleGraphNodeData extends Record<string, unknown>, RoleLibraryG
 
 type LibraryRoleGraphNode = Node<
   LibraryRoleGraphNodeData,
-  typeof PHYSICAL_NODE_TYPE | typeof ROLE_NODE_TYPE | typeof REPRESENTATION_NODE_TYPE | typeof METHOD_NODE_TYPE
+  typeof ROLE_NODE_TYPE | typeof REPRESENTATION_NODE_TYPE | typeof METHOD_NODE_TYPE
 >;
 
 type LibraryRoleGraphEdge = {
@@ -55,9 +54,6 @@ async function getElk(): Promise<ElkInstance> {
 }
 
 function nodeSize(node: RoleLibraryGraphModelNode): { width: number; height: number } {
-  if (node.kind === 'physical') {
-    return { width: 260, height: 96 };
-  }
   if (node.kind === 'role') {
     return { width: 248, height: 106 };
   }
@@ -70,11 +66,9 @@ function nodeSize(node: RoleLibraryGraphModelNode): { width: number; height: num
 function nodeType(
   node: RoleLibraryGraphModelNode,
 ):
-  | typeof PHYSICAL_NODE_TYPE
   | typeof ROLE_NODE_TYPE
   | typeof REPRESENTATION_NODE_TYPE
   | typeof METHOD_NODE_TYPE {
-  if (node.kind === 'physical') return PHYSICAL_NODE_TYPE;
   if (node.kind === 'role') return ROLE_NODE_TYPE;
   if (node.kind === 'representation') return REPRESENTATION_NODE_TYPE;
   return METHOD_NODE_TYPE;
@@ -181,11 +175,6 @@ function LibraryGraphNode({ data }: NodeProps<LibraryRoleGraphNode>) {
       <Handle type="source" position={Position.Right} isConnectable={false} />
       <span className="library-role-node__label">{data.label}</span>
       <span className="library-role-node__meta">{data.meta}</span>
-      {data.kind === 'physical' ? (
-        <span className="library-role-node__counts">
-          {data.childNodeCount ?? 0} nodes · {data.roleCount ?? 0} roles
-        </span>
-      ) : null}
       {data.kind === 'role' ? (
         <span className="library-role-node__counts">
           {data.representationCount ?? 0} reps · {data.methodCount ?? 0} methods
@@ -222,7 +211,6 @@ function LibraryGraphNode({ data }: NodeProps<LibraryRoleGraphNode>) {
 }
 
 const NODE_TYPES = {
-  [PHYSICAL_NODE_TYPE]: LibraryGraphNode,
   [ROLE_NODE_TYPE]: LibraryGraphNode,
   [REPRESENTATION_NODE_TYPE]: LibraryGraphNode,
   [METHOD_NODE_TYPE]: LibraryGraphNode,
@@ -261,10 +249,10 @@ export default function LibraryRoleGraphCanvas({
   // nodes are expanded. That way expand/collapse does not trigger an
   // auto-fit (combined with autoFitMode="initial").
   const fitViewKey = useMemo(() => {
-    // Use the set of root (top-level) physical nodes as the identity. This
-    // changes only when filters/search change, not when the user expands.
+    // Use the set of top-level role nodes as the identity. This changes only
+    // when filters/search change, not when the user expands.
     return data.nodes
-      .filter((node) => node.kind === 'physical')
+      .filter((node) => node.kind === 'role' && node.activationClass === 'top_level')
       .map((node) => node.id)
       .sort()
       .join('|');

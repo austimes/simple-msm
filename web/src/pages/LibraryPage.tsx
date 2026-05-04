@@ -483,9 +483,6 @@ export default function LibraryPage() {
   const resolvedMethodYears = usePackageStore((state) => state.resolvedMethodYears);
   const roleMetadata = usePackageStore((state) => state.roleMetadata);
   const roleMetrics = usePackageStore((state) => state.roleMetrics);
-  const physicalSystemNodes = usePackageStore((state) => state.physicalSystemNodes);
-  const roleMemberships = usePackageStore((state) => state.roleMemberships);
-  const physicalEdges = usePackageStore((state) => state.physicalEdges);
   const representations = usePackageStore((state) => state.representations);
   const roleDecompositionEdges = usePackageStore((state) => state.roleDecompositionEdges);
   const reportingAllocations = usePackageStore((state) => state.reportingAllocations);
@@ -514,21 +511,15 @@ export default function LibraryPage() {
   const roleLibraryModel = useMemo(() => buildRoleLibraryModel({
     roleMetadata,
     roleMetrics,
-    physicalSystemNodes,
-    roleMemberships,
-    physicalEdges,
     representations,
     roleDecompositionEdges,
     reportingAllocations,
     methods,
   }), [
     methods,
-    physicalEdges,
-    physicalSystemNodes,
     reportingAllocations,
     representations,
     roleDecompositionEdges,
-    roleMemberships,
     roleMetadata,
     roleMetrics,
   ]);

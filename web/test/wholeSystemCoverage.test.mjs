@@ -45,18 +45,10 @@ test('whole-system coverage summary resolves every authored role', () => {
 test('library role graph can expose every top-level coverage role', () => {
   const pkg = loadPackage();
   const model = buildRoleLibraryModel(pkg);
-  const expandedPhysicalNodes = new Set(
-    model.physicalNodes.map((node) => `physical:${node.nodeId}`),
-  );
-  const graph = buildRoleLibraryGraphData(model, expandedPhysicalNodes);
+  const graph = buildRoleLibraryGraphData(model, new Set());
   const graphNodeIds = new Set(graph.nodes.map((node) => node.id));
 
   for (const role of model.topLevelRoles) {
     assert.equal(graphNodeIds.has(`role:${role.roleId}`), true, `${role.roleId} should be visible`);
   }
-
-  // Carbon-management process-chain edges are role-graph relationships and
-  // no longer live in the navigation-only physical edges. The roles themselves
-  // remain visible above; richer process-chain edges are tracked in later
-  // role-graph work.
 });

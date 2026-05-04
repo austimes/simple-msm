@@ -25,10 +25,6 @@ import type {
   MethodYear,
   OutputRole,
   PackageData,
-  PhysicalEdge,
-  PhysicalEdgeKind,
-  PhysicalSystemNode,
-  PhysicalSystemNodeKind,
   PriceLevel,
   ReportingAllocation,
   RepresentationIncumbent,
@@ -38,8 +34,6 @@ import type {
   ResidualOverlayRow,
   RoleDecompositionEdge,
   RoleDemand,
-  RoleMembership,
-  RoleMembershipKind,
   RoleMetric,
   RoleMetadata,
   RolePresentationMetadata,
@@ -513,42 +507,6 @@ function parseEmissionsImportanceBand(
   throw new Error(`Unknown emissions_importance_band for ${label}: ${JSON.stringify(value)}`);
 }
 
-function parsePhysicalSystemNodeKind(
-  raw: string | undefined,
-  label: string,
-): PhysicalSystemNodeKind {
-  const value = parseRequiredString(raw, label);
-  if (value === 'cluster' || value === 'root') {
-    return value;
-  }
-
-  throw new Error(`Unknown node_kind for ${label}: ${JSON.stringify(value)}`);
-}
-
-function parseRoleMembershipKind(
-  raw: string | undefined,
-  label: string,
-): RoleMembershipKind {
-  const value = parseRequiredString(raw, label);
-  if (value === 'cluster_membership') {
-    return value;
-  }
-
-  throw new Error(`Unknown membership_kind for ${label}: ${JSON.stringify(value)}`);
-}
-
-function parsePhysicalEdgeKind(
-  raw: string | undefined,
-  label: string,
-): PhysicalEdgeKind {
-  const value = parseRequiredString(raw, label);
-  if (value === 'groups_with' || value === 'flows_to') {
-    return value;
-  }
-
-  throw new Error(`Unknown edge_kind for ${label}: ${JSON.stringify(value)}`);
-}
-
 function toRoleActivityDriver(row: Record<string, string>): RoleActivityDriver {
   const driverId = parseRequiredString(row['driver_id'], 'shared/role_activity_drivers.csv.driver_id');
   const roleId = parseRequiredString(row['role_id'], `shared/role_activity_drivers.csv.${driverId}.role_id`);
@@ -582,63 +540,6 @@ function toRoleActivityDriver(row: Record<string, string>): RoleActivityDriver {
       row['coverage_note'],
       `shared/role_activity_drivers.csv.${driverId}.coverage_note`,
     ),
-    notes: row['notes'] ?? '',
-  };
-}
-
-function toPhysicalSystemNode(row: Record<string, string>): PhysicalSystemNode {
-  const nodeId = parseRequiredString(row['node_id'], 'shared/physical_system_nodes.csv.node_id');
-  return {
-    node_id: nodeId,
-    node_label: parseRequiredString(
-      row['node_label'],
-      `shared/physical_system_nodes.csv.${nodeId}.node_label`,
-    ),
-    description: parseRequiredString(
-      row['description'],
-      `shared/physical_system_nodes.csv.${nodeId}.description`,
-    ),
-    parent_node_id: parseEmptyNull(row['parent_node_id']),
-    node_kind: parsePhysicalSystemNodeKind(
-      row['node_kind'],
-      `shared/physical_system_nodes.csv.${nodeId}.node_kind`,
-    ),
-    boundary: parseRequiredString(row['boundary'], `shared/physical_system_nodes.csv.${nodeId}.boundary`),
-    display_order: parseRequiredNumber(
-      row['display_order'],
-      `shared/physical_system_nodes.csv.${nodeId}.display_order`,
-    ),
-    notes: row['notes'] ?? '',
-  };
-}
-
-function toRoleMembership(row: Record<string, string>): RoleMembership {
-  const roleId = parseRequiredString(row['role_id'], 'shared/role_memberships.csv.role_id');
-  const nodeId = parseRequiredString(row['node_id'], `shared/role_memberships.csv.${roleId}.node_id`);
-  return {
-    role_id: roleId,
-    node_id: nodeId,
-    membership_kind: parseRoleMembershipKind(
-      row['membership_kind'],
-      `shared/role_memberships.csv.${roleId}.${nodeId}.membership_kind`,
-    ),
-    is_primary: parseBool(row['is_primary']),
-    coverage_notes: parseRequiredString(
-      row['coverage_notes'],
-      `shared/role_memberships.csv.${roleId}.${nodeId}.coverage_notes`,
-    ),
-  };
-}
-
-function toPhysicalEdge(row: Record<string, string>): PhysicalEdge {
-  const edgeId = parseRequiredString(row['edge_id'], 'shared/physical_edges.csv.edge_id');
-  return {
-    edge_id: edgeId,
-    from_node_id: parseRequiredString(row['from_node_id'], `shared/physical_edges.csv.${edgeId}.from_node_id`),
-    to_node_id: parseRequiredString(row['to_node_id'], `shared/physical_edges.csv.${edgeId}.to_node_id`),
-    edge_kind: parsePhysicalEdgeKind(row['edge_kind'], `shared/physical_edges.csv.${edgeId}.edge_kind`),
-    flow_label: parseRequiredString(row['flow_label'], `shared/physical_edges.csv.${edgeId}.flow_label`),
-    display_order: parseRequiredNumber(row['display_order'], `shared/physical_edges.csv.${edgeId}.display_order`),
     notes: row['notes'] ?? '',
   };
 }
@@ -1638,9 +1539,6 @@ function emptyPackage(appConfig: AppConfigRegistry): PackageData {
     representationIncumbents: [],
     roleDecompositionEdges: [],
     roleActivityDrivers: [],
-    physicalSystemNodes: [],
-    roleMemberships: [],
-    physicalEdges: [],
     reportingAllocations: [],
     methods: [],
     methodYears: [],
@@ -1676,15 +1574,6 @@ export function loadPackage(): PackageData {
   const roleActivityDrivers = parseCsv(
     requirePackageFile('shared/role_activity_drivers.csv'),
   ).map(toRoleActivityDriver);
-  const physicalSystemNodes = parseCsv(
-    requirePackageFile('shared/physical_system_nodes.csv'),
-  ).map(toPhysicalSystemNode);
-  const roleMemberships = parseCsv(
-    requirePackageFile('shared/role_memberships.csv'),
-  ).map(toRoleMembership);
-  const physicalEdges = parseCsv(
-    requirePackageFile('shared/physical_edges.csv'),
-  ).map(toPhysicalEdge);
   const roleDecompositionEdges = parseCsv(
     requirePackageFile('shared/role_decomposition_edges.csv'),
   ).map(toRoleDecompositionEdge);
@@ -1796,9 +1685,6 @@ export function loadPackage(): PackageData {
     representationIncumbents,
     roleDecompositionEdges,
     roleActivityDrivers,
-    physicalSystemNodes,
-    roleMemberships,
-    physicalEdges,
     reportingAllocations,
     methods,
     methodYears,
