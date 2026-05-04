@@ -7,9 +7,9 @@ test('web package loader reads canonical role-topology files', () => {
 
   assert.equal(pkg.roleMetadata.length, 57);
   assert.equal(pkg.roleMetrics.length, 57);
-  assert.equal(pkg.physicalSystemNodes.length, 69);
+  assert.equal(pkg.physicalSystemNodes.length, 10);
   assert.equal(pkg.roleMemberships.length, 57);
-  assert.equal(pkg.physicalEdges.length, 29);
+  assert.equal(pkg.physicalEdges.length, 0);
   assert.equal(pkg.representations.length, 61);
   assert.equal(pkg.roleDecompositionEdges.length, 7);
   assert.equal(pkg.methods.length, 97);
@@ -24,13 +24,12 @@ test('web package loader reads canonical role-topology files', () => {
   ));
   assert.ok(pkg.roleMemberships.some((membership) =>
     membership.role_id === 'supply_grid_electricity'
-    && membership.node_id === 'supply_grid_electricity'
+    && membership.node_id === 'supply_domestic_energy_carriers'
+    && membership.membership_kind === 'cluster_membership'
     && membership.is_primary === true
   ));
-  assert.ok(pkg.physicalEdges.some((edge) =>
-    edge.edge_kind === 'supplies_energy_carrier_to'
-    && edge.from_node_id === 'supply_grid_electricity'
-    && edge.to_node_id === 'serve_building_occupants'
+  assert.ok(pkg.physicalSystemNodes.every((node) =>
+    node.node_kind === 'cluster' || node.node_kind === 'root'
   ));
   assert.ok(pkg.roleMetrics.some((metric) =>
     metric.role_id === 'supply_grid_electricity'
@@ -50,16 +49,6 @@ test('web package loader reads canonical role-topology files', () => {
     role.role_id === 'account_land_carbon_stock_change'
     && role.emissions_importance_band === 'sink'
     && role.role_metric?.baseline_direct_net_emissions_mtco2e === -73.7
-  ));
-  assert.ok(pkg.physicalEdges.some((edge) =>
-    edge.edge_kind === 'sends_captured_co2_to'
-    && edge.from_node_id === 'capture_point_source_co2'
-    && edge.to_node_id === 'transport_captured_co2'
-  ));
-  assert.ok(pkg.physicalEdges.some((edge) =>
-    edge.edge_kind === 'sends_captured_co2_to'
-    && edge.from_node_id === 'transport_captured_co2'
-    && edge.to_node_id === 'store_captured_co2'
   ));
 });
 

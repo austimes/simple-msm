@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "schema/role_memberships.schema.json",
   "title": "Role memberships",
-  "description": "Schema for shared/role_memberships.csv. Role memberships map canonical roles onto physical system nodes without using reporting allocations to create hierarchy.",
+  "description": "Schema for shared/role_memberships.csv. Role memberships map canonical roles onto navigation clusters in shared/physical_system_nodes.csv. Memberships are grouping/navigation metadata only and must not encode coverage obligations.",
   "type": "object",
   "required": [
     "role_id",
@@ -18,24 +18,22 @@
     },
     "node_id": {
       "type": "string",
-      "description": "Physical node identifier from shared/physical_system_nodes.csv."
+      "description": "Navigation cluster identifier from shared/physical_system_nodes.csv."
     },
     "membership_kind": {
       "type": "string",
       "enum": [
-        "decomposition_child",
-        "modeled_role",
-        "residual_role"
+        "cluster_membership"
       ],
-      "description": "How the role participates in the physical node graph."
+      "description": "How the role participates in the navigation graph. Only cluster_membership is allowed; role-anchor and residual-anchor membership kinds are not part of the canonical ontology."
     },
     "is_primary": {
       "type": "boolean",
-      "description": "True when this is the role's primary physical node membership."
+      "description": "True when this is the role's primary navigation cluster membership."
     },
     "coverage_notes": {
       "type": "string",
-      "description": "Coverage notes for the role-to-node mapping."
+      "description": "Notes for the role-to-cluster mapping."
     }
   }
 }

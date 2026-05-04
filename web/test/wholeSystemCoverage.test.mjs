@@ -55,14 +55,8 @@ test('library role graph can expose every top-level coverage role', () => {
     assert.equal(graphNodeIds.has(`role:${role.roleId}`), true, `${role.roleId} should be visible`);
   }
 
-  assert.ok(graph.edges.some((edge) =>
-    edge.edgeKind === 'sends_captured_co2_to'
-    && edge.source === 'physical:capture_point_source_co2'
-    && edge.target === 'physical:transport_captured_co2'
-  ));
-  assert.ok(graph.edges.some((edge) =>
-    edge.edgeKind === 'sends_captured_co2_to'
-    && edge.source === 'physical:transport_captured_co2'
-    && edge.target === 'physical:store_captured_co2'
-  ));
+  // Carbon-management process-chain edges are role-graph relationships and
+  // no longer live in the navigation-only physical edges. The roles themselves
+  // remain visible above; richer process-chain edges are tracked in later
+  // role-graph work.
 });
