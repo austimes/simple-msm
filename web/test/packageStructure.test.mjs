@@ -794,6 +794,52 @@ test('energy system representation library package structure is internally consi
   }
 });
 
+test('every role has a topology_area_id and topology_area_label', () => {
+  const roles = parseCsv(readText('shared/roles.csv'));
+  assert.equal(roles.length > 0, true);
+  for (const role of roles) {
+    assert.notEqual(role.topology_area_id, '', `${role.role_id} must have a topology_area_id`);
+    assert.notEqual(role.topology_area_label, '', `${role.role_id} must have a topology_area_label`);
+  }
+});
+
+test('every parent_role_id resolves to an existing role', () => {
+  const roles = parseCsv(readText('shared/roles.csv'));
+  const ids = new Set(roles.map((role) => role.role_id));
+  for (const role of roles) {
+    if (role.parent_role_id) {
+      assert.equal(
+        ids.has(role.parent_role_id),
+        true,
+        `${role.role_id} has unknown parent_role_id ${role.parent_role_id}`,
+      );
+    }
+  }
+});
+
+test('every top-level role is groupable by topology_area_label', () => {
+  const roles = parseCsv(readText('shared/roles.csv'));
+  const topLevelRoles = roles.filter((role) => role.activation_class === 'top_level');
+  assert.equal(topLevelRoles.length > 0, true, 'expected at least one top_level role');
+
+  const groups = new Map();
+  for (const role of topLevelRoles) {
+    const label = role.topology_area_label;
+    assert.notEqual(label, '', `top-level role ${role.role_id} must have a topology_area_label`);
+    const group = groups.get(label) ?? [];
+    group.push(role.role_id);
+    groups.set(label, group);
+  }
+  assert.equal(groups.size > 0, true, 'top-level roles should produce at least one topology area group');
+  for (const role of topLevelRoles) {
+    assert.equal(
+      groups.get(role.topology_area_label)?.includes(role.role_id),
+      true,
+      `${role.role_id} must be reachable from its topology_area_label group`,
+    );
+  }
+});
+
 test('canonical ESRL package does not retain family/state file surfaces', () => {
   for (const removedPath of [
     'shared/families.csv',

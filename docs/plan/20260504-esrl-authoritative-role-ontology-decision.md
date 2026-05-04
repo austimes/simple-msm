@@ -279,3 +279,20 @@ Expected consequences:
 - likely deletion or renaming of compatibility artifacts that no longer carry meaning
 
 The library should treat that churn as acceptable. The project is still discovering the right abstraction and does not need to preserve the current overlapping ontology.
+
+## Update Note (2026-05-04)
+
+The cluster navigation layer (`shared/physical_system_nodes.csv`,
+`shared/role_memberships.csv`, and the parallel physical-edge data) was
+removed in the `esrl-clusters-v1` epic (merge commit `747ff8c`).
+
+After that landing:
+
+- Roles in `shared/roles.csv` are the sole authoritative ontology.
+- Browse grouping is driven by `topology_area_id` and
+  `topology_area_label` columns on roles, not by a separate cluster
+  layer.
+- The migration phases above that called for collapsing 1:1 anchor
+  nodes are effectively complete for the cluster surface; remaining
+  ontology work focuses on residual / representation cleanup rather
+  than physical-node removal.
