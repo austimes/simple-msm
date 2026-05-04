@@ -246,20 +246,10 @@ const EMISSIONS_IMPORTANCE_BANDS = new Set([
 ]);
 const PHYSICAL_NODE_KINDS = new Set([
   'cluster',
-  'export_anchor',
-  'intermediate_anchor',
-  'residual_anchor',
-  'role_anchor',
   'root',
 ]);
-const ROLE_MEMBERSHIP_KINDS = new Set(['decomposition_child', 'modeled_role', 'residual_role']);
-const PHYSICAL_EDGE_KINDS = new Set([
-  'prepares_export_resource_for',
-  'provides_host_service_to',
-  'sends_captured_co2_to',
-  'supplies_energy_carrier_to',
-  'supplies_intermediate_to',
-]);
+const ROLE_MEMBERSHIP_KINDS = new Set(['cluster_membership']);
+const PHYSICAL_EDGE_KINDS = new Set(['groups_with']);
 const BALANCE_TYPES = new Set([
   'carbon_removal',
   'commodity_supply',

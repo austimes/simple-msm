@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "schema/physical_edges.schema.json",
   "title": "Physical edges",
-  "description": "Schema for shared/physical_edges.csv. Physical edges describe flow and dependency context between physical system nodes.",
+  "description": "Schema for shared/physical_edges.csv. Physical edges describe optional grouping/navigation relationships between navigation clusters in shared/physical_system_nodes.csv. Edges are navigation metadata only and must not encode coverage obligations or carrier flows between role-shaped objects; the canonical role topology lives in roles.csv and role_decomposition_edges.csv.",
   "type": "object",
   "required": [
     "edge_id",
@@ -16,30 +16,26 @@
   "properties": {
     "edge_id": {
       "type": "string",
-      "description": "Stable physical edge identifier."
+      "description": "Stable navigation edge identifier."
     },
     "from_node_id": {
       "type": "string",
-      "description": "Source physical node identifier."
+      "description": "Source navigation cluster identifier."
     },
     "to_node_id": {
       "type": "string",
-      "description": "Target physical node identifier."
+      "description": "Target navigation cluster identifier."
     },
     "edge_kind": {
       "type": "string",
       "enum": [
-        "prepares_export_resource_for",
-        "provides_host_service_to",
-        "sends_captured_co2_to",
-        "supplies_energy_carrier_to",
-        "supplies_intermediate_to"
+        "groups_with"
       ],
-      "description": "Physical relationship kind."
+      "description": "Navigation relationship kind. Only navigation grouping is allowed; carrier-flow and host-service edge kinds are not part of the canonical ontology."
     },
     "flow_label": {
       "type": "string",
-      "description": "Human-readable flow or service label."
+      "description": "Human-readable navigation label."
     },
     "display_order": {
       "type": "integer",

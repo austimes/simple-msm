@@ -15,11 +15,9 @@ test('library role graph starts with collapsed top-level physical nodes', () => 
   assert.equal(graph.nodes.length, model.topLevelPhysicalNodes.length);
   assert.ok(graph.nodes.every((node) => node.kind === 'physical'));
   assert.ok(graph.nodes.some((node) => node.id === 'physical:supply_domestic_energy_carriers'));
-  assert.ok(graph.edges.some((edge) =>
-    edge.source === 'physical:supply_domestic_energy_carriers'
-    && edge.target === 'physical:supply_resources_to_export_gate'
-    && edge.edgeKind === 'prepares_export_resource_for'
-  ));
+  // Carrier-flow and export-resource edges between role wrappers are no longer
+  // part of the navigation-only physical edges; the role topology lives on
+  // roles.csv and role_decomposition_edges.csv instead.
 });
 
 test('library role graph expands a role into representation nodes', () => {

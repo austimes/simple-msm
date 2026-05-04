@@ -474,10 +474,6 @@ export interface RoleActivityDriver {
 
 export type PhysicalSystemNodeKind =
   | 'cluster'
-  | 'export_anchor'
-  | 'intermediate_anchor'
-  | 'residual_anchor'
-  | 'role_anchor'
   | 'root';
 
 export interface PhysicalSystemNode {
@@ -491,10 +487,7 @@ export interface PhysicalSystemNode {
   notes: string;
 }
 
-export type RoleMembershipKind =
-  | 'decomposition_child'
-  | 'modeled_role'
-  | 'residual_role';
+export type RoleMembershipKind = 'cluster_membership';
 
 export interface RoleMembership {
   role_id: string;
@@ -504,12 +497,7 @@ export interface RoleMembership {
   coverage_notes: string;
 }
 
-export type PhysicalEdgeKind =
-  | 'prepares_export_resource_for'
-  | 'provides_host_service_to'
-  | 'sends_captured_co2_to'
-  | 'supplies_energy_carrier_to'
-  | 'supplies_intermediate_to';
+export type PhysicalEdgeKind = 'groups_with';
 
 export interface PhysicalEdge {
   edge_id: string;

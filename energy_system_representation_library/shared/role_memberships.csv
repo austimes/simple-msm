@@ -1,58 +1,58 @@
 role_id,node_id,membership_kind,is_primary,coverage_notes
-serve_residential_building_occupants,serve_residential_building_occupants,modeled_role,true,Canonical residential building service role is anchored directly on its physical node.
-provide_residential_water_heating,provide_residential_water_heating,decomposition_child,true,Residential water-heating role maps directly to its physical end-use node.
-serve_commercial_building_occupants,serve_commercial_building_occupants,modeled_role,true,Canonical commercial building service role is anchored directly on its physical node.
-account_remaining_residential_building_services,account_remaining_residential_building_services,residual_role,true,Residual coverage is explicit in the physical graph.
-account_remaining_commercial_building_services,account_remaining_commercial_building_services,residual_role,true,Residual coverage is explicit in the physical graph.
-move_passengers_by_road,move_passengers_by_road,modeled_role,true,Maps current role to physical mobility node.
-move_freight_by_road,move_freight_by_road,modeled_role,true,Maps current role to physical mobility node.
-move_passengers_by_rail,move_passengers_by_rail,residual_role,true,Non-road passenger rail coverage is explicit even while carried by a residual method.
-move_freight_by_rail,move_freight_by_rail,residual_role,true,Non-road freight rail coverage is explicit even while carried by a residual method.
-move_passengers_by_air,move_passengers_by_air,residual_role,true,Passenger aviation coverage is explicit even while carried by a residual method.
-move_freight_by_marine,move_freight_by_marine,residual_role,true,Marine freight coverage is explicit even while carried by a residual method.
-account_other_non_road_transport_activity,account_other_non_road_transport_activity,residual_role,true,Other non-road transport coverage is explicit in the physical graph.
-account_residual_transport,account_remaining_transport_activity,residual_role,true,Compatibility residual remains visible but carries no calibrated residual quantities.
-deliver_low_temperature_heat,provide_low_temperature_process_heat_for_host_roles,modeled_role,true,Current heat role maps to host-owned process heat rather than a standalone national heat system.
-deliver_medium_temperature_heat,provide_medium_temperature_process_heat_for_host_roles,modeled_role,true,Current heat role maps to host-owned process heat rather than a standalone national heat system.
-deliver_high_temperature_heat,provide_high_temperature_process_heat_for_host_roles,modeled_role,true,Current heat role maps to host-owned process heat rather than a standalone national heat system.
-make_crude_steel,make_crude_steel,modeled_role,true,Current steel role maps to physical production node.
-make_non_h2_dri_crude_steel,make_non_h2_dri_crude_steel,decomposition_child,true,Current steel decomposition child maps to physical production node.
-make_direct_reduced_iron,make_direct_reduced_iron,decomposition_child,true,Current steel decomposition child maps to physical intermediate node.
-melt_and_refine_dri_into_crude_steel,melt_and_refine_dri_into_crude_steel,decomposition_child,true,Current steel decomposition child maps to physical finishing node.
-make_cement_equivalent,make_cement_equivalent,modeled_role,true,Current cement role maps to physical production node.
-make_chemical_products,make_chemical_products,residual_role,true,Make chemical products coverage is explicit even while carried by a residual method.
-make_other_material_products,make_other_material_products,residual_role,true,Make other material products coverage is explicit even while carried by a residual method.
-account_residual_manufacturing,account_remaining_manufacturing_activity,residual_role,true,Compatibility residual remains visible but carries no calibrated residual manufacturing quantities.
-account_residual_ippu,account_remaining_industrial_process_emissions,residual_role,true,Compatibility residual remains visible but carries no calibrated residual IPPU quantities.
-supply_grid_electricity,supply_grid_electricity,modeled_role,true,Canonical grid-supply role is anchored directly on its physical node.
-account_grid_losses_and_own_use,account_grid_losses_and_own_use,residual_role,true,Grid losses and own use remain explicit physical coverage.
-account_residual_mining_energy,account_remaining_domestic_energy_supply_activity,residual_role,true,Domestic mining energy residual is separate from export-gate resource supply nodes.
-account_residual_fugitives,account_remaining_fugitive_emissions,residual_role,true,Fugitive emissions remain explicit until assigned to richer supply roles.
-raise_livestock_output,raise_livestock_output,modeled_role,true,Current livestock role maps to physical production node.
-grow_crops_and_horticulture_output,grow_crops_and_horticulture_output,modeled_role,true,Current cropping role maps to physical production node.
-account_livestock_biogenic_emissions,account_livestock_biogenic_emissions,residual_role,true,Account livestock biogenic emissions coverage is explicit in the physical graph.
-account_soil_fertiliser_residue_emissions,account_soil_fertiliser_residue_emissions,residual_role,true,Account soil fertiliser and residue emissions coverage is explicit in the physical graph.
-account_remaining_agricultural_activity,account_remaining_agricultural_activity,residual_role,true,Compatibility residual remains visible but carries no calibrated residual agriculture quantities.
-account_residual_construction,construct_built_assets,residual_role,true,Current construction residual maps to physical construction node.
-provide_water_services,provide_water_services,residual_role,true,Current water residual maps to water-services node.
-manage_waste_emissions,manage_waste_emissions,residual_role,true,Current waste emissions residual maps to waste-management node.
-account_residual_other_sectors,account_remaining_other_sectors,residual_role,true,Residual coverage is explicit in the physical graph.
-remove_co2_through_land_sequestration,remove_co2_through_land_sequestration,modeled_role,true,Current land sequestration role maps to physical removal node.
-remove_co2_through_engineered_removals,remove_co2_through_engineered_removals,modeled_role,true,Current engineered removals role maps to physical removal node.
-account_remaining_land_sink_adjustment,account_remaining_land_sink_adjustment,residual_role,true,Compatibility residual remains visible but carries no calibrated land stock-change quantities.
-account_land_carbon_stock_change,account_land_carbon_stock_change,residual_role,true,Account land carbon stock change coverage is explicit in the physical graph.
-supply_domestic_gas,supply_domestic_gas,residual_role,true,Supply domestic gas maps to its domestic carrier supply node as residual coverage.
-supply_domestic_liquid_fuels,supply_domestic_liquid_fuels,residual_role,true,Supply domestic liquid fuels maps to its domestic carrier supply node as residual coverage.
-supply_domestic_solid_fuels,supply_domestic_solid_fuels,residual_role,true,Supply domestic solid fuels maps to its domestic carrier supply node as residual coverage.
-supply_domestic_bioenergy,supply_domestic_bioenergy,residual_role,true,Supply domestic bioenergy maps to its domestic carrier supply node as residual coverage.
-supply_domestic_hydrogen,supply_domestic_hydrogen,residual_role,true,Supply domestic hydrogen maps to its domestic carrier supply node as residual coverage.
-supply_domestic_derived_fuels,supply_domestic_derived_fuels,residual_role,true,Supply domestic derived fuels maps to its domestic carrier supply node as residual coverage.
-supply_thermal_coal_to_export_gate,supply_thermal_coal_to_export_gate,residual_role,true,Supply thermal coal to export gate maps to its export-gate coal supply node as residual coverage.
-supply_metallurgical_coal_to_export_gate,supply_metallurgical_coal_to_export_gate,residual_role,true,Supply metallurgical coal to export gate maps to its export-gate coal supply node as residual coverage.
-supply_iron_ore_to_export_gate,supply_iron_ore_to_export_gate,residual_role,true,Supply iron ore to export gate maps to its export-gate iron ore supply node as residual coverage.
-capture_point_source_co2,capture_point_source_co2,modeled_role,true,Capture point-source CO2 maps directly to its carbon-management physical node.
-transport_captured_co2,transport_captured_co2,modeled_role,true,Transport captured CO2 maps directly to its carbon-management physical node.
-store_captured_co2,store_captured_co2,modeled_role,true,Store captured CO2 maps directly to its carbon-management physical node.
-make_clinker_intermediate,make_clinker_intermediate,decomposition_child,true,Primary physical node for cement decomposition child role.
-generate_cement_kiln_heat,generate_cement_kiln_heat,decomposition_child,true,Primary physical node for cement decomposition child role.
-grind_blend_cement_equivalent,grind_blend_cement_equivalent,decomposition_child,true,Primary physical node for cement decomposition child role.
+serve_residential_building_occupants,serve_building_occupants,cluster_membership,true,Role grouped under the buildings navigation cluster.
+provide_residential_water_heating,serve_building_occupants,cluster_membership,true,Role grouped under the buildings navigation cluster.
+serve_commercial_building_occupants,serve_building_occupants,cluster_membership,true,Role grouped under the buildings navigation cluster.
+account_remaining_residential_building_services,serve_building_occupants,cluster_membership,true,Role grouped under the buildings navigation cluster.
+account_remaining_commercial_building_services,serve_building_occupants,cluster_membership,true,Role grouped under the buildings navigation cluster.
+move_passengers_by_road,move_people_and_freight,cluster_membership,true,Role grouped under the transport navigation cluster.
+move_freight_by_road,move_people_and_freight,cluster_membership,true,Role grouped under the transport navigation cluster.
+move_passengers_by_rail,move_people_and_freight,cluster_membership,true,Role grouped under the transport navigation cluster.
+move_freight_by_rail,move_people_and_freight,cluster_membership,true,Role grouped under the transport navigation cluster.
+move_passengers_by_air,move_people_and_freight,cluster_membership,true,Role grouped under the transport navigation cluster.
+move_freight_by_marine,move_people_and_freight,cluster_membership,true,Role grouped under the transport navigation cluster.
+account_other_non_road_transport_activity,move_people_and_freight,cluster_membership,true,Role grouped under the transport navigation cluster.
+account_residual_transport,move_people_and_freight,cluster_membership,true,Role grouped under the transport navigation cluster.
+deliver_low_temperature_heat,make_materials_and_products,cluster_membership,true,Role grouped under the industrial production navigation cluster.
+deliver_medium_temperature_heat,make_materials_and_products,cluster_membership,true,Role grouped under the industrial production navigation cluster.
+deliver_high_temperature_heat,make_materials_and_products,cluster_membership,true,Role grouped under the industrial production navigation cluster.
+make_crude_steel,make_materials_and_products,cluster_membership,true,Role grouped under the industrial production navigation cluster.
+make_non_h2_dri_crude_steel,make_materials_and_products,cluster_membership,true,Role grouped under the industrial production navigation cluster.
+make_direct_reduced_iron,make_materials_and_products,cluster_membership,true,Role grouped under the industrial production navigation cluster.
+melt_and_refine_dri_into_crude_steel,make_materials_and_products,cluster_membership,true,Role grouped under the industrial production navigation cluster.
+make_cement_equivalent,make_materials_and_products,cluster_membership,true,Role grouped under the industrial production navigation cluster.
+make_chemical_products,make_materials_and_products,cluster_membership,true,Role grouped under the industrial production navigation cluster.
+make_other_material_products,make_materials_and_products,cluster_membership,true,Role grouped under the industrial production navigation cluster.
+account_residual_manufacturing,make_materials_and_products,cluster_membership,true,Role grouped under the industrial production navigation cluster.
+account_residual_ippu,make_materials_and_products,cluster_membership,true,Role grouped under the industrial production navigation cluster.
+supply_grid_electricity,supply_domestic_energy_carriers,cluster_membership,true,Role grouped under the domestic energy supply navigation cluster.
+account_grid_losses_and_own_use,supply_domestic_energy_carriers,cluster_membership,true,Role grouped under the domestic energy supply navigation cluster.
+account_residual_mining_energy,supply_domestic_energy_carriers,cluster_membership,true,Role grouped under the domestic energy supply navigation cluster.
+account_residual_fugitives,supply_domestic_energy_carriers,cluster_membership,true,Role grouped under the domestic energy supply navigation cluster.
+raise_livestock_output,grow_food_and_biomass,cluster_membership,true,Role grouped under the agriculture navigation cluster.
+grow_crops_and_horticulture_output,grow_food_and_biomass,cluster_membership,true,Role grouped under the agriculture navigation cluster.
+account_livestock_biogenic_emissions,grow_food_and_biomass,cluster_membership,true,Role grouped under the agriculture navigation cluster.
+account_soil_fertiliser_residue_emissions,grow_food_and_biomass,cluster_membership,true,Role grouped under the agriculture navigation cluster.
+account_remaining_agricultural_activity,grow_food_and_biomass,cluster_membership,true,Role grouped under the agriculture navigation cluster.
+account_residual_construction,make_materials_and_products,cluster_membership,true,Role grouped under the industrial production navigation cluster.
+provide_water_services,manage_water_and_waste,cluster_membership,true,Role grouped under the water and waste navigation cluster.
+manage_waste_emissions,manage_water_and_waste,cluster_membership,true,Role grouped under the water and waste navigation cluster.
+account_residual_other_sectors,account_remaining_domestic_activity,cluster_membership,true,Role grouped under the remaining domestic activity navigation cluster.
+remove_co2_through_land_sequestration,remove_and_store_carbon,cluster_membership,true,Role grouped under the removals and carbon storage navigation cluster.
+remove_co2_through_engineered_removals,remove_and_store_carbon,cluster_membership,true,Role grouped under the removals and carbon storage navigation cluster.
+account_remaining_land_sink_adjustment,remove_and_store_carbon,cluster_membership,true,Role grouped under the removals and carbon storage navigation cluster.
+account_land_carbon_stock_change,remove_and_store_carbon,cluster_membership,true,Role grouped under the removals and carbon storage navigation cluster.
+supply_domestic_gas,supply_domestic_energy_carriers,cluster_membership,true,Role grouped under the domestic energy supply navigation cluster.
+supply_domestic_liquid_fuels,supply_domestic_energy_carriers,cluster_membership,true,Role grouped under the domestic energy supply navigation cluster.
+supply_domestic_solid_fuels,supply_domestic_energy_carriers,cluster_membership,true,Role grouped under the domestic energy supply navigation cluster.
+supply_domestic_bioenergy,supply_domestic_energy_carriers,cluster_membership,true,Role grouped under the domestic energy supply navigation cluster.
+supply_domestic_hydrogen,supply_domestic_energy_carriers,cluster_membership,true,Role grouped under the domestic energy supply navigation cluster.
+supply_domestic_derived_fuels,supply_domestic_energy_carriers,cluster_membership,true,Role grouped under the domestic energy supply navigation cluster.
+supply_thermal_coal_to_export_gate,supply_resources_to_export_gate,cluster_membership,true,Role grouped under the export-gate resource supply navigation cluster.
+supply_metallurgical_coal_to_export_gate,supply_resources_to_export_gate,cluster_membership,true,Role grouped under the export-gate resource supply navigation cluster.
+supply_iron_ore_to_export_gate,supply_resources_to_export_gate,cluster_membership,true,Role grouped under the export-gate resource supply navigation cluster.
+capture_point_source_co2,remove_and_store_carbon,cluster_membership,true,Role grouped under the removals and carbon storage navigation cluster.
+transport_captured_co2,remove_and_store_carbon,cluster_membership,true,Role grouped under the removals and carbon storage navigation cluster.
+store_captured_co2,remove_and_store_carbon,cluster_membership,true,Role grouped under the removals and carbon storage navigation cluster.
+make_clinker_intermediate,make_materials_and_products,cluster_membership,true,Role grouped under the industrial production navigation cluster.
+generate_cement_kiln_heat,make_materials_and_products,cluster_membership,true,Role grouped under the industrial production navigation cluster.
+grind_blend_cement_equivalent,make_materials_and_products,cluster_membership,true,Role grouped under the industrial production navigation cluster.

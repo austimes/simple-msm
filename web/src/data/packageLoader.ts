@@ -534,14 +534,7 @@ function parsePhysicalSystemNodeKind(
   label: string,
 ): PhysicalSystemNodeKind {
   const value = parseRequiredString(raw, label);
-  if (
-    value === 'cluster'
-    || value === 'export_anchor'
-    || value === 'intermediate_anchor'
-    || value === 'residual_anchor'
-    || value === 'role_anchor'
-    || value === 'root'
-  ) {
+  if (value === 'cluster' || value === 'root') {
     return value;
   }
 
@@ -553,11 +546,7 @@ function parseRoleMembershipKind(
   label: string,
 ): RoleMembershipKind {
   const value = parseRequiredString(raw, label);
-  if (
-    value === 'decomposition_child'
-    || value === 'modeled_role'
-    || value === 'residual_role'
-  ) {
+  if (value === 'cluster_membership') {
     return value;
   }
 
@@ -569,13 +558,7 @@ function parsePhysicalEdgeKind(
   label: string,
 ): PhysicalEdgeKind {
   const value = parseRequiredString(raw, label);
-  if (
-    value === 'prepares_export_resource_for'
-    || value === 'provides_host_service_to'
-    || value === 'sends_captured_co2_to'
-    || value === 'supplies_energy_carrier_to'
-    || value === 'supplies_intermediate_to'
-  ) {
+  if (value === 'groups_with') {
     return value;
   }
 

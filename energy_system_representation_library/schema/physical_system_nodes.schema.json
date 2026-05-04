@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "schema/physical_system_nodes.schema.json",
   "title": "Physical system nodes",
-  "description": "Schema for shared/physical_system_nodes.csv. Physical system nodes are grouping and navigation metadata only. They MUST NOT define coverage obligations, residual semantics, or any first-class ontology that competes with shared/roles.csv. Roles are the authoritative coverage objects; this file exists only to host genuinely non-role grouping nodes (such as broad navigation clusters or boundary anchors). Nodes that exist only as 1:1 wrappers around a role must be removed rather than retained here. The file may be renamed in a later cleanup to reflect this narrower navigation purpose.",
+  "description": "Schema for shared/physical_system_nodes.csv. Physical system nodes are grouping and navigation metadata only. They MUST NOT define coverage obligations, residual semantics, or any first-class ontology that competes with shared/roles.csv. Roles are the authoritative coverage objects; this file exists only to host genuinely non-role grouping nodes (such as broad navigation clusters). Nodes that exist only as 1:1 wrappers around a role must be removed rather than retained here. The file may be renamed in a later cleanup to reflect this narrower navigation purpose.",
   "type": "object",
   "required": [
     "node_id",
@@ -17,11 +17,11 @@
   "properties": {
     "node_id": {
       "type": "string",
-      "description": "Stable physical node identifier."
+      "description": "Stable grouping/navigation node identifier."
     },
     "node_label": {
       "type": "string",
-      "description": "Human-readable physical node label."
+      "description": "Human-readable navigation cluster label."
     },
     "description": {
       "type": "string",
@@ -29,21 +29,19 @@
     },
     "parent_node_id": {
       "type": "string",
-      "description": "Parent physical node identifier. Blank only for the root node."
+      "description": "Parent grouping node identifier. Blank only for the root node."
     },
     "node_kind": {
       "type": "string",
       "enum": [
         "cluster",
-        "export_anchor",
-        "intermediate_anchor",
         "root"
       ],
-      "description": "Grouping/navigation node class. Permitted values cover only genuinely non-role grouping: root for the navigation root, cluster for broad navigation groups, intermediate_anchor for shared host or boundary groupings that are not themselves roles, and export_anchor for the export-gate boundary grouping. Role-anchor and residual-anchor semantics are not allowed: any node that mirrors a role 1:1 must be removed rather than represented here, and residual placeholder semantics live at the representation layer through representation_kind = residual_stub."
+      "description": "Navigation node class. Only the navigation root and grouping clusters are allowed: role-anchor, residual-anchor, intermediate-anchor and export-anchor wrappers are not part of the canonical ontology. Any node that mirrors a role 1:1 must be removed rather than represented here, and residual placeholder semantics live at the representation layer through representation_kind = residual_stub."
     },
     "boundary": {
       "type": "string",
-      "description": "Physical boundary represented by the grouping node."
+      "description": "Grouping boundary represented by the navigation cluster."
     },
     "display_order": {
       "type": "integer",
