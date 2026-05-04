@@ -212,6 +212,32 @@ describe('deriveRightSidebarTree', () => {
     );
   });
 
+  test('merges leftover subsectors into an existing grouped sector instead of duplicating it', () => {
+    const catalog = [
+      {
+        sector: 'buildings',
+        subsectors: [
+          buildSubsector('residential_building_services', 'Residential buildings'),
+          buildSubsector('commercial_building_services', 'Commercial buildings'),
+          buildSubsector('provide_residential_water_heating', 'Residential water heating'),
+        ],
+      },
+    ];
+
+    const systemCatalog = buildSystemStructureCatalog(catalog, []);
+    const buildingEntries = systemCatalog.filter((entry) => entry.sector === 'buildings');
+
+    assert.equal(buildingEntries.length, 1);
+    assert.deepEqual(
+      buildingEntries[0].subsectors.map((subsector) => subsector.outputId),
+      [
+        'residential_building_services',
+        'commercial_building_services',
+        'provide_residential_water_heating',
+      ],
+    );
+  });
+
   test('uses library-owned system structure rows when provided', () => {
     const catalog = [
       {

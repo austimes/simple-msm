@@ -129,6 +129,7 @@ export function buildSystemStructureCatalog(
   const residualIds = new Set(residualOverlays2025.map((row) => row.overlay_id));
   const consumedOutputIds = new Set<string>();
   const systemCatalog: RightSidebarCatalogEntry[] = [];
+  const systemCatalogIndexBySector = new Map<string, number>();
 
   for (const group of SYSTEM_STRUCTURE_GROUPS) {
     const subsectors = group.outputIds
@@ -146,6 +147,7 @@ export function buildSystemStructureCatalog(
       continue;
     }
 
+    systemCatalogIndexBySector.set(group.id, systemCatalog.length);
     systemCatalog.push({
       sector: group.id,
       systemGroupId: group.id,
@@ -164,6 +166,17 @@ export function buildSystemStructureCatalog(
       continue;
     }
 
+    const existingIndex = systemCatalogIndexBySector.get(sectorEntry.sector);
+    if (existingIndex != null) {
+      const existingEntry = systemCatalog[existingIndex];
+      systemCatalog[existingIndex] = {
+        ...existingEntry,
+        subsectors: [...existingEntry.subsectors, ...ungroupedSubsectors],
+      };
+      continue;
+    }
+
+    systemCatalogIndexBySector.set(sectorEntry.sector, systemCatalog.length);
     systemCatalog.push({
       ...sectorEntry,
       subsectors: ungroupedSubsectors,
