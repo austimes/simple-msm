@@ -196,17 +196,16 @@ function assertDemoControls(configuration, controls, pkg) {
     const expected = controls[outputId];
     if (!expected) {
       const roleMetadata = pkg.rolePresentationMetadata.find((role) => role.output_id === outputId);
-      if (roleMetadata?.role_kind === 'residual') {
+      if (
+        roleMetadata?.default_representation_kind === 'residual_stub'
+        && roleMetadata?.balance_type !== 'carbon_removal'
+      ) {
         assert.equal(control.mode, 'optimize', `${outputId} residual family should stay in optimize mode`);
-        if (outputId === 'residual_lulucf_sink') {
-          assert.deepEqual(control.active_state_ids, [], `${outputId} should remain optional by default`);
-        } else {
-          assert.deepEqual(
-            control.active_state_ids,
-            [`${outputId}__residual_incumbent`],
-            `${outputId} should keep its residual incumbent closure route`,
-          );
-        }
+        assert.deepEqual(
+          control.active_state_ids,
+          [`${outputId}__residual_incumbent`],
+          `${outputId} should keep its residual incumbent closure route`,
+        );
         continue;
       }
 

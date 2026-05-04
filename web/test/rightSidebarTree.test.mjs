@@ -384,22 +384,19 @@ describe('deriveRightSidebarTree', () => {
         role_id: 'make_crude_steel',
         role_label: 'Make crude steel',
         parent_role_id: null,
-        coverage_obligation: 'required_top_level',
-        default_representation_kind: 'pathway_bundle',
+        activation_class: 'top_level',
       },
       {
         role_id: 'make_direct_reduced_iron',
         role_label: 'Make direct reduced iron',
         parent_role_id: 'make_crude_steel',
-        coverage_obligation: 'required_decomposition_child',
-        default_representation_kind: 'technology_bundle',
+        activation_class: 'decomposition_child',
       },
       {
         role_id: 'melt_and_refine_dri_into_crude_steel',
         role_label: 'Melt and refine DRI into crude steel',
         parent_role_id: 'make_crude_steel',
-        coverage_obligation: 'required_decomposition_child',
-        default_representation_kind: 'technology_bundle',
+        activation_class: 'decomposition_child',
       },
     ];
     const representations = [
@@ -410,7 +407,6 @@ describe('deriveRightSidebarTree', () => {
         representation_label: 'Crude steel pathway bundle',
         description: 'Direct pathway bundle',
         is_default: true,
-        direct_method_kind: 'pathway',
       },
       {
         representation_id: 'make_crude_steel__h2_dri_decomposition',
@@ -419,7 +415,6 @@ describe('deriveRightSidebarTree', () => {
         representation_label: 'Crude steel H2 DRI decomposition',
         description: 'Process-chain decomposition',
         is_default: false,
-        direct_method_kind: null,
       },
       {
         representation_id: 'make_direct_reduced_iron__technology_bundle',
@@ -428,7 +423,6 @@ describe('deriveRightSidebarTree', () => {
         representation_label: 'DRI technology bundle',
         description: 'DRI technology methods',
         is_default: true,
-        direct_method_kind: 'technology',
       },
       {
         representation_id: 'melt_and_refine_dri_into_crude_steel__technology_bundle',
@@ -437,7 +431,6 @@ describe('deriveRightSidebarTree', () => {
         representation_label: 'DRI finishing technology bundle',
         description: 'Finishing technology methods',
         is_default: true,
-        direct_method_kind: 'technology',
       },
     ];
     const roleDecompositionEdges = [

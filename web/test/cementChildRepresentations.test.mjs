@@ -17,7 +17,7 @@ test('cement decomposition activates required child pathway roles', () => {
   assert.equal(decomposition?.role_id, CEMENT_PARENT_ROLE);
   assert.equal(decomposition?.representation_kind, 'role_decomposition');
   assert.equal(decomposition?.is_default, false);
-  assert.equal(decomposition?.direct_method_kind ?? '', '');
+  assert.equal('direct_method_kind' in (decomposition ?? {}), false);
 
   const edges = pkg.roleDecompositionEdges
     .filter((edge) => edge.parent_representation_id === CEMENT_DECOMPOSITION)
@@ -34,18 +34,18 @@ test('cement child roles have direct pathway bundles and method coverage', () =>
   for (const roleId of CHILD_ROLES) {
     const role = pkg.roleMetadata.find((row) => row.role_id === roleId);
     assert.equal(role?.parent_role_id, CEMENT_PARENT_ROLE);
-    assert.equal(role?.coverage_obligation, 'required_decomposition_child');
+    assert.equal(role?.activation_class, 'decomposition_child');
 
     const representation = pkg.representations.find((row) => row.role_id === roleId);
     assert.equal(representation?.representation_kind, 'pathway_bundle');
     assert.equal(representation?.is_default, true);
-    assert.equal(representation?.direct_method_kind, 'pathway');
+    assert.equal('direct_method_kind' in (representation ?? {}), false);
 
     const methods = pkg.methods.filter((row) => row.role_id === roleId);
     const methodYears = pkg.methodYears.filter((row) => row.role_id === roleId);
     assert.equal(methods.length > 0, true, `${roleId} should expose child pathway methods`);
     assert.equal(methodYears.length, methods.length * 6, `${roleId} should cover every milestone year`);
-    assert.ok(methods.every((row) => row.method_kind === 'pathway'));
+    assert.ok(methods.every((row) => !('method_kind' in row)));
   }
 });
 

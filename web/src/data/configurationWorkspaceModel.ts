@@ -1,8 +1,8 @@
 import type {
+  ActivationClass,
   AppConfigRegistry,
   ConfigurationDocument,
   ConfigurationYearKey,
-  MethodKind,
   PriceLevel,
   RepresentationKind,
   ResolvedMethodYearRow,
@@ -14,7 +14,7 @@ export interface RoleMethodCatalogEntry {
   roleId: string;
   representationId: string;
   methodId: string;
-  methodKind: MethodKind;
+  representationKind: RepresentationKind;
 }
 
 interface RoleMethodCatalogSortEntry extends RoleMethodCatalogEntry {
@@ -29,7 +29,7 @@ export interface RoleNodeCatalogEntry {
   roleLabel: string;
   parentRoleId: string | null;
   defaultRepresentationKind: RepresentationKind;
-  coverageObligation: ResolvedMethodYearRow['coverage_obligation'];
+  activationClass: ActivationClass;
   methods: RoleMethodCatalogEntry[];
   childRoles: RoleNodeCatalogEntry[];
 }
@@ -98,7 +98,7 @@ export function buildRoleCatalog(
     const roleId = row.role_id;
     const representationId = row.representation_id;
     const methodId = row.method_id;
-    const methodKind = row.method_kind;
+    const representationKind = row.representation_kind;
     const catalogKey = `${representationId}::${methodId}`;
     const roleMethods = methodsByRole.get(roleId) ?? new Map<string, RoleMethodCatalogSortEntry>();
     if (!roleMethods.has(catalogKey)) {
@@ -107,7 +107,7 @@ export function buildRoleCatalog(
         roleId,
         representationId,
         methodId,
-        methodKind,
+        representationKind,
         methodSortKey: row.method_sort_key.trim(),
         methodOptionRank: row.method_option_rank,
       });
@@ -127,16 +127,16 @@ export function buildRoleCatalog(
       roleId,
       roleLabel: row.role_label,
       parentRoleId: row.parent_role_id,
-      defaultRepresentationKind: row.default_representation_kind,
-      coverageObligation: row.coverage_obligation,
+      defaultRepresentationKind: row.representation_kind,
+      activationClass: row.activation_class,
       methods: Array.from(methodsByRole.get(roleId)?.values() ?? [])
         .sort(compareMethodCatalogEntries)
-        .map(({ methodLabel, roleId, representationId, methodId, methodKind }) => ({
+        .map(({ methodLabel, roleId, representationId, methodId, representationKind }) => ({
           methodLabel,
           roleId,
           representationId,
           methodId,
-          methodKind,
+          representationKind,
         })),
       childRoles: [],
     });
@@ -199,8 +199,8 @@ export function buildRoleAreaNavigationCatalog(
       roleId,
       roleLabel: row.role_label ?? outputId,
       parentRoleId: row.parent_role_id,
-      defaultRepresentationKind: row.default_representation_kind,
-      coverageObligation: row.coverage_obligation,
+      defaultRepresentationKind: row.representation_kind,
+      activationClass: row.activation_class,
       subsector,
       coverageScopeLabel: row.role_label ?? outputId,
       states: [],
@@ -214,7 +214,7 @@ export function buildRoleAreaNavigationCatalog(
         roleId,
         representationId,
         methodId,
-        methodKind: row.method_kind,
+        representationKind: row.representation_kind,
         methodSortKey: row.method_sort_key,
         methodOptionRank: row.method_option_rank,
       });
@@ -233,12 +233,12 @@ export function buildRoleAreaNavigationCatalog(
           ...entry,
           states: sortRows
             .sort(compareMethodCatalogEntries)
-            .map(({ methodLabel, roleId, representationId, methodId, methodKind }) => ({
+            .map(({ methodLabel, roleId, representationId, methodId, representationKind }) => ({
               methodLabel,
               roleId,
               representationId,
               methodId,
-              methodKind,
+              representationKind,
             })),
         }))
         .sort((left, right) => left.outputLabel.localeCompare(right.outputLabel)),

@@ -5,20 +5,19 @@ export interface EmissionEntry {
 
 export type OutputRole = 'required_service' | 'endogenous_supply_commodity' | 'optional_activity';
 export type FamilyResolution = 'modeled' | 'residual_stub';
-export type RoleKind = 'modeled' | 'removal' | 'residual';
+export type ActivationClass = 'top_level' | 'decomposition_child';
 export type BalanceType =
+  | 'accounting_obligation'
   | 'carbon_removal'
   | 'commodity_supply'
   | 'intermediate_conversion'
   | 'intermediate_material'
-  | 'residual_accounting'
   | 'service_demand';
-export type CoverageObligation =
-  | 'explicit_residual_top_level'
-  | 'required_decomposition_child'
-  | 'required_top_level';
-export type RepresentationKind = 'pathway_bundle' | 'technology_bundle' | 'role_decomposition';
-export type MethodKind = 'pathway' | 'technology' | 'residual';
+export type RepresentationKind =
+  | 'pathway_bundle'
+  | 'technology_bundle'
+  | 'role_decomposition'
+  | 'residual_stub';
 
 export type ConfigurationControlMode =
   | 'optimize'
@@ -268,9 +267,9 @@ export interface RolePresentationMetadata {
   output_unit: string;
   output_quantity_basis: string;
   default_method_id: string;
-  role_kind: RoleKind;
   balance_type: BalanceType;
-  coverage_obligation: CoverageObligation;
+  activation_class: ActivationClass;
+  default_representation_kind: RepresentationKind;
   reporting_allocations: ReportingAllocation[];
   role_metric: RoleMetric | null;
   emissions_importance_band: EmissionsImportanceBand;
@@ -353,18 +352,16 @@ export interface ResolvedMethodYearRow {
   role_id: string;
   representation_id: string;
   method_id: string;
-  method_kind: MethodKind;
   method_label: string;
   method_description: string;
-  role_kind: RoleKind;
+  representation_kind: RepresentationKind;
   balance_type: BalanceType;
   output_id: string;
   role_label: string;
   topology_area_id: string;
   topology_area_label: string;
   parent_role_id: string | null;
-  coverage_obligation: CoverageObligation;
-  default_representation_kind: RepresentationKind;
+  activation_class: ActivationClass;
   reporting_allocations: ReportingAllocation[];
   region: string;
   year: number;
@@ -422,11 +419,9 @@ export interface RoleMetadata {
   topology_area_id: string;
   topology_area_label: string;
   parent_role_id: string | null;
-  role_kind: RoleKind;
   balance_type: BalanceType;
   output_unit: string;
-  coverage_obligation: CoverageObligation;
-  default_representation_kind: RepresentationKind;
+  activation_class: ActivationClass;
   notes: string;
 }
 
@@ -437,7 +432,6 @@ export interface RoleRepresentation {
   representation_label: string;
   description: string;
   is_default: boolean;
-  direct_method_kind: MethodKind | null;
   notes: string;
 }
 
@@ -535,10 +529,8 @@ export interface Method {
   role_id: string;
   representation_id: string;
   method_id: string;
-  method_kind: MethodKind;
   method_label: string;
   method_description: string;
-  is_residual: boolean;
   sort_order: number;
   source_ids: string[];
   assumption_ids: string[];

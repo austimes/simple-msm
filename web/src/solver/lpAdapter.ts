@@ -608,7 +608,7 @@ function rowCanSatisfyDecomposedParent(
 
   return row.balanceType === 'service_demand'
     || row.balanceType === 'intermediate_conversion'
-    || row.balanceType === 'residual_accounting';
+    || row.balanceType === 'accounting_obligation';
 }
 
 function collectDecomposedServiceGroups(request: SolveRequest): DecomposedServiceGroup[] {
@@ -621,7 +621,7 @@ function collectDecomposedServiceGroups(request: SolveRequest): DecomposedServic
 
   for (const decomposition of roleTopology.decompositions) {
     const parent = roleTopology.rolesById[decomposition.parentRoleId];
-    if (!parent || (parent.balanceType !== 'service_demand' && parent.balanceType !== 'residual_accounting')) {
+    if (!parent || (parent.balanceType !== 'service_demand' && parent.balanceType !== 'accounting_obligation')) {
       continue;
     }
 

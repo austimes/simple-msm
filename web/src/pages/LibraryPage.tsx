@@ -1070,7 +1070,7 @@ export default function LibraryPage() {
                     >
                       <span className="library-state-selector-copy">
                         <strong>{role.label}</strong>
-                        <span>{role.roleKind.replaceAll('_', ' ')} · {role.balanceType.replaceAll('_', ' ')}</span>
+                        <span>{role.defaultRepresentationKind.replaceAll('_', ' ')} · {role.balanceType.replaceAll('_', ' ')}</span>
                       </span>
                     </button>
                   ))}

@@ -112,7 +112,7 @@ function residualRoleRows(resolvedMethodYears: ResolvedMethodYearRow[]): Resolve
   const rowsByRole = new Map<string, ResolvedMethodYearRow>();
 
   for (const row of resolvedMethodYears) {
-    if (row.role_kind !== 'residual' || row.year !== 2025) {
+    if (row.representation_kind !== 'residual_stub' || row.year !== 2025) {
       continue;
     }
     if (!rowsByRole.has(row.role_id) || row.is_default_incumbent_2025) {

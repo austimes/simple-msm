@@ -558,7 +558,7 @@ function buildOverlaySummary(
   emissionsBalance2025: EmissionsBalance2025Row[],
 ): ModelFormulationOverlaySummary {
   const residualRoleRows = resolvedMethodYears.filter(
-    (row) => row.role_kind === 'residual' && row.year === 2025,
+    (row) => row.representation_kind === 'residual_stub' && row.year === 2025,
   );
   const includedResidualRoleIds = new Set(
     residualRoleRows

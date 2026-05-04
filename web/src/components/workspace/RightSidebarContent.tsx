@@ -35,6 +35,8 @@ function formatRepresentationKind(kind: RepresentationKind): string {
       return 'Technology bundle';
     case 'role_decomposition':
       return 'Role decomposition';
+    case 'residual_stub':
+      return 'Residual stub';
     default:
       return kind;
   }
@@ -130,7 +132,8 @@ export default function RightSidebarContent({
     const hasEfficiencyControls = efficiencyControls?.hasControls === true;
     const autonomousEnabled = efficiencyControls?.autonomousTracks.some((track) => track.enabled) ?? false;
     const embodiedMethodIdSet = new Set(efficiencyControls?.embodiedMethodIds ?? []);
-    const isResidual = sub.roleKind === 'residual';
+    const isResidual = sub.selectedRepresentationKind === 'residual_stub'
+      || sub.defaultRepresentationKind === 'residual_stub';
     const isDecomposition = sub.selectedRepresentationKind === 'role_decomposition';
     const hasRepresentationControls = sub.representationOptions.length > 0;
     const hasMethodControls = !isDecomposition && sub.states.length > 0;
@@ -153,7 +156,7 @@ export default function RightSidebarContent({
                   className="workspace-mode-badge workspace-mode-badge--warning"
                   title={sub.coverageScopeLabel ?? sub.roleLabel}
                 >
-                  Residual role
+                  Residual stub
                 </span>
               )}
               {badges.map((badge) => (

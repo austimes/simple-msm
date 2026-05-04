@@ -11,14 +11,13 @@ import {
   type ResidualOverlayCatalogEntry,
 } from '../../data/systemStructureModel.ts';
 import type {
+  ActivationClass,
   ConfigurationDocument,
   ConfigurationResidualOverlayControl,
   Method,
-  MethodKind,
   RepresentationKind,
   ResidualOverlayRow,
   RoleDecompositionEdge,
-  RoleKind,
   RoleMetadata,
   RoleRepresentation,
 } from '../../data/types.ts';
@@ -40,7 +39,6 @@ export interface RightSidebarRepresentationOption {
   representationKind: RepresentationKind;
   label: string;
   description: string;
-  directMethodKind: MethodKind | null;
   methodIds: string[];
   childRoleIds: string[];
   isSelected: boolean;
@@ -49,7 +47,7 @@ export interface RightSidebarRepresentationOption {
 export interface RightSidebarRoleNode extends RoleNodeNavigationEntry {
   roleId: string;
   roleLabel: string;
-  roleKind: RoleKind;
+  activationClass: ActivationClass;
   parentRoleId: string | null;
   representationOptions: RightSidebarRepresentationOption[];
   selectedRepresentationId: string | null;
@@ -209,12 +207,7 @@ function selectFallbackRepresentation(
 
   const roleRepresentations = representationsByRole.get(role.role_id) ?? [];
   return (
-    roleRepresentations.find(
-      (representation) =>
-        representation.is_default
-        && representation.representation_kind === role.default_representation_kind,
-    )
-    ?? roleRepresentations.find((representation) => representation.is_default)
+    roleRepresentations.find((representation) => representation.is_default)
     ?? roleRepresentations[0]
     ?? null
   );
@@ -261,7 +254,7 @@ function buildRolePresentationContext(
     );
   } catch {
     for (const role of roleContext.roleMetadata) {
-      if (role.coverage_obligation === 'required_decomposition_child') {
+      if (role.activation_class === 'decomposition_child') {
         continue;
       }
       activeRoleIds.add(role.role_id);
@@ -365,7 +358,7 @@ export function deriveRightSidebarTree(
       const role = rolePresentationContext?.roleById.get(subsectorEntry.roleId);
       const roleId = role?.role_id ?? subsectorEntry.roleId;
       const parentRoleId = role?.parent_role_id ?? subsectorEntry.parentRoleId ?? null;
-      const isDecompositionChild = role?.coverage_obligation === 'required_decomposition_child';
+      const isDecompositionChild = role?.activation_class === 'decomposition_child';
       if (isDecompositionChild && !rolePresentationContext?.activeRoleIds.has(roleId)) {
         return null;
       }
@@ -381,7 +374,6 @@ export function deriveRightSidebarTree(
         representationKind: representation.representation_kind,
         label: representation.representation_label,
         description: representation.description,
-        directMethodKind: representation.direct_method_kind,
         methodIds: rolePresentationContext?.methodIdsByRepresentation.get(representation.representation_id) ?? [],
         childRoleIds: rolePresentationContext?.childRoleIdsByRepresentation.get(representation.representation_id) ?? [],
         isSelected: representation.representation_id === selectedRepresentationId,
@@ -403,14 +395,18 @@ export function deriveRightSidebarTree(
       const outOfScope = presentation.isDimmed;
       const canCollapse = allDisabled || outOfScope;
 
+      const defaultRepresentationForRole = role
+        ? rolePresentationContext?.representationsByRole.get(role.role_id)?.find((representation) => representation.is_default)
+        : undefined;
       return {
         ...subsectorEntry,
         states,
         roleId,
         roleLabel: role?.role_label ?? subsectorEntry.roleLabel,
-        roleKind: role?.role_kind ?? 'modeled',
+        activationClass: role?.activation_class ?? subsectorEntry.activationClass,
         parentRoleId,
-        defaultRepresentationKind: role?.default_representation_kind ?? subsectorEntry.defaultRepresentationKind,
+        defaultRepresentationKind:
+          defaultRepresentationForRole?.representation_kind ?? subsectorEntry.defaultRepresentationKind,
         representationOptions,
         selectedRepresentationId,
         selectedRepresentationKind: selectedRepresentation?.representation_kind ?? null,

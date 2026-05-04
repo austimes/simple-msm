@@ -34,7 +34,9 @@ function electricityInputForOutput(request, outputId) {
 
 test('residual stubs load as first-class families with library grouping', () => {
   const pkg = loadPackage();
-  const residualFamilies = pkg.rolePresentationMetadata.filter((role) => role.role_kind === 'residual');
+  const residualFamilies = pkg.rolePresentationMetadata.filter(
+    (role) => role.default_representation_kind === 'residual_stub',
+  );
   const primaryMembershipCountByRole = new Map();
 
   for (const member of pkg.roleMemberships.filter((membership) => membership.is_primary)) {

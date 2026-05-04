@@ -7,6 +7,7 @@ import {
   materializeResidualOverlayConfiguration,
 } from './configurationDocumentLoader.ts';
 import type {
+  ActivationClass,
   AppConfigRegistry,
   AutonomousEfficiencyTrack,
   BalanceType,
@@ -14,7 +15,6 @@ import type {
   CommodityBalance2025Row,
   CommodityPriceDriver,
   CommodityPriceSeries,
-  CoverageObligation,
   DemandGrowthPreset,
   EfficiencyPackage,
   EfficiencyPackageClassification,
@@ -22,7 +22,6 @@ import type {
   EmissionsImportanceBand,
   EmissionsBalance2025Row,
   Method,
-  MethodKind,
   MethodYear,
   OutputRole,
   PackageData,
@@ -39,7 +38,6 @@ import type {
   ResidualOverlayRow,
   RoleDecompositionEdge,
   RoleDemand,
-  RoleKind,
   RoleMembership,
   RoleMembershipKind,
   RoleMetric,
@@ -328,23 +326,23 @@ function parsePriceLevel(value: string): PriceLevel {
   throw new Error(`Unknown commodity price curve id "${value}"`);
 }
 
-function parseRoleKind(raw: string | undefined, label: string): RoleKind {
+function parseActivationClass(raw: string | undefined, label: string): ActivationClass {
   const value = parseRequiredString(raw, label);
-  if (value === 'modeled' || value === 'removal' || value === 'residual') {
+  if (value === 'top_level' || value === 'decomposition_child') {
     return value;
   }
 
-  throw new Error(`Unknown role_kind for ${label}: ${JSON.stringify(value)}`);
+  throw new Error(`Unknown activation_class for ${label}: ${JSON.stringify(value)}`);
 }
 
 function parseBalanceType(raw: string | undefined, label: string): BalanceType {
   const value = parseRequiredString(raw, label);
   if (
-    value === 'carbon_removal'
+    value === 'accounting_obligation'
+    || value === 'carbon_removal'
     || value === 'commodity_supply'
     || value === 'intermediate_conversion'
     || value === 'intermediate_material'
-    || value === 'residual_accounting'
     || value === 'service_demand'
   ) {
     return value;
@@ -353,35 +351,18 @@ function parseBalanceType(raw: string | undefined, label: string): BalanceType {
   throw new Error(`Unknown balance_type for ${label}: ${JSON.stringify(value)}`);
 }
 
-function parseCoverageObligation(raw: string | undefined, label: string): CoverageObligation {
+function parseRepresentationKind(raw: string | undefined, label: string): RepresentationKind {
   const value = parseRequiredString(raw, label);
   if (
-    value === 'explicit_residual_top_level'
-    || value === 'required_decomposition_child'
-    || value === 'required_top_level'
+    value === 'pathway_bundle'
+    || value === 'technology_bundle'
+    || value === 'role_decomposition'
+    || value === 'residual_stub'
   ) {
     return value;
   }
 
-  throw new Error(`Unknown coverage_obligation for ${label}: ${JSON.stringify(value)}`);
-}
-
-function parseRepresentationKind(raw: string | undefined, label: string): RepresentationKind {
-  const value = parseRequiredString(raw, label);
-  if (value === 'pathway_bundle' || value === 'technology_bundle' || value === 'role_decomposition') {
-    return value;
-  }
-
   throw new Error(`Unknown representation_kind for ${label}: ${JSON.stringify(value)}`);
-}
-
-function parseMethodKind(raw: string | undefined, label: string): MethodKind {
-  const value = parseRequiredString(raw, label);
-  if (value === 'pathway' || value === 'technology' || value === 'residual') {
-    return value;
-  }
-
-  throw new Error(`Unknown method_kind for ${label}: ${JSON.stringify(value)}`);
 }
 
 function parseEfficiencyPackageClassification(
@@ -402,7 +383,7 @@ function outputRoleFromRole(role: RoleMetadata): OutputRole {
   if (role.balance_type === 'commodity_supply') {
     return 'endogenous_supply_commodity';
   }
-  if (role.balance_type === 'carbon_removal' || role.coverage_obligation === 'required_decomposition_child') {
+  if (role.balance_type === 'carbon_removal' || role.activation_class === 'decomposition_child') {
     return 'optional_activity';
   }
   return 'required_service';
@@ -436,16 +417,11 @@ function toRoleMetadata(row: Record<string, string>): RoleMetadata {
     topology_area_id: parseRequiredString(row['topology_area_id'], `shared/roles.csv.${roleId}.topology_area_id`),
     topology_area_label: parseRequiredString(row['topology_area_label'], `shared/roles.csv.${roleId}.topology_area_label`),
     parent_role_id: parseEmptyNull(row['parent_role_id']),
-    role_kind: parseRoleKind(row['role_kind'], `shared/roles.csv.${roleId}.role_kind`),
     balance_type: parseBalanceType(row['balance_type'], `shared/roles.csv.${roleId}.balance_type`),
     output_unit: parseRequiredString(row['output_unit'], `shared/roles.csv.${roleId}.output_unit`),
-    coverage_obligation: parseCoverageObligation(
-      row['coverage_obligation'],
-      `shared/roles.csv.${roleId}.coverage_obligation`,
-    ),
-    default_representation_kind: parseRepresentationKind(
-      row['default_representation_kind'],
-      `shared/roles.csv.${roleId}.default_representation_kind`,
+    activation_class: parseActivationClass(
+      row['activation_class'],
+      `shared/roles.csv.${roleId}.activation_class`,
     ),
     notes: row['notes'] ?? '',
   };
@@ -457,7 +433,6 @@ function toRoleRepresentation(row: Record<string, string>): RoleRepresentation {
     row['representation_kind'],
     `shared/representations.csv.${representationId}.representation_kind`,
   );
-  const directMethodKind = parseEmptyNull(row['direct_method_kind']);
   return {
     representation_id: representationId,
     role_id: parseRequiredString(row['role_id'], `shared/representations.csv.${representationId}.role_id`),
@@ -468,11 +443,20 @@ function toRoleRepresentation(row: Record<string, string>): RoleRepresentation {
     ),
     description: parseRequiredString(row['description'], `shared/representations.csv.${representationId}.description`),
     is_default: parseBool(row['is_default']),
-    direct_method_kind: directMethodKind
-      ? parseMethodKind(directMethodKind, `shared/representations.csv.${representationId}.direct_method_kind`)
-      : null,
     notes: row['notes'] ?? '',
   };
+}
+
+function buildDefaultRepresentationKindByRoleId(
+  representations: RoleRepresentation[],
+): Map<string, RepresentationKind> {
+  const result = new Map<string, RepresentationKind>();
+  for (const representation of representations) {
+    if (representation.is_default) {
+      result.set(representation.role_id, representation.representation_kind);
+    }
+  }
+  return result;
 }
 
 function parseIncumbentBasis(
@@ -795,10 +779,8 @@ function toMethod(path: string, row: Record<string, string>): Method {
     role_id: parseRequiredString(row['role_id'], `${path}.${methodId}.role_id`),
     representation_id: parseRequiredString(row['representation_id'], `${path}.${methodId}.representation_id`),
     method_id: methodId,
-    method_kind: parseMethodKind(row['method_kind'], `${path}.${methodId}.method_kind`),
     method_label: parseRequiredString(row['method_label'], `${path}.${methodId}.method_label`),
     method_description: parseRequiredString(row['method_description'], `${path}.${methodId}.method_description`),
-    is_residual: parseBool(row['is_residual']),
     sort_order: parseRequiredNumber(row['sort_order'], `${path}.${methodId}.sort_order`),
     source_ids: parseJsonStringArrayStrict(row['source_ids'], `${path}.${methodId}.source_ids`),
     assumption_ids: parseJsonStringArrayStrict(row['assumption_ids'], `${path}.${methodId}.assumption_ids`),
@@ -888,6 +870,7 @@ function buildRoleAppProjection(
   methods: Method[],
   reportingAllocations: ReportingAllocation[],
   appConfig: AppConfigRegistry,
+  defaultRepresentationKindByRoleId: Map<string, RepresentationKind>,
 ): Map<string, RoleAppProjection> {
   const defaultMethodIdByRoleId = buildDefaultMethodIdByRoleId(methods);
   const allocationByRoleId = new Map(reportingAllocations.map((allocation) => [allocation.role_id, allocation]));
@@ -899,8 +882,10 @@ function buildRoleAppProjection(
     const defaultMethodId = defaultMethodIdByRoleId.get(role.role_id) ?? '';
     const methodDerivedId = residualOutputIdFromMethodId(defaultMethodId);
     const normalizedReportingBucket = normalizeLookupCandidate(reportingAllocation?.reporting_bucket);
-    const isResidualAccountingRole = role.role_kind === 'residual' || role.balance_type === 'residual_accounting';
-    const candidates = role.coverage_obligation === 'required_decomposition_child'
+    const defaultRepresentationKind = defaultRepresentationKindByRoleId.get(role.role_id);
+    const isResidualAccountingRole = defaultRepresentationKind === 'residual_stub'
+      || role.balance_type === 'accounting_obligation';
+    const candidates = role.activation_class === 'decomposition_child'
       ? [role.role_id]
       : isResidualAccountingRole
         ? [
@@ -919,7 +904,7 @@ function buildRoleAppProjection(
           ];
     const knownAppOutputId = candidates.find((candidate) => candidate && knownOutputIds.has(candidate));
     const appOutputId = knownAppOutputId
-      ?? (role.coverage_obligation === 'required_decomposition_child'
+      ?? (role.activation_class === 'decomposition_child'
         ? role.role_id
         : isResidualAccountingRole
           ? methodDerivedId
@@ -1019,6 +1004,7 @@ function buildRolePresentationMetadata(
   appProjectionByRoleId: Map<string, RoleAppProjection>,
   reportingAllocations: ReportingAllocation[],
   roleMetrics: RoleMetric[],
+  defaultRepresentationKindByRoleId: Map<string, RepresentationKind>,
 ): RolePresentationMetadata[] {
   const allocationsByRoleId = reportingAllocations.reduce<Map<string, ReportingAllocation[]>>((result, allocation) => {
     const rows = result.get(allocation.role_id) ?? [];
@@ -1032,6 +1018,12 @@ function buildRolePresentationMetadata(
     const projection = appProjectionByRoleId.get(role.role_id);
     const appOutputId = projection?.appOutputId ?? role.role_id;
     const roleMetric = metricByRoleId.get(role.role_id) ?? null;
+    const defaultRepresentationKind = defaultRepresentationKindByRoleId.get(role.role_id);
+    if (!defaultRepresentationKind) {
+      throw new Error(
+        `Role ${JSON.stringify(role.role_id)} is missing a default representation in shared/representations.csv.`,
+      );
+    }
     return {
       role_id: role.role_id,
       role_label: role.role_label,
@@ -1043,9 +1035,9 @@ function buildRolePresentationMetadata(
       output_unit: role.output_unit,
       output_quantity_basis: role.description,
       default_method_id: projection?.defaultMethodId ?? '',
-      role_kind: role.role_kind,
       balance_type: role.balance_type,
-      coverage_obligation: role.coverage_obligation,
+      activation_class: role.activation_class,
+      default_representation_kind: defaultRepresentationKind,
       reporting_allocations: allocationsByRoleId.get(role.role_id) ?? [],
       role_metric: roleMetric,
       emissions_importance_band: roleMetric?.emissions_importance_band ?? 'unknown',
@@ -1054,8 +1046,8 @@ function buildRolePresentationMetadata(
   });
 }
 
-function methodOptionCode(method: Method): string {
-  return `${method.method_kind === 'residual' ? 'R' : 'O'}${method.sort_order}`;
+function methodOptionCode(method: Method, defaultRepresentationKind: RepresentationKind | undefined): string {
+  return `${defaultRepresentationKind === 'residual_stub' ? 'R' : 'O'}${method.sort_order}`;
 }
 
 function buildResolvedMethodYearRows(
@@ -1065,6 +1057,8 @@ function buildResolvedMethodYearRows(
   appProjectionByRoleId: Map<string, RoleAppProjection>,
   reportingAllocations: ReportingAllocation[],
   representationIncumbents: RepresentationIncumbent[],
+  representationsById: Map<string, RoleRepresentation>,
+  defaultRepresentationKindByRoleId: Map<string, RepresentationKind>,
 ): ResolvedMethodYearRow[] {
   const allocationsByRoleId = reportingAllocations.reduce<Map<string, ReportingAllocation[]>>((result, allocation) => {
     const rows = result.get(allocation.role_id) ?? [];
@@ -1085,35 +1079,40 @@ function buildResolvedMethodYearRows(
       throw new Error(`Cannot build app row for ${row.role_id}::${row.representation_id}::${row.method_id}`);
     }
 
+    const representation = representationsById.get(row.representation_id);
+    if (!representation) {
+      throw new Error(`Cannot resolve representation ${row.representation_id} for ${row.role_id}.`);
+    }
+
     const projection = appProjectionByRoleId.get(row.role_id);
     const appOutputId = projection?.appOutputId ?? row.role_id;
-    const optionCode = methodOptionCode(method);
+    const defaultRepresentationKind = defaultRepresentationKindByRoleId.get(row.role_id);
+    const optionCode = methodOptionCode(method, defaultRepresentationKind);
     const energyCo2e = row.energy_emissions_by_pollutant.find((entry) => entry.pollutant === 'CO2e')?.value ?? null;
     const processCo2e = row.process_emissions_by_pollutant.find((entry) => entry.pollutant === 'CO2e')?.value ?? null;
+    const representationKind = representation.representation_kind;
 
     return {
       ...row,
-      method_kind: method.method_kind,
       method_label: method.method_label,
       method_description: method.method_description,
-      role_kind: role.role_kind,
+      representation_kind: representationKind,
       balance_type: role.balance_type,
       output_id: appOutputId,
       role_label: role.role_label,
       topology_area_id: role.topology_area_id,
       topology_area_label: role.topology_area_label,
       parent_role_id: role.parent_role_id,
-      coverage_obligation: role.coverage_obligation,
-      default_representation_kind: role.default_representation_kind,
+      activation_class: role.activation_class,
       reporting_allocations: allocationsByRoleId.get(row.role_id) ?? [],
       region: 'Australia',
       output_unit: role.output_unit,
       output_quantity_basis: role.description,
       energy_co2e: energyCo2e,
       process_co2e: processCo2e,
-      method_stage_family: method.method_kind,
+      method_stage_family: representationKind,
       method_stage_rank: method.sort_order,
-      method_stage_code: method.method_kind,
+      method_stage_code: representationKind,
       method_sort_key: `${appOutputId}:${String(method.sort_order).padStart(3, '0')}:${row.method_id}`,
       method_label_standardized: method.method_label,
       is_default_incumbent_2025: row.year === 2025 && incumbentMethodYearKeys.has(
@@ -1389,7 +1388,7 @@ function buildBaselineAnchors(
 
   for (const role of roles) {
     const outputRole = outputRoleFromRole(role);
-    if (outputRole === 'endogenous_supply_commodity' || role.coverage_obligation === 'required_decomposition_child') {
+    if (outputRole === 'endogenous_supply_commodity' || role.activation_class === 'decomposition_child') {
       continue;
     }
 
@@ -1550,8 +1549,8 @@ function buildOutputRoles(
       display_group_order: 900,
       display_order: 900,
       participates_in_commodity_balance: role.balance_type === 'commodity_supply',
-      demand_required: role.coverage_obligation !== 'required_decomposition_child'
-        && (role.balance_type === 'service_demand' || role.balance_type === 'residual_accounting'),
+      demand_required: role.activation_class !== 'decomposition_child'
+        && (role.balance_type === 'service_demand' || role.balance_type === 'accounting_obligation'),
       default_control_mode: role.balance_type === 'commodity_supply' ? 'externalized' : 'optimize',
       allowed_control_modes: role.balance_type === 'commodity_supply'
         ? ['optimize', 'externalized']
@@ -1701,6 +1700,10 @@ export function loadPackage(): PackageData {
   );
 
   const rolesById = new Map(roleMetadata.map((role) => [role.role_id, role]));
+  const representationsById = new Map(
+    representations.map((representation) => [representation.representation_id, representation]),
+  );
+  const defaultRepresentationKindByRoleId = buildDefaultRepresentationKindByRoleId(representations);
   const methods = listPackageFiles('roles/', '/methods.csv').flatMap((path) =>
     parseCsv(requirePackageFile(path)).map((row) => toMethod(path, row)),
   );
@@ -1721,6 +1724,7 @@ export function loadPackage(): PackageData {
     methods,
     reportingAllocations,
     appConfig,
+    defaultRepresentationKindByRoleId,
   );
   appConfig.output_roles = buildOutputRoles(appConfig, roleMetadata, appProjectionByRoleId);
 
@@ -1735,6 +1739,8 @@ export function loadPackage(): PackageData {
     appProjectionByRoleId,
     reportingAllocations,
     representationIncumbents,
+    representationsById,
+    defaultRepresentationKindByRoleId,
   );
 
   const roleDemands = listPackageFiles('roles/', '/demand.csv').map((path) => {
@@ -1802,6 +1808,7 @@ export function loadPackage(): PackageData {
       appProjectionByRoleId,
       reportingAllocations,
       roleMetrics,
+      defaultRepresentationKindByRoleId,
     ),
     resolvedMethodYears,
     autonomousEfficiencyTracks,

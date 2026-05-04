@@ -1,7 +1,7 @@
 import type {
+  ActivationClass,
   BalanceType,
   EmissionsImportanceBand,
-  MethodKind,
   PackageData,
   PhysicalEdge,
   PhysicalEdgeKind,
@@ -9,17 +9,15 @@ import type {
   ReportingAllocation,
   RepresentationKind,
   RoleMetric,
-  RoleMetadata,
 } from './types.ts';
 
 export interface RoleLibraryMethod {
   roleId: string;
   representationId: string;
   methodId: string;
-  methodKind: MethodKind;
+  representationKind: RepresentationKind;
   label: string;
   description: string;
-  isResidual: boolean;
   sortOrder: number;
   reportingAllocations: ReportingAllocation[];
   sourceIds: string[];
@@ -34,7 +32,6 @@ export interface RoleLibraryRepresentation {
   label: string;
   description: string;
   isDefault: boolean;
-  directMethodKind: MethodKind | null;
   methods: RoleLibraryMethod[];
   childRoleIds: string[];
 }
@@ -46,10 +43,9 @@ export interface RoleLibraryRole {
   topologyAreaId: string;
   topologyAreaLabel: string;
   parentRoleId: string | null;
-  roleKind: RoleMetadata['role_kind'];
   balanceType: BalanceType;
   outputUnit: string;
-  coverageObligation: RoleMetadata['coverage_obligation'];
+  activationClass: ActivationClass;
   defaultRepresentationKind: RepresentationKind;
   representations: RoleLibraryRepresentation[];
   childRoleIds: string[];
@@ -85,11 +81,10 @@ export interface RoleLibraryGraphNode {
   meta: string;
   expanded: boolean;
   isDefault?: boolean;
-  roleKind?: RoleMetadata['role_kind'];
+  activationClass?: ActivationClass;
   balanceType?: BalanceType;
   physicalNodeKind?: PhysicalSystemNodeKind;
   representationKind?: RepresentationKind;
-  methodKind?: MethodKind;
   emissionsImportanceBand?: EmissionsImportanceBand;
   representationCount?: number;
   methodCount?: number;
@@ -124,8 +119,9 @@ export interface RoleLibraryModel {
 
 export interface RoleLibraryGraphFilters {
   search?: string;
-  roleKind?: string;
+  activationClass?: string;
   balanceType?: string;
+  representationKind?: string;
 }
 
 function compareLabels(left: { label: string; roleId?: string }, right: { label: string; roleId?: string }): number {
@@ -162,8 +158,9 @@ function matchesRoleSearch(role: RoleLibraryRole, search: string): boolean {
     role.label,
     role.description,
     role.topologyAreaLabel,
-    role.roleKind,
+    role.activationClass,
     role.balanceType,
+    role.defaultRepresentationKind,
     ...role.representations.flatMap((representation) => [
       representation.representationId,
       representation.label,
@@ -173,7 +170,7 @@ function matchesRoleSearch(role: RoleLibraryRole, search: string): boolean {
         method.methodId,
         method.label,
         method.description,
-        method.methodKind,
+        method.representationKind,
       ]),
     ]),
   ].join(' ').toLowerCase();
@@ -229,17 +226,35 @@ export function buildRoleLibraryModel(pkg: Pick<
     ids.sort((left, right) => left.localeCompare(right));
   }
 
+  const representationKindById = new Map(
+    pkg.representations.map((representation) => [
+      representation.representation_id,
+      representation.representation_kind,
+    ]),
+  );
+  const defaultRepresentationKindByRoleId = new Map<string, RepresentationKind>();
+  for (const representation of pkg.representations) {
+    if (representation.is_default) {
+      defaultRepresentationKindByRoleId.set(representation.role_id, representation.representation_kind);
+    }
+  }
+
   const methodsByRepresentationId = new Map<string, RoleLibraryMethod[]>();
   const methodById = new Map<string, RoleLibraryMethod>();
   for (const method of pkg.methods) {
+    const representationKind = representationKindById.get(method.representation_id);
+    if (!representationKind) {
+      throw new Error(
+        `Method ${method.method_id} references unknown representation ${method.representation_id}.`,
+      );
+    }
     const row = {
       roleId: method.role_id,
       representationId: method.representation_id,
       methodId: method.method_id,
-      methodKind: method.method_kind,
+      representationKind,
       label: method.method_label,
       description: method.method_description,
-      isResidual: method.is_residual,
       sortOrder: method.sort_order,
       reportingAllocations: reportingAllocationsByRoleId.get(method.role_id) ?? [],
       sourceIds: method.source_ids,
@@ -270,7 +285,6 @@ export function buildRoleLibraryModel(pkg: Pick<
       label: representation.representation_label,
       description: representation.description,
       isDefault: representation.is_default,
-      directMethodKind: representation.direct_method_kind,
       methods: methodsByRepresentationId.get(representation.representation_id) ?? [],
       childRoleIds: childRoleIdsByRepresentationId.get(representation.representation_id) ?? [],
     } satisfies RoleLibraryRepresentation;
@@ -329,28 +343,35 @@ export function buildRoleLibraryModel(pkg: Pick<
     childNodeIdsByParentNodeId.set(parentNodeId, childIds);
   }
 
-  const roles = pkg.roleMetadata.map((role) => ({
-    roleId: role.role_id,
-    label: role.role_label,
-    description: role.description,
-    topologyAreaId: role.topology_area_id,
-    topologyAreaLabel: role.topology_area_label,
-    parentRoleId: role.parent_role_id,
-    roleKind: role.role_kind,
-    balanceType: role.balance_type,
-    outputUnit: role.output_unit,
-    coverageObligation: role.coverage_obligation,
-    defaultRepresentationKind: role.default_representation_kind,
-    representations: representationsByRoleId.get(role.role_id) ?? [],
-    childRoleIds: childRoleIdsByRoleId.get(role.role_id) ?? [],
-    reportingAllocations: reportingAllocationsByRoleId.get(role.role_id) ?? [],
-    primaryPhysicalNodeId: primaryPhysicalNodeByRoleId.get(role.role_id) ?? null,
-    emissionsImportanceBand: roleMetricByRoleId.get(role.role_id)?.emissions_importance_band ?? 'unknown',
-    roleMetric: roleMetricByRoleId.get(role.role_id) ?? null,
-  })).sort(compareLabels);
+  const roles = pkg.roleMetadata.map((role) => {
+    const defaultRepresentationKind = defaultRepresentationKindByRoleId.get(role.role_id);
+    if (!defaultRepresentationKind) {
+      throw new Error(
+        `Role ${JSON.stringify(role.role_id)} is missing a default representation in shared/representations.csv.`,
+      );
+    }
+    return {
+      roleId: role.role_id,
+      label: role.role_label,
+      description: role.description,
+      topologyAreaId: role.topology_area_id,
+      topologyAreaLabel: role.topology_area_label,
+      parentRoleId: role.parent_role_id,
+      balanceType: role.balance_type,
+      outputUnit: role.output_unit,
+      activationClass: role.activation_class,
+      defaultRepresentationKind,
+      representations: representationsByRoleId.get(role.role_id) ?? [],
+      childRoleIds: childRoleIdsByRoleId.get(role.role_id) ?? [],
+      reportingAllocations: reportingAllocationsByRoleId.get(role.role_id) ?? [],
+      primaryPhysicalNodeId: primaryPhysicalNodeByRoleId.get(role.role_id) ?? null,
+      emissionsImportanceBand: roleMetricByRoleId.get(role.role_id)?.emissions_importance_band ?? 'unknown',
+      roleMetric: roleMetricByRoleId.get(role.role_id) ?? null,
+    } satisfies RoleLibraryRole;
+  }).sort(compareLabels);
   const roleById = new Map(roles.map((role) => [role.roleId, role]));
   const topLevelRoles = roles
-    .filter((role) => role.coverageObligation !== 'required_decomposition_child')
+    .filter((role) => role.activationClass !== 'decomposition_child')
     .sort(compareLabels);
   const physicalNodes = pkg.physicalSystemNodes.map((node) => ({
     nodeId: node.node_id,
@@ -403,16 +424,22 @@ export function buildRoleLibraryGraphData(
   const matchingRoleIds = new Set(model.roles
     .filter((role) =>
       matchesRoleSearch(role, search)
-      && (!filters.roleKind || role.roleKind === filters.roleKind)
-      && (!filters.balanceType || role.balanceType === filters.balanceType),
+      && (!filters.activationClass || role.activationClass === filters.activationClass)
+      && (!filters.balanceType || role.balanceType === filters.balanceType)
+      && (!filters.representationKind || role.defaultRepresentationKind === filters.representationKind),
     )
     .map((role) => role.roleId));
 
   function physicalSubtreeContainsMatch(node: RoleLibraryPhysicalNode): boolean {
-    if (!search && !filters.roleKind && !filters.balanceType) {
+    if (!search && !filters.activationClass && !filters.balanceType && !filters.representationKind) {
       return true;
     }
-    if (matchesPhysicalNodeSearch(node, search) && !filters.roleKind && !filters.balanceType) {
+    if (
+      matchesPhysicalNodeSearch(node, search)
+      && !filters.activationClass
+      && !filters.balanceType
+      && !filters.representationKind
+    ) {
       return true;
     }
     if (node.roleIds.some((roleId) => matchingRoleIds.has(roleId))) {
@@ -468,7 +495,7 @@ export function buildRoleLibraryGraphData(
       const role = model.roleById.get(roleId);
       if (
         !role
-        || role.coverageObligation === 'required_decomposition_child'
+        || role.activationClass === 'decomposition_child'
         || !matchingRoleIds.has(role.roleId)
       ) {
         continue;
@@ -496,10 +523,11 @@ export function buildRoleLibraryGraphData(
       kind: 'role',
       roleId: role.roleId,
       label: role.label,
-      meta: `${role.roleKind.replaceAll('_', ' ')} · ${role.balanceType.replaceAll('_', ' ')}`,
+      meta: `${role.defaultRepresentationKind.replaceAll('_', ' ')} · ${role.balanceType.replaceAll('_', ' ')}`,
       expanded,
-      roleKind: role.roleKind,
+      activationClass: role.activationClass,
       balanceType: role.balanceType,
+      representationKind: role.defaultRepresentationKind,
       representationCount: role.representations.length,
       methodCount,
       emissionsImportanceBand: role.emissionsImportanceBand,
@@ -569,9 +597,9 @@ export function buildRoleLibraryGraphData(
         representationId: representation.representationId,
         methodId: method.methodId,
         label: method.label,
-        meta: method.methodKind,
+        meta: method.representationKind,
         expanded: false,
-        methodKind: method.methodKind,
+        representationKind: method.representationKind,
       });
       edges.push({
         id: `${id}->${methodId}`,

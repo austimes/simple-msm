@@ -28,14 +28,13 @@ test('cement aggregate representation summary matches canonical package data', (
   );
   assert.equal(representation?.representation_kind, summary.representation_kind);
   assert.equal(representation?.is_default, true);
-  assert.equal(representation?.direct_method_kind, 'pathway');
 
   const methods = pkg.methods.filter((row) =>
     row.role_id === summary.role_id
     && row.representation_id === summary.representation_id
   );
   assert.equal(methods.length, Number(summary.direct_method_count));
-  assert.ok(methods.every((row) => row.method_kind === 'pathway'));
+  assert.ok(methods.every((row) => !('method_kind' in row)));
   assert.equal(methods.some((row) => row.method_id === summary.incumbent_method_id), true);
 
   const methodYears = pkg.methodYears.filter((row) =>

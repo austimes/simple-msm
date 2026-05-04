@@ -17,7 +17,7 @@ const overlayRows = pkg.residualOverlays2025;
 const commodityBalanceRows = pkg.commodityBalance2025;
 const emissionsBalanceRows = pkg.emissionsBalance2025;
 const residualRoleRows = pkg.resolvedMethodYears.filter(
-  (row) => row.role_kind === 'residual' && row.year === 2025,
+  (row) => row.representation_kind === 'residual_stub' && row.year === 2025,
 );
 const residualRoleIds = new Set(residualRoleRows.map((row) => row.role_id));
 const totals = summarizeResidualRoleTotals(pkg.resolvedMethodYears);

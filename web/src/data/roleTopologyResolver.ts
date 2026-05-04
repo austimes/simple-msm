@@ -33,7 +33,7 @@ function methodKey(roleId: string, representationId: string, methodId: string): 
 
 function buildRequiredTopLevelRoleIds(roles: RoleMetadata[]): string[] {
   return roles
-    .filter((role) => role.coverage_obligation !== 'required_decomposition_child')
+    .filter((role) => role.activation_class !== 'decomposition_child')
     .map((role) => role.role_id);
 }
 
@@ -61,16 +61,12 @@ function selectRepresentationForRole(
 
   const roleRepresentations = representationsByRole.get(role.role_id) ?? [];
   const defaultRepresentations = roleRepresentations.filter((representation) => representation.is_default);
-  const matchingKindDefaults = defaultRepresentations.filter(
-    (representation) => representation.representation_kind === role.default_representation_kind,
-  );
-  const candidates = matchingKindDefaults.length > 0 ? matchingKindDefaults : defaultRepresentations;
 
-  if (candidates.length === 1) {
-    return candidates[0];
+  if (defaultRepresentations.length === 1) {
+    return defaultRepresentations[0];
   }
 
-  if (candidates.length > 1) {
+  if (defaultRepresentations.length > 1) {
     throw new Error(
       `Role ${JSON.stringify(role.role_id)} has multiple default representations; select one in representation_by_role.`,
     );
@@ -196,7 +192,7 @@ export function resolveActiveRoleStructure(
     }, new Map());
   const requiredChildRoleIdsByParentRole = pkg.roleMetadata
     .reduce<Map<string, string[]>>((result, role) => {
-      if (role.coverage_obligation !== 'required_decomposition_child' || !role.parent_role_id) {
+      if (role.activation_class !== 'decomposition_child' || !role.parent_role_id) {
         return result;
       }
 
@@ -293,7 +289,7 @@ export function resolveActiveRoleStructure(
 
   for (const role of pkg.roleMetadata) {
     if (
-      role.coverage_obligation !== 'required_decomposition_child'
+      role.activation_class !== 'decomposition_child'
       && !activeRoleSet.has(role.role_id)
     ) {
       throw new Error(`Required role ${JSON.stringify(role.role_id)} is inactive.`);

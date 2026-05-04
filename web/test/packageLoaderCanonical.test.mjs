@@ -59,8 +59,8 @@ test('web package loader parses methods and method-year rows with role/method na
     && row.method_id === 'electricity__grid_supply__policy_frontier'
   );
   assert.ok(method);
-  assert.equal(method.method_kind, 'pathway');
-  assert.equal(method.is_residual, false);
+  assert.equal('method_kind' in method, false);
+  assert.equal('is_residual' in method, false);
   assert.ok(method.source_ids.includes('S003'));
 
   const methodYear = pkg.methodYears.find((row) =>
