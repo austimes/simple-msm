@@ -97,10 +97,49 @@ export interface RoleLibraryGraphFilters {
   activationClass?: string;
   balanceType?: string;
   representationKind?: string;
+  topologyAreaId?: string;
+}
+
+export interface RoleLibraryTopologyArea {
+  topologyAreaId: string;
+  topologyAreaLabel: string;
+  topLevelRoleCount: number;
 }
 
 function compareLabels(left: { label: string; roleId?: string }, right: { label: string; roleId?: string }): number {
   return left.label.localeCompare(right.label) || (left.roleId ?? '').localeCompare(right.roleId ?? '');
+}
+
+function compareTopLevelRoles(left: RoleLibraryRole, right: RoleLibraryRole): number {
+  return left.topologyAreaLabel.localeCompare(right.topologyAreaLabel)
+    || left.topologyAreaId.localeCompare(right.topologyAreaId)
+    || left.label.localeCompare(right.label)
+    || left.roleId.localeCompare(right.roleId);
+}
+
+/**
+ * Returns the unique topology areas that have at least one top-level role,
+ * sorted by topology_area_label (with topology_area_id as tiebreaker). The
+ * ordering is derived purely from roles.csv data — no hard-coded list.
+ */
+export function listTopLevelTopologyAreas(model: RoleLibraryModel): RoleLibraryTopologyArea[] {
+  const counts = new Map<string, RoleLibraryTopologyArea>();
+  for (const role of model.topLevelRoles) {
+    const existing = counts.get(role.topologyAreaId);
+    if (existing) {
+      existing.topLevelRoleCount += 1;
+    } else {
+      counts.set(role.topologyAreaId, {
+        topologyAreaId: role.topologyAreaId,
+        topologyAreaLabel: role.topologyAreaLabel,
+        topLevelRoleCount: 1,
+      });
+    }
+  }
+  return Array.from(counts.values()).sort((left, right) =>
+    left.topologyAreaLabel.localeCompare(right.topologyAreaLabel)
+    || left.topologyAreaId.localeCompare(right.topologyAreaId),
+  );
 }
 
 function roleNodeId(roleId: string): string {
@@ -289,7 +328,7 @@ export function buildRoleLibraryModel(pkg: Pick<
   const roleById = new Map(roles.map((role) => [role.roleId, role]));
   const topLevelRoles = roles
     .filter((role) => role.activationClass === 'top_level')
-    .sort(compareLabels);
+    .sort(compareTopLevelRoles);
 
   return {
     roles,
@@ -317,6 +356,11 @@ export function buildRoleLibraryGraphData(
       && (!filters.representationKind || role.defaultRepresentationKind === filters.representationKind),
     )
     .map((role) => role.roleId));
+
+  // Topology area is a presentation-level filter applied only to the top-level
+  // roots that drive graph traversal, so descendants reached via decomposition
+  // remain visible regardless of their own topology_area_id.
+  const topologyAreaId = filters.topologyAreaId?.trim() ?? '';
 
   function roleSubtreeContainsMatch(role: RoleLibraryRole): boolean {
     if (matchingRoleIds.has(role.roleId)) {
@@ -435,6 +479,9 @@ export function buildRoleLibraryGraphData(
   }
 
   for (const role of model.topLevelRoles) {
+    if (topologyAreaId && role.topologyAreaId !== topologyAreaId) {
+      continue;
+    }
     if (roleSubtreeContainsMatch(role)) {
       addRole(role);
     }

@@ -13,6 +13,7 @@ export interface LibraryFilters {
   assumptionId: string;
   efficiencyApplicability: string;
   efficiencyArtifactType: string;
+  topologyAreaId: string;
 }
 
 export const LEFT_SIDEBAR_SECTION_KEYS = [
@@ -120,6 +121,7 @@ export const DEFAULT_APP_UI_STATE: AppUiState = {
       assumptionId: '',
       efficiencyApplicability: '',
       efficiencyArtifactType: '',
+      topologyAreaId: '',
     },
     selectedRoleId: null,
     selectedRepresentationId: null,
