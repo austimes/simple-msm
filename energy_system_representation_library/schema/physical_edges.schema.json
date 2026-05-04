@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "schema/physical_edges.schema.json",
   "title": "Physical edges",
-  "description": "Schema for shared/physical_edges.csv. Physical edges describe optional grouping/navigation relationships between navigation clusters in shared/physical_system_nodes.csv. Edges are navigation metadata only and must not encode coverage obligations or carrier flows between role-shaped objects; the canonical role topology lives in roles.csv and role_decomposition_edges.csv.",
+  "description": "Schema for shared/physical_edges.csv. Physical edges describe optional grouping or carrier-flow relationships between navigation clusters in shared/physical_system_nodes.csv. Edges are navigation/exploration metadata only and must not encode coverage obligations or carrier flows between role-shaped objects; the canonical role topology lives in roles.csv and role_decomposition_edges.csv. Use 'groups_with' for navigation grouping between clusters and 'flows_to' to indicate the broad direction in which energy carriers, materials, or other resources move between top-level clusters.",
   "type": "object",
   "required": [
     "edge_id",
@@ -29,9 +29,10 @@
     "edge_kind": {
       "type": "string",
       "enum": [
-        "groups_with"
+        "groups_with",
+        "flows_to"
       ],
-      "description": "Navigation relationship kind. Only navigation grouping is allowed; carrier-flow and host-service edge kinds are not part of the canonical ontology."
+      "description": "Navigation relationship kind. 'groups_with' marks structural grouping between clusters; 'flows_to' marks an indicative carrier or resource flow between clusters for navigation purposes only. Carrier-flow and host-service edge kinds between role-shaped objects remain outside the canonical ontology."
     },
     "flow_label": {
       "type": "string",

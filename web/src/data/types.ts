@@ -491,7 +491,7 @@ export interface RoleMembership {
   coverage_notes: string;
 }
 
-export type PhysicalEdgeKind = 'groups_with';
+export type PhysicalEdgeKind = 'groups_with' | 'flows_to';
 
 export interface PhysicalEdge {
   edge_id: string;

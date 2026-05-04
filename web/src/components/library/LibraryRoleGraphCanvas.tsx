@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Handle, Position, type Node, type NodeProps, type NodeTypes } from '@xyflow/react';
 import type { ElkExtendedEdge, ElkNode } from 'elkjs/lib/elk-api';
 import type ElkConstructor from 'elkjs/lib/elk.bundled.js';
@@ -67,17 +67,35 @@ function nodeSize(node: RoleLibraryGraphModelNode): { width: number; height: num
   return { width: 204, height: 78 };
 }
 
-async function layoutLibraryRoleGraph(
+function nodeType(
+  node: RoleLibraryGraphModelNode,
+):
+  | typeof PHYSICAL_NODE_TYPE
+  | typeof ROLE_NODE_TYPE
+  | typeof REPRESENTATION_NODE_TYPE
+  | typeof METHOD_NODE_TYPE {
+  if (node.kind === 'physical') return PHYSICAL_NODE_TYPE;
+  if (node.kind === 'role') return ROLE_NODE_TYPE;
+  if (node.kind === 'representation') return REPRESENTATION_NODE_TYPE;
+  return METHOD_NODE_TYPE;
+}
+
+const ELK_LAYOUT_OPTIONS = {
+  'elk.algorithm': 'layered',
+  'elk.direction': 'RIGHT',
+  'elk.spacing.nodeNode': '42',
+  'elk.layered.spacing.nodeNodeBetweenLayers': '72',
+  'elk.edgeRouting': 'ORTHOGONAL',
+  'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES',
+} as const;
+
+async function layoutFullGraph(
   data: RoleLibraryGraphData,
-): Promise<LibraryRoleGraphLayout> {
+): Promise<Map<string, { x: number; y: number }>> {
   const elkInstance = await getElk();
   const elkNodes: ElkNode[] = data.nodes.map((node) => {
     const size = nodeSize(node);
-    return {
-      id: node.id,
-      width: size.width,
-      height: size.height,
-    };
+    return { id: node.id, width: size.width, height: size.height };
   });
   const elkEdges: ElkExtendedEdge[] = data.edges.map((edge) => ({
     id: edge.id,
@@ -86,43 +104,61 @@ async function layoutLibraryRoleGraph(
   }));
   const graph = await elkInstance.layout({
     id: 'library-role-graph',
-    layoutOptions: {
-      'elk.algorithm': 'layered',
-      'elk.direction': 'RIGHT',
-      'elk.spacing.nodeNode': '42',
-      'elk.layered.spacing.nodeNodeBetweenLayers': '72',
-      'elk.edgeRouting': 'ORTHOGONAL',
-    },
+    layoutOptions: { ...ELK_LAYOUT_OPTIONS },
     children: elkNodes,
     edges: elkEdges,
   });
-  const positionById = new Map((graph.children ?? []).map((node) => [
+  return new Map((graph.children ?? []).map((node) => [
     node.id,
     { x: node.x ?? 0, y: node.y ?? 0 },
   ] as const));
-  return {
-    nodes: data.nodes.map((node) => ({
-      id: node.id,
-      type: node.kind === 'physical'
-        ? PHYSICAL_NODE_TYPE
-        : node.kind === 'role'
-        ? ROLE_NODE_TYPE
-        : node.kind === 'representation'
-          ? REPRESENTATION_NODE_TYPE
-          : METHOD_NODE_TYPE,
-      position: positionById.get(node.id) ?? { x: 0, y: 0 },
-      data: {
-        ...node,
-        onToggle: () => undefined,
-        onSelect: () => undefined,
-      },
-    })),
-    edges: data.edges.map((edge) => ({
+}
+
+async function layoutSubtreeAnchored(
+  data: RoleLibraryGraphData,
+  previousPositions: Map<string, { x: number; y: number }>,
+  anchorNodeId: string,
+  addedNodeIds: ReadonlySet<string>,
+): Promise<Map<string, { x: number; y: number }>> {
+  const elkInstance = await getElk();
+  const subgraphNodeIds = new Set<string>([anchorNodeId, ...addedNodeIds]);
+  const elkNodes: ElkNode[] = data.nodes
+    .filter((node) => subgraphNodeIds.has(node.id))
+    .map((node) => {
+      const size = nodeSize(node);
+      return { id: node.id, width: size.width, height: size.height };
+    });
+  const elkEdges: ElkExtendedEdge[] = data.edges
+    .filter((edge) => subgraphNodeIds.has(edge.source) && subgraphNodeIds.has(edge.target))
+    .map((edge) => ({
       id: edge.id,
-      source: edge.source,
-      target: edge.target,
-    })),
-  };
+      sources: [edge.source],
+      targets: [edge.target],
+    }));
+  const graph = await elkInstance.layout({
+    id: 'library-role-graph-incremental',
+    layoutOptions: { ...ELK_LAYOUT_OPTIONS },
+    children: elkNodes,
+    edges: elkEdges,
+  });
+  const subPositions = new Map((graph.children ?? []).map((node) => [
+    node.id,
+    { x: node.x ?? 0, y: node.y ?? 0 },
+  ] as const));
+
+  const anchorBefore = previousPositions.get(anchorNodeId) ?? { x: 0, y: 0 };
+  const anchorAfter = subPositions.get(anchorNodeId) ?? { x: 0, y: 0 };
+  const dx = anchorBefore.x - anchorAfter.x;
+  const dy = anchorBefore.y - anchorAfter.y;
+
+  const merged = new Map(previousPositions);
+  for (const id of addedNodeIds) {
+    const pos = subPositions.get(id);
+    if (pos) {
+      merged.set(id, { x: pos.x + dx, y: pos.y + dy });
+    }
+  }
+  return merged;
 }
 
 function stopGraphInteraction(event: React.PointerEvent | React.MouseEvent) {
@@ -192,63 +228,205 @@ const NODE_TYPES = {
   [METHOD_NODE_TYPE]: LibraryGraphNode,
 } satisfies NodeTypes;
 
+function buildLayout(
+  data: RoleLibraryGraphData,
+  positions: Map<string, { x: number; y: number }>,
+): LibraryRoleGraphLayout {
+  return {
+    nodes: data.nodes.map((node) => ({
+      id: node.id,
+      type: nodeType(node),
+      position: positions.get(node.id) ?? { x: 0, y: 0 },
+      data: {
+        ...node,
+        onToggle: () => undefined,
+        onSelect: () => undefined,
+      },
+    })),
+    edges: data.edges.map((edge) => ({
+      id: edge.id,
+      source: edge.source,
+      target: edge.target,
+    })),
+  };
+}
+
 export default function LibraryRoleGraphCanvas({
   data,
   expandedNodeIds,
   onToggleNode,
   onSelectNode,
 }: LibraryRoleGraphCanvasProps) {
-  const fitViewKey = useMemo(
-    () => `${data.nodes.map((node) => node.id).join('|')}::${Array.from(expandedNodeIds).sort().join('|')}`,
+  // fitViewKey tracks only the *identity* of the visible graph, not which
+  // nodes are expanded. That way expand/collapse does not trigger an
+  // auto-fit (combined with autoFitMode="initial").
+  const fitViewKey = useMemo(() => {
+    // Use the set of root (top-level) physical nodes as the identity. This
+    // changes only when filters/search change, not when the user expands.
+    return data.nodes
+      .filter((node) => node.kind === 'physical')
+      .map((node) => node.id)
+      .sort()
+      .join('|');
+  }, [data.nodes]);
+
+  // A key that uniquely identifies the desired graph state. The layout effect
+  // updates `appliedKey` when it has finished computing positions for that
+  // exact state. `isLoading` is derived during render rather than via a
+  // setState-in-effect, which avoids cascading renders.
+  const desiredKey = useMemo(
+    () => `${data.nodes.map((node) => node.id).sort().join('|')}::${Array.from(expandedNodeIds).sort().join('|')}`,
     [data.nodes, expandedNodeIds],
   );
   const [layoutState, setLayoutState] = useState<{
-    key: string;
-    layout: LibraryRoleGraphLayout;
-  }>({ key: '', layout: { nodes: [], edges: [] } });
-  const isLoading = layoutState.key !== fitViewKey;
-  const layout = layoutState.layout;
+    nodes: LibraryRoleGraphNode[];
+    edges: LibraryRoleGraphEdge[];
+    appliedKey: string;
+  }>({ nodes: [], edges: [], appliedKey: '' });
+  const isLoading = layoutState.appliedKey !== desiredKey;
+
+  const positionCacheRef = useRef<Map<string, { x: number; y: number }>>(new Map());
+  const previousNodeIdsRef = useRef<Set<string>>(new Set());
+  const previousExpandedRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     let cancelled = false;
-    layoutLibraryRoleGraph(data)
-      .then((nextLayout) => {
-        if (!cancelled) {
-          setLayoutState({ key: fitViewKey, layout: nextLayout });
+
+    const currentNodeIds = new Set(data.nodes.map((node) => node.id));
+    const previousNodeIds = previousNodeIdsRef.current;
+    const previousExpanded = previousExpandedRef.current;
+
+    const addedNodeIds = new Set<string>();
+    for (const id of currentNodeIds) {
+      if (!previousNodeIds.has(id)) {
+        addedNodeIds.add(id);
+      }
+    }
+    const removedNodeIds = new Set<string>();
+    for (const id of previousNodeIds) {
+      if (!currentNodeIds.has(id)) {
+        removedNodeIds.add(id);
+      }
+    }
+
+    // Detect expand vs collapse vs full refresh.
+    const newlyExpanded: string[] = [];
+    const newlyCollapsed: string[] = [];
+    for (const id of expandedNodeIds) {
+      if (!previousExpanded.has(id)) newlyExpanded.push(id);
+    }
+    for (const id of previousExpanded) {
+      if (!expandedNodeIds.has(id)) newlyCollapsed.push(id);
+    }
+
+    const isFirstLayout = positionCacheRef.current.size === 0;
+    const isPureCollapse =
+      !isFirstLayout
+      && newlyCollapsed.length > 0
+      && newlyExpanded.length === 0
+      && addedNodeIds.size === 0;
+    const isPureExpand =
+      !isFirstLayout
+      && newlyExpanded.length === 1
+      && newlyCollapsed.length === 0
+      && addedNodeIds.size > 0
+      && removedNodeIds.size === 0
+      && currentNodeIds.has(newlyExpanded[0])
+      && positionCacheRef.current.has(newlyExpanded[0]);
+
+    function commit(positions: Map<string, { x: number; y: number }>): void {
+      // Drop cached positions for nodes that are no longer visible so the
+      // cache does not grow unbounded across many filter changes.
+      const trimmed = new Map<string, { x: number; y: number }>();
+      for (const [id, pos] of positions) {
+        if (currentNodeIds.has(id)) {
+          trimmed.set(id, pos);
         }
+      }
+      positionCacheRef.current = trimmed;
+      previousNodeIdsRef.current = currentNodeIds;
+      previousExpandedRef.current = new Set(expandedNodeIds);
+      const built = buildLayout(data, trimmed);
+      setLayoutState({ ...built, appliedKey: desiredKey });
+    }
+
+    function commitEmptyOnError(): void {
+      positionCacheRef.current = new Map();
+      previousNodeIdsRef.current = currentNodeIds;
+      previousExpandedRef.current = new Set(expandedNodeIds);
+      setLayoutState({ nodes: [], edges: [], appliedKey: desiredKey });
+    }
+
+    if (isPureCollapse) {
+      // Keep existing positions, no ELK call needed.
+      commit(positionCacheRef.current);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    if (isPureExpand) {
+      const anchorId = newlyExpanded[0];
+      layoutSubtreeAnchored(data, positionCacheRef.current, anchorId, addedNodeIds)
+        .then((merged) => {
+          if (!cancelled) commit(merged);
+        })
+        .catch((error: unknown) => {
+          console.error('Failed incremental role graph layout', error);
+          if (!cancelled) {
+            // Fall back to full layout on error.
+            layoutFullGraph(data)
+              .then((positions) => {
+                if (!cancelled) commit(positions);
+              })
+              .catch((fullError: unknown) => {
+                console.error('Failed full role graph layout fallback', fullError);
+                if (!cancelled) commitEmptyOnError();
+              });
+          }
+        });
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    // Default path: full layout (first render, filter changes, or other
+    // structural changes that aren't a clean single expand/collapse).
+    layoutFullGraph(data)
+      .then((positions) => {
+        if (!cancelled) commit(positions);
       })
       .catch((error: unknown) => {
         console.error('Failed to layout library role graph', error);
-        if (!cancelled) {
-          setLayoutState({ key: fitViewKey, layout: { nodes: [], edges: [] } });
-        }
+        if (!cancelled) commitEmptyOnError();
       });
 
     return () => {
       cancelled = true;
     };
-  }, [data, fitViewKey]);
+  }, [data, desiredKey, expandedNodeIds]);
 
-  const nodes = useMemo(() => layout.nodes.map((node) => ({
+  const nodes = useMemo(() => layoutState.nodes.map((node) => ({
     ...node,
     data: {
       ...node.data,
       onToggle: onToggleNode,
       onSelect: onSelectNode,
     },
-  })), [layout.nodes, onSelectNode, onToggleNode]);
+  })), [layoutState.nodes, onSelectNode, onToggleNode]);
 
   return (
     <GraphCanvasShell<LibraryRoleGraphNode, LibraryRoleGraphEdge>
       className="library-role-graph-canvas"
       nodes={nodes}
-      edges={layout.edges}
+      edges={layoutState.edges}
       nodeTypes={NODE_TYPES}
       isLoading={isLoading}
       loadingLabel="Laying out role graph"
       fitViewKey={fitViewKey}
       fitViewPadding={0.2}
       fitViewMaxZoom={0.95}
+      autoFitMode="initial"
     />
   );
 }

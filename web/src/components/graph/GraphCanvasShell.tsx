@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Background,
   Controls,
@@ -31,6 +31,15 @@ export interface GraphCanvasShellProps<
   minZoom?: number;
   maxZoom?: number;
   fitViewMaxZoom?: number;
+  /**
+   * Controls when the viewport auto-fits.
+   * - 'keyed' (default): re-fits whenever fitViewKey changes.
+   * - 'initial': fits only on the first non-empty render and when fitViewKey changes
+   *   to a value that represents a brand-new graph identity (e.g. filter changes).
+   *   Callers that want to suppress auto-fit on local mutations (expand/collapse)
+   *   should keep fitViewKey stable across those mutations.
+   */
+  autoFitMode?: 'keyed' | 'initial';
 }
 
 function GraphCanvasShellInner<
@@ -49,6 +58,7 @@ function GraphCanvasShellInner<
   minZoom = 0.32,
   maxZoom = 1.6,
   fitViewMaxZoom = 0.82,
+  autoFitMode = 'keyed',
 }: GraphCanvasShellProps<TNode, TEdge>) {
   const { fitView } = useReactFlow<TNode, TEdge>();
   const [manualPositions, setManualPositions] = useState(() => new Map<string, XYPosition>());
@@ -79,13 +89,24 @@ function GraphCanvasShellInner<
     });
   }, []);
 
+  const lastFitViewKeyRef = useRef<string | null>(null);
+  const layoutNodesRef = useRef(layoutNodes);
+  layoutNodesRef.current = layoutNodes;
+
   useEffect(() => {
     if (layoutNodes.length === 0) {
       return;
     }
 
+    if (autoFitMode === 'initial' && lastFitViewKeyRef.current === fitViewKey) {
+      return;
+    }
+
+    lastFitViewKeyRef.current = fitViewKey;
+
     const animationFrame = window.requestAnimationFrame(() => {
-      const focusNodes = layoutNodes.filter((node) => !node.parentId);
+      const currentNodes = layoutNodesRef.current;
+      const focusNodes = currentNodes.filter((node) => !node.parentId);
 
       fitView({
         nodes: focusNodes.length > 0 ? focusNodes.map((node) => ({ id: node.id })) : undefined,
@@ -97,7 +118,7 @@ function GraphCanvasShellInner<
     });
 
     return () => window.cancelAnimationFrame(animationFrame);
-  }, [fitView, fitViewKey, fitViewMaxZoom, fitViewPadding, layoutNodes, minZoom]);
+  }, [autoFitMode, fitView, fitViewKey, fitViewMaxZoom, fitViewPadding, layoutNodes, minZoom]);
 
   return (
     <div className={className}>
