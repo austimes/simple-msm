@@ -7,29 +7,30 @@ import {
   resolveAutonomousModeForOutput,
 } from '../src/data/efficiencyControlModel.ts';
 
-function sectorState(outputId, methodId) {
+function methodRow(roleId, outputId, methodId) {
   return {
-    service_or_output_name: outputId,
-    state_id: methodId,
+    role_id: roleId,
+    output_id: outputId,
+    method_id: methodId,
   };
 }
 
-function autonomousTrack(outputId, trackId, methodId) {
+function autonomousTrack(roleId, trackId, methodId) {
   return {
-    family_id: outputId,
+    role_id: roleId,
     track_id: trackId,
     track_label: `${trackId} label`,
-    applicable_state_ids: [methodId],
+    applicable_method_ids: [methodId],
   };
 }
 
-function efficiencyPackage(outputId, packageId, methodId, overrides = {}) {
+function efficiencyPackage(roleId, packageId, methodId, overrides = {}) {
   return {
-    family_id: outputId,
+    role_id: roleId,
     package_id: packageId,
     package_label: `${packageId} label`,
     classification: 'pure_efficiency_overlay',
-    applicable_state_ids: [methodId],
+    applicable_method_ids: [methodId],
     non_stacking_group: null,
     max_share: 0.25,
     year: 2030,
@@ -48,19 +49,20 @@ test('builds subsector efficiency control catalog', () => {
       package_ids: ['pkg_a'],
     },
   };
+  const heatRoleId = 'deliver_low_temperature_heat';
   const catalog = buildEfficiencyControlCatalog(
     configuration,
     [
-      sectorState('low_temperature_heat', 'base_heat'),
-      sectorState('low_temperature_heat', 'generic_industrial_heat__low_temperature_heat__electrified'),
-      sectorState('empty', 'empty_state'),
+      methodRow(heatRoleId, 'low_temperature_heat', 'base_heat'),
+      methodRow(heatRoleId, 'low_temperature_heat', 'generic_industrial_heat__low_temperature_heat__electrified'),
+      methodRow('empty_role', 'empty', 'empty_state'),
     ],
-    [autonomousTrack('low_temperature_heat', 'track_a', 'base_heat')],
+    [autonomousTrack(heatRoleId, 'track_a', 'base_heat')],
     [
-      efficiencyPackage('low_temperature_heat', 'pkg_a', 'base_heat', {
+      efficiencyPackage(heatRoleId, 'pkg_a', 'base_heat', {
         non_stacking_group: 'shared',
       }),
-      efficiencyPackage('low_temperature_heat', 'pkg_a', 'base_heat', {
+      efficiencyPackage(heatRoleId, 'pkg_a', 'base_heat', {
         max_share: 0.4,
         year: 2035,
         non_stacking_group: 'shared',

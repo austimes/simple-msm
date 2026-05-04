@@ -55,10 +55,10 @@ function buildEquivalentConfigurationsWithReorderedActiveMethodIds() {
   const outputMethodIds = new Map<string, string[]>();
 
   for (const row of pkg.resolvedMethodYears) {
-    const current = outputMethodIds.get(row.service_or_output_name) ?? [];
-    if (!current.includes(row.state_id)) {
-      current.push(row.state_id);
-      outputMethodIds.set(row.service_or_output_name, current);
+    const current = outputMethodIds.get(row.output_id) ?? [];
+    if (!current.includes(row.method_id)) {
+      current.push(row.method_id);
+      outputMethodIds.set(row.output_id, current);
     }
   }
 

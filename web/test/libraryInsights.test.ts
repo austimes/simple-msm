@@ -11,21 +11,25 @@ import { loadPkg } from './solverTestUtils.mjs';
 const pkg = loadPkg();
 
 function buildResolvedMethodYearRow(
-  overrides: Partial<ResolvedMethodYearRow> & Pick<ResolvedMethodYearRow, 'state_id' | 'state_label'>,
+  overrides: Partial<ResolvedMethodYearRow> & Pick<ResolvedMethodYearRow, 'method_id' | 'method_label'>,
 ): ResolvedMethodYearRow {
   return {
-    family_id: 'transport_family',
-    family_resolution: 'modeled',
-    coverage_scope_id: 'transport_family',
-    coverage_scope_label: 'Transport family',
-    sector: 'Transport',
-    subsector: 'Road',
-    service_or_output_name: 'passenger_road_transport',
+    role_id: 'move_passengers_by_road',
+    representation_id: 'move_passengers_by_road__pathway_bundle',
+    method_id: overrides.method_id,
+    method_label: overrides.method_label,
+    method_description: '',
+    representation_kind: 'pathway_bundle',
+    balance_type: 'service_demand',
+    output_id: 'passenger_road_transport',
+    role_label: 'Move passengers by road',
+    topology_area_id: 'transport',
+    topology_area_label: 'Transport',
+    parent_role_id: null,
+    activation_class: 'top_level',
+    reporting_allocations: [],
     region: 'AUS',
     year: 2025,
-    state_id: overrides.state_id,
-    state_label: overrides.state_label,
-    state_description: '',
     output_unit: 'pkm',
     output_quantity_basis: '',
     output_cost_per_unit: null,
@@ -57,15 +61,17 @@ function buildResolvedMethodYearRow(
     would_expand_to_process_chain: false,
     energy_co2e: null,
     process_co2e: null,
-    state_stage_family: '',
-    state_stage_rank: null,
-    state_stage_code: '',
-    state_sort_key: '',
-    state_label_standardized: '',
+    method_stage_family: 'pathway_bundle',
+    method_stage_rank: null,
+    method_stage_code: 'pathway_bundle',
+    method_sort_key: '',
+    method_label_standardized: '',
     is_default_incumbent_2025: false,
-    state_option_rank: null,
-    state_option_code: '',
-    state_option_label: '',
+    method_option_rank: null,
+    method_option_code: '',
+    method_option_label: '',
+    sector: 'transport',
+    subsector: 'road',
     balance_tuning_flag: false,
     balance_tuning_note: '',
     benchmark_balance_note: '',
@@ -76,23 +82,23 @@ function buildResolvedMethodYearRow(
 describe('libraryInsights', () => {
   test('findReferenceMethodRow prefers the explicit incumbent flag over legacy label heuristics', () => {
     const selected = buildResolvedMethodYearRow({
-      state_id: 'road_transport__passenger_road__future',
-      state_label: 'Electrified passenger road fleet',
-      state_sort_key: '03_ambition2',
-      state_option_rank: 2,
+      method_id: 'road_transport__passenger_road__future',
+      method_label: 'Electrified passenger road fleet',
+      method_sort_key: '03_ambition2',
+      method_option_rank: 2,
     });
     const heuristicMatch = buildResolvedMethodYearRow({
-      state_id: 'road_transport__passenger_road__legacy_incumbent',
-      state_label: 'Legacy incumbent passenger fleet',
-      state_sort_key: '02_ambition1',
-      state_option_rank: 1,
+      method_id: 'road_transport__passenger_road__legacy_incumbent',
+      method_label: 'Legacy incumbent passenger fleet',
+      method_sort_key: '02_ambition1',
+      method_option_rank: 1,
     });
     const explicitIncumbent = buildResolvedMethodYearRow({
-      state_id: 'road_transport__passenger_road__explicit_reference',
-      state_label: 'Reference passenger fleet',
+      method_id: 'road_transport__passenger_road__explicit_reference',
+      method_label: 'Reference passenger fleet',
       is_default_incumbent_2025: true,
-      state_sort_key: '01_incumbent',
-      state_option_rank: 0,
+      method_sort_key: '01_incumbent',
+      method_option_rank: 0,
     });
 
     const result = findReferenceMethodRow(selected, [
@@ -101,26 +107,32 @@ describe('libraryInsights', () => {
       explicitIncumbent,
     ]);
 
-    assert.equal(result?.state_id, explicitIncumbent.state_id);
+    assert.equal(result?.method_id, explicitIncumbent.method_id);
   });
 
   test('findReferenceMethodRow falls back to legacy label scoring when no explicit incumbent exists', () => {
     const selected = buildResolvedMethodYearRow({
-      state_id: 'road_transport__passenger_road__future',
-      state_label: 'Electrified passenger road fleet',
+      method_id: 'road_transport__passenger_road__future',
+      method_label: 'Electrified passenger road fleet',
+      method_sort_key: '03_future',
+      method_option_rank: 2,
     });
     const baseline = buildResolvedMethodYearRow({
-      state_id: 'road_transport__passenger_road__baseline',
-      state_label: 'Baseline current passenger fleet',
+      method_id: 'road_transport__passenger_road__baseline',
+      method_label: 'Baseline current passenger fleet',
+      method_sort_key: '01_baseline',
+      method_option_rank: 0,
     });
     const conventional = buildResolvedMethodYearRow({
-      state_id: 'road_transport__passenger_road__conventional',
-      state_label: 'Conventional passenger fleet',
+      method_id: 'road_transport__passenger_road__conventional',
+      method_label: 'Conventional passenger fleet',
+      method_sort_key: '02_conventional',
+      method_option_rank: 1,
     });
 
     const result = findReferenceMethodRow(selected, [selected, conventional, baseline]);
 
-    assert.equal(result?.state_id, baseline.state_id);
+    assert.equal(result?.method_id, baseline.method_id);
   });
 
   test('findReferenceMethodRow returns the balanced-table incumbent for key package outputs', () => {
@@ -145,69 +157,69 @@ describe('libraryInsights', () => {
 
     for (const { outputId, expectedMethodId } of cases) {
       const selected = pkg.resolvedMethodYears.find((row) => {
-        return row.service_or_output_name === outputId
+        return row.output_id === outputId
           && row.year === 2025
-          && row.state_id !== expectedMethodId;
+          && row.method_id !== expectedMethodId;
       });
 
       assert.ok(selected, `expected a non-incumbent 2025 row for ${outputId}`);
 
       const result = findReferenceMethodRow(selected, pkg.resolvedMethodYears);
 
-      assert.equal(result?.state_id, expectedMethodId, `unexpected reference state for ${outputId}`);
+      assert.equal(result?.method_id, expectedMethodId, `unexpected reference method for ${outputId}`);
       assert.equal(result?.is_default_incumbent_2025, true, `expected explicit incumbent flag for ${outputId}`);
     }
   });
 
-  test('buildRoleMethodFamilies orders families by state_sort_key before label order', () => {
+  test('buildRoleMethodFamilies orders methods by method_sort_key before label order', () => {
     const ambition2 = buildResolvedMethodYearRow({
-      state_id: 'road_transport__passenger_road__ambition2',
-      state_label: 'A-label ambition 2',
-      state_sort_key: '03_ambition2',
-      state_option_rank: 2,
+      method_id: 'road_transport__passenger_road__ambition2',
+      method_label: 'A-label ambition 2',
+      method_sort_key: '03_ambition2',
+      method_option_rank: 2,
     });
     const incumbent = buildResolvedMethodYearRow({
-      state_id: 'road_transport__passenger_road__incumbent',
-      state_label: 'Z-label incumbent',
-      state_sort_key: '01_incumbent',
-      state_option_rank: 0,
+      method_id: 'road_transport__passenger_road__incumbent',
+      method_label: 'Z-label incumbent',
+      method_sort_key: '01_incumbent',
+      method_option_rank: 0,
     });
     const ambition1 = buildResolvedMethodYearRow({
-      state_id: 'road_transport__passenger_road__ambition1',
-      state_label: 'M-label ambition 1',
-      state_sort_key: '02_ambition1',
-      state_option_rank: 1,
+      method_id: 'road_transport__passenger_road__ambition1',
+      method_label: 'M-label ambition 1',
+      method_sort_key: '02_ambition1',
+      method_option_rank: 1,
     });
 
     const families = buildRoleMethodFamilies([ambition2, incumbent, ambition1]);
 
     assert.deepEqual(
       families.map((family) => family.methodId),
-      [incumbent.state_id, ambition1.state_id, ambition2.state_id],
+      [incumbent.method_id, ambition1.method_id, ambition2.method_id],
     );
   });
 
   test('buildRoleMethodFamilies falls back to labels when sort metadata is absent', () => {
     const zebra = buildResolvedMethodYearRow({
-      state_id: 'road_transport__passenger_road__zebra',
-      state_label: 'Zebra pathway',
+      method_id: 'road_transport__passenger_road__zebra',
+      method_label: 'Zebra pathway',
     });
     const alpha = buildResolvedMethodYearRow({
-      state_id: 'road_transport__passenger_road__alpha',
-      state_label: 'Alpha pathway',
+      method_id: 'road_transport__passenger_road__alpha',
+      method_label: 'Alpha pathway',
     });
 
     const families = buildRoleMethodFamilies([zebra, alpha]);
 
     assert.deepEqual(
       families.map((family) => family.methodId),
-      [alpha.state_id, zebra.state_id],
+      [alpha.method_id, zebra.method_id],
     );
   });
 
-  test('buildFamilyEfficiencyOverview groups canonical family artifacts and preserves state applicability order', () => {
+  test('buildFamilyEfficiencyOverview groups canonical role efficiency artifacts and preserves method applicability order', () => {
     const overview = buildFamilyEfficiencyOverview(
-      'commercial_building_services',
+      'serve_commercial_building_occupants',
       pkg.resolvedMethodYears,
       pkg.autonomousEfficiencyTracks,
       pkg.efficiencyPackages,

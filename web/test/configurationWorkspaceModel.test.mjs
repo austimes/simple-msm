@@ -35,14 +35,14 @@ describe('buildRoleAreaNavigationCatalog', () => {
     );
   });
 
-  test('orders crude steel states in O0 through O3 sequence from balanced metadata', () => {
+  test('orders crude steel methods in O0 through O3 sequence from balanced metadata', () => {
     const catalog = buildRoleAreaNavigationCatalog(pkg.resolvedMethodYears, pkg.appConfig);
     const steel = catalog.find((entry) => entry.sector === 'steel');
     const crudeSteel = steel?.subsectors.find((entry) => entry.outputId === 'crude_steel');
     const steelRowsByMethodId = new Map(
       pkg.resolvedMethodYears
-        .filter((row) => row.service_or_output_name === 'crude_steel' && row.year === 2025)
-        .map((row) => [row.state_id, row]),
+        .filter((row) => row.output_id === 'crude_steel' && row.year === 2025)
+        .map((row) => [row.method_id, row]),
     );
 
     assert.ok(crudeSteel, 'expected crude steel catalog entry');
@@ -56,42 +56,54 @@ describe('buildRoleAreaNavigationCatalog', () => {
       ],
     );
     assert.deepEqual(
-      crudeSteel.states.map((state) => steelRowsByMethodId.get(state.methodId)?.state_option_code),
+      crudeSteel.states.map((state) => steelRowsByMethodId.get(state.methodId)?.method_option_code),
       ['O0', 'O1', 'O2', 'O3'],
     );
     assert.deepEqual(
-      crudeSteel.states.map((state) => steelRowsByMethodId.get(state.methodId)?.state_option_rank),
+      crudeSteel.states.map((state) => steelRowsByMethodId.get(state.methodId)?.method_option_rank),
       [0, 1, 2, 3],
     );
   });
 
-  test('falls back to label sorting and legacy labels when metadata is absent', () => {
-    const legacyResolvedMethodYearRows = [
+  test('falls back to label sorting when sort metadata is absent', () => {
+    const fallbackRows = [
       {
         sector: 'legacy_sector',
         subsector: 'legacy_subsector',
-        service_or_output_name: 'legacy_output',
-        state_id: 'legacy__bev',
-        state_label: 'Battery-electric legacy pathway',
-        state_label_standardized: '',
-        state_option_label: '',
-        state_sort_key: '',
-        state_option_rank: null,
+        output_id: 'legacy_output',
+        role_id: 'legacy_role',
+        representation_id: 'legacy_role__pathway_bundle',
+        method_id: 'legacy__bev',
+        method_label: 'Battery-electric legacy pathway',
+        method_label_standardized: '',
+        method_option_label: '',
+        method_sort_key: '',
+        method_option_rank: null,
+        representation_kind: 'pathway_bundle',
+        activation_class: 'top_level',
+        role_label: 'Legacy role',
+        parent_role_id: null,
       },
       {
         sector: 'legacy_sector',
         subsector: 'legacy_subsector',
-        service_or_output_name: 'legacy_output',
-        state_id: 'legacy__incumbent',
-        state_label: 'Incumbent legacy pathway',
-        state_label_standardized: '',
-        state_option_label: '',
-        state_sort_key: '',
-        state_option_rank: null,
+        output_id: 'legacy_output',
+        role_id: 'legacy_role',
+        representation_id: 'legacy_role__pathway_bundle',
+        method_id: 'legacy__incumbent',
+        method_label: 'Incumbent legacy pathway',
+        method_label_standardized: '',
+        method_option_label: '',
+        method_sort_key: '',
+        method_option_rank: null,
+        representation_kind: 'pathway_bundle',
+        activation_class: 'top_level',
+        role_label: 'Legacy role',
+        parent_role_id: null,
       },
     ];
 
-    const catalog = buildRoleAreaNavigationCatalog(legacyResolvedMethodYearRows, {
+    const catalog = buildRoleAreaNavigationCatalog(fallbackRows, {
       output_roles: {},
     });
 
@@ -104,28 +116,6 @@ describe('buildRoleAreaNavigationCatalog', () => {
       ['Battery-electric legacy pathway', 'Incumbent legacy pathway'],
     );
   });
-
-  test('falls back to option labels when standardized labels are absent', () => {
-    const optionLabelRows = [
-      {
-        sector: 'option_sector',
-        subsector: 'option_subsector',
-        service_or_output_name: 'option_output',
-        state_id: 'option__incumbent',
-        state_label: 'Incumbent raw label',
-        state_label_standardized: '',
-        state_option_label: 'O0 | incumbent',
-        state_sort_key: '01_incumbent',
-        state_option_rank: 0,
-      },
-    ];
-
-    const catalog = buildRoleAreaNavigationCatalog(optionLabelRows, {
-      output_roles: {},
-    });
-
-    assert.equal(catalog[0].subsectors[0].states[0].methodLabel, 'O0 | incumbent');
-  });
 });
 
 describe('getActiveMethodIds', () => {
@@ -133,8 +123,8 @@ describe('getActiveMethodIds', () => {
     const electricityMethodIds = Array.from(
       new Set(
         pkg.resolvedMethodYears
-          .filter((row) => row.service_or_output_name === 'electricity')
-          .map((row) => row.state_id),
+          .filter((row) => row.output_id === 'electricity')
+          .map((row) => row.method_id),
       ),
     );
 
@@ -163,8 +153,8 @@ describe('getActiveMethodIds', () => {
     const residentialMethodIds = Array.from(
       new Set(
         pkg.resolvedMethodYears
-          .filter((row) => row.service_or_output_name === 'residential_building_services')
-          .map((row) => row.state_id),
+          .filter((row) => row.output_id === 'residential_building_services')
+          .map((row) => row.method_id),
       ),
     );
 

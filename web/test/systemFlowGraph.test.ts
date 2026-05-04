@@ -239,40 +239,25 @@ test('buildSystemFlowGraphData sets solved input edge values to activity times c
   assertClose(edge.solvedValue, 200, 'electricity input edge');
 });
 
-test('buildSystemFlowGraphData carries library system grouping into layout segments', () => {
+test('buildSystemFlowGraphData carries reportingSectorId into layout segments', () => {
   const request = buildElectricityRequest('optimize');
+  request.rows = request.rows.map((row) => (
+    row.outputId === 'process'
+      ? { ...row, reportingSectorId: 'industrial_production' }
+      : row
+  ));
   const result = solveWithLpAdapter(request);
-  const graph = buildSystemFlowGraphData(request, result, {
-    year: 2030,
-    systemStructureGroups: [
-      {
-        group_id: 'industrial_production',
-        group_label: 'Industrial production',
-        display_order: 30,
-        notes: '',
-      },
-    ],
-    systemStructureMembers: [
-      {
-        group_id: 'industrial_production',
-        family_id: 'process',
-        display_order: 10,
-        notes: '',
-      },
-    ],
-  });
+  const graph = buildSystemFlowGraphData(request, result, { year: 2030 });
 
   const segment = graph.segments.find((entry) => entry.id === 'segment:end_use:process');
   assert.equal(segment?.systemGroupId, 'industrial_production');
-  assert.equal(segment?.systemGroupLabel, 'Industrial production');
 
   const layout = buildSystemFlowDiagramLayoutInput(graph, 'both');
   const sectorNode = layout.nodes.find(
     (node) => node.type === SYSTEM_FLOW_SECTOR_NODE_TYPE
       && node.data.sectorId === 'industrial_production',
   );
-  assert.equal(sectorNode?.data.sectorId, 'industrial_production');
-  assert.equal(sectorNode?.data.label, 'Industrial production');
+  assert.ok(sectorNode, 'expected industrial_production sector node from reportingSectorId');
 });
 
 test('endogenous electricity routes consuming edges through the electricity segment', () => {
@@ -314,22 +299,27 @@ test('external commodity demand appears as a separate residual demand edge', () 
   assertClose(edge.solvedValue, 50, 'external electricity demand edge');
 });
 
-test('diagram groups segments under system-structure sector containers and keeps nodes draggable', () => {
+test('diagram groups segments under reporting-sector containers and keeps nodes draggable', () => {
   const request: SolveRequest = {
     ...buildElectricityRequest('externalized'),
     requestId: 'system-flow-commercial-sector-groups',
   };
 
   request.rows = request.rows.map((row) => {
-    if (row.outputId !== 'process') {
-      return row;
+    if (row.outputId === 'process') {
+      return {
+        ...row,
+        outputId: 'commercial_building_services',
+        outputLabel: 'Commercial building services',
+        reportingSectorId: 'buildings',
+      };
     }
 
-    return {
-      ...row,
-      outputId: 'commercial_building_services',
-      outputLabel: 'Commercial building services',
-    };
+    if (row.outputId === 'electricity') {
+      return { ...row, reportingSectorId: 'energy_supply' };
+    }
+
+    return row;
   });
   request.configuration = {
     ...request.configuration,
@@ -355,8 +345,6 @@ test('diagram groups segments under system-structure sector containers and keeps
   assert.equal(result.status, 'solved');
   assert.ok(buildingsSector);
   assert.ok(energySector);
-  assert.equal(buildingsSector.data.label, 'Buildings');
-  assert.equal(energySector.data.label, 'Energy supply');
   assert.equal(commercialSegment?.parentId, buildingsSector.id);
   assert.equal(electricitySegment?.parentId, energySector.id);
   assert.ok(diagram.nodes.every((node) => node.draggable !== false));

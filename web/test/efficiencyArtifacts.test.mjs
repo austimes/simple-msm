@@ -120,13 +120,12 @@ test('efficiency artifact loader parses valid rows and fails fast on bad applica
 
   assert.equal(valid.autonomousEfficiencyTracks.length, 1);
   assert.deepEqual(valid.autonomousEfficiencyTracks[0].applicable_method_ids, ['baseline_method']);
-  assert.deepEqual(valid.autonomousEfficiencyTracks[0].applicable_state_ids, ['baseline_method']);
-  assert.equal(valid.autonomousEfficiencyTracks[0].family_id, 'test_output');
+  assert.equal(valid.autonomousEfficiencyTracks[0].role_id, 'test_role');
   assert.equal(valid.autonomousEfficiencyTracks[0].year, 2030);
   assert.equal(valid.efficiencyPackages.length, 1);
   assert.equal(valid.efficiencyPackages[0].classification, 'pure_efficiency_overlay');
   assert.deepEqual(valid.efficiencyPackages[0].applicable_method_ids, ['baseline_method', 'retrofit_method']);
-  assert.deepEqual(valid.efficiencyPackages[0].applicable_state_ids, ['baseline_method', 'retrofit_method']);
+  assert.equal(valid.efficiencyPackages[0].role_id, 'test_role');
 
   assert.throws(
     () => loadEfficiencyArtifacts(

@@ -109,8 +109,8 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
     const electricityMethodIds = Array.from(
       new Set(
         pkg.resolvedMethodYears
-          .filter((row) => row.service_or_output_name === 'electricity')
-          .map((row) => row.state_id),
+          .filter((row) => row.output_id === 'electricity')
+          .map((row) => row.method_id),
       ),
     );
 
@@ -138,8 +138,8 @@ describe('deriveOutputRunStatusesForConfiguration', () => {
     const residentialMethodIds = Array.from(
       new Set(
         pkg.resolvedMethodYears
-          .filter((row) => row.service_or_output_name === 'residential_building_services')
-          .map((row) => row.state_id),
+          .filter((row) => row.output_id === 'residential_building_services')
+          .map((row) => row.method_id),
       ),
     );
 

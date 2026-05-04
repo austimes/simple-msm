@@ -245,30 +245,30 @@ describe('additionality analysis', () => {
     assert.deepEqual(
       atoms.map((atom) => `${atom.outputLabel}|${atom.methodLabel}|${atom.action}`),
       [
-        'Deliver commercial building services|Deep electrification and efficiency commercial services|enable',
-        'Deliver commercial building services|Electrified efficient commercial services|enable',
-        'Move freight by road|Battery-electric road freight|enable',
-        'Move freight by road|Efficient diesel road freight|enable',
-        'Move freight by road|Hydrogen fuel-cell road freight|enable',
         'Deliver high temperature heat|High-temperature electrified heat|enable',
         'Deliver high temperature heat|High-temperature low-carbon fuels|enable',
         'Deliver low temperature heat|Low-temperature electrified heat|enable',
         'Deliver low temperature heat|Low-temperature low-carbon fuels|enable',
         'Deliver medium temperature heat|Medium-temperature electrified heat|enable',
         'Deliver medium temperature heat|Medium-temperature low-carbon fuels|enable',
-        'Move passengers by road|Battery-electric passenger road fleet|enable',
-        'Move passengers by road|Hybrid-heavy passenger road fleet|enable',
-        'Deliver residential building services|Deep-electric residential services|enable',
-        'Deliver residential building services|Electrified efficient residential services|enable',
+        'Grow crops and horticulture output|Mitigated cropping and horticulture bundle|enable',
         'Make cement equivalent|Deep-abatement cement with CCS|enable',
         'Make cement equivalent|Low-clinker and alternative-fuels cement|enable',
-        'Grow crops and horticulture output|Mitigated cropping and horticulture bundle|enable',
         'Make crude steel|CCS-influenced BF-BOF steel|enable',
         'Make crude steel|Hydrogen DRI-electric steel|enable',
         'Make crude steel|Scrap EAF steel|enable',
+        'Move freight by road|Battery-electric road freight|enable',
+        'Move freight by road|Efficient diesel road freight|enable',
+        'Move freight by road|Hydrogen fuel-cell road freight|enable',
+        'Move passengers by road|Battery-electric passenger road fleet|enable',
+        'Move passengers by road|Hybrid-heavy passenger road fleet|enable',
         'Raise livestock output|Mitigated livestock output bundle|enable',
-        'Supply electricity|Deep-clean firmed grid supply|enable',
-        'Supply electricity|Policy frontier grid supply|enable',
+        'Serve commercial building occupants|Deep electrification and efficiency commercial services|enable',
+        'Serve commercial building occupants|Electrified efficient commercial services|enable',
+        'Serve residential building occupants|Deep-electric residential services|enable',
+        'Serve residential building occupants|Electrified efficient residential services|enable',
+        'Supply grid electricity|Deep-clean firmed grid supply|enable',
+        'Supply grid electricity|Policy frontier grid supply|enable',
       ],
     );
   });
@@ -781,8 +781,8 @@ describe('additionality analysis', () => {
     };
     const residentialMethodIds = Array.from(new Set(
       pkg.resolvedMethodYears
-        .filter((row) => row.service_or_output_name === 'residential_building_services')
-        .map((row) => row.state_id),
+        .filter((row) => row.output_id === 'residential_building_services')
+        .map((row) => row.method_id),
     ));
     const buildAdditiveMockRequest = (pkgArg, configuration) => {
       const request = buildSolveRequest(pkgArg, configuration);
