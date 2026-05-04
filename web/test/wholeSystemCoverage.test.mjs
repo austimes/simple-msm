@@ -31,7 +31,6 @@ test('whole-system coverage summary resolves every authored role', () => {
       Number(row.default_method_count) * 6,
       `${role.role_id} should have full milestone-year coverage`,
     );
-    assert.notEqual(row.primary_node_id, '', `${role.role_id} should resolve to a primary physical node`);
     assert.notEqual(row.emissions_importance_band, '', `${role.role_id} should resolve an emissions band`);
   }
 

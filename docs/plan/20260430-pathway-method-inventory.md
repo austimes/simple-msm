@@ -2,12 +2,19 @@
 
 Date: 2026-04-30
 
-Status: inventory for `simple-msm-pathways-1.1`
+Status: historical inventory for `simple-msm-pathways-1.1`
+
+> **Note (2026-05-04):** The `shared/physical_system_nodes.csv` and
+> `shared/role_memberships.csv` surfaces this inventory was written
+> against were retired by the `esrl-clusters-v1` epic (commit
+> `747ff8c`). Roles are now the canonical ontology and browse grouping
+> uses `topology_area_id` / `topology_area_label` on `shared/roles.csv`.
+> The "Target physical role/node" column below should now be read as a
+> reference to the target role.
 
 This inventory classifies every current authored method in
 `energy_system_representation_library/roles/*/methods.csv` against the
-physical role graph surfaces in `shared/physical_system_nodes.csv` and
-`shared/role_memberships.csv`.
+canonical role graph in `shared/roles.csv`.
 
 The current package contains 60 methods:
 
