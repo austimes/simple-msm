@@ -249,7 +249,7 @@ const PHYSICAL_NODE_KINDS = new Set([
   'root',
 ]);
 const ROLE_MEMBERSHIP_KINDS = new Set(['cluster_membership']);
-const PHYSICAL_EDGE_KINDS = new Set(['groups_with']);
+const PHYSICAL_EDGE_KINDS = new Set(['groups_with', 'flows_to']);
 const BALANCE_TYPES = new Set([
   'accounting_obligation',
   'carbon_removal',

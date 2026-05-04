@@ -9,7 +9,7 @@ test('web package loader reads canonical role-topology files', () => {
   assert.equal(pkg.roleMetrics.length, 52);
   assert.equal(pkg.physicalSystemNodes.length, 10);
   assert.equal(pkg.roleMemberships.length, 52);
-  assert.equal(pkg.physicalEdges.length, 0);
+  assert.equal(pkg.physicalEdges.length, 16);
   assert.equal(pkg.representations.length, 56);
   assert.equal(pkg.roleDecompositionEdges.length, 7);
   assert.equal(pkg.methods.length, 92);

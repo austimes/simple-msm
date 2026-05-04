@@ -542,7 +542,7 @@ function parsePhysicalEdgeKind(
   label: string,
 ): PhysicalEdgeKind {
   const value = parseRequiredString(raw, label);
-  if (value === 'groups_with') {
+  if (value === 'groups_with' || value === 'flows_to') {
     return value;
   }
 
