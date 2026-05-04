@@ -7,7 +7,7 @@ This role makes domestic passenger rail visible as a physical non-road transport
 ## Role definition
 
 - Role id: `move_passengers_by_rail`
-- Balance type: `residual_accounting`
+- Balance type: `service_demand`
 - Output unit: `residual_activity`
 - Output quantity basis: One residual activity unit carrying the passenger rail share of the former transport-other calibration.
 - Default incumbent method id: `transport_rail_passenger__residual_incumbent`
