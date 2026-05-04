@@ -1,5 +1,5 @@
 {
-  "name": "Demo — buildings efficiency",
+  "name": "Demo \u2014 buildings efficiency",
   "description": "Buildings plus endogenous electricity, with residential and commercial retrofit packages limited to the building transition methods that illustrate embodied-versus-portable efficiency.",
   "years": [
     2025,
@@ -11,18 +11,13 @@
   ],
   "representation_by_role": {
     "account_grid_losses_and_own_use": "account_grid_losses_and_own_use__pathway_bundle",
-    "account_remaining_agricultural_activity": "account_remaining_agricultural_activity__pathway_bundle",
     "account_remaining_commercial_building_services": "account_remaining_commercial_building_services__pathway_bundle",
     "account_residual_construction": "account_residual_construction__pathway_bundle",
     "account_residual_fugitives": "account_residual_fugitives__pathway_bundle",
-    "account_residual_ippu": "account_residual_ippu__pathway_bundle",
-    "account_remaining_land_sink_adjustment": "account_remaining_land_sink_adjustment__pathway_bundle",
     "account_land_carbon_stock_change": "account_land_carbon_stock_change__pathway_bundle",
-    "account_residual_manufacturing": "account_residual_manufacturing__pathway_bundle",
     "account_residual_mining_energy": "account_residual_mining_energy__pathway_bundle",
     "account_residual_other_sectors": "account_residual_other_sectors__pathway_bundle",
     "account_remaining_residential_building_services": "account_remaining_residential_building_services__pathway_bundle",
-    "account_residual_transport": "account_residual_transport__pathway_bundle",
     "manage_waste_emissions": "manage_waste_emissions__pathway_bundle",
     "provide_water_services": "provide_water_services__pathway_bundle",
     "serve_commercial_building_occupants": "serve_commercial_building_occupants__pathway_bundle",
@@ -47,12 +42,6 @@
         "electricity_grid_losses_own_use__residual_incumbent"
       ]
     },
-    "account_remaining_agricultural_activity": {
-      "mode": "optimize",
-      "active_method_ids": [
-        "residual_agriculture_other__residual_incumbent"
-      ]
-    },
     "account_remaining_commercial_building_services": {
       "mode": "optimize",
       "active_method_ids": [
@@ -71,25 +60,9 @@
         "residual_fugitives__residual_incumbent"
       ]
     },
-    "account_residual_ippu": {
-      "mode": "optimize",
-      "active_method_ids": [
-        "residual_ippu_other__residual_incumbent"
-      ]
-    },
-    "account_remaining_land_sink_adjustment": {
-      "mode": "optimize",
-      "active_method_ids": []
-    },
     "account_land_carbon_stock_change": {
       "mode": "optimize",
       "active_method_ids": []
-    },
-    "account_residual_manufacturing": {
-      "mode": "optimize",
-      "active_method_ids": [
-        "manufacturing_other__residual_incumbent"
-      ]
     },
     "account_residual_mining_energy": {
       "mode": "optimize",
@@ -107,12 +80,6 @@
       "mode": "optimize",
       "active_method_ids": [
         "residential_other__residual_incumbent"
-      ]
-    },
-    "account_residual_transport": {
-      "mode": "optimize",
-      "active_method_ids": [
-        "transport_other__residual_incumbent"
       ]
     },
     "manage_waste_emissions": {

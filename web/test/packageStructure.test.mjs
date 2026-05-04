@@ -272,7 +272,6 @@ const EXPECTED_ROLE_IDS = new Set([
   'move_passengers_by_air',
   'move_freight_by_marine',
   'account_other_non_road_transport_activity',
-  'account_residual_transport',
   'deliver_low_temperature_heat',
   'deliver_medium_temperature_heat',
   'deliver_high_temperature_heat',
@@ -286,8 +285,6 @@ const EXPECTED_ROLE_IDS = new Set([
   'grind_blend_cement_equivalent',
   'make_chemical_products',
   'make_other_material_products',
-  'account_residual_manufacturing',
-  'account_residual_ippu',
   'supply_grid_electricity',
   'account_grid_losses_and_own_use',
   'account_residual_mining_energy',
@@ -305,7 +302,6 @@ const EXPECTED_ROLE_IDS = new Set([
   'grow_crops_and_horticulture_output',
   'account_livestock_biogenic_emissions',
   'account_soil_fertiliser_residue_emissions',
-  'account_remaining_agricultural_activity',
   'account_residual_construction',
   'provide_water_services',
   'manage_waste_emissions',
@@ -315,7 +311,6 @@ const EXPECTED_ROLE_IDS = new Set([
   'capture_point_source_co2',
   'transport_captured_co2',
   'store_captured_co2',
-  'account_remaining_land_sink_adjustment',
   'account_land_carbon_stock_change',
 ]);
 
@@ -469,7 +464,7 @@ test('energy system representation library package structure is internally consi
   assertUnique(reportingAllocations, (allocation) => allocation.reporting_allocation_id, 'reporting_allocation_id');
   assertUnique(roleValidationSummary, (summary) => summary.role_id, 'validation summary role_id');
   assert.deepEqual(roleIds, EXPECTED_ROLE_IDS);
-  assert.equal(roles.length, 57);
+  assert.equal(roles.length, 52);
   assert.equal(roleActivityDrivers.length, roles.length);
   assert.equal(roleMetrics.length, roles.length);
   const defaultRepresentationByRole = new Map();
@@ -480,13 +475,13 @@ test('energy system representation library package structure is internally consi
   }
   assert.equal(
     representations.filter((representation) => representation.representation_kind === 'residual_stub').length,
-    33,
-    'expected 33 residual_stub representations after the role-first ontology migration',
+    28,
+    'expected 28 residual_stub representations after the role-first ontology migration',
   );
   assert.equal(
     roles.filter((role) => defaultRepresentationByRole.get(role.role_id)?.representation_kind === 'residual_stub').length,
-    33,
-    'expected 33 roles whose default representation is a residual_stub placeholder',
+    28,
+    'expected 28 roles whose default representation is a residual_stub placeholder',
   );
   assert.equal(representations.length, roles.length + 4);
   assert.equal(representationIncumbents.length, roles.length + 4);
@@ -879,8 +874,8 @@ test('energy system representation library package structure is internally consi
     }
   }
 
-  assert.equal(totalMethods, 97);
-  assert.equal(totalMethodYearRows, 582);
+  assert.equal(totalMethods, 92);
+  assert.equal(totalMethodYearRows, 552);
   assert.equal(autonomousTrackRowCount > 0, true, 'expected at least one autonomous efficiency track row');
   assert.equal(efficiencyPackageRowCount > 0, true, 'expected at least one efficiency package row');
 

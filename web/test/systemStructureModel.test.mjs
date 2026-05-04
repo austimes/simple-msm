@@ -106,13 +106,9 @@ describe('systemStructureModel', () => {
           mode: 'optimize',
           active_state_ids: [],
         },
-        transport_other: {
-          mode: 'optimize',
-          active_state_ids: ['transport_other__residual_incumbent'],
-        },
         residual_lulucf_sink: {
           mode: 'optimize',
-          active_state_ids: [],
+          active_state_ids: ['residual_lulucf_sink__residual_incumbent'],
         },
       },
     });
@@ -120,10 +116,9 @@ describe('systemStructureModel', () => {
     const generated = buildGeneratedIncumbentBaseConfiguration(focus, pkg);
 
     assert.deepEqual(generated.role_controls.account_remaining_residential_building_services.active_method_ids, []);
-    assert.deepEqual(generated.role_controls.account_residual_transport.active_method_ids, [
-      'transport_other__residual_incumbent',
+    assert.deepEqual(generated.role_controls.account_land_carbon_stock_change.active_method_ids, [
+      'residual_lulucf_sink__residual_incumbent',
     ]);
-    assert.deepEqual(generated.role_controls.account_remaining_land_sink_adjustment.active_method_ids, []);
     assert.equal(generated.residual_overlays, undefined);
   });
 });

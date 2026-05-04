@@ -11,7 +11,6 @@ move_freight_by_rail,move_people_and_freight,cluster_membership,true,Role groupe
 move_passengers_by_air,move_people_and_freight,cluster_membership,true,Role grouped under the transport navigation cluster.
 move_freight_by_marine,move_people_and_freight,cluster_membership,true,Role grouped under the transport navigation cluster.
 account_other_non_road_transport_activity,move_people_and_freight,cluster_membership,true,Role grouped under the transport navigation cluster.
-account_residual_transport,move_people_and_freight,cluster_membership,true,Role grouped under the transport navigation cluster.
 deliver_low_temperature_heat,make_materials_and_products,cluster_membership,true,Role grouped under the industrial production navigation cluster.
 deliver_medium_temperature_heat,make_materials_and_products,cluster_membership,true,Role grouped under the industrial production navigation cluster.
 deliver_high_temperature_heat,make_materials_and_products,cluster_membership,true,Role grouped under the industrial production navigation cluster.
@@ -22,8 +21,6 @@ melt_and_refine_dri_into_crude_steel,make_materials_and_products,cluster_members
 make_cement_equivalent,make_materials_and_products,cluster_membership,true,Role grouped under the industrial production navigation cluster.
 make_chemical_products,make_materials_and_products,cluster_membership,true,Role grouped under the industrial production navigation cluster.
 make_other_material_products,make_materials_and_products,cluster_membership,true,Role grouped under the industrial production navigation cluster.
-account_residual_manufacturing,make_materials_and_products,cluster_membership,true,Role grouped under the industrial production navigation cluster.
-account_residual_ippu,make_materials_and_products,cluster_membership,true,Role grouped under the industrial production navigation cluster.
 supply_grid_electricity,supply_domestic_energy_carriers,cluster_membership,true,Role grouped under the domestic energy supply navigation cluster.
 account_grid_losses_and_own_use,supply_domestic_energy_carriers,cluster_membership,true,Role grouped under the domestic energy supply navigation cluster.
 account_residual_mining_energy,supply_domestic_energy_carriers,cluster_membership,true,Role grouped under the domestic energy supply navigation cluster.
@@ -32,14 +29,12 @@ raise_livestock_output,grow_food_and_biomass,cluster_membership,true,Role groupe
 grow_crops_and_horticulture_output,grow_food_and_biomass,cluster_membership,true,Role grouped under the agriculture navigation cluster.
 account_livestock_biogenic_emissions,grow_food_and_biomass,cluster_membership,true,Role grouped under the agriculture navigation cluster.
 account_soil_fertiliser_residue_emissions,grow_food_and_biomass,cluster_membership,true,Role grouped under the agriculture navigation cluster.
-account_remaining_agricultural_activity,grow_food_and_biomass,cluster_membership,true,Role grouped under the agriculture navigation cluster.
 account_residual_construction,make_materials_and_products,cluster_membership,true,Role grouped under the industrial production navigation cluster.
 provide_water_services,manage_water_and_waste,cluster_membership,true,Role grouped under the water and waste navigation cluster.
 manage_waste_emissions,manage_water_and_waste,cluster_membership,true,Role grouped under the water and waste navigation cluster.
 account_residual_other_sectors,account_remaining_domestic_activity,cluster_membership,true,Role grouped under the remaining domestic activity navigation cluster.
 remove_co2_through_land_sequestration,remove_and_store_carbon,cluster_membership,true,Role grouped under the removals and carbon storage navigation cluster.
 remove_co2_through_engineered_removals,remove_and_store_carbon,cluster_membership,true,Role grouped under the removals and carbon storage navigation cluster.
-account_remaining_land_sink_adjustment,remove_and_store_carbon,cluster_membership,true,Role grouped under the removals and carbon storage navigation cluster.
 account_land_carbon_stock_change,remove_and_store_carbon,cluster_membership,true,Role grouped under the removals and carbon storage navigation cluster.
 supply_domestic_gas,supply_domestic_energy_carriers,cluster_membership,true,Role grouped under the domestic energy supply navigation cluster.
 supply_domestic_liquid_fuels,supply_domestic_energy_carriers,cluster_membership,true,Role grouped under the domestic energy supply navigation cluster.
