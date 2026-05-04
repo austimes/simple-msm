@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "schema/representations.schema.json",
   "title": "Role representations",
-  "description": "Schema for shared/representations.csv. A representation is one available way to model an active role. Validation must enforce exactly one selected representation for each active role.",
+  "description": "Schema for shared/representations.csv. A representation is one available way to model an active role. Validation must enforce exactly one selected representation for each active role. The representation layer is the only authoritative place for residual placeholder semantics: when a role is a real coverage obligation but is currently modeled as an explicit placeholder, it is represented with representation_kind = residual_stub rather than tagged as residual at the role, method, or physical-node layer.",
   "type": "object",
   "required": [
     "representation_id",
@@ -11,7 +11,6 @@
     "representation_label",
     "description",
     "is_default",
-    "direct_method_kind",
     "notes"
   ],
   "properties": {
@@ -27,10 +26,11 @@
       "type": "string",
       "enum": [
         "pathway_bundle",
-        "technology_bundle",
-        "role_decomposition"
+        "residual_stub",
+        "role_decomposition",
+        "technology_bundle"
       ],
-      "description": "Representation kind. Pathway and technology bundles are direct representations that expose methods. Role decompositions activate child roles through role_decomposition_edges.csv and do not expose direct methods."
+      "description": "Representation kind. Pathway and technology bundles are direct representations that expose methods. A residual_stub is a direct representation that explicitly models the role as a placeholder until richer pathway or technology methods are authored; it exposes the same kind of method rows as other direct representations but signals at the representation layer that the modeling is intentionally coarse. Role decompositions activate child roles through role_decomposition_edges.csv and do not expose direct methods."
     },
     "representation_label": {
       "type": "string",
@@ -42,17 +42,7 @@
     },
     "is_default": {
       "type": "boolean",
-      "description": "True when this is the default representation for the role. Validation must find exactly one default representation for every role."
-    },
-    "direct_method_kind": {
-      "type": "string",
-      "enum": [
-        "",
-        "pathway",
-        "technology",
-        "residual"
-      ],
-      "description": "Expected method kind for direct bundles. Leave blank for role_decomposition because parent direct methods are inactive and child roles expose their own methods."
+      "description": "True when this is the default representation for the role. Validation must find exactly one default representation for every role; downstream code derives role defaults from this column rather than from the role row."
     },
     "notes": {
       "type": "string",

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "schema/roles.schema.json",
   "title": "Roles",
-  "description": "Schema for shared/roles.csv. Roles define the primary energy-system coverage obligations, topology positions, balance types, output units, residual coverage obligations, and default representation kinds.",
+  "description": "Schema for shared/roles.csv. Roles are the authoritative coverage ontology of the energy-system representation library: each role describes something the system must cover, supply, convert, remove, or account for, and carries semantic meaning, output unit, topology placement, and activation rules. Residual placeholder semantics do not live on the role; they are expressed at the representation layer through representation_kind = residual_stub.",
   "type": "object",
   "required": [
     "role_id",
@@ -11,11 +11,9 @@
     "topology_area_id",
     "topology_area_label",
     "parent_role_id",
-    "role_kind",
     "balance_type",
     "output_unit",
-    "coverage_obligation",
-    "default_representation_kind",
+    "activation_class",
     "notes"
   ],
   "properties": {
@@ -43,48 +41,29 @@
       "type": "string",
       "description": "Parent role identifier when this role is activated by a decomposition representation; blank for top-level coverage obligations."
     },
-    "role_kind": {
-      "type": "string",
-      "enum": [
-        "modeled",
-        "removal",
-        "residual"
-      ],
-      "description": "Whether the role has modeled methods, represents explicit residual coverage, or is a carbon-removal role."
-    },
     "balance_type": {
       "type": "string",
       "enum": [
+        "accounting_obligation",
         "carbon_removal",
         "commodity_supply",
         "intermediate_conversion",
         "intermediate_material",
-        "residual_accounting",
         "service_demand"
       ],
-      "description": "Balance or accounting requirement satisfied by the role, such as service demand, commodity supply, intermediate conversion, residual accounting, or carbon removal."
+      "description": "Balance or accounting requirement satisfied by the role. Use accounting_obligation only for roles whose underlying obligation is genuinely accounting or reconciliation in nature (for example grid losses and own use, fugitive emissions, or land carbon stock change). Roles whose obligation is physically or functionally meaningful must use a service, supply, conversion, material, or removal balance type even when their current modeling is a residual_stub representation."
     },
     "output_unit": {
       "type": "string",
       "description": "Output or accounting unit for role activity."
     },
-    "coverage_obligation": {
+    "activation_class": {
       "type": "string",
       "enum": [
-        "explicit_residual_top_level",
-        "required_decomposition_child",
-        "required_top_level"
+        "top_level",
+        "decomposition_child"
       ],
-      "description": "Coverage obligation class. Required top-level roles and explicit residual top-level roles are active unless scoped out; required decomposition children are active when their parent decomposition representation is selected."
-    },
-    "default_representation_kind": {
-      "type": "string",
-      "enum": [
-        "pathway_bundle",
-        "technology_bundle",
-        "role_decomposition"
-      ],
-      "description": "Kind of the default representation selected for this role before scenario-specific representation choices are applied."
+      "description": "Neutral activation class for the role. Top-level roles are active unless scoped out; decomposition children are active only when their parent decomposition representation is selected. This field carries activation semantics only; placeholder modeling is expressed by selecting a residual_stub representation, not by tagging the role itself."
     },
     "notes": {
       "type": "string",

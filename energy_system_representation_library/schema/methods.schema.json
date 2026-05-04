@@ -2,16 +2,14 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "schema/methods.schema.json",
   "title": "Role methods",
-  "description": "Schema for roles/<role_id>/methods.csv. A method is one selectable option inside a direct representation bundle for the owning role.",
+  "description": "Schema for roles/<role_id>/methods.csv. A method is one selectable option inside a direct representation bundle for the owning role. Methods do not duplicate role or representation ontology: residual placeholder semantics are carried by the representation (representation_kind = residual_stub), not by per-method typing.",
   "type": "object",
   "required": [
     "role_id",
     "representation_id",
     "method_id",
-    "method_kind",
     "method_label",
     "method_description",
-    "is_residual",
     "sort_order",
     "source_ids",
     "assumption_ids",
@@ -27,20 +25,11 @@
     },
     "representation_id": {
       "type": "string",
-      "description": "Direct representation bundle that exposes this method. The representation must resolve to shared/representations.csv, belong to the same role, and not be a role_decomposition."
+      "description": "Direct representation bundle that exposes this method. The representation must resolve to shared/representations.csv, belong to the same role, and not be a role_decomposition. Whether the bundle is a pathway, technology, or residual_stub is determined by the representation row, not by the method."
     },
     "method_id": {
       "type": "string",
       "description": "Stable method identifier."
-    },
-    "method_kind": {
-      "type": "string",
-      "enum": [
-        "pathway",
-        "technology",
-        "residual"
-      ],
-      "description": "Method kind inside the direct representation bundle. Validation checks this against the representation direct_method_kind."
     },
     "method_label": {
       "type": "string",
@@ -49,10 +38,6 @@
     "method_description": {
       "type": "string",
       "description": "Plain-language description of what this method represents."
-    },
-    "is_residual": {
-      "type": "boolean",
-      "description": "True when this method is explicit residual coverage."
     },
     "sort_order": {
       "type": "integer",
