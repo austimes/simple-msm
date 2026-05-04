@@ -210,6 +210,7 @@ function sanitizeLibraryFilters(value: unknown): LibraryFilters {
       value.efficiencyArtifactType,
       fallback.efficiencyArtifactType,
     ),
+    topologyAreaId: readString(value.topologyAreaId, fallback.topologyAreaId),
   };
 }
 

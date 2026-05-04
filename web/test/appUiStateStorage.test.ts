@@ -57,6 +57,7 @@ function buildSampleState(): AppUiState {
         assumptionId: 'ASM-2',
         efficiencyApplicability: 'with_applicable_artifacts',
         efficiencyArtifactType: 'pure_efficiency_overlay',
+        topologyAreaId: 'transport',
       },
       selectedRoleId: 'move_passengers_by_road',
       selectedRepresentationId: 'move_passengers_by_road__pathway_bundle',

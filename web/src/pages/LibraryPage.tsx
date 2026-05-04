@@ -913,9 +913,10 @@ export default function LibraryPage() {
       <LibraryRoleGraph
         model={roleLibraryModel}
         expandedNodeIds={expandedRoleGraphNodeIds}
-        filters={{ search: filters.search }}
+        filters={{ search: filters.search, topologyAreaId: filters.topologyAreaId }}
         onExpandedNodeIdsChange={(nextIds) => updateLibraryUi({ roleGraphExpandedNodeIds: nextIds })}
         onSelectNode={handleSelectRoleGraphNode}
+        onTopologyAreaChange={(topologyAreaId) => setLibraryFilters({ topologyAreaId })}
       />
 
       <div className={`library-sidebar-layout${sidebarCollapsed ? ' library-sidebar-layout--collapsed' : ''}`}>
