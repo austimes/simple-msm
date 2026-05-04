@@ -13,11 +13,9 @@ const ROLE_HEADERS = [
   'topology_area_id',
   'topology_area_label',
   'parent_role_id',
-  'role_kind',
   'balance_type',
   'output_unit',
-  'coverage_obligation',
-  'default_representation_kind',
+  'activation_class',
   'notes',
 ];
 const ROLE_ACTIVITY_DRIVER_HEADERS = [
@@ -89,7 +87,6 @@ const REPRESENTATION_HEADERS = [
   'representation_label',
   'description',
   'is_default',
-  'direct_method_kind',
   'notes',
 ];
 const REPRESENTATION_INCUMBENT_HEADERS = [
@@ -114,10 +111,8 @@ const METHOD_HEADERS = [
   'role_id',
   'representation_id',
   'method_id',
-  'method_kind',
   'method_label',
   'method_description',
-  'is_residual',
   'sort_order',
   'source_ids',
   'assumption_ids',
@@ -224,10 +219,15 @@ const ROLE_VALIDATION_HEADERS = [
   'validation_status',
   'notes',
 ];
-const REPRESENTATION_KINDS = new Set(['pathway_bundle', 'technology_bundle', 'role_decomposition']);
+const REPRESENTATION_KINDS = new Set([
+  'pathway_bundle',
+  'residual_stub',
+  'role_decomposition',
+  'technology_bundle',
+]);
+const DIRECT_REPRESENTATION_KINDS = new Set(['pathway_bundle', 'residual_stub', 'technology_bundle']);
 const INCUMBENT_BASES = new Set(['default_pathway_method', 'residual_incumbent_method', 'technology_incumbent_mix']);
-const METHOD_KINDS = new Set(['pathway', 'technology', 'residual']);
-const ROLE_KINDS = new Set(['modeled', 'removal', 'residual']);
+const ACTIVATION_CLASSES = new Set(['top_level', 'decomposition_child']);
 const ROLE_ACTIVITY_DRIVER_KINDS = new Set([
   'baseline_scale_factor',
   'exogenous_series',
@@ -251,17 +251,12 @@ const PHYSICAL_NODE_KINDS = new Set([
 const ROLE_MEMBERSHIP_KINDS = new Set(['cluster_membership']);
 const PHYSICAL_EDGE_KINDS = new Set(['groups_with']);
 const BALANCE_TYPES = new Set([
+  'accounting_obligation',
   'carbon_removal',
   'commodity_supply',
   'intermediate_conversion',
   'intermediate_material',
-  'residual_accounting',
   'service_demand',
-]);
-const COVERAGE_OBLIGATIONS = new Set([
-  'explicit_residual_top_level',
-  'required_decomposition_child',
-  'required_top_level',
 ]);
 const CONFIDENCE_RATINGS = new Set(['High', 'Medium', 'Low', 'Exploratory']);
 const EXPECTED_ROLE_IDS = new Set([
@@ -477,8 +472,22 @@ test('energy system representation library package structure is internally consi
   assert.equal(roles.length, 57);
   assert.equal(roleActivityDrivers.length, roles.length);
   assert.equal(roleMetrics.length, roles.length);
-  assert.equal(roles.filter((role) => role.role_kind === 'residual').length, 33);
-  assert.equal(roles.filter((role) => role.coverage_obligation === 'explicit_residual_top_level').length, 33);
+  const defaultRepresentationByRole = new Map();
+  for (const representation of representations) {
+    if (representation.is_default === 'true') {
+      defaultRepresentationByRole.set(representation.role_id, representation);
+    }
+  }
+  assert.equal(
+    representations.filter((representation) => representation.representation_kind === 'residual_stub').length,
+    33,
+    'expected 33 residual_stub representations after the role-first ontology migration',
+  );
+  assert.equal(
+    roles.filter((role) => defaultRepresentationByRole.get(role.role_id)?.representation_kind === 'residual_stub').length,
+    33,
+    'expected 33 roles whose default representation is a residual_stub placeholder',
+  );
   assert.equal(representations.length, roles.length + 4);
   assert.equal(representationIncumbents.length, roles.length + 4);
   assert.equal(reportingAllocations.length, roles.length);
@@ -497,11 +506,16 @@ test('energy system representation library package structure is internally consi
     assert.equal(MILESTONE_YEARS.includes(driver.anchor_year), true, `${driver.driver_id} anchor year must be a milestone`);
     assert.equal(Number.isFinite(Number(driver.anchor_value)), true, `${driver.driver_id} anchor value must be numeric`);
     if (driver.driver_kind === 'baseline_scale_factor') {
-      assert.equal(role.role_kind, 'residual', `${driver.driver_id} baseline scale factor should belong to a residual role`);
+      const defaultRepresentation = defaultRepresentationByRole.get(role.role_id);
+      assert.equal(
+        defaultRepresentation?.representation_kind,
+        'residual_stub',
+        `${driver.driver_id} baseline scale factor should belong to a role modelled as a residual_stub representation`,
+      );
       assert.equal(driver.anchor_value, '1', `${driver.driver_id} baseline scale factor should anchor to one activity unit`);
     }
     if (driver.driver_kind === 'linked_parent_activity') {
-      assert.equal(role.coverage_obligation, 'required_decomposition_child', `${driver.driver_id} linked parent driver should belong to a decomposition child`);
+      assert.equal(role.activation_class, 'decomposition_child', `${driver.driver_id} linked parent driver should belong to a decomposition child role`);
       assert.equal(driver.parent_role_id, role.parent_role_id, `${driver.driver_id} parent role should match roles.csv`);
       assert.equal(roleIds.has(driver.parent_role_id), true, `${driver.driver_id} parent role must resolve`);
       assert.equal(Number.isFinite(Number(driver.parent_activity_coefficient)), true, `${driver.driver_id} parent activity coefficient must be numeric`);
@@ -568,10 +582,9 @@ test('energy system representation library package structure is internally consi
   }
 
   for (const role of roles) {
-    assert.equal(ROLE_KINDS.has(role.role_kind), true, `${role.role_id} kind must be canonical`);
     assert.equal(BALANCE_TYPES.has(role.balance_type), true, `${role.role_id} balance type must be canonical`);
-    assert.equal(COVERAGE_OBLIGATIONS.has(role.coverage_obligation), true, `${role.role_id} coverage obligation must be canonical`);
-    if (role.coverage_obligation === 'required_decomposition_child') {
+    assert.equal(ACTIVATION_CLASSES.has(role.activation_class), true, `${role.role_id} activation class must be canonical`);
+    if (role.activation_class === 'decomposition_child') {
       assert.notEqual(role.parent_role_id, '', `${role.role_id} decomposition child must name a parent role`);
       assert.equal(requiredChildEdgesByRole.has(role.role_id), true, `${role.role_id} decomposition child must be activated by a required edge`);
       assert.equal(requiredChildEdgesByRole.get(role.role_id)?.length, 1, `${role.role_id} decomposition child must have one required activation edge`);
@@ -586,20 +599,18 @@ test('energy system representation library package structure is internally consi
     assert.equal(REPRESENTATION_KINDS.has(representation.representation_kind), true, `${representation.representation_id} kind must be canonical`);
     if (representation.is_default === 'true') {
       defaultCountByRole.set(representation.role_id, (defaultCountByRole.get(representation.role_id) ?? 0) + 1);
-      assert.equal(
-        representation.representation_kind,
-        role.default_representation_kind,
-        `${representation.representation_id} default kind must match roles.csv`,
-      );
     } else {
       assert.equal(representation.is_default, 'false', `${representation.representation_id} is_default must be true or false`);
     }
     const decompositionEdges = edgesByParentRepresentation.get(representation.representation_id) ?? [];
     if (representation.representation_kind === 'role_decomposition') {
-      assert.equal(representation.direct_method_kind, '', `${representation.representation_id} decomposition must not expose direct methods`);
       assert.equal(decompositionEdges.length > 0, true, `${representation.representation_id} decomposition must activate child roles`);
     } else {
-      assert.equal(METHOD_KINDS.has(representation.direct_method_kind), true, `${representation.representation_id} method kind must be canonical`);
+      assert.equal(
+        DIRECT_REPRESENTATION_KINDS.has(representation.representation_kind),
+        true,
+        `${representation.representation_id} direct representation kind must be canonical`,
+      );
       assert.equal(decompositionEdges.length, 0, `${representation.representation_id} direct bundle must not activate child roles`);
     }
   }
@@ -792,16 +803,25 @@ test('energy system representation library package structure is internally consi
       assert.ok(methodRepresentation, `${role.role_id}.${method.method_id} representation must resolve`);
       assert.equal(methodRepresentation.role_id, role.role_id, `${role.role_id}.${method.method_id} representation must belong to the same role`);
       assert.notEqual(methodRepresentation.representation_kind, 'role_decomposition', `${role.role_id}.${method.method_id} representation must be direct`);
-      assert.equal(method.method_kind, methodRepresentation.direct_method_kind, `${role.role_id}.${method.method_id} kind must match representation`);
-      assert.equal(METHOD_KINDS.has(method.method_kind), true, `${role.role_id}.${method.method_id} kind must be canonical`);
+      assert.equal(
+        DIRECT_REPRESENTATION_KINDS.has(methodRepresentation.representation_kind),
+        true,
+        `${role.role_id}.${method.method_id} representation kind must be a direct representation`,
+      );
       assert.equal(CONFIDENCE_RATINGS.has(method.confidence_rating), true, `${role.role_id}.${method.method_id} confidence must be canonical`);
       assert.equal(Number.isInteger(Number(method.sort_order)), true, `${role.role_id}.${method.method_id} sort_order must be an integer`);
       assertResolvesJsonIds(method.source_ids, sourceIds, `${role.role_id}.${method.method_id}.source_ids`);
       assertResolvesJsonIds(method.assumption_ids, assumptionIds, `${role.role_id}.${method.method_id}.assumption_ids`);
-      if (role.role_kind === 'residual') {
-        assert.equal(method.method_kind, 'residual', `${role.role_id} residual roles should expose residual methods`);
-        assert.equal(method.is_residual, 'true', `${role.role_id}.${method.method_id} residual flag must be true`);
-      }
+      assert.equal(
+        Object.prototype.hasOwnProperty.call(method, 'method_kind'),
+        false,
+        `${role.role_id}.${method.method_id} must not carry method_kind; residual semantics live on the representation`,
+      );
+      assert.equal(
+        Object.prototype.hasOwnProperty.call(method, 'is_residual'),
+        false,
+        `${role.role_id}.${method.method_id} must not carry is_residual; residual semantics live on the representation`,
+      );
     }
 
     for (const row of methodYears) {
@@ -953,15 +973,43 @@ test('schema companions stay aligned with the authored CSV headers', () => {
   }
 
   const rolesSchema = readJson('schema/roles.schema.json');
-  assert.deepEqual(new Set(rolesSchema.properties.role_kind.enum), ROLE_KINDS);
   assert.deepEqual(new Set(rolesSchema.properties.balance_type.enum), BALANCE_TYPES);
-  assert.deepEqual(new Set(rolesSchema.properties.coverage_obligation.enum), COVERAGE_OBLIGATIONS);
+  assert.deepEqual(new Set(rolesSchema.properties.activation_class.enum), ACTIVATION_CLASSES);
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(rolesSchema.properties, 'role_kind'),
+    false,
+    'roles schema must not retain role_kind after the role-first ontology migration',
+  );
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(rolesSchema.properties, 'coverage_obligation'),
+    false,
+    'roles schema must not retain coverage_obligation after the role-first ontology migration',
+  );
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(rolesSchema.properties, 'default_representation_kind'),
+    false,
+    'roles schema must not retain default_representation_kind after the role-first ontology migration',
+  );
   const roleMetricsSchema = readJson('schema/role_metrics.schema.json');
   assert.deepEqual(new Set(roleMetricsSchema.properties.emissions_importance_band.enum), EMISSIONS_IMPORTANCE_BANDS);
   const representationsSchema = readJson('schema/representations.schema.json');
   assert.deepEqual(new Set(representationsSchema.properties.representation_kind.enum), REPRESENTATION_KINDS);
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(representationsSchema.properties, 'direct_method_kind'),
+    false,
+    'representations schema must not retain direct_method_kind after the role-first ontology migration',
+  );
   const methodsSchema = readJson('schema/methods.schema.json');
-  assert.deepEqual(new Set(methodsSchema.properties.method_kind.enum), METHOD_KINDS);
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(methodsSchema.properties, 'method_kind'),
+    false,
+    'methods schema must not retain method_kind after the role-first ontology migration',
+  );
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(methodsSchema.properties, 'is_residual'),
+    false,
+    'methods schema must not retain is_residual after the role-first ontology migration',
+  );
 
   const canonicalSchemaText = JSON.stringify(Object.fromEntries(
     schemaChecks.map(([schemaPath]) => [schemaPath, readJson(schemaPath)]),

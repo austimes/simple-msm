@@ -16,17 +16,17 @@ The package keeps role data, explanation, evidence hooks, and validation materia
 
 ### Roles
 
-A role is the system function being covered: produce, supply, deliver, remove, or account for something. `shared/roles.csv` is the role registry and topology surface. It defines each `role_id`, label, description, topology area, parent role, role kind, balance type, output unit, coverage obligation, and default representation kind.
+A role is the system function being covered: produce, supply, deliver, remove, or account for something. `shared/roles.csv` is the role registry and topology surface. It defines each `role_id`, label, description, topology area, parent role, balance type, output unit, and activation class.
 
-Roles are the model-structure ontology. Reporting labels such as sector and subsector are kept out of role topology and live only in `shared/reporting_allocations.csv`. A role can be a top-level coverage obligation or a child activated by a decomposition representation.
+Roles are the authoritative coverage ontology. Reporting labels such as sector and subsector are kept out of role topology and live only in `shared/reporting_allocations.csv`. A role is either a top-level coverage obligation (`activation_class = top_level`) or a child activated by a decomposition representation (`activation_class = decomposition_child`). Residual placeholder semantics do not live on the role; they are expressed at the representation layer through `representation_kind = residual_stub`.
 
 ### Role Topology
 
-The role topology records which coverage obligations exist and how decompositions activate child roles. A selected model structure must cover every required active role exactly once. Residual coverage is explicit: residual roles and residual methods are named rows, not hidden overlays.
+The role topology records which coverage obligations exist and how decompositions activate child roles. A selected model structure must cover every required active role exactly once. Residual coverage is explicit: roles whose modeling is currently a placeholder are represented through `representation_kind = residual_stub`, so the placeholder choice is visible at the representation layer rather than hidden inside method or node typing.
 
 ### Activity Drivers
 
-`shared/role_activity_drivers.csv` generalizes role demand into a role activity source. The initial driver kinds cover service or product demand, baseline scale factors for residual roles, linked parent activity for decomposition children, and exogenous series for scenario-driven activity.
+`shared/role_activity_drivers.csv` generalizes role demand into a role activity source. The initial driver kinds cover service or product demand, baseline scale factors for roles modelled as `residual_stub` representations, linked parent activity for decomposition children, and exogenous series for scenario-driven activity.
 
 The legacy role-local `demand.csv` files remain in the package while the solver and UI migrate. New logic should prefer activity drivers when it needs to understand why a role is active or how its base-year activity is anchored.
 
@@ -44,15 +44,16 @@ Reporting categories can group results too, but they do not create parent-child 
 
 ### Representations
 
-`shared/representations.csv` defines the available ways to model each role. The initial representation kinds are:
+`shared/representations.csv` defines the available ways to model each role. The canonical representation kinds are:
 
 - `pathway_bundle`
 - `technology_bundle`
+- `residual_stub`
 - `role_decomposition`
 
-Every active role must have exactly one active representation. Direct bundle representations expose methods. Decomposition representations activate child roles through `shared/role_decomposition_edges.csv`. When a decomposition is selected, the parent role's direct methods are inactive and the child roles must each be represented in turn.
+Every active role must have exactly one active representation. Direct bundle representations (`pathway_bundle`, `technology_bundle`, `residual_stub`) expose methods. A `residual_stub` representation explicitly models the role as a placeholder until richer pathway or technology methods are authored, and is the single authoritative place for residual placeholder semantics. Decomposition representations activate child roles through `shared/role_decomposition_edges.csv`. When a decomposition is selected, the parent role's direct methods are inactive and the child roles must each be represented in turn.
 
-`shared/representation_incumbents.csv` records the base-year incumbent method or method mix for each direct representation. Pathway and residual representations usually have one incumbent row with share `1.0`. Technology bundles can author multiple incumbent rows as a calibrated mix. Validation requires incumbent methods to belong to the same direct representation and incumbent shares to sum to `1.0` for each representation and anchor year.
+`shared/representation_incumbents.csv` records the base-year incumbent method or method mix for each direct representation. Pathway and residual-stub representations usually have one incumbent row with share `1.0`. Technology bundles can author multiple incumbent rows as a calibrated mix. Validation requires incumbent methods to belong to the same direct representation and incumbent shares to sum to `1.0` for each representation and anchor year.
 
 The current pilot is `make_crude_steel`. Its default representation remains the aggregate `pathway_bundle`, while the optional `role_decomposition` representation activates:
 
@@ -74,7 +75,7 @@ That pilot proves the package can keep complete crude-steel coverage without mak
 
 Each `roles/<role_id>/methods.csv` file lists the selectable methods for a direct representation bundle. Each `roles/<role_id>/method_years.csv` file holds the numeric method-year rows: costs, inputs, emissions, rollout limits, evidence, assumptions, and validation notes.
 
-Residual coverage is explicit. It is represented as residual roles and residual methods rather than hidden sidecars.
+Methods do not duplicate role or representation ontology: whether a direct bundle is a pathway, technology, or residual stub is recorded once on the representation row, not repeated through per-method residual typing. Residual coverage is explicit through `representation_kind = residual_stub`, not through hidden method sidecars.
 
 ### Reporting Allocations
 
@@ -119,7 +120,7 @@ Structural validation expects every role listed in `shared/roles.csv` to have a 
 The package structure test checks:
 
 - topology integrity: parent roles resolve, decomposition edges point at decomposition representations, required children point back to their parent role, and the role graph is acyclic;
-- activity driver integrity: every role has an activity driver, driver kinds are canonical, residual roles use baseline scale factors, and linked child drivers resolve to their parent roles;
+- activity driver integrity: every role has an activity driver, driver kinds are canonical, baseline-scale-factor drivers belong to roles whose default representation is a `residual_stub`, and linked child drivers resolve to their parent roles;
 - role metric integrity: every role has a metric row, baseline years resolve to 2025, and emissions importance bands are canonical;
 - physical graph integrity: physical parent nodes resolve, the physical hierarchy is acyclic, every role has one primary physical node membership, and physical edge endpoints resolve to physical nodes;
 - representation exclusivity: every role has exactly one default representation, direct representations expose methods, decomposition representations expose child edges, and decomposition representations do not carry direct methods;

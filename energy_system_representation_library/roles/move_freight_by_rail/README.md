@@ -7,7 +7,7 @@ This role makes domestic rail freight visible as a physical non-road transport r
 ## Role definition
 
 - Role id: `move_freight_by_rail`
-- Balance type: `residual_accounting`
+- Balance type: `service_demand`
 - Output unit: `residual_activity`
 - Output quantity basis: One residual activity unit carrying the freight rail share of the former transport-other calibration.
 - Default incumbent method id: `transport_rail_freight__residual_incumbent`
