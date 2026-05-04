@@ -47,7 +47,7 @@ export default function LibraryRoleGraph({
           <span className="configuration-badge">Role Graph</span>
           <h2>Roles, representations, methods</h2>
           <p>
-            {graphData.nodes.filter((node) => node.kind === 'physical').length} physical nodes and {graphData.nodes.filter((node) => node.kind === 'role').length} roles visible from {model.topLevelPhysicalNodes.length} top-level physical nodes.
+            {graphData.nodes.filter((node) => node.kind === 'role').length} roles visible from {model.topLevelRoles.length} top-level roles.
           </p>
         </div>
       </div>

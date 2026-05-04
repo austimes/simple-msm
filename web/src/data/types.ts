@@ -466,43 +466,6 @@ export interface RoleActivityDriver {
   notes: string;
 }
 
-export type PhysicalSystemNodeKind =
-  | 'cluster'
-  | 'root';
-
-export interface PhysicalSystemNode {
-  node_id: string;
-  node_label: string;
-  description: string;
-  parent_node_id: string | null;
-  node_kind: PhysicalSystemNodeKind;
-  boundary: string;
-  display_order: number;
-  notes: string;
-}
-
-export type RoleMembershipKind = 'cluster_membership';
-
-export interface RoleMembership {
-  role_id: string;
-  node_id: string;
-  membership_kind: RoleMembershipKind;
-  is_primary: boolean;
-  coverage_notes: string;
-}
-
-export type PhysicalEdgeKind = 'groups_with' | 'flows_to';
-
-export interface PhysicalEdge {
-  edge_id: string;
-  from_node_id: string;
-  to_node_id: string;
-  edge_kind: PhysicalEdgeKind;
-  flow_label: string;
-  display_order: number;
-  notes: string;
-}
-
 export interface RoleDecompositionEdge {
   parent_representation_id: string;
   parent_role_id: string;
@@ -697,9 +660,6 @@ export interface PackageData {
   representationIncumbents: RepresentationIncumbent[];
   roleDecompositionEdges: RoleDecompositionEdge[];
   roleActivityDrivers: RoleActivityDriver[];
-  physicalSystemNodes: PhysicalSystemNode[];
-  roleMemberships: RoleMembership[];
-  physicalEdges: PhysicalEdge[];
   reportingAllocations: ReportingAllocation[];
   methods: Method[];
   methodYears: MethodYear[];
