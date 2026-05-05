@@ -11,16 +11,13 @@ move_freight_by_rail,service_demand,move_freight_by_rail__pathway_bundle,residua
 move_passengers_by_air,service_demand,move_passengers_by_air__pathway_bundle,residual_stub,1,6,medium,pilot,true,covered,Minimum coverage is explicit but still temporary or low-confidence.
 move_freight_by_marine,service_demand,move_freight_by_marine__pathway_bundle,residual_stub,1,6,low,pilot,true,covered,Minimum coverage is explicit but still temporary or low-confidence.
 operate_off_road_mobile_equipment,service_demand,operate_off_road_mobile_equipment__pathway_bundle,residual_stub,1,6,low,pilot,true,covered,Minimum coverage is explicit but still temporary or low-confidence.
-deliver_low_temperature_heat,service_demand,deliver_low_temperature_heat__pathway_bundle,pathway_bundle,3,18,medium,ok,true,covered,Minimum coverage is explicit but still temporary or low-confidence.
-deliver_medium_temperature_heat,service_demand,deliver_medium_temperature_heat__pathway_bundle,pathway_bundle,3,18,medium,ok,true,covered,Minimum coverage is explicit but still temporary or low-confidence.
-deliver_high_temperature_heat,service_demand,deliver_high_temperature_heat__pathway_bundle,pathway_bundle,3,18,medium,ok,true,covered,Minimum coverage is explicit but still temporary or low-confidence.
 make_crude_steel,service_demand,make_crude_steel__pathway_bundle,pathway_bundle,4,24,medium,ok,true,covered,Minimum coverage is explicit but still temporary or low-confidence.
 make_non_h2_dri_crude_steel,service_demand,make_non_h2_dri_crude_steel__pathway_bundle,pathway_bundle,3,18,unknown,pilot,true,covered,Minimum coverage is explicit but still temporary or low-confidence.
 make_direct_reduced_iron,intermediate_material,make_direct_reduced_iron__technology_bundle,technology_bundle,3,18,unknown,pilot,true,covered,Minimum coverage is explicit but still temporary or low-confidence.
 melt_and_refine_dri_into_crude_steel,intermediate_conversion,melt_and_refine_dri_into_crude_steel__technology_bundle,technology_bundle,2,12,unknown,pilot,true,covered,Minimum coverage is explicit but still temporary or low-confidence.
 make_cement_equivalent,service_demand,make_cement_equivalent__pathway_bundle,pathway_bundle,3,18,medium,ok,true,covered,Minimum coverage is explicit but still temporary or low-confidence.
-make_chemical_products,service_demand,make_chemical_products__pathway_bundle,residual_stub,1,6,medium,ok,true,covered,Minimum coverage is explicit but still temporary or low-confidence.
-make_other_material_products,service_demand,make_other_material_products__pathway_bundle,residual_stub,1,6,medium,ok,true,covered,Minimum coverage is explicit but still temporary or low-confidence.
+make_chemical_products,service_demand,make_chemical_products__pathway_bundle,residual_stub,1,6,high,ok,true,covered,Minimum coverage is explicit but still temporary or low-confidence.
+make_other_material_products,service_demand,make_other_material_products__pathway_bundle,residual_stub,1,6,high,ok,true,covered,Minimum coverage is explicit but still temporary or low-confidence.
 supply_grid_electricity,commodity_supply,supply_grid_electricity__pathway_bundle,pathway_bundle,3,18,very_high,ok,false,covered,"Minimum coverage resolves to a default direct representation, method-year rows and role metric."
 account_grid_losses_and_own_use,accounting_obligation,account_grid_losses_and_own_use__pathway_bundle,residual_stub,1,6,zero,ok,true,covered,Minimum coverage is explicit but still temporary or low-confidence.
 account_residual_mining_energy,service_demand,account_residual_mining_energy__pathway_bundle,residual_stub,1,6,high,ok,true,covered,Minimum coverage is explicit but still temporary or low-confidence.

@@ -54,34 +54,7 @@ export const embodiedEfficiencyPathwayEntries: EmbodiedEfficiencyPathwayEntry[] 
     methodIds: ['road_transport__freight_road__fcev_h2'],
     rationale: 'Fuel-cell efficiency is inseparable from hydrogen-route choice.',
   },
-  {
-    conceptId: 'industrial_heat__low_temperature__electrification_route',
-    familyIds: ['low_temperature_heat'],
-    methodIds: ['generic_industrial_heat__low_temperature_heat__electrified'],
-    rationale: 'Heat pumps and electric boilers are route changes.',
-  },
-  {
-    conceptId: 'industrial_heat__medium_temperature__electrification_route',
-    familyIds: ['medium_temperature_heat'],
-    methodIds: ['generic_industrial_heat__medium_temperature_heat__electrified'],
-    rationale: 'Electric-route gains stay in the existing state definition.',
-  },
-  {
-    conceptId: 'industrial_heat__high_temperature__electrification_route',
-    familyIds: ['high_temperature_heat'],
-    methodIds: ['generic_industrial_heat__high_temperature_heat__electrified'],
-    rationale: 'High-temperature electrification is especially route-specific.',
-  },
-  {
-    conceptId: 'industrial_heat__all_temperatures__low_carbon_fuel_route',
-    familyIds: ['low_temperature_heat', 'medium_temperature_heat', 'high_temperature_heat'],
-    methodIds: [
-      'generic_industrial_heat__low_temperature_heat__low_carbon_fuels',
-      'generic_industrial_heat__medium_temperature_heat__low_carbon_fuels',
-      'generic_industrial_heat__high_temperature_heat__low_carbon_fuels',
-    ],
-    rationale: 'Hydrogen and biomass route changes alter carrier and infrastructure requirements.',
-  },
+
   {
     conceptId: 'steel__crude_steel__route_shift_and_ccs_bundle',
     familyIds: ['crude_steel'],

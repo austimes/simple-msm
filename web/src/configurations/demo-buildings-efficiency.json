@@ -22,9 +22,6 @@
     "provide_water_and_wastewater_services": "provide_water_and_wastewater_services__pathway_bundle",
     "serve_commercial_building_occupants": "serve_commercial_building_occupants__pathway_bundle",
     "move_freight_by_road": "move_freight_by_road__pathway_bundle",
-    "deliver_high_temperature_heat": "deliver_high_temperature_heat__pathway_bundle",
-    "deliver_low_temperature_heat": "deliver_low_temperature_heat__pathway_bundle",
-    "deliver_medium_temperature_heat": "deliver_medium_temperature_heat__pathway_bundle",
     "move_passengers_by_road": "move_passengers_by_road__pathway_bundle",
     "serve_residential_building_occupants": "serve_residential_building_occupants__pathway_bundle",
     "make_cement_equivalent": "make_cement_equivalent__pathway_bundle",
@@ -108,18 +105,6 @@
       "mode": "optimize",
       "active_method_ids": []
     },
-    "deliver_high_temperature_heat": {
-      "mode": "optimize",
-      "active_method_ids": []
-    },
-    "deliver_low_temperature_heat": {
-      "mode": "optimize",
-      "active_method_ids": []
-    },
-    "deliver_medium_temperature_heat": {
-      "mode": "optimize",
-      "active_method_ids": []
-    },
     "move_passengers_by_road": {
       "mode": "optimize",
       "active_method_ids": []
@@ -197,30 +182,6 @@
       "2040": 297787891458,
       "2045": 316089156233,
       "2050": 335515168863
-    },
-    "low_temperature_heat": {
-      "2025": 120000000,
-      "2030": 123030150,
-      "2035": 126136816,
-      "2040": 129321929,
-      "2045": 132587469,
-      "2050": 135935469
-    },
-    "medium_temperature_heat": {
-      "2025": 140000000,
-      "2030": 143535175,
-      "2035": 147159618,
-      "2040": 150875583,
-      "2045": 154685381,
-      "2050": 158591381
-    },
-    "high_temperature_heat": {
-      "2025": 170000000,
-      "2030": 173427309,
-      "2035": 176923715,
-      "2040": 180490610,
-      "2045": 184129417,
-      "2050": 187841584
     },
     "crude_steel": {
       "2025": 5700000,
@@ -376,9 +337,6 @@
       "commercial_building_services": 314000000,
       "passenger_road_transport": 293414730000,
       "freight_road_transport": 249000000000,
-      "low_temperature_heat": 120000000,
-      "medium_temperature_heat": 140000000,
-      "high_temperature_heat": 170000000,
       "crude_steel": 5700000,
       "cement_equivalent": 9600000,
       "livestock_output_bundle": 31134.94,
@@ -403,9 +361,6 @@
       "commercial_building_services": 0.9,
       "passenger_road_transport": 0.8,
       "freight_road_transport": 1.2,
-      "low_temperature_heat": 0.5,
-      "medium_temperature_heat": 0.5,
-      "high_temperature_heat": 0.4,
       "crude_steel": 0.4,
       "cement_equivalent": 0.3,
       "livestock_output_bundle": 0.2,

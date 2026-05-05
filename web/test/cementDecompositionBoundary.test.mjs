@@ -58,7 +58,7 @@ test('cement decomposition boundary assigns heat fuel and emissions ownership on
 
   assert.equal(kilnHeat?.heat_fuel_ownership, 'owns_host_specific_cement_kiln_heat_and_fuel_inputs');
   assert.equal(kilnHeat?.energy_emissions_ownership, 'owns_direct_fuel_combustion_co2_and_energy_inputs');
-  assert.match(kilnHeat?.double_counting_guardrail ?? '', /deliver_high_temperature_heat/);
+  assert.match(kilnHeat?.double_counting_guardrail ?? '', /make_other_material_products/);
 
   assert.equal(finish?.process_emissions_ownership, 'excludes_calcination_process_co2');
   assert.equal(finish?.energy_emissions_ownership, 'owns_grinding_blending_electricity_inputs_only');

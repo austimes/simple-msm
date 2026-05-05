@@ -88,7 +88,7 @@ test('cement aggregate representation keeps integrated heat fuel and process bou
   assert.match(summary.integrated_heat_fuel_boundary, /kiln heat fuel electricity/);
   assert.match(summary.process_emissions_boundary, /calcination/);
   assert.match(summary.ccs_boundary, /capture_service/);
-  assert.match(summary.double_counting_guardrail, /deliver_high_temperature_heat/);
+  assert.match(summary.double_counting_guardrail, /make_other_material_products folded high-temperature industrial heat/);
   assert.match(readme, /Aggregate Representation Boundary/);
   assert.match(validation, /direct pathway representation with 3 methods/);
 });

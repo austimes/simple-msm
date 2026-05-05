@@ -307,7 +307,7 @@ test('buildSolveRequest resolves efficiency controls into active track and packa
       efficiencyPackages: [
         { role_id: 'serve_residential_building_occupants', package_id: 'residential_shell_retrofit' },
         { role_id: 'serve_commercial_building_occupants', package_id: 'commercial_hvac_tuning' },
-        { role_id: 'deliver_low_temperature_heat', package_id: 'boiler_insulation' },
+        { role_id: 'make_chemical_products', package_id: 'boiler_insulation' },
       ],
     },
     configuration,

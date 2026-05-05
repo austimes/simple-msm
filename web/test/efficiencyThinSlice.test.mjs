@@ -6,21 +6,14 @@ import { runScenario } from '../src/results/runScenario.ts';
 import { materializeServiceControlsFromRoleControls } from './roleControlTestUtils.mjs';
 
 const RESIDENTIAL_OUTPUT_ID = 'residential_building_services';
-const LOW_TEMPERATURE_OUTPUT_ID = 'low_temperature_heat';
 const RESIDENTIAL_INCUMBENT_STATE_ID = 'buildings__residential__incumbent_mixed_fuels';
-const LOW_TEMPERATURE_INCUMBENT_STATE_ID = 'generic_industrial_heat__low_temperature_heat__fossil';
 const RESIDENTIAL_PACKAGE_ID = 'buildings__residential__thermal_shell_retrofit';
-const LOW_TEMPERATURE_TRACK_ID = 'industrial_heat__low_temperature__background_thermal_drift';
-const LOW_TEMPERATURE_PACKAGE_ID = 'industrial_heat__low_temperature__thermal_system_retrofit';
 const MILESTONE_YEARS = [2025, 2030, 2035, 2040, 2045, 2050];
 
 const EXPECTED_AUTONOMOUS_TRACK_IDS = [
   'buildings__commercial__background_standards_drift',
   'buildings__residential__background_standards_drift',
   'cement__cement_equivalent__background_kiln_grinding_drift',
-  'industrial_heat__high_temperature__background_thermal_drift',
-  'industrial_heat__low_temperature__background_thermal_drift',
-  'industrial_heat__medium_temperature__background_thermal_drift',
   'road_transport__freight_road__background_diesel_efficiency_drift',
   'road_transport__passenger_road__background_new_vehicle_efficiency_drift',
   'steel__crude_steel__bf_bof_background_drift',
@@ -33,12 +26,6 @@ const EXPECTED_PACKAGE_IDS = [
   'cement__cement_equivalent__grinding_system_upgrade',
   'cement__cement_equivalent__kiln_ai_process_optimisation',
   'electricity__grid_supply__thermal_auxiliary_load_tuning',
-  'industrial_heat__high_temperature__combustion_heat_recovery',
-  'industrial_heat__high_temperature__controls_tuning',
-  'industrial_heat__low_temperature__controls_tuning',
-  'industrial_heat__low_temperature__thermal_system_retrofit',
-  'industrial_heat__medium_temperature__controls_tuning',
-  'industrial_heat__medium_temperature__thermal_system_retrofit',
   'road_transport__freight_road__fleet_telematics_eco_driving',
   'steel__crude_steel__advanced_process_control',
   'steel__crude_steel__bf_bof_bof_gas_recovery',
@@ -77,17 +64,13 @@ function buildThinSliceConfiguration(pkg) {
     mode: 'optimize',
     active_state_ids: [RESIDENTIAL_INCUMBENT_STATE_ID],
   };
-  configuration.service_controls[LOW_TEMPERATURE_OUTPUT_ID] = {
-    mode: 'optimize',
-    active_state_ids: [LOW_TEMPERATURE_INCUMBENT_STATE_ID],
-  };
   configuration.efficiency_controls = {
     autonomous_mode: 'baseline',
     package_mode: 'allow_list',
-    package_ids: [RESIDENTIAL_PACKAGE_ID, LOW_TEMPERATURE_PACKAGE_ID],
+    package_ids: [RESIDENTIAL_PACKAGE_ID],
   };
   configuration.name = 'Efficiency thin slice test';
-  configuration.description = 'Residential buildings plus low-temperature industrial heat with authored efficiency artifacts enabled.';
+  configuration.description = 'Residential buildings with authored efficiency artifacts enabled.';
 
   return resolveConfigurationDocument(configuration, pkg.appConfig, configuration.name);
 }
@@ -96,16 +79,8 @@ test('loadPackage picks up the canonical efficiency thin slice and existing vali
   const pkg = loadPackage();
 
   assert.ok(
-    pkg.autonomousEfficiencyTracks.some((row) => row.track_id === LOW_TEMPERATURE_TRACK_ID),
-    'expected the low-temperature autonomous track to be present in the canonical package',
-  );
-  assert.ok(
     pkg.efficiencyPackages.some((row) => row.package_id === RESIDENTIAL_PACKAGE_ID),
     'expected the residential efficiency package to be present in the canonical package',
-  );
-  assert.ok(
-    pkg.efficiencyPackages.some((row) => row.package_id === LOW_TEMPERATURE_PACKAGE_ID),
-    'expected the low-temperature efficiency package to be present in the canonical package',
   );
   assert.ok(pkg.commodityBalance2025.length > 0, 'expected baseline commodity validation outputs to remain available');
   assert.ok(pkg.emissionsBalance2025.length > 0, 'expected baseline emissions validation outputs to remain available');
@@ -142,20 +117,6 @@ test('the real efficiency thin slice loads, solves, and carries attribution prov
 
   assert.equal(snapshot.result.status, 'solved');
 
-  const lowTemperatureBase2030 = snapshot.request.rows.find(
-    (row) => row.rowId === `${LOW_TEMPERATURE_INCUMBENT_STATE_ID}::2030`,
-  );
-  assert.ok(lowTemperatureBase2030, 'expected the low-temperature fossil base row in the request');
-  assert.deepEqual(lowTemperatureBase2030.provenance?.autonomousTrackIds, [LOW_TEMPERATURE_TRACK_ID]);
-
-  const gasInput2030 = lowTemperatureBase2030.inputs.find((input) => input.commodityId === 'natural_gas');
-  assert.ok(gasInput2030, 'expected low-temperature fossil gas input to be present');
-  assert.ok(Math.abs(gasInput2030.coefficient - 1.08) < 1e-6);
-
-  const lowTemperatureEmissions2030 = lowTemperatureBase2030.directEmissions.find((entry) => entry.source === 'energy');
-  assert.ok(lowTemperatureEmissions2030, 'expected low-temperature fossil combustion emissions to be present');
-  assert.ok(Math.abs(lowTemperatureEmissions2030.value - 0.0556524) < 1e-6);
-
   const residentialPackageMethodId = `effpkg:${RESIDENTIAL_INCUMBENT_STATE_ID}::${RESIDENTIAL_PACKAGE_ID}`;
   const residentialPackageShare2050 = snapshot.result.reporting.methodShares.find((row) => {
     return row.year === 2050 && row.outputId === RESIDENTIAL_OUTPUT_ID && row.methodId === residentialPackageMethodId;
@@ -164,13 +125,4 @@ test('the real efficiency thin slice loads, solves, and carries attribution prov
   assert.ok((residentialPackageShare2050.activity ?? 0) > 0, 'expected the residential package to carry activity in the thin slice');
   assert.equal(residentialPackageShare2050.provenance?.kind, 'efficiency_package');
   assert.equal(residentialPackageShare2050.provenance?.packageId, RESIDENTIAL_PACKAGE_ID);
-
-  const lowTemperaturePackageMethodId = `effpkg:${LOW_TEMPERATURE_INCUMBENT_STATE_ID}::${LOW_TEMPERATURE_PACKAGE_ID}`;
-  const lowTemperaturePackageFuelContribution = snapshot.contributions.find((row) => {
-    return row.metric === 'fuel' && row.year === 2050 && row.sourceId === lowTemperaturePackageMethodId;
-  });
-  assert.ok(lowTemperaturePackageFuelContribution, 'expected a low-temperature package fuel contribution row in 2050');
-  assert.equal(lowTemperaturePackageFuelContribution.provenance?.kind, 'efficiency_package');
-  assert.equal(lowTemperaturePackageFuelContribution.provenance?.packageId, LOW_TEMPERATURE_PACKAGE_ID);
-  assert.deepEqual(lowTemperaturePackageFuelContribution.provenance?.autonomousTrackIds, [LOW_TEMPERATURE_TRACK_ID]);
 });

@@ -48,10 +48,10 @@ describe('Residual role migration', () => {
 });
 
 describe('Residual role aggregation totals', () => {
-  it('total residual final energy excluding grid losses is about 1354.152 PJ', () => {
+  it('total residual final energy excluding grid losses is about 1796.152 PJ', () => {
     assert.ok(
-      Math.abs(totals.totalResidualEnergyPj - 1354.152) < 0.5,
-      `Expected about 1354.152, got ${totals.totalResidualEnergyPj}`,
+      Math.abs(totals.totalResidualEnergyPj - 1796.152) < 0.5,
+      `Expected about 1796.152, got ${totals.totalResidualEnergyPj}`,
     );
   });
 
@@ -69,10 +69,10 @@ describe('Residual role aggregation totals', () => {
     );
   });
 
-  it('total residual energy emissions are about 57.169 MtCO2e', () => {
+  it('total residual energy emissions are about 76.517 MtCO2e', () => {
     assert.ok(
-      Math.abs(totals.totalResidualEnergyEmissions - 57.169) < 0.001,
-      `Expected about 57.169, got ${totals.totalResidualEnergyEmissions}`,
+      Math.abs(totals.totalResidualEnergyEmissions - 76.517) < 0.001,
+      `Expected about 76.517, got ${totals.totalResidualEnergyEmissions}`,
     );
   });
 
@@ -87,10 +87,10 @@ describe('Residual role aggregation totals', () => {
     assert.equal(totals.lulucfSinkMtco2e, -73.7);
   });
 
-  it('total positive carbon-billable residual emissions are about 219.038 MtCO2e', () => {
+  it('total positive carbon-billable residual emissions are about 238.386 MtCO2e', () => {
     assert.ok(
-      Math.abs(totals.totalCarbonBillableEmissionsMtco2e - 219.038) < 0.001,
-      `Expected about 219.038, got ${totals.totalCarbonBillableEmissionsMtco2e}`,
+      Math.abs(totals.totalCarbonBillableEmissionsMtco2e - 238.386) < 0.001,
+      `Expected about 238.386, got ${totals.totalCarbonBillableEmissionsMtco2e}`,
     );
   });
 });

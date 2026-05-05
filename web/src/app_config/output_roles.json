@@ -97,48 +97,6 @@
     ],
     "explanation_group": "road_transport"
   },
-  "low_temperature_heat": {
-    "output_role": "required_service",
-    "display_label": "Low-temperature heat",
-    "display_group": "Industrial heat",
-    "display_group_order": 30,
-    "display_order": 10,
-    "participates_in_commodity_balance": false,
-    "demand_required": true,
-    "default_control_mode": "optimize",
-    "allowed_control_modes": [
-      "optimize"
-    ],
-    "explanation_group": "industrial_heat"
-  },
-  "medium_temperature_heat": {
-    "output_role": "required_service",
-    "display_label": "Medium-temperature heat",
-    "display_group": "Industrial heat",
-    "display_group_order": 30,
-    "display_order": 20,
-    "participates_in_commodity_balance": false,
-    "demand_required": true,
-    "default_control_mode": "optimize",
-    "allowed_control_modes": [
-      "optimize"
-    ],
-    "explanation_group": "industrial_heat"
-  },
-  "high_temperature_heat": {
-    "output_role": "required_service",
-    "display_label": "High-temperature heat",
-    "display_group": "Industrial heat",
-    "display_group_order": 30,
-    "display_order": 30,
-    "participates_in_commodity_balance": false,
-    "demand_required": true,
-    "default_control_mode": "optimize",
-    "allowed_control_modes": [
-      "optimize"
-    ],
-    "explanation_group": "industrial_heat"
-  },
   "manufacturing_other": {
     "output_role": "required_service",
     "display_label": "Manufacturing other",

@@ -81,52 +81,6 @@ const DEMO_EXPECTATIONS = [
     },
   },
   {
-    id: 'demo-industrial-heat-efficiency',
-    packageIds: [
-      'electricity__grid_supply__thermal_auxiliary_load_tuning',
-      'industrial_heat__high_temperature__combustion_heat_recovery',
-      'industrial_heat__high_temperature__controls_tuning',
-      'industrial_heat__low_temperature__controls_tuning',
-      'industrial_heat__low_temperature__thermal_system_retrofit',
-      'industrial_heat__medium_temperature__controls_tuning',
-      'industrial_heat__medium_temperature__thermal_system_retrofit',
-    ],
-    controls: {
-      electricity: {
-        mode: 'optimize',
-        activeMethodIds: [
-          'electricity__grid_supply__incumbent_thermal_mix',
-          'electricity__grid_supply__policy_frontier',
-          'electricity__grid_supply__deep_clean_firmed',
-        ],
-      },
-      low_temperature_heat: {
-        mode: 'optimize',
-        activeMethodIds: [
-          'generic_industrial_heat__low_temperature_heat__fossil',
-          'generic_industrial_heat__low_temperature_heat__electrified',
-          'generic_industrial_heat__low_temperature_heat__low_carbon_fuels',
-        ],
-      },
-      medium_temperature_heat: {
-        mode: 'optimize',
-        activeMethodIds: [
-          'generic_industrial_heat__medium_temperature_heat__fossil',
-          'generic_industrial_heat__medium_temperature_heat__electrified',
-          'generic_industrial_heat__medium_temperature_heat__low_carbon_fuels',
-        ],
-      },
-      high_temperature_heat: {
-        mode: 'optimize',
-        activeMethodIds: [
-          'generic_industrial_heat__high_temperature_heat__fossil',
-          'generic_industrial_heat__high_temperature_heat__electrified',
-          'generic_industrial_heat__high_temperature_heat__low_carbon_fuels',
-        ],
-      },
-    },
-  },
-  {
     id: 'demo-heavy-industry-efficiency',
     packageIds: [
       'cement__cement_equivalent__grinding_system_upgrade',

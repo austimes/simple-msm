@@ -16,7 +16,7 @@
 - Baseline validation outputs must include this role in the 2025 package checks whenever it contributes activity, commodity use, emissions, or electricity demand.
 - Any balance notes embedded in the role rows must remain visible in the generated validation summary.
 - `make_cement_equivalent__pathway_bundle` must remain a direct pathway representation with 3 methods, 18 method-year rows, incumbent metadata, product-demand activity driver, and a medium emissions-importance metric.
-- The aggregate representation must keep cement kiln heat and fuel use inside the cement method rows and must not also activate `deliver_high_temperature_heat` for the same cement-equivalent output.
+- The aggregate representation must keep cement kiln heat and fuel use inside the cement method rows and must not also duplicate the high-temperature industrial heat coefficients folded into `make_other_material_products` for the same cement-equivalent output.
 - Process emissions in the aggregate rows must remain calcination coefficients on a cement-equivalent output basis until the planned clinker decomposition is selected.
 
 ## Validation tolerances

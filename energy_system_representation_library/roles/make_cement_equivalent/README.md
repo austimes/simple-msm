@@ -47,7 +47,7 @@ The Phase 1 package keeps 3 method ids for this role so the explorer and solver 
 
 `make_cement_equivalent__pathway_bundle` is the default direct pathway representation for cement-equivalent output. While it is selected, each method owns the integrated cement plant boundary: clinker kiln heat and fuels, grinding electricity, clinker substitution, and cement-equivalent calcination process emissions.
 
-This aggregate representation should not also activate `deliver_high_temperature_heat` for the same cement output. Host-specific kiln heat remains inside the cement pathway rows until the planned `make_cement_equivalent__clinker_decomposition` representation is selected.
+This aggregate representation should not also activate the high-temperature industrial heat coefficients folded into `make_other_material_products` for the same cement output. Host-specific kiln heat remains inside the cement pathway rows until the planned `make_cement_equivalent__clinker_decomposition` representation is selected.
 
 The CCS pathway uses `capture_service` as a bundled proxy for captured cement CO2. It is not yet the decomposed capture/transport/storage chain, so downstream comparisons should treat its capture quantity as internal to the aggregate cement method.
 
