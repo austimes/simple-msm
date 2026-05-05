@@ -241,16 +241,10 @@ describe('additionality analysis', () => {
   test('derives the expected method-toggle atoms for reference-baseline vs synthetic state-open target', () => {
     const atoms = deriveAdditionalityAtoms(buildBaseCase(), buildStateOpenCase(), pkg);
 
-    assert.equal(atoms.length, 24);
+    assert.equal(atoms.length, 18);
     assert.deepEqual(
       atoms.map((atom) => `${atom.outputLabel}|${atom.methodLabel}|${atom.action}`),
       [
-        'Deliver high temperature heat|High-temperature electrified heat|enable',
-        'Deliver high temperature heat|High-temperature low-carbon fuels|enable',
-        'Deliver low temperature heat|Low-temperature electrified heat|enable',
-        'Deliver low temperature heat|Low-temperature low-carbon fuels|enable',
-        'Deliver medium temperature heat|Medium-temperature electrified heat|enable',
-        'Deliver medium temperature heat|Medium-temperature low-carbon fuels|enable',
         'Grow crops and horticulture output|Mitigated cropping and horticulture bundle|enable',
         'Make cement equivalent|Deep-abatement cement with CCS|enable',
         'Make cement equivalent|Low-clinker and alternative-fuels cement|enable',

@@ -5,9 +5,6 @@ export const OVERLAY_GROWTH_PROXY: Record<string, string[]> = {
   commercial_other: ['commercial_building_services'],
   transport_other: ['passenger_road_transport', 'freight_road_transport'],
   manufacturing_other: [
-    'low_temperature_heat',
-    'medium_temperature_heat',
-    'high_temperature_heat',
     'crude_steel',
     'cement_equivalent',
   ],
@@ -21,9 +18,6 @@ export const OVERLAY_GROWTH_PROXY: Record<string, string[]> = {
   ],
   residual_fugitives: [],
   residual_ippu_other: [
-    'low_temperature_heat',
-    'medium_temperature_heat',
-    'high_temperature_heat',
     'crude_steel',
     'cement_equivalent',
   ],

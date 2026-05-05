@@ -49,7 +49,7 @@ test('builds subsector efficiency control catalog', () => {
       package_ids: ['pkg_a'],
     },
   };
-  const heatRoleId = 'deliver_low_temperature_heat';
+  const heatRoleId = 'make_chemical_products';
   const catalog = buildEfficiencyControlCatalog(
     configuration,
     [
@@ -81,9 +81,7 @@ test('builds subsector efficiency control catalog', () => {
     2030: 0.25,
     2035: 0.4,
   });
-  assert.deepEqual(heat.embodiedMethodIds, [
-    'generic_industrial_heat__low_temperature_heat__electrified',
-  ]);
+  assert.deepEqual(heat.embodiedMethodIds, []);
   assert.equal(empty?.hasControls, false);
 });
 

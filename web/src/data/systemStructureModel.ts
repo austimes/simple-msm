@@ -42,9 +42,6 @@ export const SYSTEM_STRUCTURE_GROUPS: SystemStructureGroupDefinition[] = [
     id: 'industrial_production',
     label: 'Industrial production',
     outputIds: [
-      'low_temperature_heat',
-      'medium_temperature_heat',
-      'high_temperature_heat',
       'crude_steel',
       'cement_equivalent',
     ],

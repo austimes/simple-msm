@@ -1,2 +1,0 @@
-role_id,anchor_year,anchor_value,unit,demand_growth_curve_id,anchor_status,source_role,coverage_note,notes
-deliver_high_temperature_heat,2025,170000000.0,GJ_useful_heat,simple_role_growth_central__deliver_high_temperature_heat,synthetic_inherited,Phase 1 reference scenario v0.2,Inherited high-temperature useful-heat anchor from the synthetic Phase 1 calibration build; broad manufacturing proxy.,Migrated from the Phase 1 anchor table without changing the baseline value.
