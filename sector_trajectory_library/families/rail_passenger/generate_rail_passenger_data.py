@@ -2,14 +2,14 @@
 """
 Rail Passenger — Phase 1 Generator
 ====================================
-Generates rail_passenger family CSVs calibrated to AES 2023-24 and BITRE.
+Generates rail_passenger family CSVs calibrated to AES 2025 Table F1 (2023-24) and BITRE.
 
 Scope: Australian passenger rail (urban metro, suburban, and regional/intercity).
 Anchor: 22,000 million_pkm (BITRE Rail Summary Data; urban metro + regional rail).
 
 Calibration basis
 -----------------
-AES 2023-24 estimated rail passenger share: ~8 PJ.
+AES 2025 Table F1 (2023-24) rail (sector 47) = 64.9 PJ; passenger share 16 PJ (12.9 PJ electricity + 3.1 PJ regional diesel).
 BITRE Rail Summary Data: 22,000 million pkm total rail passenger.
 
 Per-unit energy intensity:
@@ -39,11 +39,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 YEARS = [2025, 2030, 2035, 2040, 2045, 2050]
 
 # ── calibration constants ────────────────────────────────────────────────────
-AES_TOTAL_PJ         = 8.0
+AES_TOTAL_PJ         = 16.0
 ANCHOR_MILLION_PKM   = 22_000     # million_pkm (BITRE rail summary)
-ELEC_2025            = 182.0      # GJ/million_pkm (50% of total)
-DIESEL_2025          = 182.0      # GJ/million_pkm (50% of total)
-TOTAL_INTENSITY_2025 = ELEC_2025 + DIESEL_2025  # 364 GJ/million_pkm
+ELEC_2025            = 586.0      # GJ/million_pkm (urban metro electricity dominant; AES 2025 Table F1 rail electricity 12.9 PJ allocated to passenger)
+DIESEL_2025          = 141.0      # GJ/million_pkm (regional diesel residual; total = 16 PJ - 12.9 PJ elec = 3.1 PJ diesel)
+TOTAL_INTENSITY_2025 = ELEC_2025 + DIESEL_2025  # 727 GJ/million_pkm
 EF_DIESEL            = 69.9       # kgCO2e/GJ
 EF_ELEC              = 0.0        # scope 2 excluded
 EF_H2                = 0.0        # green hydrogen
@@ -71,9 +71,10 @@ ROLLOUT_NOTES = (
 SOURCES     = json.dumps(["S001", "S004", "S012"])
 ASSUMPTIONS = json.dumps(["A002", "A003", "A022", "A023"])
 DERIVATION  = (
-    f"Energy coefficients from AES 2023-24 estimated rail passenger share ({AES_TOTAL_PJ} PJ) "
-    f"/ BITRE {ANCHOR_MILLION_PKM:,} million_pkm = {TOTAL_INTENSITY_2025:.1f} GJ/million_pkm. "
-    f"National average split: 50% electric (182 GJ), 50% diesel (182 GJ). "
+    f"Energy coefficients from AES 2025 Table F1 rail (64.9 PJ total = 52 PJ diesel + 12.9 PJ electricity, 2023-24); "
+    f"passenger share = {AES_TOTAL_PJ} PJ (electricity 12.9 + regional diesel 3.1). "
+    f"BITRE {ANCHOR_MILLION_PKM:,} million_pkm gives {TOTAL_INTENSITY_2025:.1f} GJ/million_pkm. "
+    f"Split: {ELEC_2025:.0f} GJ electricity (urban metro) + {DIESEL_2025:.0f} GJ diesel (regional). "
     f"NGGI check (scope 1 diesel): {ENERGY_CO2E_2025} × {ANCHOR_MILLION_PKM:,} / 1e6 = "
     f"{TOTAL_CO2E_2025_MT} MtCO2e."
 )
@@ -196,16 +197,17 @@ CONV_META = {
         "and interstate services are diesel. National average ~50% electric, 50% diesel "
         "by energy content. Electricity efficiency improves and diesel share declines "
         "as electrification progresses. "
-        "AES 2023-24 calibration: 8 PJ / 22,000 million_pkm = 364 GJ/million_pkm."
+        "AES 2025 Table F1 rail (2023-24): passenger share 16 PJ / 22,000 million_pkm = 727 GJ/million_pkm. "
+        "Split: 586 GJ electricity (urban metro), 141 GJ diesel (regional)."
     ),
     "commodities":  je(["electricity", "diesel"]),
     "units":        je(["GJ/million_pkm", "GJ/million_pkm"]),
     "input_basis":  (
-        "AES 2023-24 estimated rail passenger: 8 PJ / 22,000 million_pkm = 364 GJ/million_pkm. "
-        "50/50 split by energy: electricity 182, diesel 182 GJ/million_pkm (2025). "
-        "2050: electricity 195 (electrification shift), diesel 120 (fewer diesel services)."
+        "AES 2025 Table F1 rail (2023-24): passenger share 16 PJ / 22,000 million_pkm = 727 GJ/million_pkm. "
+        "Split by energy: electricity 586 (urban metro), diesel 141 GJ/million_pkm (2025). "
+        "2050: electricity 627 (further urban rail growth), diesel 95 (fewer diesel services)."
     ),
-    "evidence":     "AES 2023-24 Table F estimated rail passenger share; BITRE Rail Summary Data; NGGI rail.",
+    "evidence":     "AES 2025 Table F1 rail (passenger share); BITRE Rail Summary Data 2023-24; NGGI rail.",
     "confidence":   "Medium",
     "review_notes": (
         "50/50 energy split is a national average approximation. State-level electric "
@@ -222,8 +224,8 @@ CONV_META = {
 
 CONV_DATA = {}
 for _yr in YEARS:
-    _elec = round(interp(182.0, 195.0, _yr), 1)
-    _diesel = round(interp(182.0, 120.0, _yr), 1)
+    _elec = round(interp(586.0, 627.0, _yr), 1)
+    _diesel = round(interp(141.0, 95.0, _yr), 1)
     _eco2e = round(_diesel * EF_DIESEL / 1000, 1)
     _ms = round(interp(1.00, 0.55, _yr), 2)
     CONV_DATA[_yr] = dict(
@@ -400,11 +402,11 @@ DEMAND_ROW = {
     "source_family":         "Phase 1 reference scenario v0.1",
     "coverage_note": (
         f"BITRE Rail Summary Data: {ANCHOR_MILLION_PKM:,} million_pkm (urban metro + regional). "
-        f"AES 2023-24 estimated rail passenger share: {AES_TOTAL_PJ} PJ. "
+        f"AES 2025 Table F1 rail passenger share: {AES_TOTAL_PJ} PJ (2023-24). "
         f"Coverage: {AES_TOTAL_PJ*1e6 / (TOTAL_INTENSITY_2025 * ANCHOR_MILLION_PKM) * 100:.1f}%."
     ),
     "notes": (
-        f"Calibrated to AES 2023-24 estimated rail passenger energy and BITRE Rail Summary Data. "
+        f"Calibrated to AES 2025 Table F1 rail passenger share (2023-24) and BITRE Rail Summary Data. "
         f"Energy at anchor: {ANCHOR_MILLION_PKM:,} million_pkm × {TOTAL_INTENSITY_2025:.0f} GJ/million_pkm "
         f"= {TOTAL_INTENSITY_2025 * ANCHOR_MILLION_PKM / 1e6:.1f} PJ "
         f"(AES estimate: {AES_TOTAL_PJ} PJ). "

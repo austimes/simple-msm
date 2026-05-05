@@ -15,7 +15,7 @@ The family spans the main technology transition pathways for rail freight:
 - Family id: `rail_freight`
 - Output/service name: `rail_freight_task`
 - Output unit: `billion_tkm`
-- Output quantity basis: One billion tonne-kilometres of total Australian rail freight. Calibrated to AES 2023-24 estimated rail freight energy share (~25 PJ, predominantly diesel) and BITRE freight linehaul statistics 2023-24 (~700 billion tkm rail freight).
+- Output quantity basis: One billion tonne-kilometres of total Australian rail freight. Calibrated to AES 2025 Table F1 rail (sector 47) diesel share allocated to freight = 49 PJ (the heavy-haul / interstate intermodal diesel residual after allocating 12.9 PJ electricity and 3.1 PJ regional diesel to passenger services, 2023-24 column) and BITRE freight linehaul statistics 2023-24 (~700 billion tkm rail freight).
 - Demand trajectory: `stable_growing__rail_freight` (+0.8%/yr; stable heavy-haul bulk commodity, growing intermodal/containerised)
 - 2025 demand anchor: 700 billion_tkm
 - Default incumbent state id: `rail_freight__diesel_electric`
@@ -32,7 +32,7 @@ All state ids are authored across milestone years 2025, 2030, 2035, 2040, 2045, 
 
 ## Main sources used
 
-- `S001` — AES 2023-24 (estimated rail freight energy ~25 PJ). See `shared/source_ledger.csv`
+- `S001` — AES 2025 Table F1 (rail diesel 52 PJ; freight share = 49 PJ). See `shared/source_ledger.csv`
 - `S013` — BITRE freight linehaul statistics (700 billion tkm anchor). See `shared/source_ledger.csv`
 - `S032` — NGA Factors 2025 (diesel 69.9 kgCO2e/GJ). See `shared/source_ledger.csv`
 
@@ -47,11 +47,11 @@ All state ids are authored across milestone years 2025, 2030, 2035, 2040, 2045, 
 
 Phase 1 uses three technology states (one incumbent, two transition pathways) to represent the main decarbonisation options for Australian rail freight.
 
-The incumbent (`diesel_electric`) anchors to AES 2023-24 and BITRE freight statistics at national scale (100% coverage). OHL electrification (`overhead_electrification`) represents the capital-intensive but highly effective solution on the highest-density corridors — already operating on some segments of Australian private heavy-haul networks (Rio Tinto AutoHaul, BHP mine haul) and applicable to the Hunter Valley and Central Queensland coal lines. Hydrogen locomotives (`hydrogen_locomotive`) represent the pathway for the ~70% of Australian rail freight on non-electrified lines where OHL capital investment is not economically viable. These three states span the full technology range for rail freight decarbonisation without requiring route-specific decomposition.
+The incumbent (`diesel_electric`) anchors to AES 2025 Table F1 (rail diesel freight share, 2023-24) and BITRE freight statistics at national scale (100% coverage). OHL electrification (`overhead_electrification`) represents the capital-intensive but highly effective solution on the highest-density corridors — already operating on some segments of Australian private heavy-haul networks (Rio Tinto AutoHaul, BHP mine haul) and applicable to the Hunter Valley and Central Queensland coal lines. Hydrogen locomotives (`hydrogen_locomotive`) represent the pathway for the ~70% of Australian rail freight on non-electrified lines where OHL capital investment is not economically viable. These three states span the full technology range for rail freight decarbonisation without requiring route-specific decomposition.
 
 ## Known caveats
 
-- **AES passenger/freight rail split.** AES 2023-24 combines passenger and freight rail under ANZSIC 4610 (rail freight) and 4710 (urban passenger). The freight share (~25 PJ out of ~33 PJ total rail) is estimated using state government rail data and BITRE. This carries calibration uncertainty.
+- **AES passenger/freight rail split.** AES 2025 Table F1 sector 47 (Rail transport) reports 64.9 PJ total in 2023-24 (52 PJ diesel + 12.9 PJ electricity). This calibration allocates 49 PJ diesel to freight and assigns 3.1 PJ regional diesel + 12.9 PJ urban metro electricity to passenger. AES does not publish a passenger/freight split, so this allocation carries calibration uncertainty.
 - **Private vs public rail network.** Australian rail freight includes both government-operated networks (ARTC interstate, state grain lines) and private heavy-haul networks (Rio Tinto, BHP Billiton Iron Ore, Fortescue). Private networks already use some electrification for mine-to-port haulage. The national average blends these different operational regimes.
 - **OHL capital cost excluded.** The `overhead_electrification` state cost represents only operating and energy cost, not the very high capital cost of OHL infrastructure (~AUD 2–5 million/km for greenfield). For investment decisions, OHL electrification requires explicit capital assessment.
 - **Hydrogen locomotive availability.** No hydrogen locomotive operates commercially at scale in Australia as of 2025. The first Australian-relevant demonstrations (Wabtec FLXdrive hydrogen, CSIRO/Fortescue hydrogen locomotive R&D) are pre-commercial. The `hydrogen_locomotive` state is available from 2030 and carries a Low-Medium confidence rating.
@@ -93,33 +93,33 @@ Evidence basis: ARTC and Rio Tinto train control optimisation programmes report 
 
 | Commodity | Coefficient (GJ/billion_tkm) | Total at anchor |
 |---|---|---|
-| Diesel | 33,929 | 23.8 PJ |
-| Electricity | 1,786 | 1.2 PJ |
-| **Total energy** | **35,714** | **25.0 PJ** |
+| Diesel | 70,000 | 49.0 PJ |
+| Electricity | 0 | 0.0 PJ |
+| **Total energy** | **70,000** | **49.0 PJ** |
 
 | Emission stream | Coefficient | Total at anchor | Reference |
 |---|---|---|---|
-| Energy CO2e, scope 1 (diesel only) | 2,372 tCO2e/billion_tkm | 1.66 MtCO2e | NGGI rail freight ~1.5–2.0 MtCO2e |
+| Energy CO2e, scope 1 (diesel only) | 4,893 tCO2e/billion_tkm | 3.43 MtCO2e | NGGI rail freight (heavy haul + interstate intermodal) |
 | Electricity CO2e (scope 2, excluded) | — | — | Captured by electricity supply family |
 | Process CO2e | 0 | 0 | — |
 
-AES energy coverage: 25.0 PJ modelled vs ~25 PJ AES estimated rail freight = **100%** (note: AES passenger/freight split is estimated).
+AES 2025 Table F1 reference: rail (sector 47) shows 64.9 PJ total in 2023-24 (52.0 PJ diesel + 12.9 PJ electricity). Of which rail_freight share = 49 PJ (the diesel-dominated bulk haul / intermodal services). Rail_passenger takes the 12.9 PJ electricity (urban metro) plus 3.1 PJ regional diesel.
 
 Emission factor (NGA 2025, AR5 GWP100): diesel 69.9 kgCO2e/GJ.  
-Scope 1 CO2e: 33,929 × 69.9 / 1000 = 2,372 tCO2e/billion_tkm ✓
+Scope 1 CO2e: 70,000 × 69.9 / 1000 = 4,893 tCO2e/billion_tkm ✓
 
-**Energy efficiency context:** 35,714 GJ/billion_tkm = 0.036 MJ/tkm. For comparison: road freight heavy truck is approximately 1.5–2.0 MJ/tkm. Rail freight is ~40–55× more energy-efficient per tonne-km, reflecting the physics advantage of steel wheel on steel rail for heavy bulk loads.
+**Energy efficiency context:** 70,000 GJ/billion_tkm = 0.070 MJ/tkm. For comparison: road freight heavy truck is approximately 1.5–2.0 MJ/tkm. Rail freight is ~20–30× more energy-efficient per tonne-km, reflecting the physics advantage of steel wheel on steel rail for heavy bulk loads.
 
 ### Diesel-electric state trajectory
 
 | Year | Diesel (GJ/billion_tkm) | Electricity (GJ/billion_tkm) | Scope 1 CO2e (tCO2e/billion_tkm) |
 |---|---|---|---|
-| 2025 | 33,929 | 1,786 | 2,372 |
-| 2030 | 32,543 | 1,714 | 2,226 |
-| 2035 | 31,214 | 1,643 | 2,135 |
-| 2040 | 29,943 | 1,571 | 2,048 |
-| 2045 | 28,729 | 1,500 | 1,965 |
-| 2050 | 28,500 | 1,500 | 1,950 |
+| 2025 | 70,000 | 0 | 4,893 |
+| 2030 | 67,760 | 0 | 4,737 |
+| 2035 | 65,520 | 0 | 4,580 |
+| 2040 | 63,280 | 0 | 4,423 |
+| 2045 | 61,040 | 0 | 4,267 |
+| 2050 | 58,800 | 0 | 4,110 |
 
 ### Overhead electrification state at 2050 (indicative best-case)
 

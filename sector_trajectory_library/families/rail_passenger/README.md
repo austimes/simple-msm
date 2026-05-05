@@ -15,7 +15,7 @@ The family spans the main technology transition pathways for passenger rail:
 - Family id: `rail_passenger`
 - Output/service name: `rail_passenger_travel`
 - Output unit: `million_pkm`
-- Output quantity basis: One million passenger-kilometres of total Australian passenger rail service. Calibrated to AES 2023-24 estimated rail passenger energy share (~8 PJ, consisting of ~4 PJ electricity and ~4 PJ diesel) and BITRE Rail Summary Data 2023-24 (22,000 million pkm total rail passenger).
+- Output quantity basis: One million passenger-kilometres of total Australian passenger rail service. Calibrated to AES 2025 Table F1 rail share allocated to passenger services (16 PJ, consisting of 12.9 PJ electricity for urban metro plus 3.1 PJ diesel for regional services, 2023-24 column) and BITRE Rail Summary Data 2023-24 (22,000 million pkm total rail passenger).
 - Demand trajectory: `growing__rail_passenger` (+1.5%/yr; driven by urban population growth, new metro lines, and modal shift investment)
 - 2025 demand anchor: 22,000 million_pkm
 - Default incumbent state id: `rail_passenger__conventional_mixed`
@@ -33,7 +33,7 @@ All state ids are authored across milestone years 2025, 2030, 2035, 2040, 2045, 
 
 ## Main sources used
 
-- `S001` — AES 2023-24 (estimated rail passenger energy ~8 PJ). See `shared/source_ledger.csv`
+- `S001` — AES 2025 Table F1 (rail electricity 12.9 PJ allocated to passenger). See `shared/source_ledger.csv`
 - `S012` — BITRE Rail Summary Data 2023-24 (22,000 million pkm anchor). See `shared/source_ledger.csv`
 - `S032` — NGA Factors 2025 (diesel 69.9 kgCO2e/GJ). See `shared/source_ledger.csv`
 
@@ -52,7 +52,7 @@ The incumbent (`conventional_mixed`) anchors to the national-average energy mix 
 
 ## Known caveats
 
-- **AES passenger/freight rail split.** AES 2023-24 reports total rail energy (passenger + freight combined, ANZSIC 4610). The passenger share (~8 PJ out of ~33 PJ total) is estimated based on state government reports and BITRE data; it is not directly published. This introduces calibration uncertainty.
+- **AES passenger/freight rail split.** AES 2025 Table F1 reports total rail energy (passenger + freight combined, sector 47): 64.9 PJ in 2023-24 (52 PJ diesel + 12.9 PJ electricity). The split applied here allocates the full 12.9 PJ electricity to passenger services (urban metro is electric-dominant) plus 3.1 PJ regional diesel = 16 PJ passenger. The remainder (49 PJ diesel) is rail freight. AES does not publish a published passenger/freight split, so this allocation carries calibration uncertainty.
 - **Urban vs regional energy intensity.** The national-average 364 GJ/million_pkm blends energy-intensive diesel regional services (higher energy/pkm) with efficient urban metro rail (lower energy/pkm). Disaggregation by service class would yield materially different intensity parameters for each.
 - **OHL electrification capital not modelled.** The `fully_electrified` state's cost (AUD/million_pkm) represents only operating and maintenance costs, not the upfront OHL infrastructure capital. For investment planning purposes, electrification decisions require explicit capital assessment outside this reduced-form model.
 - **Hydrogen regional availability.** No hydrogen passenger train has been certified for operation in Australia as of 2025. The `hydrogen_regional` state is available from 2030, reflecting a realistic earliest commercial deployment timeline. Cost and energy coefficients carry Low confidence.
@@ -92,31 +92,31 @@ Evidence basis: Regenerative braking on urban rail systems consistently delivers
 
 | Commodity | Coefficient (GJ/million_pkm) | Total at anchor |
 |---|---|---|
-| Electricity | 182 | 4.0 PJ |
-| Diesel | 182 | 4.0 PJ |
-| **Total energy** | **364** | **8.0 PJ** |
+| Electricity | 586 | 12.9 PJ |
+| Diesel | 141 | 3.1 PJ |
+| **Total energy** | **727** | **16.0 PJ** |
 
 | Emission stream | Coefficient | Total at anchor | Reference |
 |---|---|---|---|
-| Energy CO2e, scope 1 (diesel only) | 12.7 tCO2e/million_pkm | 0.28 MtCO2e | NGGI rail passenger diesel scope 1 |
+| Energy CO2e, scope 1 (diesel only) | 9.9 tCO2e/million_pkm | 0.22 MtCO2e | NGGI rail passenger diesel scope 1 |
 | Electricity CO2e (scope 2, excluded) | — | — | Captured by electricity supply family |
 | Process CO2e | 0 | 0 | — |
 
-AES energy coverage: 8.0 PJ modelled vs ~8 PJ AES estimated rail passenger = **100%** (note: AES passenger/freight split is estimated).
+AES 2025 Table F1 reference: rail (sector 47) shows 64.9 PJ total (52 PJ diesel + 12.9 PJ electricity, 2023-24). All rail electricity (12.9 PJ) is allocated to passenger services (urban metro), and 3.1 PJ of diesel to regional passenger services, giving rail_passenger = 16 PJ. Rail freight = 49 PJ (the remaining diesel).
 
 Emission factor (NGA 2025, AR5 GWP100): diesel 69.9 kgCO2e/GJ.  
-Scope 1 CO2e: 182 × 69.9 / 1000 = 12.7 tCO2e/million_pkm ✓
+Scope 1 CO2e: 141 × 69.9 / 1000 = 9.9 tCO2e/million_pkm ✓
 
 ### Conventional mixed state trajectory
 
 | Year | Electricity (GJ/million_pkm) | Diesel (GJ/million_pkm) | Scope 1 CO2e (tCO2e/million_pkm) |
 |---|---|---|---|
-| 2025 | 182 | 182 | 12.7 |
-| 2030 | 185 | 165 | 11.3 |
-| 2035 | 188 | 150 | 10.3 |
-| 2040 | 191 | 136 | 9.3 |
-| 2045 | 193 | 127 | 8.7 |
-| 2050 | 195 | 120 | 8.2 |
+| 2025 | 586 | 141 | 9.9 |
+| 2030 | 594 | 132 | 9.2 |
+| 2035 | 603 | 123 | 8.6 |
+| 2040 | 611 | 113 | 7.9 |
+| 2045 | 619 | 104 | 7.3 |
+| 2050 | 627 | 95 | 6.6 |
 
 ### Fully electrified state at 2050 (indicative best-case)
 

@@ -8,7 +8,7 @@
 - Anchor status: `calibrated`
 - Default incumbent state id: `rail_passenger__conventional_mixed`
 - Source family: Phase 1 reference scenario v0.1
-- Coverage note: Anchored to BITRE Rail Summary Data (22,000 million_pkm, urban metro + regional) and AES 2023-24 estimated rail passenger share (8.0 PJ).
+- Coverage note: Anchored to BITRE Rail Summary Data (22,000 million_pkm, urban metro + regional) and AES 2025 Table F1 rail share allocated to passenger (16.0 PJ = 12.9 PJ electricity + 3.1 PJ regional diesel, 2023-24).
 
 ## What must reconcile at incumbent/default settings
 
@@ -23,10 +23,10 @@
 
 ## Known deviations
 
-- Energy at anchor: 22,000 million_pkm × 364 GJ/million_pkm = 8.0 PJ (AES 2023-24 estimate: 8.0 PJ).
-- Scope 1 CO2e (diesel combustion only): 12.7 tCO2e/million_pkm × 22,000 / 1e6 = 0.28 MtCO2e (NGA 2025 diesel EF 69.9 kgCO2e/GJ; NGGI rail ~0.3 MtCO2e ✓).
-- National average ~50% electric, 50% diesel by energy content (2025); urban metro/suburban systems predominantly electric, regional and interstate services diesel.
-- The AES total rail figure includes both passenger and freight; 8 PJ for passenger is an estimate derived by subtracting estimated freight share.
+- Energy at anchor: 22,000 million_pkm × 727 GJ/million_pkm = 16.0 PJ (AES 2025 Table F1 reference: 16.0 PJ rail passenger share, coverage = 100%).
+- Scope 1 CO2e (diesel combustion only): 9.9 tCO2e/million_pkm × 22,000 / 1e6 = 0.22 MtCO2e (NGA 2025 diesel EF 69.9 kgCO2e/GJ; NGGI 2025 rail passenger ✓).
+- National average ~80% electric (urban metro), ~20% diesel (regional) by energy content (2025); urban metro/suburban systems predominantly electric, regional services diesel.
+- The AES total rail figure (sector 47 = 64.9 PJ in 2023-24) is allocated 16 PJ to passenger and 49 PJ to freight; AES does not publish a passenger/freight split.
 
 ## What is intentionally approximate or excluded
 

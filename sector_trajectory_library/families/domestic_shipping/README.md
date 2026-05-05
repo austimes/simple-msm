@@ -15,7 +15,7 @@ The family captures three main emission-reduction levers:
 - Family id: `domestic_shipping`
 - Output/service name: `domestic_coastal_freight`
 - Output unit: `million_tkm`
-- Output quantity basis: One million tonne-kilometres of domestic coastal and harbour shipping service. Calibrated to AES 2023-24 Table F (30 PJ domestic water transport) and BITRE coastal freight statistics (30,000 million tkm estimated national service).
+- Output quantity basis: One million tonne-kilometres of domestic coastal and harbour shipping service. Calibrated to AES 2025 Table F1 coastal bunkers (44.5 PJ domestic water transport in 2023-24) and BITRE coastal freight statistics (30,000 million tkm estimated national service).
 - Demand trajectory: `stable__domestic_shipping` (+0.5%/yr; modest growth reflecting coastal trade patterns)
 - 2025 demand anchor: 30,000 million_tkm
 - Default incumbent state id: `domestic_shipping__conventional_diesel`
@@ -32,7 +32,7 @@ All state ids are authored across milestone years 2025, 2030, 2035, 2040, 2045, 
 
 ## Main sources used
 
-- `S001` — AES 2023-24 Table F (30 PJ domestic water transport energy). See `shared/source_ledger.csv`
+- `S001` — AES 2025 Table F1 (44.5 PJ domestic water transport coastal bunkers, 2023-24). See `shared/source_ledger.csv`
 - `S013` — BITRE freight linehaul statistics (coastal freight task, million tkm). See `shared/source_ledger.csv`
 - `S032` — NGA Factors 2024 (marine diesel oil 74.4 kgCO2e/GJ; heavy fuel oil 78.9 kgCO2e/GJ). See `shared/source_ledger.csv`
 
@@ -47,7 +47,7 @@ All state ids are authored across milestone years 2025, 2030, 2035, 2040, 2045, 
 
 Phase 1 uses three technology states (one incumbent, two transition pathways) to represent the main decarbonisation options for domestic shipping.
 
-The incumbent (`conventional_diesel`) anchors to AES 2023-24 at national scale. Battery-electric (`battery_electric_vessel`) targets the near-term electrification lever applicable to ferries and short coastal routes where shore charging infrastructure is feasible. Green ammonia (`green_ammonia_vessel`) represents the zero-emission pathway for longer coastal routes where battery energy density is insufficient, consistent with emerging IMO decarbonisation targets and Australian ammonia export ambitions. Together these three states let the solver represent the key clean fuel switch options for domestic shipping without requiring vessel-type or route-specific decomposition.
+The incumbent (`conventional_diesel`) anchors to AES 2025 Table F1 coastal bunkers (2023-24) at national scale. Battery-electric (`battery_electric_vessel`) targets the near-term electrification lever applicable to ferries and short coastal routes where shore charging infrastructure is feasible. Green ammonia (`green_ammonia_vessel`) represents the zero-emission pathway for longer coastal routes where battery energy density is insufficient, consistent with emerging IMO decarbonisation targets and Australian ammonia export ambitions. Together these three states let the solver represent the key clean fuel switch options for domestic shipping without requiring vessel-type or route-specific decomposition.
 
 ## Known caveats
 
@@ -90,29 +90,29 @@ Evidence basis: Industry and academic literature consistently shows 10–20% fue
 
 | Commodity | Coefficient (GJ/million_tkm) | Total at anchor |
 |---|---|---|
-| Marine diesel oil | 650 | 19.5 PJ |
-| Heavy fuel oil | 350 | 10.5 PJ |
-| **Total energy** | **1,000** | **30.0 PJ** |
+| Marine diesel oil | 964 | 28.9 PJ |
+| Heavy fuel oil | 519 | 15.6 PJ |
+| **Total energy** | **1,483** | **44.5 PJ** |
 
 | Emission stream | Coefficient | Total at anchor | Reference |
 |---|---|---|---|
-| Energy CO2e (scope 1) | 76.0 tCO2e/million_tkm | 2.28 MtCO2e | NGGI domestic navigation ~2.2 MtCO2e |
+| Energy CO2e (scope 1) | 112.7 tCO2e/million_tkm | 3.38 MtCO2e | NGGI 2025 domestic navigation |
 | Process CO2e | 0 | 0 | — |
 
-AES energy coverage: 30.0 PJ modelled vs 30 PJ AES 2023-24 = **100.0%**.
+AES 2025 Table F1 coastal bunkers (2023-24): 44.5 PJ modelled vs 44.5 PJ AES = **100.0%**.
 
-Emission factors (NGA 2024, AR5 GWP100): marine diesel oil 74.4 kgCO2e/GJ; heavy fuel oil 78.9 kgCO2e/GJ. Blended: (650×74.4 + 350×78.9)/1000 = 76.0 tCO2e/million_tkm.
+Emission factors (NGA 2024, AR5 GWP100): marine diesel oil 74.4 kgCO2e/GJ; heavy fuel oil 78.9 kgCO2e/GJ. Blended: (964×74.4 + 519×78.9)/1000 = 112.7 tCO2e/million_tkm.
 
 ### Conventional diesel state trajectory
 
 | Year | MDO (GJ/million_tkm) | HFO (GJ/million_tkm) | Energy CO2e (tCO2e/million_tkm) |
 |---|---|---|---|
-| 2025 | 650 | 350 | 76.0 |
-| 2030 | 625 | 335 | 73.1 |
-| 2035 | 604 | 325 | 70.6 |
-| 2040 | 585 | 315 | 68.3 |
-| 2045 | 568 | 308 | 66.4 |
-| 2050 | 580 | 310 | 67.5 |
+| 2025 | 964 | 519 | 112.7 |
+| 2030 | 943 | 507 | 110.2 |
+| 2035 | 922 | 496 | 107.9 |
+| 2040 | 902 | 484 | 105.5 |
+| 2045 | 881 | 472 | 103.0 |
+| 2050 | 860 | 460 | 100.6 |
 
 ### Green ammonia vessel state at 2050 (indicative best-case)
 

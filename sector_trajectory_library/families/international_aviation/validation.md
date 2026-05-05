@@ -8,7 +8,7 @@
 - Anchor status: `calibrated`
 - Default incumbent state id: `international_aviation__conventional_jet`
 - Source family: Phase 1 reference scenario v0.1
-- Coverage note: Anchored to BITRE international air travel 2023-24 (70,000 million_pkm) and AES 2023-24 (165.0 PJ international aviation bunkers).
+- Coverage note: Anchored to BITRE international air travel 2023-24 (70,000 million_pkm) and AES 2025 Table F1 (199.0 PJ international aviation bunkers, 2023-24).
 
 ## What must reconcile at incumbent/default settings
 
@@ -23,8 +23,8 @@
 
 ## Known deviations
 
-- Energy at anchor: 70,000 million_pkm × 2,357 GJ/million_pkm = 165 PJ (AES 2023-24 reference: 165.0 PJ, coverage = 100%).
-- Total CO2e: 168.5 tCO2e/million_pkm × 70,000 / 1e6 = 11.8 MtCO2e (NGGI international aviation bunkers ✓).
+- Energy at anchor: 70,000 million_pkm × 2,843 GJ/million_pkm = 199 PJ (AES 2025 Table F1 reference: 199.0 PJ, coverage = 100%).
+- Total CO2e: 203.3 tCO2e/million_pkm × 70,000 / 1e6 = 14.2 MtCO2e (NGGI international aviation bunkers ✓).
 - Higher energy intensity than domestic aviation due to long-haul routes and heavier fuel loads.
 - International bunker statistics have boundary uncertainty (flag-of-convenience, fuel uplifted overseas).
 

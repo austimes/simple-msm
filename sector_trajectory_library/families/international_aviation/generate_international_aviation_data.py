@@ -2,14 +2,14 @@
 """
 International Aviation — Phase 1 Generator
 ===========================================
-Generates international_aviation family CSVs calibrated to AES 2023-24 and BITRE.
+Generates international_aviation family CSVs calibrated to AES 2025 Table F1 (2023-24) and BITRE.
 
 Scope: International air services departing/arriving Australia (international bunkers).
 Anchor: 70,000 million passenger-kilometres (BITRE international air travel 2023-24).
 
 Calibration basis
 -----------------
-AES 2023-24: 165 PJ international aviation bunker fuel.
+AES 2025 Table F1 (2023-24): 199 PJ international aviation bunker fuel.
 BITRE: 70,000 million pkm international air travel through Australia.
 
 Per-unit energy intensity:
@@ -39,9 +39,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 YEARS = [2025, 2030, 2035, 2040, 2045, 2050]
 
 # ── calibration constants ────────────────────────────────────────────────────
-AES_TOTAL_PJ        = 165.0
+AES_TOTAL_PJ        = 199.0
 ANCHOR_MILLION_PKM  = 70_000      # million pkm (BITRE 2023-24)
-ENERGY_INTENSITY_2025 = 2_357.0  # GJ/million_pkm
+ENERGY_INTENSITY_2025 = 2_843.0  # GJ/million_pkm  (199 PJ / 70,000 mpkm; AES 2025 Table F1)
 EF_ATF              = 71.5        # kgCO2e/GJ
 EF_SAF              = 0.0
 EF_H2               = 0.0
@@ -69,7 +69,7 @@ ROLLOUT_NOTES = (
 SOURCES     = json.dumps(["S001", "S004", "S012"])
 ASSUMPTIONS = json.dumps(["A002", "A003", "A022", "A023"])
 DERIVATION  = (
-    "Energy coefficients from AES 2023-24 international aviation bunkers (165 PJ) "
+    "Energy coefficients from AES 2025 Table F1 international aviation bunkers (199 PJ, 2023-24) "
     f"/ BITRE 70,000 million_pkm = {ENERGY_INTENSITY_2025} GJ/million_pkm. "
     f"NGGI check: {ENERGY_CO2E_2025} tCO2e/million_pkm × 70,000 / 1e6 = {TOTAL_CO2E_2025_MT} MtCO2e."
 )
@@ -186,19 +186,19 @@ CONV_META = {
     "label": "Conventional jet — international aviation",
     "description": (
         "Standard aviation turbine fuel combustion for international long-haul services "
-        "to/from Australia. Calibrated to AES 2023-24 international aviation bunkers "
-        "(165 PJ / 70,000 million_pkm = 2,357 GJ/million_pkm). Higher energy intensity "
+        "to/from Australia. Calibrated to AES 2025 Table F1 international aviation bunkers "
+        "(199 PJ, 2023-24 / 70,000 million_pkm = 2,843 GJ/million_pkm). Higher energy intensity "
         "than domestic due to long-haul sector and heavier fuel load. Gradual fleet "
         "efficiency improvement (Airbus A350, Boeing 787 replacing A380/747 era) "
-        "reduces intensity 2,357 → 2,100 GJ/million_pkm by 2050."
+        "reduces intensity 2,843 → 2,533 GJ/million_pkm by 2050."
     ),
     "commodities":  je(["aviation_turbine_fuel"]),
     "units":        je(["GJ/million_pkm"]),
     "input_basis":  (
-        "AES 2023-24 international aviation bunkers: 165 PJ / 70,000 million_pkm = "
-        "2,357 GJ/million_pkm. Fleet renewal (A350, 787) reduces to 2,100 by 2050."
+        "AES 2025 Table F1 international aviation bunkers: 199 PJ (2023-24) / 70,000 million_pkm = "
+        "2,843 GJ/million_pkm. Fleet renewal (A350, 787) reduces to 2,533 by 2050."
     ),
-    "evidence":     "AES 2023-24 international bunkers; BITRE international air travel 2023-24; NGGI international aviation.",
+    "evidence":     "AES 2025 Table F1 international bunkers; BITRE international air travel 2023-24; NGGI international aviation.",
     "confidence":   "Medium",
     "review_notes": (
         "International bunker statistics have boundary uncertainty (flag-of-convenience, "
@@ -215,7 +215,7 @@ CONV_META = {
 
 CONV_DATA = {}
 for _yr in YEARS:
-    _coeff = round(interp(2357.0, 2100.0, _yr), 1)
+    _coeff = round(interp(2843.0, 2533.0, _yr), 1)
     _eco2e = round(_coeff * EF_ATF / 1000, 1)
     _ms = round(interp(1.00, 0.70, _yr), 2)
     CONV_DATA[_yr] = dict(
@@ -240,7 +240,7 @@ SAF_META = {
     "commodities":  je(["aviation_turbine_fuel", "sustainable_aviation_fuel"]),
     "units":        je(["GJ/million_pkm", "GJ/million_pkm"]),
     "input_basis":  (
-        "ATF fraction: 100%→20% and SAF fraction: 0%→80% of 2,357→2,100 GJ/million_pkm total. "
+        "ATF fraction: 100%→20% and SAF fraction: 0%→80% of 2,843→2,533 GJ/million_pkm total. "
         "CO2e from ATF fraction only; SAF = 0 kgCO2e/GJ scope 1."
     ),
     "evidence":     (
@@ -266,7 +266,7 @@ _intl_saf_atf = {2025: 1.00, 2030: 0.90, 2035: 0.80, 2040: 0.60, 2045: 0.40, 205
 
 SAF_DATA = {}
 for _yr in YEARS:
-    _total = round(interp(2357.0, 2100.0, _yr), 1)
+    _total = round(interp(2843.0, 2533.0, _yr), 1)
     _atf_s = _intl_saf_atf[_yr]
     _saf_s = 1.0 - _atf_s
     _atf = round(_total * _atf_s, 1)
@@ -290,7 +290,7 @@ H2_META = {
         "Post-2035 technology; requires fundamental redesign of aircraft (cryogenic "
         "H2 tanks, modified turbines). Energy intensity slightly higher than ATF "
         "aircraft due to H2 tankage weight and aerodynamic penalties "
-        "(2,200→2,000 GJ/million_pkm H2, vs 2,357 ATF). Zero scope 1 CO2 if "
+        "(2,650→2,400 GJ/million_pkm H2, vs 2,843 ATF). Zero scope 1 CO2 if "
         "green hydrogen. Available from 2035 only."
     ),
     "commodities":  je(["hydrogen"]),
@@ -349,11 +349,11 @@ DEMAND_ROW = {
     "source_family":         "Phase 1 reference scenario v0.1",
     "coverage_note": (
         f"BITRE international air travel 2023-24: {ANCHOR_MILLION_PKM:,} million_pkm. "
-        f"AES 2023-24: {AES_TOTAL_PJ} PJ international aviation bunkers. "
+        f"AES 2025 Table F1 (2023-24): {AES_TOTAL_PJ} PJ international aviation bunkers. "
         f"Coverage: {AES_TOTAL_PJ*1e6 / (ENERGY_INTENSITY_2025 * ANCHOR_MILLION_PKM) * 100:.1f}%."
     ),
     "notes": (
-        f"Calibrated to AES 2023-24 and BITRE international air travel 2023-24. "
+        f"Calibrated to AES 2025 Table F1 (2023-24) and BITRE international air travel 2023-24. "
         f"Energy at anchor: {ANCHOR_MILLION_PKM:,} million_pkm × {ENERGY_INTENSITY_2025} GJ/million_pkm "
         f"= {ENERGY_INTENSITY_2025 * ANCHOR_MILLION_PKM / 1e6:.0f} PJ "
         f"(AES reference: {AES_TOTAL_PJ} PJ, coverage = 100%). "

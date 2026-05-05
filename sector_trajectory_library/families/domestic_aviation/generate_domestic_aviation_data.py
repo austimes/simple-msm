@@ -2,14 +2,14 @@
 """
 Domestic Aviation — Phase 1 Generator
 ======================================
-Generates domestic_aviation family CSVs calibrated to AES 2023-24 and BITRE.
+Generates domestic_aviation family CSVs calibrated to AES 2025 Table F1 (2023-24) and BITRE.
 
 Scope: Australian domestic air services (ANZSIC 5100 domestic aviation).
 Anchor: 75,500 million passenger-kilometres (BITRE Aviation Statistical Report 2023-24).
 
 Calibration basis
 -----------------
-AES 2023-24 Table F — 85 PJ total final energy for ANZSIC 5100 domestic aviation.
+AES 2025 Table F1 (2023-24) — 135.3 PJ total final energy for ANZSIC 5100 domestic aviation.
 BITRE Aviation Statistical Report 2023-24: 75,500 million pkm domestic air travel.
 
 Per-unit energy intensity (national average):
@@ -41,9 +41,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 YEARS = [2025, 2030, 2035, 2040, 2045, 2050]
 
 # ── calibration constants ────────────────────────────────────────────────────
-AES_TOTAL_PJ        = 85.0
+AES_TOTAL_PJ        = 135.3
 ANCHOR_MILLION_PKM  = 75_500      # million pkm (BITRE 2023-24)
-ENERGY_INTENSITY_2025 = 1_126.0  # GJ/million_pkm
+ENERGY_INTENSITY_2025 = 1_792.0  # GJ/million_pkm  (135.3 PJ / 75,500 mpkm; AES 2025 Table F1)
 EF_ATF              = 71.5        # kgCO2e/GJ aviation turbine fuel (NGA 2024)
 EF_SAF              = 0.0         # kgCO2e/GJ SAF (biogenic, scope 1 boundary)
 EF_ELEC             = 0.0         # kgCO2e/GJ electricity (scope 2 excluded per A003)
@@ -72,9 +72,9 @@ ROLLOUT_NOTES = (
 SOURCES     = json.dumps(["S001", "S004", "S012"])
 ASSUMPTIONS = json.dumps(["A002", "A003", "A022", "A023"])
 DERIVATION  = (
-    "Energy coefficients from AES 2023-24 Table F (85 PJ / 75,500 million_pkm = "
-    "1,126 GJ/million_pkm). Emissions from NGA 2024 factors. NGGI Cat 1A3a check: "
-    f"80.5 tCO2e/million_pkm × 75,500 / 1e6 = {TOTAL_CO2E_2025_MT} MtCO2e."
+    "Energy coefficients from AES 2025 Table F1 (135.3 PJ / 75,500 million_pkm = "
+    "1,792 GJ/million_pkm). Emissions from NGA 2024 factors. NGGI Cat 1A3a check: "
+    f"{ENERGY_CO2E_2025} tCO2e/million_pkm × 75,500 / 1e6 = {TOTAL_CO2E_2025_MT} MtCO2e."
 )
 
 FS_FIELDNAMES = [
@@ -193,19 +193,19 @@ CONV_META = {
     "description": (
         "Standard aviation turbine fuel (jet kerosene) combustion in turbofan engines "
         "for domestic Australian air services. Covers all domestic routes. National "
-        "average energy intensity calibrated to AES 2023-24 Table F: 85 PJ / "
-        "75,500 million_pkm = 1,126 GJ/million_pkm. Autonomous efficiency drift "
+        "average energy intensity calibrated to AES 2025 Table F1 (2023-24): 135.3 PJ / "
+        "75,500 million_pkm = 1,792 GJ/million_pkm. Autonomous efficiency drift "
         "embedded: new aircraft generations (LEAP engines, composite airframes) reduce "
         "fuel intensity ~11% by 2050."
     ),
     "commodities":  je(["aviation_turbine_fuel"]),
     "units":        je(["GJ/million_pkm"]),
     "input_basis":  (
-        "AES 2023-24 Table F: 85 PJ domestic aviation / 75,500 million_pkm (BITRE) = "
-        "1,126 GJ/million_pkm. 100% aviation turbine fuel (jet kerosene). "
-        "Autonomous efficiency drift to 1,000 GJ/million_pkm by 2050 (~11% reduction)."
+        "AES 2025 Table F1 (2023-24): 135.3 PJ domestic aviation / 75,500 million_pkm (BITRE) = "
+        "1,792 GJ/million_pkm. 100% aviation turbine fuel (jet kerosene). "
+        "Autonomous efficiency drift to 1,592 GJ/million_pkm by 2050 (~11% reduction)."
     ),
-    "evidence":     "AES 2023-24 Table F; BITRE Aviation Statistical Report 2023-24; NGGI Cat 1A3a.",
+    "evidence":     "AES 2025 Table F1; BITRE Aviation Statistical Report 2023-24; NGGI Cat 1A3a.",
     "confidence":   "Medium",
     "review_notes": (
         "National average masks variation between short-haul (more efficient per pkm on "
@@ -222,7 +222,7 @@ CONV_META = {
 # Autonomous drift: 1126 → 1000 GJ/million_pkm, linearly interpolated
 CONV_DATA = {}
 for _yr in YEARS:
-    _coeff = round(interp(1126.0, 1000.0, _yr), 1)
+    _coeff = round(interp(1792.0, 1592.0, _yr), 1)
     _eco2e = round(_coeff * EF_ATF / 1000, 1)
     _ms = interp(1.00, 0.60, _yr)
     CONV_DATA[_yr] = dict(
@@ -248,7 +248,7 @@ SAF_META = {
     "commodities":  je(["aviation_turbine_fuel", "sustainable_aviation_fuel"]),
     "units":        je(["GJ/million_pkm", "GJ/million_pkm"]),
     "input_basis":  (
-        "ATF fraction 95%→0% and SAF 5%→100% of 1,126→1,000 GJ/million_pkm total energy. "
+        "ATF fraction 95%→0% and SAF 5%→100% of 1,792→1,592 GJ/million_pkm total energy. "
         "Energy CO2e from ATF fraction only; SAF = 0 kgCO2e/GJ scope 1."
     ),
     "evidence":     (
@@ -276,7 +276,7 @@ _saf_atf_shares = {2025: 0.95, 2030: 0.80, 2035: 0.60, 2040: 0.40, 2045: 0.20, 2
 _saf_saf_shares = {yr: 1.0 - s for yr, s in _saf_atf_shares.items()}
 SAF_DATA = {}
 for _yr in YEARS:
-    _total = round(interp(1126.0, 1000.0, _yr), 1)
+    _total = round(interp(1792.0, 1592.0, _yr), 1)
     _atf_s = _saf_atf_shares[_yr]
     _saf_s = _saf_saf_shares[_yr]
     _atf = round(_total * _atf_s, 1)
@@ -356,11 +356,11 @@ DEMAND_ROW = {
     "source_family":         "Phase 1 reference scenario v0.1",
     "coverage_note": (
         f"BITRE Aviation Statistical Report 2023-24: {ANCHOR_MILLION_PKM:,} million pkm "
-        f"domestic air travel. AES 2023-24: {AES_TOTAL_PJ} PJ domestic aviation (ANZSIC 5100). "
+        f"domestic air travel. AES 2025 Table F1 (2023-24): {AES_TOTAL_PJ} PJ domestic aviation (ANZSIC 5100). "
         f"Coverage: {AES_TOTAL_PJ*1e6 / (ENERGY_INTENSITY_2025 * ANCHOR_MILLION_PKM) * 100:.1f}%."
     ),
     "notes": (
-        f"Calibrated to AES 2023-24 Table F and BITRE Aviation Statistical Report 2023-24. "
+        f"Calibrated to AES 2025 Table F1 (2023-24) and BITRE Aviation Statistical Report 2023-24. "
         f"Energy at anchor: {ANCHOR_MILLION_PKM:,} million_pkm × {ENERGY_INTENSITY_2025} GJ/million_pkm "
         f"= {ENERGY_INTENSITY_2025 * ANCHOR_MILLION_PKM / 1e6:.1f} PJ "
         f"(AES reference: {AES_TOTAL_PJ} PJ, coverage ≈ 100%). "

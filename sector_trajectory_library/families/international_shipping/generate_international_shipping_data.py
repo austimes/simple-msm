@@ -2,14 +2,14 @@
 """
 International Shipping — Phase 1 Generator
 ===========================================
-Generates international_shipping family CSVs calibrated to AES 2023-24.
+Generates international_shipping family CSVs calibrated to AES 2025 Table F1 (2023-24).
 
 Scope: International maritime bunkers (fuel uplifted in Australia for international voyages).
 Anchor: 200,000 million_tkm (estimated; Australian-bunkered international shipping).
 
 Calibration basis
 -----------------
-AES 2023-24: 65 PJ international maritime bunker fuel.
+AES 2025 Table F1 (2023-24): 29.5 PJ international maritime bunker fuel.
 Estimated service volume: 200,000 million_tkm (Australia-related international shipping).
 
 Per-unit energy intensity:
@@ -41,11 +41,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 YEARS = [2025, 2030, 2035, 2040, 2045, 2050]
 
 # ── calibration constants ────────────────────────────────────────────────────
-AES_TOTAL_PJ         = 65.0
+AES_TOTAL_PJ         = 29.5
 ANCHOR_MILLION_TKM   = 200_000    # million_tkm (estimated)
-HFO_2025             = 195.0      # GJ/million_tkm (60%)
-MDO_2025             = 130.0      # GJ/million_tkm (40%)
-TOTAL_INTENSITY_2025 = HFO_2025 + MDO_2025  # 325 GJ/million_tkm
+HFO_2025             = 88.5       # GJ/million_tkm (60%; AES 2025 Table F1 international bunkers)
+MDO_2025             = 59.0       # GJ/million_tkm (40%)
+TOTAL_INTENSITY_2025 = HFO_2025 + MDO_2025  # 147.5 GJ/million_tkm
 EF_HFO               = 78.9       # kgCO2e/GJ
 EF_MDO               = 74.4       # kgCO2e/GJ
 EF_LNG               = 56.1       # kgCO2e/GJ
@@ -74,7 +74,7 @@ ROLLOUT_NOTES = (
 SOURCES     = json.dumps(["S001", "S004", "S013"])
 ASSUMPTIONS = json.dumps(["A002", "A003", "A022", "A023"])
 DERIVATION  = (
-    f"Energy coefficients from AES 2023-24 international maritime bunkers ({AES_TOTAL_PJ} PJ) "
+    f"Energy coefficients from AES 2025 Table F1 international maritime bunkers ({AES_TOTAL_PJ} PJ, 2023-24) "
     f"/ estimated service {ANCHOR_MILLION_TKM:,} million_tkm = {TOTAL_INTENSITY_2025} GJ/million_tkm. "
     f"Fuel split: 60% HFO ({HFO_2025}), 40% MDO ({MDO_2025}). "
     f"NGGI check: {ENERGY_CO2E_2025} tCO2e/million_tkm × {ANCHOR_MILLION_TKM:,} / 1e6 = "
@@ -194,19 +194,19 @@ CONV_META = {
     "label": "Conventional HFO/MDO — international shipping",
     "description": (
         "Heavy fuel oil (HFO) and marine diesel oil (MDO) powered international "
-        "vessels bunkering in Australia. National average calibrated to AES 2023-24 "
-        "international maritime bunkers (65 PJ / 200,000 million_tkm = "
-        "325 GJ/million_tkm). Fuel split: 60% HFO (large bulk/container ships), "
+        "vessels bunkering in Australia. National average calibrated to AES 2025 Table F1 "
+        "international maritime bunkers (29.5 PJ, 2023-24 / 200,000 million_tkm = "
+        "147.5 GJ/million_tkm). Fuel split: 60% HFO (large bulk/container ships), "
         "40% MDO (smaller/coastal feeders). Engine efficiency improvement and fleet "
-        "renewal (IMO CII compliance) reduces intensity to 275 GJ/million_tkm by 2050."
+        "renewal (IMO CII compliance) reduces intensity to 125 GJ/million_tkm by 2050."
     ),
     "commodities":  je(["heavy_fuel_oil", "marine_diesel_oil"]),
     "units":        je(["GJ/million_tkm", "GJ/million_tkm"]),
     "input_basis":  (
-        "AES 2023-24: 65 PJ / 200,000 million_tkm = 325 GJ/million_tkm. "
-        "HFO 60% (195 GJ), MDO 40% (130 GJ). 2050: HFO 165, MDO 110 GJ/million_tkm."
+        "AES 2025 Table F1 (2023-24): 29.5 PJ / 200,000 million_tkm = 147.5 GJ/million_tkm. "
+        "HFO 60% (88.5 GJ), MDO 40% (59 GJ). 2050: HFO 75, MDO 50 GJ/million_tkm."
     ),
-    "evidence":     "AES 2023-24 international bunkers; NGGI international shipping; IMO GHG data.",
+    "evidence":     "AES 2025 Table F1 international bunkers; NGGI international shipping; IMO GHG data.",
     "confidence":   "Medium",
     "review_notes": (
         "International bunker data has allocation uncertainty (where fuel is purchased "
@@ -222,8 +222,8 @@ CONV_META = {
 
 CONV_DATA = {}
 for _yr in YEARS:
-    _hfo = round(interp(195.0, 165.0, _yr), 1)
-    _mdo = round(interp(130.0, 110.0, _yr), 1)
+    _hfo = round(interp(88.5, 75.0, _yr), 1)
+    _mdo = round(interp(59.0, 50.0, _yr), 1)
     _eco2e = round((_hfo * EF_HFO + _mdo * EF_MDO) / 1000, 1)
     _ms = round(interp(1.00, 0.55, _yr), 2)
     CONV_DATA[_yr] = dict(
@@ -349,13 +349,13 @@ DEMAND_ROW = {
     "anchor_status":         "estimated",
     "source_family":         "Phase 1 reference scenario v0.1",
     "coverage_note": (
-        f"AES 2023-24: {AES_TOTAL_PJ} PJ international maritime bunkers. "
+        f"AES 2025 Table F1 (2023-24): {AES_TOTAL_PJ} PJ international maritime bunkers. "
         f"Service volume {ANCHOR_MILLION_TKM:,} million_tkm is an estimate "
         f"(direct Australian bunker-to-tkm statistic not published). "
         f"Coverage: {AES_TOTAL_PJ*1e6 / (TOTAL_INTENSITY_2025 * ANCHOR_MILLION_TKM) * 100:.1f}%."
     ),
     "notes": (
-        f"AES 2023-24 international maritime bunkers: {AES_TOTAL_PJ} PJ. "
+        f"AES 2025 Table F1 international maritime bunkers (2023-24): {AES_TOTAL_PJ} PJ. "
         f"Estimated service {ANCHOR_MILLION_TKM:,} million_tkm. "
         f"Energy intensity: {TOTAL_INTENSITY_2025} GJ/million_tkm (0.325 MJ/tkm, consistent "
         f"with large ocean vessels). Total CO2e: {TOTAL_CO2E_2025_MT} MtCO2e "

@@ -2,14 +2,14 @@
 """
 Rail Freight — Phase 1 Generator
 ==================================
-Generates rail_freight family CSVs calibrated to AES 2023-24 and BITRE.
+Generates rail_freight family CSVs calibrated to AES 2025 Table F1 (2023-24) and BITRE.
 
 Scope: Australian freight rail (heavy-haul iron ore/coal, intermodal, grain).
 Anchor: 700 billion_tkm (BITRE freight linehaul statistics; predominantly heavy-haul).
 
 Calibration basis
 -----------------
-AES 2023-24 estimated rail freight share: ~25 PJ.
+AES 2025 Table F1 (2023-24) rail (sector 47) = 64.9 PJ; freight share = 49 PJ diesel (after assigning 12.9 PJ electricity and 3.1 PJ regional diesel to passenger).
 BITRE freight linehaul: 700 billion_tkm (dominated by Pilbara iron ore and Hunter Valley coal).
 
 Per-unit energy intensity:
@@ -39,11 +39,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 YEARS = [2025, 2030, 2035, 2040, 2045, 2050]
 
 # ── calibration constants ────────────────────────────────────────────────────
-AES_TOTAL_PJ        = 25.0
+AES_TOTAL_PJ        = 49.0
 ANCHOR_BILLION_TKM  = 700         # billion_tkm (BITRE)
-DIESEL_2025         = 33_929.0    # GJ/billion_tkm (95%)
-ELEC_2025           =  1_786.0    # GJ/billion_tkm (5%)
-TOTAL_INTENSITY_2025 = DIESEL_2025 + ELEC_2025  # 35,715 GJ/billion_tkm
+DIESEL_2025         = 70_000.0    # GJ/billion_tkm (100%; AES 2025 Table F1 rail freight = bulk-haul diesel)
+ELEC_2025           =      0.0    # GJ/billion_tkm (rail electricity allocated to passenger urban metro)
+TOTAL_INTENSITY_2025 = DIESEL_2025 + ELEC_2025  # 70,000 GJ/billion_tkm
 EF_DIESEL           = 69.9        # kgCO2e/GJ
 EF_ELEC             = 0.0
 
@@ -71,9 +71,9 @@ ROLLOUT_NOTES = (
 SOURCES     = json.dumps(["S001", "S004", "S013"])
 ASSUMPTIONS = json.dumps(["A002", "A003", "A022", "A023"])
 DERIVATION  = (
-    f"Energy from AES 2023-24 estimated rail freight ({AES_TOTAL_PJ} PJ) / "
+    f"Energy from AES 2025 Table F1 rail diesel ({AES_TOTAL_PJ} PJ freight share, 2023-24) / "
     f"BITRE {ANCHOR_BILLION_TKM} billion_tkm = {TOTAL_INTENSITY_2025:.0f} GJ/billion_tkm. "
-    f"95% diesel ({DIESEL_2025:.0f} GJ), 5% electricity ({ELEC_2025:.0f} GJ). "
+    f"100% diesel ({DIESEL_2025:.0f} GJ), 0% electricity (rail electricity allocated to passenger urban metro). "
     f"Scope 1 CO2e: {ENERGY_CO2E_2025:.0f} tCO2e/billion_tkm × {ANCHOR_BILLION_TKM} / 1e6 = "
     f"{TOTAL_CO2E_2025_MT} MtCO2e."
 )
@@ -192,20 +192,20 @@ CONV_META = {
     "description": (
         "Standard diesel-electric locomotive fleet (AC traction; GE ES44/Evolution, "
         "Wabtec FLXdrive, EMD SD70) covering Australian heavy-haul and intermodal "
-        "freight rail. Predominantly diesel with small electric component on "
-        "electrified corridors (5% by energy). National average calibrated to AES "
-        "2023-24 estimated rail freight (25 PJ / 700 billion_tkm = 35,715 GJ/billion_tkm). "
-        "Dominant operators: Aurizon, Pacific National, BHP (iron ore), Rio Tinto, "
-        "FMG (Pilbara); Hunter Valley coal networks."
+        "freight rail. Predominantly diesel-driven (rail electricity is allocated to "
+        "the urban metro passenger service in this calibration). National average "
+        "calibrated to AES 2025 Table F1 rail diesel (49 PJ freight share, 2023-24 / "
+        "700 billion_tkm = 70,000 GJ/billion_tkm). Dominant operators: Aurizon, "
+        "Pacific National, BHP (iron ore), Rio Tinto, FMG (Pilbara); Hunter Valley coal."
     ),
     "commodities":  je(["diesel", "electricity"]),
     "units":        je(["GJ/billion_tkm", "GJ/billion_tkm"]),
     "input_basis":  (
-        "AES 2023-24: 25 PJ / 700 billion_tkm = 35,715 GJ/billion_tkm. "
-        f"Diesel 95% ({DIESEL_2025:.0f} GJ), electricity 5% ({ELEC_2025:.0f} GJ). "
-        "2050: diesel 28,500, electricity 1,500 GJ/billion_tkm (efficiency improvement)."
+        "AES 2025 Table F1 rail diesel (2023-24): 49 PJ freight share / 700 billion_tkm = 70,000 GJ/billion_tkm. "
+        f"Diesel 100% ({DIESEL_2025:.0f} GJ), electricity 0% ({ELEC_2025:.0f} GJ). "
+        "2050: diesel 58,800 GJ/billion_tkm (efficiency improvement)."
     ),
-    "evidence":     "AES 2023-24 estimated rail freight share; BITRE freight linehaul; NGGI rail freight.",
+    "evidence":     "AES 2025 Table F1 rail diesel (freight share); BITRE freight linehaul; NGGI rail freight.",
     "confidence":   "Medium",
     "review_notes": (
         "AES does not separately report freight vs passenger rail energy. The 25 PJ "
@@ -222,8 +222,8 @@ CONV_META = {
 
 CONV_DATA = {}
 for _yr in YEARS:
-    _diesel = round(interp(33_929.0, 28_500.0, _yr), 0)
-    _elec   = round(interp( 1_786.0,  1_500.0, _yr), 0)
+    _diesel = round(interp(70_000.0, 58_800.0, _yr), 0)
+    _elec   = round(interp(     0.0,      0.0, _yr), 0)
     _eco2e  = round(_diesel * EF_DIESEL / 1000, 0)
     _ms     = round(interp(1.00, 0.60, _yr), 2)
     CONV_DATA[_yr] = dict(
@@ -351,11 +351,11 @@ DEMAND_ROW = {
     "coverage_note": (
         f"BITRE freight linehaul statistics: {ANCHOR_BILLION_TKM} billion_tkm "
         "(predominantly iron ore Pilbara and coal Hunter Valley). "
-        f"AES 2023-24 estimated rail freight energy: {AES_TOTAL_PJ} PJ. "
+        f"AES 2025 Table F1 rail diesel freight share: {AES_TOTAL_PJ} PJ (2023-24). "
         f"Coverage: {AES_TOTAL_PJ*1e6 / (TOTAL_INTENSITY_2025 * ANCHOR_BILLION_TKM) * 100:.1f}%."
     ),
     "notes": (
-        f"Calibrated to AES 2023-24 estimated rail freight energy ({AES_TOTAL_PJ} PJ) "
+        f"Calibrated to AES 2025 Table F1 rail diesel freight share ({AES_TOTAL_PJ} PJ, 2023-24) "
         f"and BITRE freight linehaul ({ANCHOR_BILLION_TKM} billion_tkm). "
         f"Energy intensity: {TOTAL_INTENSITY_2025:.0f} GJ/billion_tkm = 0.036 MJ/tkm "
         "(very efficient heavy-haul rail). "

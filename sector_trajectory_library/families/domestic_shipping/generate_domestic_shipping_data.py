@@ -2,14 +2,14 @@
 """
 Domestic Shipping — Phase 1 Generator
 ======================================
-Generates domestic_shipping family CSVs calibrated to AES 2023-24 and BITRE.
+Generates domestic_shipping family CSVs calibrated to AES 2025 Table F1 (2023-24) and BITRE.
 
 Scope: Australian domestic coastal and river navigation (ANZSIC 4800).
 Anchor: 30,000 million_tkm (= 30 billion tkm; BITRE coastal freight statistics).
 
 Calibration basis
 -----------------
-AES 2023-24 Table F — 30 PJ total final energy for ANZSIC 4800 domestic water transport.
+AES 2025 Table F1 (2023-24) — 44.5 PJ total final energy for ANZSIC 4800 domestic water transport (coastal bunkers).
 BITRE coastal freight statistics: ~30 billion tkm = 30,000 million_tkm.
 
 Per-unit energy intensity:
@@ -40,11 +40,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 YEARS = [2025, 2030, 2035, 2040, 2045, 2050]
 
 # ── calibration constants ────────────────────────────────────────────────────
-AES_TOTAL_PJ         = 30.0
+AES_TOTAL_PJ         = 44.5
 ANCHOR_MILLION_TKM   = 30_000     # million_tkm (= 30 billion tkm)
-MDO_2025             = 650.0      # GJ/million_tkm (65% of total)
-HFO_2025             = 350.0      # GJ/million_tkm (35% of total)
-TOTAL_INTENSITY_2025 = MDO_2025 + HFO_2025  # 1,000 GJ/million_tkm
+MDO_2025             = 964.0      # GJ/million_tkm (65% of total; AES 2025 Table F1 coastal bunkers)
+HFO_2025             = 519.0      # GJ/million_tkm (35% of total)
+TOTAL_INTENSITY_2025 = MDO_2025 + HFO_2025  # 1,483 GJ/million_tkm
 EF_MDO               = 74.4       # kgCO2e/GJ
 EF_HFO               = 78.9       # kgCO2e/GJ
 EF_ELEC              = 0.0
@@ -73,7 +73,7 @@ ROLLOUT_NOTES = (
 SOURCES     = json.dumps(["S001", "S004", "S013"])
 ASSUMPTIONS = json.dumps(["A002", "A003", "A022", "A023"])
 DERIVATION  = (
-    f"Energy coefficients from AES 2023-24 Table F ({AES_TOTAL_PJ} PJ domestic water transport "
+    f"Energy coefficients from AES 2025 Table F1 coastal bunkers ({AES_TOTAL_PJ} PJ domestic water transport, 2023-24 "
     f"/ {ANCHOR_MILLION_TKM:,} million_tkm = {TOTAL_INTENSITY_2025:.0f} GJ/million_tkm). "
     f"Fuel split: 65% MDO ({MDO_2025} GJ), 35% HFO ({HFO_2025} GJ). "
     f"NGGI check: {ENERGY_CO2E_2025} × {ANCHOR_MILLION_TKM:,} / 1e6 = {TOTAL_CO2E_2025_MT} MtCO2e."
@@ -193,20 +193,20 @@ CONV_META = {
     "description": (
         "Marine diesel oil (MDO) and heavy fuel oil (HFO) powered vessels covering "
         "Australian coastal and domestic navigation. National average energy intensity "
-        "calibrated to AES 2023-24 Table F (30 PJ / 30,000 million_tkm = "
-        "1,000 GJ/million_tkm). Fuel split: 65% MDO, 35% HFO reflects vessel type mix "
+        "calibrated to AES 2025 Table F1 coastal bunkers (44.5 PJ / 30,000 million_tkm = "
+        "1,483 GJ/million_tkm). Fuel split: 65% MDO, 35% HFO reflects vessel type mix "
         "(smaller coastal vessels predominantly MDO; bulk carriers use HFO). "
-        "Energy intensity declines to 890 GJ/million_tkm by 2050 via MARPOL Tier III "
+        "Energy intensity declines to 1,320 GJ/million_tkm by 2050 via MARPOL Tier III "
         "engine improvements and fleet renewal."
     ),
     "commodities":  je(["marine_diesel_oil", "heavy_fuel_oil"]),
     "units":        je(["GJ/million_tkm", "GJ/million_tkm"]),
     "input_basis":  (
-        "AES 2023-24 Table F: 30 PJ / 30,000 million_tkm = 1,000 GJ/million_tkm. "
-        "Split: MDO 650 (65%), HFO 350 (35%) GJ/million_tkm. "
-        "MDO 2050: 580, HFO 2050: 310 GJ/million_tkm (efficiency improvement)."
+        "AES 2025 Table F1 coastal bunkers (2023-24): 44.5 PJ / 30,000 million_tkm = 1,483 GJ/million_tkm. "
+        "Split: MDO 964 (65%), HFO 519 (35%) GJ/million_tkm. "
+        "MDO 2050: 860, HFO 2050: 460 GJ/million_tkm (efficiency improvement)."
     ),
-    "evidence":     "AES 2023-24 Table F; BITRE coastal freight statistics; NGGI domestic navigation.",
+    "evidence":     "AES 2025 Table F1 coastal bunkers; BITRE coastal freight statistics; NGGI domestic navigation.",
     "confidence":   "Medium",
     "review_notes": (
         "Coastal navigation is heterogeneous (bulk carriers, ferries, offshore supply). "
@@ -223,8 +223,8 @@ CONV_META = {
 # MDO: 650→580, HFO: 350→310 linear interpolation
 CONV_DATA = {}
 for _yr in YEARS:
-    _mdo = round(interp(650.0, 580.0, _yr), 1)
-    _hfo = round(interp(350.0, 310.0, _yr), 1)
+    _mdo = round(interp(964.0, 860.0, _yr), 1)
+    _hfo = round(interp(519.0, 460.0, _yr), 1)
     _eco2e = round((_mdo * EF_MDO + _hfo * EF_HFO) / 1000, 1)
     _ms = round(interp(1.00, 0.65, _yr), 2)
     CONV_DATA[_yr] = dict(
@@ -350,11 +350,11 @@ DEMAND_ROW = {
     "source_family":         "Phase 1 reference scenario v0.1",
     "coverage_note": (
         f"BITRE coastal freight statistics: {ANCHOR_MILLION_TKM:,} million_tkm "
-        f"(= 30 billion tkm). AES 2023-24: {AES_TOTAL_PJ} PJ domestic water transport. "
+        f"(= 30 billion tkm). AES 2025 Table F1 coastal bunkers (2023-24): {AES_TOTAL_PJ} PJ domestic water transport. "
         f"Coverage: {AES_TOTAL_PJ*1e6 / (TOTAL_INTENSITY_2025 * ANCHOR_MILLION_TKM) * 100:.1f}%."
     ),
     "notes": (
-        f"Calibrated to AES 2023-24 Table F and BITRE coastal freight statistics. "
+        f"Calibrated to AES 2025 Table F1 (2023-24) and BITRE coastal freight statistics. "
         f"Energy at anchor: {ANCHOR_MILLION_TKM:,} million_tkm × {TOTAL_INTENSITY_2025:.0f} GJ/million_tkm "
         f"= {TOTAL_INTENSITY_2025 * ANCHOR_MILLION_TKM / 1e6:.0f} PJ "
         f"(AES reference: {AES_TOTAL_PJ} PJ, coverage = 100%). "

@@ -15,7 +15,7 @@ The family captures three main emission-reduction levers available to domestic a
 - Family id: `domestic_aviation`
 - Output/service name: `domestic_air_travel`
 - Output unit: `million_pkm`
-- Output quantity basis: One million passenger-kilometres of total Australian domestic air travel. Calibrated to AES 2023-24 Table F (85 PJ domestic aviation fuel) and BITRE Aviation Statistical Report 2023-24 (75,500 million pkm domestic services).
+- Output quantity basis: One million passenger-kilometres of total Australian domestic air travel. Calibrated to AES 2025 Table F1 ("Of which domestic air transport" = 135.3 PJ in 2023-24) and BITRE Aviation Statistical Report 2023-24 (75,500 million pkm domestic services).
 - Demand trajectory: `growing_then_flat__domestic_aviation` (+1.5%/yr 2025–2030, +1.0%/yr 2030–2040, +0.5%/yr 2040–2050; recovering post-COVID then moderating with fuel cost and modal competition)
 - 2025 demand anchor: 75,500 million pkm
 - Default incumbent state id: `domestic_aviation__conventional_jet`
@@ -32,7 +32,7 @@ All state ids are authored across milestone years 2025, 2030, 2035, 2040, 2045, 
 
 ## Main sources used
 
-- `S001` — AES 2023-24 Table F (primary energy calibration basis; 85 PJ domestic aviation). See `shared/source_ledger.csv`
+- `S001` — AES 2025 Table F1 (primary energy calibration basis; 135.3 PJ domestic aviation, 2023-24). See `shared/source_ledger.csv`
 - `S012` — BITRE Aviation Statistical Report 2023-24 (75,500 million pkm domestic service output anchor). See `shared/source_ledger.csv`
 - `S032` — NGA Factors 2024 (emission factors: aviation turbine fuel 71.5 kgCO2e/GJ). See `shared/source_ledger.csv`
 
@@ -47,7 +47,7 @@ All state ids are authored across milestone years 2025, 2030, 2035, 2040, 2045, 
 
 Phase 1 uses three technology states (one incumbent, two transition pathways) to represent the main emission-abatement options for domestic aviation without requiring a route-specific or aircraft-type model.
 
-The incumbent (`conventional_jet`) anchors to AES 2023-24 and BITRE 2023-24 at national scale (100% energy coverage). SAF blending (`saf_blend`) is the dominant near-term decarbonisation pathway for domestic aviation, directly displacing fossil jet kerosene via drop-in compatibility. Electric short-haul (`electric_short_haul`) represents the emerging technology pathway applicable to short-distance routes. Together these three states span the main near-term to 2050 options without over-fitting to aircraft-type or route-specific detail that national-average source data do not support.
+The incumbent (`conventional_jet`) anchors to AES 2025 Table F1 (2023-24) and BITRE 2023-24 at national scale (100% energy coverage). SAF blending (`saf_blend`) is the dominant near-term decarbonisation pathway for domestic aviation, directly displacing fossil jet kerosene via drop-in compatibility. Electric short-haul (`electric_short_haul`) represents the emerging technology pathway applicable to short-distance routes. Together these three states span the main near-term to 2050 options without over-fitting to aircraft-type or route-specific detail that national-average source data do not support.
 
 ## Known caveats
 
@@ -91,25 +91,25 @@ Evidence basis: ICAO operational efficiency programmes report 6–10% fuel savin
 
 | Commodity | Coefficient (GJ/million_pkm) | Total at anchor |
 |---|---|---|
-| Aviation turbine fuel | 1,126 | 85.0 PJ |
+| Aviation turbine fuel | 1,792 | 135.3 PJ |
 
 | Emission stream | Coefficient | Total at anchor | Reference |
 |---|---|---|---|
-| Energy CO2e (scope 1, NGA Cat 1A3a) | 80.5 tCO2e/million_pkm | 6.1 MtCO2e | NGGI 2023-24: ~6.1 MtCO2e domestic aviation |
+| Energy CO2e (scope 1, NGA Cat 1A3a) | 128.1 tCO2e/million_pkm | 9.67 MtCO2e | NGGI 2025: domestic aviation Cat 1A3a |
 | Process CO2e | 0 | 0 | — |
 
-AES energy coverage: 85.0 PJ modelled vs 85 PJ AES 2023-24 = **100.0%**.
+AES 2025 Table F1 (2023-24): 135.3 PJ domestic air transport (sector 49 "Of which domestic air transport"). Modelled total = 1,792 GJ/million_pkm × 75,500 = **135.3 PJ (100.0% of AES)**.
 
 ### Conventional jet state fuel mix trajectory
 
 | Year | Aviation turbine fuel (GJ/million_pkm) | Energy CO2e (tCO2e/million_pkm) |
 |---|---|---|
-| 2025 | 1,126 | 80.5 |
-| 2030 | 1,082 | 77.4 |
-| 2035 | 1,038 | 74.2 |
-| 2040 | 994 | 71.1 |
-| 2045 | 994 | 71.1 |
-| 2050 | 1,000 | 71.5 |
+| 2025 | 1,792 | 128.1 |
+| 2030 | 1,752 | 125.3 |
+| 2035 | 1,712 | 122.4 |
+| 2040 | 1,672 | 119.5 |
+| 2045 | 1,632 | 116.7 |
+| 2050 | 1,592 | 113.8 |
 
 ### SAF blend state — energy and emissions at 2050
 

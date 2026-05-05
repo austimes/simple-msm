@@ -17,7 +17,7 @@ The family captures three main emission-reduction levers:
 - Family id: `international_aviation`
 - Output/service name: `international_air_travel`
 - Output unit: `million_pkm`
-- Output quantity basis: One million passenger-kilometres of international air travel bunkered in Australia. Calibrated to AES 2023-24 international aviation bunker fuel (165 PJ) and BITRE international aviation statistics (70,000 million pkm estimate).
+- Output quantity basis: One million passenger-kilometres of international air travel bunkered in Australia. Calibrated to AES 2025 Table F1 international aviation bunker fuel (199 PJ in 2023-24) and BITRE international aviation statistics (70,000 million pkm estimate).
 - Demand trajectory: `growing__international_aviation` (+2.0%/yr 2025–2035, +1.0%/yr 2035–2050; recovering post-COVID, moderating with SAF mandates and carbon pricing)
 - 2025 demand anchor: 70,000 million pkm
 - Default incumbent state id: `international_aviation__conventional_jet`
@@ -34,7 +34,7 @@ All state ids are authored across milestone years 2025, 2030, 2035, 2040, 2045, 
 
 ## Main sources used
 
-- `S001` — AES 2023-24 (international aviation bunker fuel 165 PJ). See `shared/source_ledger.csv`
+- `S001` — AES 2025 Table F1 (international aviation bunker fuel 199 PJ, 2023-24). See `shared/source_ledger.csv`
 - `S012` — BITRE international aviation statistics (70,000 million pkm service anchor). See `shared/source_ledger.csv`
 - `S032` — NGA Factors 2024 (aviation turbine fuel emission factor 71.5 kgCO2e/GJ). See `shared/source_ledger.csv`
 
@@ -49,7 +49,7 @@ All state ids are authored across milestone years 2025, 2030, 2035, 2040, 2045, 
 
 Phase 1 uses three technology states (one incumbent, two transition pathways) to represent the main decarbonisation options for international aviation.
 
-The incumbent (`conventional_jet`) anchors to AES 2023-24 international bunker fuel at national scale. SAF (`saf_blend`) is recognised as the only viable near-term decarbonisation pathway for long-haul — there is no credible battery-electric pathway for international routes, and hydrogen is post-2035 at best. Hydrogen aircraft (`hydrogen_aircraft`) is included as the long-term breakthrough pathway consistent with emerging airframer roadmaps (Airbus ZEROe, Airbus H2). These three states span the credible technology range through 2050 without over-fitting to aircraft-type or route-specific detail.
+The incumbent (`conventional_jet`) anchors to AES 2025 Table F1 international bunker fuel (2023-24) at national scale. SAF (`saf_blend`) is recognised as the only viable near-term decarbonisation pathway for long-haul — there is no credible battery-electric pathway for international routes, and hydrogen is post-2035 at best. Hydrogen aircraft (`hydrogen_aircraft`) is included as the long-term breakthrough pathway consistent with emerging airframer roadmaps (Airbus ZEROe, Airbus H2). These three states span the credible technology range through 2050 without over-fitting to aircraft-type or route-specific detail.
 
 ## Known caveats
 
@@ -93,25 +93,25 @@ Evidence basis: Airbus and Boeing fleet transition studies report 15–25% fuel 
 
 | Commodity | Coefficient (GJ/million_pkm) | Total at anchor |
 |---|---|---|
-| Aviation turbine fuel | 2,357 | 165.0 PJ |
+| Aviation turbine fuel | 2,843 | 199.0 PJ |
 
 | Emission stream | Coefficient | Total at anchor | Reference |
 |---|---|---|---|
-| Energy CO2e (scope 1, NGGI international bunkers) | 168.5 tCO2e/million_pkm | 11.8 MtCO2e | NGGI: international aviation bunkers |
+| Energy CO2e (scope 1, NGGI international bunkers) | 203.3 tCO2e/million_pkm | 14.2 MtCO2e | NGGI 2025: international aviation bunkers |
 | Process CO2e | 0 | 0 | — |
 
-AES bunker fuel coverage: 165.0 PJ modelled vs 165 PJ AES 2023-24 = **100.0%**.
+AES 2025 Table F1 international bunker fuel (2023-24): 199.0 PJ modelled vs 199.0 PJ AES = **100.0%**.
 
 ### Conventional jet state trajectory
 
 | Year | Aviation turbine fuel (GJ/million_pkm) | Energy CO2e (tCO2e/million_pkm) |
 |---|---|---|
-| 2025 | 2,357 | 168.5 |
-| 2030 | 2,280 | 163.0 |
-| 2035 | 2,200 | 157.3 |
-| 2040 | 2,150 | 153.7 |
-| 2045 | 2,120 | 151.6 |
-| 2050 | 2,100 | 150.2 |
+| 2025 | 2,843 | 203.3 |
+| 2030 | 2,781 | 198.8 |
+| 2035 | 2,719 | 194.4 |
+| 2040 | 2,657 | 189.9 |
+| 2045 | 2,595 | 185.5 |
+| 2050 | 2,533 | 181.1 |
 
 ### SAF blend state — energy and emissions at 2050
 

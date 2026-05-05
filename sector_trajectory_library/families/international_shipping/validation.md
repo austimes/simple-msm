@@ -8,7 +8,7 @@
 - Anchor status: `estimated`
 - Default incumbent state id: `international_shipping__conventional_hfo`
 - Source family: Phase 1 reference scenario v0.1
-- Coverage note: AES 2023-24 (65.0 PJ international maritime bunkers). Service volume 200,000 million_tkm is an estimate — direct Australian bunker-to-tkm statistic not published.
+- Coverage note: AES 2025 Table F1 (29.5 PJ international maritime bunkers, 2023-24). Service volume 200,000 million_tkm is an estimate — direct Australian bunker-to-tkm statistic not published.
 
 ## What must reconcile at incumbent/default settings
 
@@ -23,8 +23,8 @@
 
 ## Known deviations
 
-- Energy at anchor: 200,000 million_tkm × 325 GJ/million_tkm = 65 PJ (AES 2023-24 reference: 65.0 PJ, coverage = 100%).
-- Total CO2e: 25.1 tCO2e/million_tkm × 200,000 / 1e6 = 5.0 MtCO2e (NGGI international shipping bunkers 3-5 MtCO2e ✓).
+- Energy at anchor: 200,000 million_tkm × 147.5 GJ/million_tkm = 29.5 PJ (AES 2025 Table F1 reference: 29.5 PJ, coverage = 100%).
+- Total CO2e: 11.4 tCO2e/million_tkm × 200,000 / 1e6 = 2.3 MtCO2e (NGGI 2025 international shipping bunkers ✓).
 - Fuel split: 60% HFO (large bulk/container ships), 40% MDO (smaller/coastal feeders).
 - International bunker data has allocation uncertainty (where fuel is purchased vs where voyage occurs).
 

@@ -8,7 +8,7 @@
 - Anchor status: `calibrated`
 - Default incumbent state id: `domestic_shipping__conventional_diesel`
 - Source family: Phase 1 reference scenario v0.1
-- Coverage note: Anchored to BITRE coastal freight statistics (30,000 million_tkm = 30 billion tkm) and AES 2023-24 (30.0 PJ domestic water transport).
+- Coverage note: Anchored to BITRE coastal freight statistics (30,000 million_tkm = 30 billion tkm) and AES 2025 Table F1 coastal bunkers (44.5 PJ domestic water transport, 2023-24).
 
 ## What must reconcile at incumbent/default settings
 
@@ -23,8 +23,8 @@
 
 ## Known deviations
 
-- Energy at anchor: 30,000 million_tkm × 1,000 GJ/million_tkm = 30 PJ (AES 2023-24 reference: 30.0 PJ, coverage = 100%).
-- Total CO2e: 76.0 tCO2e/million_tkm × 30,000 / 1e6 = 2.28 MtCO2e (NGGI domestic navigation ~2.2 MtCO2e ✓).
+- Energy at anchor: 30,000 million_tkm × 1,483 GJ/million_tkm = 44.5 PJ (AES 2025 Table F1 reference: 44.5 PJ, coverage = 100%).
+- Total CO2e: 112.7 tCO2e/million_tkm × 30,000 / 1e6 = 3.38 MtCO2e (NGGI 2025 domestic navigation ✓).
 - Fuel split: 65% MDO, 35% HFO reflects vessel type mix (smaller coastal vessels predominantly MDO; bulk carriers use HFO).
 
 ## What is intentionally approximate or excluded

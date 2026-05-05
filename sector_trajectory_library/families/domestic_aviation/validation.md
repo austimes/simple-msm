@@ -8,7 +8,7 @@
 - Anchor status: `calibrated`
 - Default incumbent state id: `domestic_aviation__conventional_jet`
 - Source family: Phase 1 reference scenario v0.1
-- Coverage note: Anchored to BITRE Aviation Statistical Report 2023-24 (75,500 million_pkm domestic air travel) and AES 2023-24 (85.0 PJ domestic aviation).
+- Coverage note: Anchored to BITRE Aviation Statistical Report 2023-24 (75,500 million_pkm domestic air travel) and AES 2025 Table F1 (135.3 PJ domestic aviation, 2023-24).
 
 ## What must reconcile at incumbent/default settings
 
@@ -23,8 +23,8 @@
 
 ## Known deviations
 
-- Energy at anchor: 75,500 million_pkm × 1,126 GJ/million_pkm = 85.0 PJ (AES 2023-24 reference: 85.0 PJ, coverage ≈ 100%).
-- Total CO2e: 80.5 tCO2e/million_pkm × 75,500 / 1e6 = 6.08 MtCO2e (NGGI Cat 1A3a domestic aviation ✓).
+- Energy at anchor: 75,500 million_pkm × 1,792 GJ/million_pkm = 135.3 PJ (AES 2025 Table F1 reference: 135.3 PJ, coverage = 100%).
+- Total CO2e: 128.1 tCO2e/million_pkm × 75,500 / 1e6 = 9.67 MtCO2e (NGGI Cat 1A3a domestic aviation ✓).
 - National average energy intensity masks heterogeneity between short-haul and long-haul domestic routes.
 
 ## What is intentionally approximate or excluded

@@ -17,7 +17,7 @@ The family captures three main levers aligned with IMO 2050 decarbonisation stra
 - Family id: `international_shipping`
 - Output/service name: `international_maritime_freight`
 - Output unit: `million_tkm`
-- Output quantity basis: One million tonne-kilometres of international shipping associated with Australian bunkering. Calibrated to AES 2023-24 international maritime bunker fuel (65 PJ); service volume is an estimated 200,000 million_tkm based on a ~0.3 MJ/tkm energy intensity consistent with large ocean bulk carriers.
+- Output quantity basis: One million tonne-kilometres of international shipping associated with Australian bunkering. Calibrated to AES 2025 Table F1 international maritime bunker fuel (29.5 PJ in 2023-24); service volume is an estimated 200,000 million_tkm based on a ~0.15 MJ/tkm energy intensity consistent with large ocean bulk carriers.
 - Demand trajectory: `growing__international_shipping` (+1.5%/yr 2025–2035, +0.5%/yr 2035–2050; driven by Australian commodity export growth moderating as IMO decarbonisation targets reshape demand)
 - 2025 demand anchor: 200,000 million_tkm
 - Default incumbent state id: `international_shipping__conventional_hfo`
@@ -34,7 +34,7 @@ All state ids are authored across milestone years 2025, 2030, 2035, 2040, 2045, 
 
 ## Main sources used
 
-- `S001` — AES 2023-24 (international maritime bunker fuel 65 PJ). See `shared/source_ledger.csv`
+- `S001` — AES 2025 Table F1 (international maritime bunker fuel 29.5 PJ, 2023-24). See `shared/source_ledger.csv`
 - `S013` — BITRE freight linehaul / transport yearbook (international shipping activity reference). See `shared/source_ledger.csv`
 - `S032` — NGA Factors 2024 (HFO 78.9 kgCO2e/GJ; MDO 74.4 kgCO2e/GJ). See `shared/source_ledger.csv`
 
@@ -49,7 +49,7 @@ All state ids are authored across milestone years 2025, 2030, 2035, 2040, 2045, 
 
 Phase 1 uses three technology states (one incumbent, two transition pathways) to represent the main decarbonisation options for international shipping consistent with IMO strategy.
 
-The incumbent (`conventional_hfo`) anchors to AES 2023-24 bunker energy at national scale. LNG (`lng_transition`) represents the commercially available near-term lower-carbon option already deployed in new builds for Australian LNG trade routes. The zero-emission fuel state (`zero_emission_fuel`) captures the long-run IMO 2050 pathway; green ammonia is used as the representative commodity since it is the leading contender for Australian bulk trade routes given Australia's green hydrogen and ammonia export ambitions. Together these three states span the credible technology range without requiring vessel-type or flag-of-registry detail.
+The incumbent (`conventional_hfo`) anchors to AES 2025 Table F1 bunker energy (2023-24) at national scale. LNG (`lng_transition`) represents the commercially available near-term lower-carbon option already deployed in new builds for Australian LNG trade routes. The zero-emission fuel state (`zero_emission_fuel`) captures the long-run IMO 2050 pathway; green ammonia is used as the representative commodity since it is the leading contender for Australian bulk trade routes given Australia's green hydrogen and ammonia export ambitions. Together these three states span the credible technology range without requiring vessel-type or flag-of-registry detail.
 
 ## Known caveats
 
@@ -100,30 +100,30 @@ Evidence basis: Vale, Cargill, and MOL have operated Flettner rotor vessels repo
 
 | Commodity | Coefficient (GJ/million_tkm) | Total at anchor |
 |---|---|---|
-| Heavy fuel oil | 195 | 39.0 PJ |
-| Marine diesel oil | 130 | 26.0 PJ |
-| **Total energy** | **325** | **65.0 PJ** |
+| Heavy fuel oil | 88.5 | 17.7 PJ |
+| Marine diesel oil | 59.0 | 11.8 PJ |
+| **Total energy** | **147.5** | **29.5 PJ** |
 
 | Emission stream | Coefficient | Total at anchor | Reference |
 |---|---|---|---|
-| Energy CO2e (scope 1, NGGI international bunkers) | 25.1 tCO2e/million_tkm | 5.0 MtCO2e | NGGI international maritime bunkers ~3–5 MtCO2e |
+| Energy CO2e (scope 1, NGGI international bunkers) | 11.4 tCO2e/million_tkm | 2.3 MtCO2e | NGGI 2025 international maritime bunkers |
 | Process CO2e | 0 | 0 | — |
 
-AES bunker energy coverage: 65.0 PJ modelled vs 65 PJ AES 2023-24 = **100.0%**.
+AES 2025 Table F1 international bunkers (2023-24): 29.5 PJ modelled vs 29.5 PJ AES = **100.0%**.
 
 Emission factors (NGA 2024, AR5 GWP100): HFO 78.9 kgCO2e/GJ; MDO 74.4 kgCO2e/GJ.  
-Blended energy CO2e: (195×78.9 + 130×74.4)/1000 = 25.1 tCO2e/million_tkm ✓
+Blended energy CO2e: (88.5×78.9 + 59.0×74.4)/1000 = 11.4 tCO2e/million_tkm ✓
 
 ### Conventional HFO state trajectory
 
 | Year | HFO (GJ/million_tkm) | MDO (GJ/million_tkm) | Energy CO2e (tCO2e/million_tkm) |
 |---|---|---|---|
-| 2025 | 195 | 130 | 25.1 |
-| 2030 | 188 | 125 | 24.2 |
-| 2035 | 181 | 120 | 23.3 |
-| 2040 | 174 | 116 | 22.4 |
-| 2045 | 169 | 112 | 21.7 |
-| 2050 | 165 | 110 | 21.3 |
+| 2025 | 88.5 | 59.0 | 11.4 |
+| 2030 | 85.8 | 57.2 | 11.0 |
+| 2035 | 83.1 | 55.4 | 10.7 |
+| 2040 | 80.4 | 53.6 | 10.4 |
+| 2045 | 77.7 | 51.8 | 10.0 |
+| 2050 | 75.0 | 50.0 | 9.6 |
 
 ### Zero-emission fuel state at 2050 (indicative best-case)
 

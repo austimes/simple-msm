@@ -8,7 +8,7 @@
 - Anchor status: `calibrated`
 - Default incumbent state id: `rail_freight__diesel_electric`
 - Source family: Phase 1 reference scenario v0.1
-- Coverage note: Anchored to BITRE freight linehaul statistics (700 billion_tkm, predominantly iron ore Pilbara and coal Hunter Valley) and AES 2023-24 estimated rail freight energy (25.0 PJ).
+- Coverage note: Anchored to BITRE freight linehaul statistics (700 billion_tkm, predominantly iron ore Pilbara and coal Hunter Valley) and AES 2025 Table F1 rail diesel freight share (49.0 PJ, 2023-24).
 
 ## What must reconcile at incumbent/default settings
 
@@ -23,10 +23,10 @@
 
 ## Known deviations
 
-- Energy at anchor: 700 billion_tkm × 35,715 GJ/billion_tkm = 25.0 PJ (AES 2023-24 estimate: 25.0 PJ).
-- Scope 1 CO2e (diesel combustion only): 2,371.6 tCO2e/billion_tkm × 700 / 1e6 = 1.66 MtCO2e (NGA 2025 diesel EF 69.9 kgCO2e/GJ; NGGI rail freight 1.5–2.0 MtCO2e ✓).
-- Predominantly diesel-electric (95% diesel, 5% electricity by energy) with very low intensity (0.036 MJ/tkm) reflecting efficient heavy-haul operations.
-- AES does not separately report freight vs passenger rail energy; the 25 PJ estimate is derived by subtracting estimated passenger energy (8 PJ) from total rail.
+- Energy at anchor: 700 billion_tkm × 70,000 GJ/billion_tkm = 49.0 PJ (AES 2025 Table F1 reference: 49.0 PJ rail diesel freight share, coverage = 100%).
+- Scope 1 CO2e (diesel combustion only): 4,893 tCO2e/billion_tkm × 700 / 1e6 = 3.43 MtCO2e (NGA 2025 diesel EF 69.9 kgCO2e/GJ; NGGI 2025 rail freight ✓).
+- 100% diesel by energy (rail electricity is allocated to passenger urban metro service); intensity 0.070 MJ/tkm reflects efficient heavy-haul operations.
+- AES does not separately report freight vs passenger rail energy. The total rail figure (sector 47 = 64.9 PJ in 2023-24) is allocated 49 PJ to freight (diesel residual after assigning 12.9 PJ electricity and 3.1 PJ regional diesel to passenger).
 
 ## What is intentionally approximate or excluded
 
