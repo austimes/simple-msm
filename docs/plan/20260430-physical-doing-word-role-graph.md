@@ -78,7 +78,7 @@ The graph starts from one required root role and decomposes into doing-word chil
 | `move_freight_by_rail` | `move_people_and_freight` | Move freight by rail | Minimum residual coverage until freight rail pathways are authored. |
 | `move_passengers_by_air` | `move_people_and_freight` | Move passengers by air | Minimum residual coverage until aviation pathways are authored. |
 | `move_freight_by_marine` | `move_people_and_freight` | Move freight by marine | Minimum residual coverage until marine freight pathways are authored. |
-| `account_other_non_road_transport_activity` | `move_people_and_freight` | Account other non-road transport activity | Explicit residual for remaining off-road and other non-road transport. |
+| `operate_off_road_mobile_equipment` | `move_people_and_freight` | Operate off-road mobile equipment | Explicit residual for remaining off-road and other non-road transport. |
 | `account_remaining_transport_activity` | `move_people_and_freight` | Account remaining transport activity | Compatibility residual after non-road roles are split out. |
 
 ## Material And Product Roles
@@ -126,7 +126,7 @@ Domestic supply roles cover energy carriers consumed by Australian roles. They d
 | `grow_crops_and_horticulture_output` | `grow_food_and_biomass` | Grow crops and horticulture output | Migrates current crop and horticulture coverage. |
 | `manage_agricultural_soils_and_residues` | `grow_food_and_biomass` | Manage agricultural soils and residues | Candidate biological-emissions role. |
 | `account_remaining_agricultural_activity` | `grow_food_and_biomass` | Account remaining agricultural activity | Explicit residual coverage. |
-| `provide_water_services` | `manage_water_and_waste` | Provide water services | Future water role or residual. |
+| `provide_water_and_wastewater_services` | `manage_water_and_waste` | Provide water and wastewater services | Future water role or residual. |
 | `treat_wastewater` | `manage_water_and_waste` | Treat wastewater | Future wastewater role or residual. |
 | `manage_municipal_solid_waste` | `manage_water_and_waste` | Manage municipal solid waste | Future waste role or residual. |
 | `account_remaining_water_and_waste_activity` | `manage_water_and_waste` | Account remaining water and waste activity | Residual coverage. |
@@ -173,7 +173,7 @@ These edge examples are not reporting allocations. They are physical context for
 | `produce_cement_equivalent` | Rename to `make_cement_equivalent`. Add host children for clinker, grinding, blending, and explicit process heat when decomposed. |
 | `supply_electricity` | Rename to `supply_grid_electricity`. Keep domestic supply boundary separate from export-bound resource roles. |
 | `account_residual_mining_energy` | Split into domestic energy supply residuals and explicit export-gate resource roles. |
-| `account_residual_fugitives` | Keep as residual only until fugitive emissions can be assigned to domestic and export resource supply roles. |
+| `account_energy_system_fugitive_emissions` | Keep as residual only until fugitive emissions can be assigned to domestic and export resource supply roles. |
 | `sector`, `subsector`, and topology area labels | Keep only as reporting allocation or UI grouping metadata, not physical role nodes. |
 
 ## Acceptance Check

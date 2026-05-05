@@ -40,7 +40,7 @@ test('residual stubs load as first-class families', () => {
 
   assert.equal(residualFamilies.length, 28);
   assert.equal(pkg.residualOverlays2025.length, 0);
-  assert.equal(pkg.appConfig.output_roles.electricity_grid_losses_own_use?.display_group, 'Energy supply');
+  assert.equal(pkg.appConfig.output_roles.electricity_grid_losses_own_use?.display_group, 'Domestic energy carriers');
 });
 
 test('built-in solve request uses residual families instead of external electricity demand', () => {
@@ -51,7 +51,7 @@ test('built-in solve request uses residual families instead of external electric
   assert.equal(result.status, 'solved');
   assert.equal(request.configuration.externalCommodityDemandByCommodity.electricity, undefined);
   assert.ok(request.rows.some((row) => row.outputId === 'electricity_grid_losses_own_use'));
-  assert.ok(!request.rows.some((row) => row.outputId === 'residual_lulucf_sink'));
+  assert.ok(request.rows.some((row) => row.outputId === 'residual_lulucf_sink'));
 
   const residualFinalElectricity = FINAL_ELECTRICITY_RESIDUAL_FAMILIES
     .reduce((sum, outputId) => sum + electricityInputForOutput(request, outputId), 0);

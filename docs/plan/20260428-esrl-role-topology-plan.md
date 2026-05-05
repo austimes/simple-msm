@@ -46,7 +46,7 @@ Use verb/object names:
 - `produce_crude_steel`
 - `supply_electricity`
 - `deliver_residential_building_services`
-- `account_residual_fugitives`
+- `account_energy_system_fugitive_emissions`
 - `remove_co2_land_sequestration`
 
 A role has:
