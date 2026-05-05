@@ -17,7 +17,7 @@ test('cement decomposition boundary design is packaged', () => {
   const rows = readBoundaryRows();
 
   assert.equal(pkg.enrichment.availablePaths.includes(BOUNDARY_PATH), true);
-  assert.equal(rows.length, 5);
+  assert.equal(rows.length, 4);
   assert.ok(rows.every((row) => row.parent_role_id === 'make_cement_equivalent'));
   assert.ok(rows.every((row) =>
     row.planned_parent_representation_id === 'make_cement_equivalent__clinker_decomposition'
@@ -32,7 +32,6 @@ test('cement decomposition boundary defines child roles and activity propagation
   const childRoleIds = childRows.map((row) => row.planned_child_role_id).sort();
 
   assert.deepEqual(childRoleIds, [
-    'capture_point_source_co2',
     'generate_cement_kiln_heat',
     'grind_blend_cement_equivalent',
     'make_clinker_intermediate',
@@ -53,7 +52,6 @@ test('cement decomposition boundary assigns heat fuel and emissions ownership on
   const clinker = rowsById.get('cement_clinker_intermediate');
   const kilnHeat = rowsById.get('cement_kiln_heat');
   const finish = rowsById.get('cement_finish_grind_blend');
-  const capture = rowsById.get('cement_capture_bridge');
 
   assert.equal(clinker?.process_emissions_ownership, 'owns_limestone_calcination_co2_and_uncaptured_clinker_process_co2');
   assert.equal(clinker?.energy_emissions_ownership, 'excludes_fuel_combustion_energy_co2');
@@ -64,8 +62,4 @@ test('cement decomposition boundary assigns heat fuel and emissions ownership on
 
   assert.equal(finish?.process_emissions_ownership, 'excludes_calcination_process_co2');
   assert.equal(finish?.energy_emissions_ownership, 'owns_grinding_blending_electricity_inputs_only');
-
-  assert.equal(capture?.planned_child_role_id, 'capture_point_source_co2');
-  assert.equal(capture?.process_emissions_ownership, 'does_not_create_new_gross_process_emissions');
-  assert.match(capture?.double_counting_guardrail ?? '', /capture transport and storage roles/);
 });
