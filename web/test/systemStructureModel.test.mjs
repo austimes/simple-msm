@@ -92,6 +92,9 @@ describe('systemStructureModel', () => {
   });
 
   test('generated incumbent base treats residual families as normal service controls', () => {
+    // chemical_products is a top-level residual family. Building residual companions
+    // (residential_other, commercial_other) are now decomposition_child residual companions
+    // of their parent service roles, and are no longer addressable through service_controls.
     const focus = buildConfiguration(pkg.appConfig, {
       serviceControls: {
         passenger_road_transport: {
@@ -102,7 +105,7 @@ describe('systemStructureModel', () => {
           mode: 'optimize',
           active_state_ids: [],
         },
-        residential_other: {
+        chemical_products: {
           mode: 'optimize',
           active_state_ids: [],
         },
@@ -115,7 +118,7 @@ describe('systemStructureModel', () => {
 
     const generated = buildGeneratedIncumbentBaseConfiguration(focus, pkg);
 
-    assert.deepEqual(generated.role_controls.account_remaining_residential_building_services.active_method_ids, []);
+    assert.deepEqual(generated.role_controls.make_chemical_products.active_method_ids, []);
     assert.deepEqual(generated.role_controls.account_land_carbon_stock_change.active_method_ids, [
       'residual_lulucf_sink__residual_incumbent',
     ]);

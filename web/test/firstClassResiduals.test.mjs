@@ -7,8 +7,9 @@ import { buildSystemFlowGraphData } from '../src/results/systemFlowGraph.ts';
 import { materializeServiceControlsFromRoleControls } from './roleControlTestUtils.mjs';
 
 const FINAL_ELECTRICITY_RESIDUAL_FAMILIES = [
-  'commercial_other',
-  'residential_other',
+  // Building residual companions (commercial_other, residential_other) are no longer
+  // top-level residual families: they are decomposition_child residual companions
+  // activated only by the parent end-use decomposition representations.
   'transport_rail_passenger',
   'transport_rail_freight',
   'transport_air_passenger',
@@ -60,10 +61,10 @@ test('built-in solve request uses residual families instead of external electric
     (balance) => balance.year === 2025 && balance.commodityId === 'electricity',
   );
 
-  assert.ok(Math.abs(residualFinalElectricity - 101_598_611.11111) < 1);
+  assert.ok(Math.abs(residualFinalElectricity - 101_073_730.61178) < 1);
   assert.ok(Math.abs(lossesOwnUse - 42_420_000) < 1);
   assert.ok(electricityBalance);
-  assert.ok(Math.abs(electricityBalance.totalDemand - 283_920_000) < 200);
+  assert.ok(Math.abs(electricityBalance.totalDemand - 283_395_010) < 200);
 });
 
 test('disabling a residual family removes its normal demand and rows', () => {
@@ -94,6 +95,8 @@ test('system flow graph renders residual families without an external demand nod
   });
 
   assert.equal(graph.nodes.some((node) => node.role === 'external demand'), false);
-  assert.ok(graph.nodes.some((node) => node.outputId === 'commercial_other' && node.kind === 'route'));
+  // Residential and commercial residual companions are no longer top-level routes;
+  // sample a representative remaining residual family to confirm route nodes still render.
+  assert.ok(graph.nodes.some((node) => node.outputId === 'transport_rail_passenger' && node.kind === 'route'));
   assert.ok(graph.nodes.some((node) => node.outputId === 'electricity_grid_losses_own_use' && node.kind === 'route'));
 });
