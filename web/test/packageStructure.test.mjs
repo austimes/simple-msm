@@ -413,7 +413,7 @@ test('energy system representation library package structure is internally consi
     28,
     'expected 28 roles whose default representation is a residual_stub placeholder',
   );
-  assert.equal(representations.length, roles.length + 4);
+  assert.equal(representations.length, roles.length + 5);
   assert.equal(representationIncumbents.length, roles.length + 4);
   assert.equal(reportingAllocations.length, roles.length);
   assert.equal(roleValidationSummary.length, roles.length);

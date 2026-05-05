@@ -7,8 +7,8 @@ test('web package loader reads canonical role-topology files', () => {
 
   assert.equal(pkg.roleMetadata.length, 52);
   assert.equal(pkg.roleMetrics.length, 52);
-  assert.equal(pkg.representations.length, 56);
-  assert.equal(pkg.roleDecompositionEdges.length, 7);
+  assert.equal(pkg.representations.length, 57);
+  assert.equal(pkg.roleDecompositionEdges.length, 9);
   assert.equal(pkg.methods.length, 92);
   assert.equal(pkg.methodYears.length, 552);
   assert.equal(pkg.roleDemands.length, 52);

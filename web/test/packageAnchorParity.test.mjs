@@ -141,5 +141,8 @@ test('demand resolution produces correct 2025 service demands from canonical anc
 
   assert.equal(resolved.external_commodity_demands?.electricity, undefined);
   assert.equal(resolved.service_demands.electricity_grid_losses_own_use?.['2025'], 1);
-  assert.equal(resolved.service_demands.commercial_other?.['2025'], 1);
+  // Building residual companions are decomposition children: they no longer carry a
+  // top-level service demand under the default representation.
+  assert.equal(resolved.service_demands.commercial_other?.['2025'], undefined);
+  assert.equal(resolved.service_demands.account_remaining_commercial_building_services?.['2025'], undefined);
 });

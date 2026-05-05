@@ -195,10 +195,15 @@ function assertDemoControls(configuration, controls, pkg) {
   for (const [outputId, control] of Object.entries(configuration.service_controls)) {
     const expected = controls[outputId];
     if (!expected) {
-      const roleMetadata = pkg.rolePresentationMetadata.find((role) => role.output_id === outputId);
+      const presentationMetadata = pkg.rolePresentationMetadata.find((role) => role.output_id === outputId);
+      const roleMetadata = presentationMetadata
+        ? pkg.roleMetadata.find((role) => role.role_id === presentationMetadata.role_id)
+        : undefined;
+      const isDecompositionChild = roleMetadata?.parent_role_id != null && roleMetadata.parent_role_id !== '';
       if (
-        roleMetadata?.default_representation_kind === 'residual_stub'
-        && roleMetadata?.balance_type !== 'carbon_removal'
+        presentationMetadata?.default_representation_kind === 'residual_stub'
+        && presentationMetadata?.balance_type !== 'carbon_removal'
+        && !isDecompositionChild
       ) {
         assert.equal(control.mode, 'optimize', `${outputId} residual family should stay in optimize mode`);
         assert.deepEqual(
@@ -206,6 +211,14 @@ function assertDemoControls(configuration, controls, pkg) {
           [`${outputId}__residual_incumbent`],
           `${outputId} should keep its residual incumbent closure route`,
         );
+        continue;
+      }
+
+      if (isDecompositionChild) {
+        // Decomposition_child residual companions are inactive under the default representation;
+        // any active_state_ids carried in the demo config are inert until the parent's decomposition
+        // representation is selected, so we only assert the optimize mode here.
+        assert.equal(control.mode, 'optimize', `${outputId} decomposition child should stay in optimize mode`);
         continue;
       }
 
