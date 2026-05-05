@@ -252,7 +252,7 @@ export default function LibraryRoleGraphCanvas({
     // Use the set of top-level role nodes as the identity. This changes only
     // when filters/search change, not when the user expands.
     return data.nodes
-      .filter((node) => node.kind === 'role' && node.activationClass === 'top_level')
+      .filter((node) => node.kind === 'role' && node.parentRoleId === null)
       .map((node) => node.id)
       .sort()
       .join('|');

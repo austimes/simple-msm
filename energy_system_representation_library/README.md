@@ -16,9 +16,9 @@ The package keeps role data, explanation, evidence hooks, and validation materia
 
 ### Roles
 
-A role is the system function being covered: produce, supply, deliver, remove, or account for something. `shared/roles.csv` is the role registry and topology surface. It defines each `role_id`, label, description, topology area, parent role, balance type, output unit, and activation class.
+A role is the system function being covered: produce, supply, deliver, remove, or account for something. `shared/roles.csv` is the role registry and topology surface. It defines each `role_id`, label, description, topology area, parent role, balance type, and output unit.
 
-Roles are the authoritative coverage ontology. Reporting labels such as sector and subsector are kept out of role topology and live only in `shared/reporting_allocations.csv`. A role is either a top-level coverage obligation (`activation_class = top_level`) or a child activated by a decomposition representation (`activation_class = decomposition_child`). Residual placeholder semantics do not live on the role; they are expressed at the representation layer through `representation_kind = residual_stub`.
+Roles are the authoritative coverage ontology. Reporting labels such as sector and subsector are kept out of role topology and live only in `shared/reporting_allocations.csv`. A role is either a top-level coverage obligation (blank `parent_role_id`) or a child activated by a decomposition representation (non-blank `parent_role_id`). Residual placeholder semantics do not live on the role; they are expressed at the representation layer through `representation_kind = residual_stub`.
 
 ### Role Topology
 

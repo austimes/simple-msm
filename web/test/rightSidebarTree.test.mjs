@@ -337,19 +337,16 @@ describe('deriveRightSidebarTree', () => {
         role_id: 'make_crude_steel',
         role_label: 'Make crude steel',
         parent_role_id: null,
-        activation_class: 'top_level',
       },
       {
         role_id: 'make_direct_reduced_iron',
         role_label: 'Make direct reduced iron',
         parent_role_id: 'make_crude_steel',
-        activation_class: 'decomposition_child',
       },
       {
         role_id: 'melt_and_refine_dri_into_crude_steel',
         role_label: 'Melt and refine DRI into crude steel',
         parent_role_id: 'make_crude_steel',
-        activation_class: 'decomposition_child',
       },
     ];
     const representations = [

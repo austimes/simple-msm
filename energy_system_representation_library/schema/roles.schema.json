@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "schema/roles.schema.json",
   "title": "Roles",
-  "description": "Schema for shared/roles.csv. Roles are the authoritative coverage ontology of the energy-system representation library: each role describes something the system must cover, supply, convert, remove, or account for, and carries semantic meaning, output unit, topology placement, and activation rules. Residual placeholder semantics do not live on the role; they are expressed at the representation layer through representation_kind = residual_stub.",
+  "description": "Schema for shared/roles.csv. Roles are the authoritative coverage ontology of the energy-system representation library: each role describes something the system must cover, supply, convert, remove, or account for, and carries semantic meaning, output unit, and topology placement. Top-level roles (those with a blank parent_role_id) are active unless scoped out; decomposition children (those with a non-blank parent_role_id) are active only when their parent decomposition representation is selected. Residual placeholder semantics do not live on the role; they are expressed at the representation layer through representation_kind = residual_stub.",
   "type": "object",
   "required": [
     "role_id",
@@ -13,7 +13,6 @@
     "parent_role_id",
     "balance_type",
     "output_unit",
-    "activation_class",
     "notes"
   ],
   "properties": {
@@ -56,14 +55,6 @@
     "output_unit": {
       "type": "string",
       "description": "Output or accounting unit for role activity."
-    },
-    "activation_class": {
-      "type": "string",
-      "enum": [
-        "top_level",
-        "decomposition_child"
-      ],
-      "description": "Neutral activation class for the role. Top-level roles are active unless scoped out; decomposition children are active only when their parent decomposition representation is selected. This field carries activation semantics only; placeholder modeling is expressed by selecting a residual_stub representation, not by tagging the role itself."
     },
     "notes": {
       "type": "string",

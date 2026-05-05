@@ -26,7 +26,6 @@ function buildResolvedMethodYearRow(
     topology_area_id: 'transport',
     topology_area_label: 'Transport',
     parent_role_id: null,
-    activation_class: 'top_level',
     reporting_allocations: [],
     region: 'AUS',
     year: 2025,

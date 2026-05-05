@@ -1,5 +1,4 @@
 import type {
-  ActivationClass,
   BalanceType,
   EmissionsImportanceBand,
   PackageData,
@@ -42,7 +41,6 @@ export interface RoleLibraryRole {
   parentRoleId: string | null;
   balanceType: BalanceType;
   outputUnit: string;
-  activationClass: ActivationClass;
   defaultRepresentationKind: RepresentationKind;
   representations: RoleLibraryRepresentation[];
   childRoleIds: string[];
@@ -63,7 +61,7 @@ export interface RoleLibraryGraphNode {
   meta: string;
   expanded: boolean;
   isDefault?: boolean;
-  activationClass?: ActivationClass;
+  parentRoleId?: string | null;
   balanceType?: BalanceType;
   representationKind?: RepresentationKind;
   emissionsImportanceBand?: EmissionsImportanceBand;
@@ -94,7 +92,6 @@ export interface RoleLibraryModel {
 
 export interface RoleLibraryGraphFilters {
   search?: string;
-  activationClass?: string;
   balanceType?: string;
   representationKind?: string;
   topologyAreaId?: string;
@@ -168,7 +165,6 @@ function matchesRoleSearch(role: RoleLibraryRole, search: string): boolean {
     role.label,
     role.description,
     role.topologyAreaLabel,
-    role.activationClass,
     role.balanceType,
     role.defaultRepresentationKind,
     ...role.representations.flatMap((representation) => [
@@ -316,7 +312,6 @@ export function buildRoleLibraryModel(pkg: Pick<
       parentRoleId: role.parent_role_id,
       balanceType: role.balance_type,
       outputUnit: role.output_unit,
-      activationClass: role.activation_class,
       defaultRepresentationKind,
       representations: representationsByRoleId.get(role.role_id) ?? [],
       childRoleIds: childRoleIdsByRoleId.get(role.role_id) ?? [],
@@ -327,7 +322,7 @@ export function buildRoleLibraryModel(pkg: Pick<
   }).sort(compareLabels);
   const roleById = new Map(roles.map((role) => [role.roleId, role]));
   const topLevelRoles = roles
-    .filter((role) => role.activationClass === 'top_level')
+    .filter((role) => role.parentRoleId === null)
     .sort(compareTopLevelRoles);
 
   return {
@@ -351,7 +346,6 @@ export function buildRoleLibraryGraphData(
   const matchingRoleIds = new Set(model.roles
     .filter((role) =>
       matchesRoleSearch(role, search)
-      && (!filters.activationClass || role.activationClass === filters.activationClass)
       && (!filters.balanceType || role.balanceType === filters.balanceType)
       && (!filters.representationKind || role.defaultRepresentationKind === filters.representationKind),
     )
@@ -393,7 +387,7 @@ export function buildRoleLibraryGraphData(
       label: role.label,
       meta: `${role.defaultRepresentationKind.replaceAll('_', ' ')} · ${role.balanceType.replaceAll('_', ' ')}`,
       expanded,
-      activationClass: role.activationClass,
+      parentRoleId: role.parentRoleId,
       balanceType: role.balanceType,
       representationKind: role.defaultRepresentationKind,
       representationCount: role.representations.length,

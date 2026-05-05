@@ -64,7 +64,6 @@ function makeResolvedMethodYearRow(year, overrides = {}) {
     topology_area_id: overrides.topology_area_id ?? 'buildings',
     topology_area_label: overrides.topology_area_label ?? 'Buildings',
     parent_role_id: overrides.parent_role_id ?? null,
-    activation_class: overrides.activation_class ?? 'top_level',
     reporting_allocations: overrides.reporting_allocations ?? [],
     family_id: FAMILY_ID,
     sector: 'buildings',

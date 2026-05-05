@@ -5,7 +5,6 @@ export interface EmissionEntry {
 
 export type OutputRole = 'required_service' | 'endogenous_supply_commodity' | 'optional_activity';
 export type FamilyResolution = 'modeled' | 'residual_stub';
-export type ActivationClass = 'top_level' | 'decomposition_child';
 export type BalanceType =
   | 'accounting_obligation'
   | 'carbon_removal'
@@ -268,7 +267,6 @@ export interface RolePresentationMetadata {
   output_quantity_basis: string;
   default_method_id: string;
   balance_type: BalanceType;
-  activation_class: ActivationClass;
   default_representation_kind: RepresentationKind;
   reporting_allocations: ReportingAllocation[];
   role_metric: RoleMetric | null;
@@ -361,7 +359,6 @@ export interface ResolvedMethodYearRow {
   topology_area_id: string;
   topology_area_label: string;
   parent_role_id: string | null;
-  activation_class: ActivationClass;
   reporting_allocations: ReportingAllocation[];
   region: string;
   year: number;
@@ -421,7 +418,6 @@ export interface RoleMetadata {
   parent_role_id: string | null;
   balance_type: BalanceType;
   output_unit: string;
-  activation_class: ActivationClass;
   notes: string;
 }
 

@@ -33,7 +33,7 @@ function methodKey(roleId: string, representationId: string, methodId: string): 
 
 function buildRequiredTopLevelRoleIds(roles: RoleMetadata[]): string[] {
   return roles
-    .filter((role) => role.activation_class !== 'decomposition_child')
+    .filter((role) => role.parent_role_id === null)
     .map((role) => role.role_id);
 }
 
@@ -192,7 +192,7 @@ export function resolveActiveRoleStructure(
     }, new Map());
   const requiredChildRoleIdsByParentRole = pkg.roleMetadata
     .reduce<Map<string, string[]>>((result, role) => {
-      if (role.activation_class !== 'decomposition_child' || !role.parent_role_id) {
+      if (!role.parent_role_id) {
         return result;
       }
 
@@ -289,7 +289,7 @@ export function resolveActiveRoleStructure(
 
   for (const role of pkg.roleMetadata) {
     if (
-      role.activation_class !== 'decomposition_child'
+      role.parent_role_id === null
       && !activeRoleSet.has(role.role_id)
     ) {
       throw new Error(`Required role ${JSON.stringify(role.role_id)} is inactive.`);
