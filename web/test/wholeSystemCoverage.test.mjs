@@ -36,7 +36,7 @@ test('whole-system coverage summary resolves every authored role', () => {
 
   const temporaryRows = rows.filter((row) => row.temporary_unallocated_coverage === 'true');
   assert.equal(temporaryRows.length > 0, true);
-  assert.equal(rowsByRoleId.get('account_residual_other_sectors')?.temporary_unallocated_coverage, 'true');
+  assert.equal(rowsByRoleId.get('operate_remaining_domestic_activity')?.temporary_unallocated_coverage, 'true');
   assert.equal(rowsByRoleId.get('capture_point_source_co2')?.temporary_unallocated_coverage, 'true');
   assert.equal(rowsByRoleId.get('store_captured_co2')?.temporary_unallocated_coverage, 'true');
 });

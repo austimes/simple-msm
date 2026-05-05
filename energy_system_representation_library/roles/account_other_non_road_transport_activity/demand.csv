@@ -1,2 +1,0 @@
-role_id,anchor_year,anchor_value,unit,demand_growth_curve_id,anchor_status,source_role,coverage_note,notes
-account_other_non_road_transport_activity,2025,1,residual_activity,simple_role_growth_central__account_other_non_road_transport_activity,derived_residual_stub,Transport residual split,Other non-road transport uses a residual_activity anchor of 1; quantities live on the residual incumbent method.,Growth proxy is flat until off-road and other non-road transport evidence is authored. Confidence: low.

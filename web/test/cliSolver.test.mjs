@@ -162,7 +162,7 @@ test('repo-backed user configurations with legacy autonomous role ids materializ
     });
     assert.deepEqual(
       output.configuration.role_controls.account_land_carbon_stock_change.active_method_ids,
-      [],
+      ['residual_lulucf_sink__residual_incumbent'],
     );
   } finally {
     rmSync(tempFile, { force: true });

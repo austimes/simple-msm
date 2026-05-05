@@ -1,2 +1,0 @@
-role_id,anchor_year,anchor_value,unit,demand_growth_curve_id,anchor_status,source_role,coverage_note,notes
-manage_waste_emissions,2025,1,residual_activity,simple_role_growth_central__manage_waste_emissions,derived_residual_stub,Migrated residual calibration layer,Residual waste emissions uses a residual_activity anchor of 1; quantities live on the residual incumbent method.,Growth proxy: flat where evidence is weak. Confidence: low.
