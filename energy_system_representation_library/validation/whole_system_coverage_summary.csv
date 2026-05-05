@@ -45,9 +45,6 @@ supply_domestic_derived_fuels,commodity_supply,supply_domestic_derived_fuels__pa
 supply_thermal_coal_to_export_gate,commodity_supply,supply_thermal_coal_to_export_gate__pathway_bundle,residual_stub,1,6,unknown,pilot,true,covered,Minimum coverage is explicit but still temporary or low-confidence.
 supply_metallurgical_coal_to_export_gate,commodity_supply,supply_metallurgical_coal_to_export_gate__pathway_bundle,residual_stub,1,6,unknown,pilot,true,covered,Minimum coverage is explicit but still temporary or low-confidence.
 supply_iron_ore_to_export_gate,commodity_supply,supply_iron_ore_to_export_gate__pathway_bundle,residual_stub,1,6,unknown,pilot,true,covered,Minimum coverage is explicit but still temporary or low-confidence.
-capture_point_source_co2,intermediate_conversion,capture_point_source_co2__pathway_bundle,pathway_bundle,1,6,zero,pilot,true,covered,Minimum coverage is explicit but still temporary or low-confidence.
-transport_captured_co2,intermediate_conversion,transport_captured_co2__pathway_bundle,pathway_bundle,1,6,zero,pilot,true,covered,Minimum coverage is explicit but still temporary or low-confidence.
-store_captured_co2,intermediate_conversion,store_captured_co2__pathway_bundle,pathway_bundle,1,6,zero,pilot,true,covered,Minimum coverage is explicit but still temporary or low-confidence.
 make_clinker_intermediate,intermediate_material,make_clinker_intermediate__pathway_bundle,pathway_bundle,3,18,medium,pilot,true,covered,Required cement decomposition child has explicit pilot method coverage.
 generate_cement_kiln_heat,intermediate_conversion,generate_cement_kiln_heat__pathway_bundle,pathway_bundle,3,18,low,pilot,true,covered,Required cement decomposition child has explicit pilot method coverage.
 grind_blend_cement_equivalent,intermediate_conversion,grind_blend_cement_equivalent__pathway_bundle,pathway_bundle,2,12,zero,pilot,true,covered,Required cement decomposition child has explicit pilot method coverage.

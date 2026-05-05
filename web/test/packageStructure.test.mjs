@@ -274,9 +274,6 @@ const EXPECTED_ROLE_IDS = new Set([
   'operate_remaining_domestic_activity',
   'remove_co2_through_land_sequestration',
   'remove_co2_through_engineered_removals',
-  'capture_point_source_co2',
-  'transport_captured_co2',
-  'store_captured_co2',
   'account_land_carbon_stock_change',
 ]);
 
@@ -394,7 +391,7 @@ test('energy system representation library package structure is internally consi
   assertUnique(reportingAllocations, (allocation) => allocation.reporting_allocation_id, 'reporting_allocation_id');
   assertUnique(roleValidationSummary, (summary) => summary.role_id, 'validation summary role_id');
   assert.deepEqual(roleIds, EXPECTED_ROLE_IDS);
-  assert.equal(roles.length, 52);
+  assert.equal(roles.length, 49);
   assert.equal(roleActivityDrivers.length, roles.length);
   assert.equal(roleMetrics.length, roles.length);
   const defaultRepresentationByRole = new Map();
@@ -775,8 +772,8 @@ test('energy system representation library package structure is internally consi
     }
   }
 
-  assert.equal(totalMethods, 92);
-  assert.equal(totalMethodYearRows, 552);
+  assert.equal(totalMethods, 89);
+  assert.equal(totalMethodYearRows, 534);
   assert.equal(autonomousTrackRowCount > 0, true, 'expected at least one autonomous efficiency track row');
   assert.equal(efficiencyPackageRowCount > 0, true, 'expected at least one efficiency package row');
 
