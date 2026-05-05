@@ -11,7 +11,6 @@ import {
   type ResidualOverlayCatalogEntry,
 } from '../../data/systemStructureModel.ts';
 import type {
-  ActivationClass,
   ConfigurationDocument,
   ConfigurationResidualOverlayControl,
   Method,
@@ -47,7 +46,6 @@ export interface RightSidebarRepresentationOption {
 export interface RightSidebarRoleNode extends RoleNodeNavigationEntry {
   roleId: string;
   roleLabel: string;
-  activationClass: ActivationClass;
   parentRoleId: string | null;
   representationOptions: RightSidebarRepresentationOption[];
   selectedRepresentationId: string | null;
@@ -254,7 +252,7 @@ function buildRolePresentationContext(
     );
   } catch {
     for (const role of roleContext.roleMetadata) {
-      if (role.activation_class === 'decomposition_child') {
+      if (role.parent_role_id !== null) {
         continue;
       }
       activeRoleIds.add(role.role_id);
@@ -358,7 +356,7 @@ export function deriveRightSidebarTree(
       const role = rolePresentationContext?.roleById.get(subsectorEntry.roleId);
       const roleId = role?.role_id ?? subsectorEntry.roleId;
       const parentRoleId = role?.parent_role_id ?? subsectorEntry.parentRoleId ?? null;
-      const isDecompositionChild = role?.activation_class === 'decomposition_child';
+      const isDecompositionChild = parentRoleId !== null;
       if (isDecompositionChild && !rolePresentationContext?.activeRoleIds.has(roleId)) {
         return null;
       }
@@ -403,7 +401,6 @@ export function deriveRightSidebarTree(
         states,
         roleId,
         roleLabel: role?.role_label ?? subsectorEntry.roleLabel,
-        activationClass: role?.activation_class ?? subsectorEntry.activationClass,
         parentRoleId,
         defaultRepresentationKind:
           defaultRepresentationForRole?.representation_kind ?? subsectorEntry.defaultRepresentationKind,

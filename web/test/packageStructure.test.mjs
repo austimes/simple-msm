@@ -15,7 +15,6 @@ const ROLE_HEADERS = [
   'parent_role_id',
   'balance_type',
   'output_unit',
-  'activation_class',
   'notes',
 ];
 const ROLE_ACTIVITY_DRIVER_HEADERS = [
@@ -201,7 +200,6 @@ const REPRESENTATION_KINDS = new Set([
 ]);
 const DIRECT_REPRESENTATION_KINDS = new Set(['pathway_bundle', 'residual_stub', 'technology_bundle']);
 const INCUMBENT_BASES = new Set(['default_pathway_method', 'residual_incumbent_method', 'technology_incumbent_mix']);
-const ACTIVATION_CLASSES = new Set(['top_level', 'decomposition_child']);
 const ROLE_ACTIVITY_DRIVER_KINDS = new Set([
   'baseline_scale_factor',
   'exogenous_series',
@@ -441,7 +439,7 @@ test('energy system representation library package structure is internally consi
       assert.equal(driver.anchor_value, '1', `${driver.driver_id} baseline scale factor should anchor to one activity unit`);
     }
     if (driver.driver_kind === 'linked_parent_activity') {
-      assert.equal(role.activation_class, 'decomposition_child', `${driver.driver_id} linked parent driver should belong to a decomposition child role`);
+      assert.notEqual(role.parent_role_id, '', `${driver.driver_id} linked parent driver should belong to a decomposition child role`);
       assert.equal(driver.parent_role_id, role.parent_role_id, `${driver.driver_id} parent role should match roles.csv`);
       assert.equal(roleIds.has(driver.parent_role_id), true, `${driver.driver_id} parent role must resolve`);
       assert.equal(Number.isFinite(Number(driver.parent_activity_coefficient)), true, `${driver.driver_id} parent activity coefficient must be numeric`);
@@ -485,13 +483,9 @@ test('energy system representation library package structure is internally consi
 
   for (const role of roles) {
     assert.equal(BALANCE_TYPES.has(role.balance_type), true, `${role.role_id} balance type must be canonical`);
-    assert.equal(ACTIVATION_CLASSES.has(role.activation_class), true, `${role.role_id} activation class must be canonical`);
-    if (role.activation_class === 'decomposition_child') {
-      assert.notEqual(role.parent_role_id, '', `${role.role_id} decomposition child must name a parent role`);
+    if (role.parent_role_id !== '') {
       assert.equal(requiredChildEdgesByRole.has(role.role_id), true, `${role.role_id} decomposition child must be activated by a required edge`);
       assert.equal(requiredChildEdgesByRole.get(role.role_id)?.length, 1, `${role.role_id} decomposition child must have one required activation edge`);
-    } else {
-      assert.equal(role.parent_role_id, '', `${role.role_id} top-level role must not name a parent role`);
     }
   }
 
@@ -819,7 +813,7 @@ test('every parent_role_id resolves to an existing role', () => {
 
 test('every top-level role is groupable by topology_area_label', () => {
   const roles = parseCsv(readText('shared/roles.csv'));
-  const topLevelRoles = roles.filter((role) => role.activation_class === 'top_level');
+  const topLevelRoles = roles.filter((role) => role.parent_role_id === '');
   assert.equal(topLevelRoles.length > 0, true, 'expected at least one top_level role');
 
   const groups = new Map();
@@ -919,7 +913,11 @@ test('schema companions stay aligned with the authored CSV headers', () => {
 
   const rolesSchema = readJson('schema/roles.schema.json');
   assert.deepEqual(new Set(rolesSchema.properties.balance_type.enum), BALANCE_TYPES);
-  assert.deepEqual(new Set(rolesSchema.properties.activation_class.enum), ACTIVATION_CLASSES);
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(rolesSchema.properties, 'activation_class'),
+    false,
+    'roles schema must not retain activation_class after deriving top-level from parent_role_id',
+  );
   assert.equal(
     Object.prototype.hasOwnProperty.call(rolesSchema.properties, 'role_kind'),
     false,

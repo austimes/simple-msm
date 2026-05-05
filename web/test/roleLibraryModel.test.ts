@@ -11,8 +11,8 @@ test('role library model keeps top-level roles separate from decomposition child
   assert.ok(model.topLevelRoles.some((role) => role.roleId === 'make_crude_steel'));
   assert.ok(!model.topLevelRoles.some((role) => role.roleId === 'make_direct_reduced_iron'));
   assert.equal(
-    model.roleById.get('make_direct_reduced_iron')?.activationClass,
-    'decomposition_child',
+    model.roleById.get('make_direct_reduced_iron')?.parentRoleId,
+    'make_crude_steel',
   );
 });
 

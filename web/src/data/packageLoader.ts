@@ -7,7 +7,6 @@ import {
   materializeResidualOverlayConfiguration,
 } from './configurationDocumentLoader.ts';
 import type {
-  ActivationClass,
   AppConfigRegistry,
   AutonomousEfficiencyTrack,
   BalanceType,
@@ -320,15 +319,6 @@ function parsePriceLevel(value: string): PriceLevel {
   throw new Error(`Unknown commodity price curve id "${value}"`);
 }
 
-function parseActivationClass(raw: string | undefined, label: string): ActivationClass {
-  const value = parseRequiredString(raw, label);
-  if (value === 'top_level' || value === 'decomposition_child') {
-    return value;
-  }
-
-  throw new Error(`Unknown activation_class for ${label}: ${JSON.stringify(value)}`);
-}
-
 function parseBalanceType(raw: string | undefined, label: string): BalanceType {
   const value = parseRequiredString(raw, label);
   if (
@@ -377,7 +367,7 @@ function outputRoleFromRole(role: RoleMetadata): OutputRole {
   if (role.balance_type === 'commodity_supply') {
     return 'endogenous_supply_commodity';
   }
-  if (role.balance_type === 'carbon_removal' || role.activation_class === 'decomposition_child') {
+  if (role.balance_type === 'carbon_removal' || role.parent_role_id !== null) {
     return 'optional_activity';
   }
   return 'required_service';
@@ -413,10 +403,6 @@ function toRoleMetadata(row: Record<string, string>): RoleMetadata {
     parent_role_id: parseEmptyNull(row['parent_role_id']),
     balance_type: parseBalanceType(row['balance_type'], `shared/roles.csv.${roleId}.balance_type`),
     output_unit: parseRequiredString(row['output_unit'], `shared/roles.csv.${roleId}.output_unit`),
-    activation_class: parseActivationClass(
-      row['activation_class'],
-      `shared/roles.csv.${roleId}.activation_class`,
-    ),
     notes: row['notes'] ?? '',
   };
 }
@@ -786,7 +772,8 @@ function buildRoleAppProjection(
     const defaultRepresentationKind = defaultRepresentationKindByRoleId.get(role.role_id);
     const isResidualAccountingRole = defaultRepresentationKind === 'residual_stub'
       || role.balance_type === 'accounting_obligation';
-    const candidates = role.activation_class === 'decomposition_child'
+    const isDecompositionChild = role.parent_role_id !== null;
+    const candidates = isDecompositionChild
       ? [role.role_id]
       : isResidualAccountingRole
         ? [
@@ -805,7 +792,7 @@ function buildRoleAppProjection(
           ];
     const knownAppOutputId = candidates.find((candidate) => candidate && knownOutputIds.has(candidate));
     const appOutputId = knownAppOutputId
-      ?? (role.activation_class === 'decomposition_child'
+      ?? (isDecompositionChild
         ? role.role_id
         : isResidualAccountingRole
           ? methodDerivedId
@@ -937,7 +924,6 @@ function buildRolePresentationMetadata(
       output_quantity_basis: role.description,
       default_method_id: projection?.defaultMethodId ?? '',
       balance_type: role.balance_type,
-      activation_class: role.activation_class,
       default_representation_kind: defaultRepresentationKind,
       reporting_allocations: allocationsByRoleId.get(role.role_id) ?? [],
       role_metric: roleMetric,
@@ -1004,7 +990,6 @@ function buildResolvedMethodYearRows(
       topology_area_id: role.topology_area_id,
       topology_area_label: role.topology_area_label,
       parent_role_id: role.parent_role_id,
-      activation_class: role.activation_class,
       reporting_allocations: allocationsByRoleId.get(row.role_id) ?? [],
       region: 'Australia',
       output_unit: role.output_unit,
@@ -1289,7 +1274,7 @@ function buildBaselineAnchors(
 
   for (const role of roles) {
     const outputRole = outputRoleFromRole(role);
-    if (outputRole === 'endogenous_supply_commodity' || role.activation_class === 'decomposition_child') {
+    if (outputRole === 'endogenous_supply_commodity' || role.parent_role_id !== null) {
       continue;
     }
 
@@ -1450,7 +1435,7 @@ function buildOutputRoles(
       display_group_order: 900,
       display_order: 900,
       participates_in_commodity_balance: role.balance_type === 'commodity_supply',
-      demand_required: role.activation_class !== 'decomposition_child'
+      demand_required: role.parent_role_id === null
         && (role.balance_type === 'service_demand' || role.balance_type === 'accounting_obligation'),
       default_control_mode: role.balance_type === 'commodity_supply' ? 'externalized' : 'optimize',
       allowed_control_modes: role.balance_type === 'commodity_supply'

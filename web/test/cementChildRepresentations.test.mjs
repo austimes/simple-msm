@@ -34,7 +34,6 @@ test('cement child roles have direct pathway bundles and method coverage', () =>
   for (const roleId of CHILD_ROLES) {
     const role = pkg.roleMetadata.find((row) => row.role_id === roleId);
     assert.equal(role?.parent_role_id, CEMENT_PARENT_ROLE);
-    assert.equal(role?.activation_class, 'decomposition_child');
 
     const representation = pkg.representations.find((row) => row.role_id === roleId);
     assert.equal(representation?.representation_kind, 'pathway_bundle');

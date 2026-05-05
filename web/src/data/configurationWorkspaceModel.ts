@@ -1,5 +1,4 @@
 import type {
-  ActivationClass,
   AppConfigRegistry,
   ConfigurationDocument,
   ConfigurationYearKey,
@@ -29,7 +28,6 @@ export interface RoleNodeCatalogEntry {
   roleLabel: string;
   parentRoleId: string | null;
   defaultRepresentationKind: RepresentationKind;
-  activationClass: ActivationClass;
   methods: RoleMethodCatalogEntry[];
   childRoles: RoleNodeCatalogEntry[];
 }
@@ -128,7 +126,6 @@ export function buildRoleCatalog(
       roleLabel: row.role_label,
       parentRoleId: row.parent_role_id,
       defaultRepresentationKind: row.representation_kind,
-      activationClass: row.activation_class,
       methods: Array.from(methodsByRole.get(roleId)?.values() ?? [])
         .sort(compareMethodCatalogEntries)
         .map(({ methodLabel, roleId, representationId, methodId, representationKind }) => ({
@@ -200,7 +197,6 @@ export function buildRoleAreaNavigationCatalog(
       roleLabel: row.role_label ?? outputId,
       parentRoleId: row.parent_role_id,
       defaultRepresentationKind: row.representation_kind,
-      activationClass: row.activation_class,
       subsector,
       coverageScopeLabel: row.role_label ?? outputId,
       states: [],
