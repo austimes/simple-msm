@@ -1,6 +1,6 @@
 {
   "package_name": "Energy system representation library",
-  "generated_on": "2026-04-29",
+  "generated_on": "2026-05-05",
   "milestone_years": [
     2025,
     2030,
@@ -184,6 +184,7 @@
     "schema/representation_incumbents.schema.json",
     "schema/role_decomposition_edges.schema.json",
     "schema/role_activity_drivers.schema.json",
+    "schema/role_metrics.schema.json",
     "schema/roles.schema.json",
     "shared/assumptions_ledger.csv",
     "shared/carbon_price_curves.csv",
@@ -196,6 +197,7 @@
     "shared/representation_incumbents.csv",
     "shared/role_decomposition_edges.csv",
     "shared/role_activity_drivers.csv",
+    "shared/role_metrics.csv",
     "shared/roles.csv",
     "shared/source_ledger.csv",
     "manifest.json",

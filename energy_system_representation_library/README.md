@@ -6,11 +6,12 @@ The package keeps role data, explanation, evidence hooks, and validation materia
 
 ## What Is Included
 
-- 57 authored roles in `roles/<role_id>/`
-- 97 distinct methods
-- 582 method-year rows across milestone years 2025, 2030, 2035, 2040, 2045, and 2050
+- 46 authored roles in `roles/<role_id>/`
+- 80 distinct methods
+- 480 method-year rows across milestone years 2025, 2030, 2035, 2040, 2045, and 2050
 - Shared role topology, physical node graph, activity drivers, role metrics, representation choices, representation incumbents, reporting allocations, ledgers, commodity taxonomy, growth curves, price curves, carbon price curves, schemas, validation diagnostics, and decomposition boundary designs
 - A crude-steel role-decomposition pilot that keeps the aggregate pathway bundle available while testing a granular H2 DRI process-chain branch
+- A cement-equivalent role-decomposition pilot that adds an optional clinker / kiln-heat / grind-and-blend branch alongside the aggregate cement pathway
 
 ## Public Ontology
 
@@ -19,6 +20,23 @@ The package keeps role data, explanation, evidence hooks, and validation materia
 A role is the system function being covered: produce, supply, deliver, remove, or account for something. `shared/roles.csv` is the role registry and topology surface. It defines each `role_id`, label, description, topology area, parent role, balance type, and output unit.
 
 Roles are the authoritative coverage ontology. Reporting labels such as sector and subsector are kept out of role topology and live only in `shared/reporting_allocations.csv`. A role is either a top-level coverage obligation (blank `parent_role_id`) or a child activated by a decomposition representation (non-blank `parent_role_id`). Residual placeholder semantics do not live on the role; they are expressed at the representation layer through `representation_kind = residual_stub`.
+
+### Top-Level Role Groups
+
+The 37 top-level coverage obligations group by `topology_area_id` as follows:
+
+- `buildings`: `serve_residential_building_occupants`, `serve_commercial_building_occupants`
+- `transport`: `move_passengers_by_road`, `move_freight_by_road`, `move_passengers_by_rail`, `move_freight_by_rail`, `move_passengers_by_air`, `move_freight_by_marine`
+- `materials_products`: `make_crude_steel`, `make_cement_equivalent`, `make_chemical_products`, `make_other_material_products`
+- `domestic_energy_carriers`: `supply_grid_electricity`, `supply_domestic_gas`, `supply_domestic_liquid_fuels`, `supply_domestic_solid_fuels`, `supply_domestic_bioenergy`, `supply_domestic_hydrogen`, `supply_domestic_derived_fuels`, `account_grid_losses_and_own_use`, `account_energy_system_fugitive_emissions`
+- `food_biomass`: `raise_livestock_output`, `grow_crops_and_horticulture_output`, `account_livestock_biogenic_emissions`, `account_soil_fertiliser_residue_emissions`
+- `water_waste`: `provide_water_and_wastewater_services`, `treat_and_dispose_solid_waste`
+- `removals_storage`: `remove_co2_through_land_sequestration`, `remove_co2_through_engineered_removals`, `account_land_carbon_stock_change`
+- `export_resources`: `supply_thermal_coal_to_export_gate`, `supply_metallurgical_coal_to_export_gate`, `supply_iron_ore_to_export_gate`
+- `remaining_domestic_activity`: `construct_buildings_and_infrastructure`, `operate_off_road_mobile_equipment`, `operate_remaining_domestic_activity`
+- `energy_supply`: `account_residual_mining_energy` (the only top-level role still keyed to the old `energy_supply` topology area; pending follow-up tracked under bd `simple-msm-21mk.8`)
+
+Acceptance test for top-level coverage obligations: every top-level role must remain a durable boundary obligation that would still be a first-class coverage obligation if all residual stubs were replaced by rich pathway or technology representations. As a guardrail, no top-level role's `role_id` may begin with `account_remaining_` or `account_residual_` — except `account_residual_mining_energy`, which is allowlisted while the supply-host schema work in `simple-msm-21mk.8` lands. This guardrail is enforced by `web/test/topLevelRoleObligations.test.mjs`. The wider top-level ontology rationalization is tracked under epic `simple-msm-21mk`.
 
 ### Role Topology
 
